@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../context/AuthContext';
+import { SocialMediaSection } from './SocialMediaSection'; // <-- Reuse here
 import styles from './AuthModal.module.css';
 
 export function EditProfileModal({ onSave }) {
-  const { showEditModal, setShowEditModal, userToEdit, setUserToEdit, setCurrentUser, currentUser } = useAuth();
+  const { showEditModal, setShowEditModal, userToEdit, currentUser, setCurrentUser } = useAuth();
   
   const [formData, setFormData] = useState({
     name: '',
@@ -50,8 +51,7 @@ export function EditProfileModal({ onSave }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     const updatedUser = { ...userToEdit, ...formData };
-    
-    if (userToEdit.id === currentUser.id) {
+    if (userToEdit.id === currentUser?.id) {
       setCurrentUser(updatedUser);
     }
     if (onSave) onSave(updatedUser);
@@ -75,99 +75,13 @@ export function EditProfileModal({ onSave }) {
             />
           </div>
 
-          <div>
-            <label className={styles.label}>Profile Picture URL</label>
-            <input
-              type="url"
-              className="form-input"
-              style={{ width: '100%' }}
-              placeholder="https://example.com/photo.jpg"
-              value={formData.profilePictureUrl}
-              onChange={(e) => setFormData({ ...formData, profilePictureUrl: e.target.value })}
-            />
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-            <div>
-              <label className={styles.label}>City</label>
-              <input
-                type="text"
-                className="form-input"
-                style={{ width: '100%' }}
-                value={formData.city}
-                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className={styles.label}>Country</label>
-              <input
-                type="text"
-                className="form-input"
-                style={{ width: '100%' }}
-                value={formData.country}
-                onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className={styles.label}>Shared Google Drive Folder Path (Full Access)</label>
-            <input
-              type="url"
-              className="form-input"
-              style={{ width: '100%' }}
-              placeholder="https://drive.google.com/drive/folders/..."
-              value={formData.driveFolderPath}
-              onChange={(e) => setFormData({ ...formData, driveFolderPath: e.target.value })}
-            />
-          </div>
-
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <label className={styles.label} style={{ margin: 0 }}>Social Media Accounts (Multiple Supported)</label>
-              <button
-                type="button"
-                className="btn-secondary"
-                style={{ padding: '4px 8px', fontSize: '12px' }}
-                onClick={addSocialHandle}
-              >
-                + Add Handle
-              </button>
-            </div>
-
-            {formData.socialMedia.map((sm, idx) => (
-              <div key={idx} style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                <select
-                  className="form-select"
-                  value={sm.platform}
-                  onChange={(e) => handleSocialChange(idx, 'platform', e.target.value)}
-                  style={{ width: '130px' }}
-                >
-                  <option value="YouTube">YouTube</option>
-                  <option value="Facebook">Facebook</option>
-                  <option value="Twitter X">Twitter X</option>
-                  <option value="Instagram">Instagram</option>
-                  <option value="LinkedIn">LinkedIn</option>
-                  <option value="Other">Other</option>
-                </select>
-                <input
-                  type="text"
-                  className="form-input"
-                  style={{ flex: 1 }}
-                  placeholder="Profile URL or @handle"
-                  value={sm.handleUrl}
-                  onChange={(e) => handleSocialChange(idx, 'handleUrl', e.target.value)}
-                />
-                <button
-                  type="button"
-                  style={{ background: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '6px', padding: '0 10px', cursor: 'pointer' }}
-                  onClick={() => removeSocialHandle(idx)}
-                >
-                  ✕
-                </button>
-              </div>
-            ))}
-          </div>
+          {/* Reusing the exact same SocialMediaSection component cleanly! */}
+          <SocialMediaSection
+            socialMedia={formData.socialMedia}
+            onChange={handleSocialChange}
+            onAdd={addSocialHandle}
+            onRemove={removeSocialHandle}
+          />
 
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '12px' }}>
             <button type="button" className="btn-secondary" onClick={() => setShowEditModal(false)}>Cancel</button>

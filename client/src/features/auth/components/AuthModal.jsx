@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import { Country, State } from 'country-state-city';
 import { LocationSelector } from './LocationSelector';
@@ -24,6 +24,10 @@ export function AuthModal() {
   const [profilePictureUrl, setProfilePictureUrl] = useState('');
   const [socialMedia, setSocialMedia] = useState([{ platform: 'LinkedIn', handleUrl: '' }]);
 
+  // Camera / Photo States
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const videoRef = useRef(null);
+
   useEffect(() => {
     if (showAuthModal && user) {
       setIsLoginMode(false);
@@ -42,6 +46,40 @@ export function AuthModal() {
       setIsLoginMode(true);
     }
   }, [user, showAuthModal]);
+
+  // Camera helpers
+  const startCamera = async () => {
+    setIsCameraOpen(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.error('Error accessing camera:', err);
+    }
+  };
+
+  const captureSnap = () => {
+    if (videoRef.current) {
+      const canvas = document.createElement('canvas');
+      canvas.width = videoRef.current.videoWidth || 320;
+      canvas.height = videoRef.current.videoHeight || 240;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg');
+      setProfilePictureUrl(dataUrl);
+      stopCamera();
+    }
+  };
+
+  const stopCamera = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const tracks = videoRef.current.srcObject.getTracks();
+      tracks.forEach((track) => track.stop());
+    }
+    setIsCameraOpen(false);
+  };
 
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
@@ -63,7 +101,7 @@ export function AuthModal() {
     e.preventDefault();
     const countryObj = Country.getCountryByCode(selectedCountryCode);
     const stateObj = State.getStateByCodeAndCountry(selectedStateCode, selectedCountryCode);
-    const targetId = user?._id || user?.id || email;
+    const targetId = user?._id || user?.id;
 
     const payload = {
       _id: user?._id,
@@ -85,8 +123,12 @@ export function AuthModal() {
     };
 
     try {
-      const response = await fetch(`/api/users/${targetId}`, {
-        method: 'PUT',
+      // If targetId exists, update user via PUT, otherwise create via POST
+      const url = targetId ? `/api/users/${targetId}` : `/api/users`;
+      const method = targetId ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
@@ -125,7 +167,7 @@ export function AuthModal() {
       <div className={styles.modalContent}>
         <div className={styles.modalHeader}>
           <h3>{isLoginMode ? 'Sign In' : (user ? 'Edit Profile' : 'Register')}</h3>
-          <button className={styles.closeBtn} onClick={() => setShowAuthModal(false)}>✕</button>
+          <button className={styles.closeBtn} onClick={() => { stopCamera(); setShowAuthModal(false); }}>✕</button>
         </div>
 
         {!user && (
@@ -185,6 +227,56 @@ export function AuthModal() {
           </form>
         ) : (
           <form onSubmit={handleRegisterSubmit} className={styles.formContainer}>
+            {/* Profile Picture Section */}
+            <div className={styles.formGroup}>
+              <label>Profile Picture</label>
+              <div className={styles.avatarSection}>
+                <div className={styles.avatarPreviewContainer}>
+                  {profilePictureUrl ? (
+                    <img src={profilePictureUrl} alt="Avatar Preview" className={styles.avatarImg} />
+                  ) : (
+                    <div className={styles.avatarPlaceholder}>👤</div>
+                  )}
+                </div>
+                <div className={styles.avatarButtons}>
+                  <label className={styles.btnUploadDevice}>
+                    📁 Upload File
+                    <input
+                      type="file"
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onloadend = () => setProfilePictureUrl(reader.result);
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </label>
+                  {!isCameraOpen ? (
+                    <button type="button" className={styles.btnCamera} onClick={startCamera}>
+                      📷 Use Camera
+                    </button>
+                  ) : (
+                    <button type="button" className={styles.btnSnap} onClick={captureSnap}>
+                      📸 Capture Snap
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {isCameraOpen && (
+                <div className={styles.cameraBox}>
+                  <video ref={videoRef} autoPlay playsInline className={styles.videoStream} />
+                  <button type="button" className={styles.btnCloseCamera} onClick={stopCamera}>
+                    Close Camera
+                  </button>
+                </div>
+              )}
+            </div>
+
             <div className={styles.formGroup}>
               <label>Full Name</label>
               <input
@@ -263,7 +355,7 @@ export function AuthModal() {
             />
 
             <div className={styles.modalActions}>
-              <button type="button" className={styles.btnCancel} onClick={() => setShowAuthModal(false)}>Cancel</button>
+              <button type="button" className={styles.btnCancel} onClick={() => { stopCamera(); setShowAuthModal(false); }}>Cancel</button>
               <button type="submit" className={styles.btnSave}>Save Profile</button>
             </div>
           </form>
