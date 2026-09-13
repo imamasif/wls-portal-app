@@ -14,11 +14,19 @@ const UserSchema = new mongoose.Schema({
     enum: ['SUPER_ADMIN', 'WLS_ADMIN', 'MARKING_ADMIN', 'STUDENT'], 
     default: 'STUDENT' 
   },
-  city: { type: String },
-  country: { type: String },
-  profilePictureUrl: { type: String },
-  socialMedia: [SocialMediaSchema],
-  assignedGroupId: { type: mongoose.Schema.Types.ObjectId, ref: 'Group' }
-}, { timestamps: true });
+  profession: { type: String },
+    education: { type: String },
+    country: { type: String },
+    countryCode: { type: String },
+    state: { type: String },
+    stateCode: { type: String },
+    city: { type: String },
+    drive: { type: String },
+    causeContribution: { type: String },
+    profilePictureUrl: { type: String },
+    socialMedia: [SocialMediaSchema]
+  },
+  { timestamps: true }
+);
 
 export const UserModel = mongoose.model('User', UserSchema);

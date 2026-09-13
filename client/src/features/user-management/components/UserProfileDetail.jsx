@@ -1,6 +1,36 @@
 import React from 'react';
 import { useAuth } from '../../../context/AuthContext';
+import { 
+  Linkedin, 
+  Youtube, 
+  Facebook, 
+  Twitter, 
+  Github, 
+  Link as GenericLink 
+} from 'lucide-react';
 import styles from './UserProfileDetail.module.css';
+
+// Helper component to render brand-specific icons
+const SocialIcon = ({ platform }) => {
+  const normalized = (platform || '').toLowerCase().trim();
+
+  switch (normalized) {
+    case 'linkedin':
+      return <Linkedin size={16} className={styles.linkedinIcon} />;
+    case 'youtube':
+      return <Youtube size={16} className={styles.youtubeIcon} />;
+    case 'facebook':
+      return <Facebook size={16} className={styles.facebookIcon} />;
+    case 'twitter':
+    case 'twitter/x':
+    case 'x':
+      return <Twitter size={16} className={styles.twitterIcon} />;
+    case 'github':
+      return <Github size={16} className={styles.githubIcon} />;
+    default:
+      return <GenericLink size={16} className={styles.defaultIcon} />;
+  }
+};
 
 export function UserProfileDetail() {
   const { user, setShowAuthModal } = useAuth();
@@ -94,17 +124,28 @@ export function UserProfileDetail() {
         <div className={styles.socialSection}>
           <span className={styles.fieldLabel}>Social Profiles</span>
           <div className={styles.socialList}>
-            {user.socialMedia.map((sm, i) => (
-              <a
-                key={i}
-                href={sm.handleUrl.startsWith('http') ? sm.handleUrl : `https://${sm.handleUrl}`}
-                target="_blank"
-                rel="noreferrer"
-                className={styles.socialBadge}
-              >
-                🔗 {sm.platform}: {sm.handleUrl}
-              </a>
-            ))}
+            {user.socialMedia.map((sm, i) => {
+              if (!sm.handleUrl) return null;
+
+              const href = sm.handleUrl.startsWith('http') 
+                ? sm.handleUrl 
+                : `https://${sm.handleUrl}`;
+
+              return (
+                <a
+                  key={i}
+                  href={href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={styles.socialBadge}
+                >
+                  <SocialIcon platform={sm.platform} />
+                  <span>
+                    <strong>{sm.platform}:</strong> {sm.handleUrl}
+                  </span>
+                </a>
+              );
+            })}
           </div>
         </div>
       )}

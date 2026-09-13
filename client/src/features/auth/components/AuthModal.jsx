@@ -220,36 +220,62 @@ export function AuthModal() {
     setShowAuthModal(false);
   };
 
-  const handleRegisterSubmit = (e) => {
-    e.preventDefault();
+  const handleRegisterSubmit = async (e) => {
+  e.preventDefault();
 
-    const countryObj = Country.getCountryByCode(selectedCountryCode);
-    const stateObj = State.getStateByCodeAndCountry(selectedStateCode, selectedCountryCode);
+  const countryObj = Country.getCountryByCode(selectedCountryCode);
+  const stateObj = State.getStateByCodeAndCountry(selectedStateCode, selectedCountryCode);
 
-    const userData = {
-      ...user,
-      id: user?.id || user?._id || Date.now().toString(),
-      name: name || email.split('@')[0],
-      email,
-      role: user?.role || 'SUPER_ADMIN',
-      profession,
-      education,
-      country: countryObj ? countryObj.name : selectedCountryCode,
-      countryCode: selectedCountryCode,
-      state: stateObj ? stateObj.name : selectedStateCode,
-      stateCode: selectedStateCode,
-      city: selectedCity,
-      drive,
-      driveFolderPath: drive,
-      causeContribution,
-      profilePictureUrl: profilePictureUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(name || email || 'User')}&background=0284c7&color=fff`,
-      socialMedia: socialMedia.filter((s) => s.handleUrl.trim() !== '')
-    };
+  // Use valid MongoDB _id string directly from authenticated user context
+  const targetId = user?._id || user?.id;
 
-    saveUserData(userData);
-    resetFormFields();
-    setShowAuthModal(false);
+  if (!targetId) {
+    console.error('No valid User Mongo ID found.');
+    return;
+  }
+
+  const payload = {
+    id: targetId,
+    name: name || email.split('@')[0],
+    email,
+    role: user?.role || 'SUPER_ADMIN', // Retain user role (e.g. SUPER_ADMIN)
+    profession,
+    education,
+    country: countryObj ? countryObj.name : selectedCountryCode,
+    countryCode: selectedCountryCode,
+    state: stateObj ? stateObj.name : selectedStateCode,
+    stateCode: selectedStateCode,
+    city: selectedCity,
+    driveFolderPath: drive,
+    causeContribution,
+    profilePictureUrl,
+    socialMedia: socialMedia.filter((s) => s.handleUrl && s.handleUrl.trim() !== '')
   };
+
+  try {
+    const response = await fetch(`/api/users/${targetId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (response.ok) {
+      const updatedUserRecord = await response.json();
+      
+      // Update Context with updated database object
+      saveUserData(updatedUserRecord);
+      resetFormFields();
+      setShowAuthModal(false);
+    } else {
+      const errRes = await response.json();
+      console.error('Failed to update user profile:', errRes);
+    }
+  } catch (err) {
+    console.error('API Error updating user profile:', err);
+  }
+};
 
   const countries = Country.getAllCountries();
   const states = State.getStatesOfCountry(selectedCountryCode);

@@ -1,57 +1,75 @@
 import express from 'express';
-import { UserUseCase } from './domain/user.usecase.js';
-import { UserMapper } from './domain/user.mapper.js';
-import { validateSchema } from '../../common/middleware/validateSchema.js';
-import { CreateUserSchema, UpdateUserSchema } from './dto/user.schema.js';
+import mongoose from 'mongoose';
+import { userUseCase, UserMapper } from './index.js';
 
 const router = express.Router();
 
-router.post('/', validateSchema(CreateUserSchema), async (req, res) => {
-  try {
-    const dto = UserMapper.toCreateReqDTO(req.body);
-    const created = await UserUseCase.createUser(dto);
-    res.status(201).json(UserMapper.toResDTO(created));
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
+// GET /api/users
 router.get('/', async (req, res) => {
   try {
-    const users = await UserUseCase.getAllUsers();
-    res.json(UserMapper.toResDTOList(users));
+    const users = await userUseCase.getAllUsers();
+    res.json(UserMapper.toResDTOList ? UserMapper.toResDTOList(users) : users);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-router.get('/:id', async (req, res) => {
+// PUT /api/users/:id - Update User Profile & Social Media Links
+// src/features/users/user.controller.js
+router.put('/:id', async (req, res) => {
   try {
-    const user = await UserUseCase.getUserById(req.params.id);
-    if (!user) return res.status(404).json({ message: 'User not found' });
-    res.json(UserMapper.toResDTO(user));
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+    const userId = req.params.id;
 
-router.put('/:id', validateSchema(UpdateUserSchema), async (req, res) => {
-  try {
-    const dto = UserMapper.toUpdateReqDTO(req.body);
-    const updated = await UserUseCase.updateUser(req.params.id, dto);
-    if (!updated) return res.status(404).json({ message: 'User not found' });
-    res.json(UserMapper.toResDTO(updated));
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ error: `Invalid MongoDB ObjectId: ${userId}` });
+    }
 
-router.delete('/:id', async (req, res) => {
-  try {
-    const deleted = await UserUseCase.deleteUser(req.params.id);
-    if (!deleted) return res.status(404).json({ message: 'User not found' });
-    res.json({ message: 'User deleted successfully' });
+    const existingUser = await userUseCase.getUserById(userId);
+    if (!existingUser) {
+      return res.status(404).json({ message: 'User not found in database' });
+    }
+
+    const {
+      name,
+      email,
+      password, // Optional in payload
+      role,
+      profession,
+      education,
+      country,
+      countryCode,
+      state,
+      stateCode,
+      city,
+      driveFolderPath,
+      drive,
+      causeContribution,
+      profilePictureUrl,
+      socialMedia
+    } = req.body;
+
+    const updatePayload = {
+      name: name || existingUser.name,
+      email: email || existingUser.email,
+      password: password || existingUser.password, // Preserve existing password if not provided
+      role: role || existingUser.role,
+      profession,
+      education,
+      country,
+      countryCode,
+      state,
+      stateCode,
+      city,
+      drive: driveFolderPath || drive,
+      causeContribution,
+      profilePictureUrl,
+      socialMedia: socialMedia || existingUser.socialMedia
+    };
+
+    const updatedUser = await userUseCase.updateUser(userId, updatePayload);
+    res.status(200).json(updatedUser);
   } catch (err) {
+    console.error('Error updating user profile:', err);
     res.status(500).json({ error: err.message });
   }
 });
