@@ -4,20 +4,21 @@ import { MainLayout } from './components/layout/MainLayout';
 import { AuthModal } from './features/auth/components/AuthModal';
 import { UserProfileDetail } from './features/user-management/components/UserProfileDetail';
 import { UserGridView } from './features/user-management/components/UserGridView';
+import { isSuperUserRole } from './types/user';
 
 export default function App() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
 
+  const isSuperUser = isSuperUserRole(user?.role);
+
   return (
     <MainLayout activeTab={activeTab} setActiveTab={setActiveTab}>
       <AuthModal />
 
-      {activeTab === 'users' && user?.role === 'SUPER_USER' ? (
-        /* SUPER USER: User Management Grid View */
+      {activeTab === 'users' && isSuperUser ? (
         <UserGridView />
       ) : (
-        /* DASHBOARD VIEW: User Profile Card & Weekly Sessions */
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           {user && <UserProfileDetail />}
 

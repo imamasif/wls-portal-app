@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import { 
   Linkedin, 
@@ -8,6 +8,7 @@ import {
   Github, 
   Link as GenericLink 
 } from 'lucide-react';
+import { EditProfileCard } from './EditProfileCard';
 import styles from './UserProfileDetail.module.css';
 
 // Helper component to render brand-specific icons
@@ -33,17 +34,35 @@ const SocialIcon = ({ platform }) => {
   return <GenericLink size={16} className={styles.defaultIcon} />;
 };
 
-export function UserProfileDetail() {
-  const { user, setShowAuthModal } = useAuth();
+export function UserProfileDetail({ overrideUser, onUserUpdated }) {
+  const { user: authUser } = useAuth();
+  const [isEditing, setIsEditing] = useState(false);
+  
+  // Use overrideUser if passed from the grid view, otherwise fallback to logged-in user
+  const user = overrideUser || authUser;
 
   if (!user) return null;
+
+  // Toggle directly into the inline metallic EditProfileCard
+  if (isEditing) {
+    return (
+      <EditProfileCard
+        targetUser={user}
+        onCancel={() => setIsEditing(false)}
+        onSaveSuccess={(updatedData) => {
+          setIsEditing(false);
+          if (onUserUpdated) onUserUpdated(updatedData);
+        }}
+      />
+    );
+  }
 
   // Flexible check for Drive Link
   const driveUrl = user.driveFolderPath || user.drive;
 
   const displayRole = user.profession 
     ? user.profession 
-    : user.role === 'SUPER_USER' 
+    : user.role === 'SUPER_USER' || user.role === 'SUPER_ADMIN'
       ? 'Super User' 
       : 'User';
 
@@ -75,7 +94,7 @@ export function UserProfileDetail() {
 
         <button
           className={styles.btnEditProfile}
-          onClick={() => setShowAuthModal(true)}
+          onClick={() => setIsEditing(true)}
         >
           ✏️ Edit Profile
         </button>

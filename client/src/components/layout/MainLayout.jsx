@@ -1,13 +1,15 @@
 import React from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { isSuperUserRole } from '../../types/user';
 
 export function MainLayout({ children, activeTab, setActiveTab }) {
   const { user, setShowAuthModal, logout } = useAuth();
 
-const isSuperUser = user?.role === 'SUPER_ADMIN' || user?.role === 'SUPER_USER' || user?.role === 'WLS_ADMIN';
+  // Clean, type-safe helper check
+  const isSuperUser = isSuperUserRole(user?.role);
 
   return (
-    <div className="app-container">
+    <div className="app-container" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       {/* HEADER */}
       <header className="app-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', background: '#fff', borderBottom: '1px solid #e2e8f0' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -64,16 +66,21 @@ const isSuperUser = user?.role === 'SUPER_ADMIN' || user?.role === 'SUPER_USER' 
               style={{ padding: '12px 16px', border: 'none', background: 'none', borderBottom: activeTab === 'users' ? '2px solid #0284c7' : '2px solid transparent', color: activeTab === 'users' ? '#0284c7' : '#64748b', fontWeight: '600', cursor: 'pointer' }}
               onClick={() => setActiveTab('users')}
             >
-              User Management Grid
+              User Management
             </button>
           )}
         </div>
       )}
 
       {/* MAIN BODY */}
-      <main style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+      <main style={{ padding: '24px', maxWidth: '1200px', width: '100%', margin: '0 auto', flex: 1, boxSizing: 'border-box' }}>
         {children}
       </main>
+
+      {/* PERMANENT FOOTER */}
+      <footer style={{ background: '#ffffff', borderTop: '1px solid #e2e8f0', padding: '16px 24px', textAlign: 'center', color: '#64748b', fontSize: '13px', marginTop: 'auto' }}>
+        &copy; {new Date().getFullYear()} IIPC Learning Portal. All rights reserved.
+      </footer>
     </div>
   );
 }

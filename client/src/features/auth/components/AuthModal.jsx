@@ -47,7 +47,44 @@ export function AuthModal() {
     }
   }, [user, showAuthModal]);
 
-  // Camera helpers
+  // Image compressor helper to prevent 413 Payload Too Large errors
+  const compressImage = (fileOrImageElement, maxWidth = 200, maxHeight = 200, quality = 0.7) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      if (fileOrImageElement instanceof File) {
+        reader.readAsDataURL(fileOrImageElement);
+        reader.onload = (event) => {
+          const img = new Image();
+          img.src = event.target.result;
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+              if (width > maxWidth) {
+                height *= maxWidth / width;
+                width = maxWidth;
+              }
+            } else {
+              if (height > maxHeight) {
+                width *= maxHeight / height;
+                height = maxHeight;
+              }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', quality));
+          };
+        };
+      }
+    });
+  };
+
+  // Camera helpers with compression
   const startCamera = async () => {
     setIsCameraOpen(true);
     try {
@@ -63,11 +100,11 @@ export function AuthModal() {
   const captureSnap = () => {
     if (videoRef.current) {
       const canvas = document.createElement('canvas');
-      canvas.width = videoRef.current.videoWidth || 320;
-      canvas.height = videoRef.current.videoHeight || 240;
+      canvas.width = 200;
+      canvas.height = (videoRef.current.videoHeight / videoRef.current.videoWidth) * 200 || 200;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-      const dataUrl = canvas.toDataURL('image/jpeg');
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
       setProfilePictureUrl(dataUrl);
       stopCamera();
     }
@@ -123,7 +160,6 @@ export function AuthModal() {
     };
 
     try {
-      // If targetId exists, update user via PUT, otherwise create via POST
       const url = targetId ? `/api/users/${targetId}` : `/api/users`;
       const method = targetId ? 'PUT' : 'POST';
 
@@ -245,12 +281,11 @@ export function AuthModal() {
                       type="file"
                       accept="image/*"
                       style={{ display: 'none' }}
-                      onChange={(e) => {
+                      onChange={async (e) => {
                         const file = e.target.files[0];
                         if (file) {
-                          const reader = new FileReader();
-                          reader.onloadend = () => setProfilePictureUrl(reader.result);
-                          reader.readAsDataURL(file);
+                          const compressedDataUrl = await compressImage(file);
+                          setProfilePictureUrl(compressedDataUrl);
                         }
                       }}
                     />
