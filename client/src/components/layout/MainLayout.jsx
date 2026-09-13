@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 export function MainLayout({ children, activeTab, setActiveTab }) {
   const { user, setShowAuthModal, logout } = useAuth();
 
-  const isSuperUser = user?.role === 'SUPER_USER';
+const isSuperUser = user?.role === 'SUPER_ADMIN' || user?.role === 'SUPER_USER' || user?.role === 'WLS_ADMIN';
 
   return (
     <div className="app-container">
