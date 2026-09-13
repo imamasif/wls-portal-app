@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import { Country, State, City } from 'country-state-city';
 import { 
@@ -9,11 +9,6 @@ import {
   Lock, 
   X, 
   User, 
-  Globe, 
-  Briefcase, 
-  GraduationCap, 
-  Folder, 
-  Heart,
   CheckCircle2
 } from 'lucide-react';
 import styles from './AuthModal.module.css';
@@ -50,32 +45,71 @@ export function AuthModal() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const videoRef = useRef(null);
 
-  useEffect(() => {
-    if (user && showAuthModal) {
-      setName(user.name || '');
-      setEmail(user.email || '');
-      setProfession(user.profession || '');
-      setEducation(user.education || "Bachelor's Degree");
-      setSelectedCountryCode(user.countryCode || 'CA');
-      setSelectedStateCode(user.stateCode || 'ON');
-      setSelectedCity(user.city || '');
-      setDrive(user.drive || user.driveFolderPath || '');
-      setCauseContribution(user.causeContribution || '');
-      setProfilePictureUrl(user.profilePictureUrl || '');
-      setSocialMedia(
-        user.socialMedia && user.socialMedia.length > 0
-          ? user.socialMedia
-          : [{ platform: 'LinkedIn', handleUrl: '' }]
-      );
+  // Declare stopCamera FIRST to avoid Temporal Dead Zone errors
+  const stopCamera = useCallback(() => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject;
+      stream.getTracks().forEach((track) => track.stop());
+      videoRef.current.srcObject = null;
     }
-  }, [user, showAuthModal]);
+    setIsCameraActive(false);
+  }, []);
+
+  // Helper function to clear all registration & profile fields completely
+  const resetFormFields = useCallback(() => {
+    setLoginEmail('');
+    setLoginPassword('');
+    setName('');
+    setEmail('');
+    setPassword('');
+    setProfession('');
+    setEducation('');
+    setProfilePictureUrl('');
+    setSelectedCountryCode('CA');
+    setSelectedStateCode('ON');
+    setSelectedCity('');
+    setDrive('');
+    setCauseContribution('');
+    setSocialMedia([{ platform: 'LinkedIn', handleUrl: '' }]);
+    stopCamera();
+  }, [stopCamera]);
+
+  // Run on Modal open/close or user state change
+  useEffect(() => {
+    if (showAuthModal) {
+      if (user) {
+        // Populate fields if Editing Profile
+        setName(user.name || '');
+        setEmail(user.email || '');
+        setProfession(user.profession || '');
+        setEducation(user.education || '');
+        setSelectedCountryCode(user.countryCode || 'CA');
+        setSelectedStateCode(user.stateCode || 'ON');
+        setSelectedCity(user.city || '');
+        setDrive(user.drive || user.driveFolderPath || '');
+        setCauseContribution(user.causeContribution || '');
+        setProfilePictureUrl(user.profilePictureUrl || '');
+        setSocialMedia(
+          user.socialMedia && user.socialMedia.length > 0
+            ? user.socialMedia
+            : [{ platform: 'LinkedIn', handleUrl: '' }]
+        );
+      } else {
+        // Reset everything cleanly for new Sign In / Registration
+        resetFormFields();
+      }
+    } else {
+      // Clear states when modal closes
+      resetFormFields();
+    }
+  }, [user, showAuthModal, resetFormFields]);
 
   // Turn off camera stream when modal closes
   useEffect(() => {
     if (!showAuthModal && isCameraActive) {
       stopCamera();
     }
-  }, [showAuthModal, isCameraActive]);
+  }, [showAuthModal, isCameraActive, stopCamera]);
 
   if (!showAuthModal) return null;
 
@@ -110,12 +144,11 @@ export function AuthModal() {
         const driveUrl = `https://lh3.googleusercontent.com/d/${data.id}=s400`;
         setProfilePictureUrl(driveUrl);
       } else {
-        // Local preview fallback if Drive API fails without token
         const localPreview = URL.createObjectURL(fileBlob);
         setProfilePictureUrl(localPreview);
       }
     } catch (err) {
-      console.warn('Google Drive direct upload skipped, utilizing local preview fallback.');
+      console.warn('Google Drive API skipped, using local preview fallback.');
       const localPreview = URL.createObjectURL(fileBlob);
       setProfilePictureUrl(localPreview);
     } finally {
@@ -143,14 +176,6 @@ export function AuthModal() {
       alert('Unable to access device camera.');
       setIsCameraActive(false);
     }
-  };
-
-  const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject;
-      stream.getTracks().forEach((track) => track.stop());
-    }
-    setIsCameraActive(false);
   };
 
   const capturePhoto = () => {
@@ -191,6 +216,7 @@ export function AuthModal() {
       name: loginEmail.split('@')[0],
       role: 'SUPER_ADMIN'
     });
+    resetFormFields();
     setShowAuthModal(false);
   };
 
@@ -203,7 +229,7 @@ export function AuthModal() {
     const userData = {
       ...user,
       id: user?.id || user?._id || Date.now().toString(),
-      name: name || 'Syed Imam',
+      name: name || email.split('@')[0],
       email,
       role: user?.role || 'SUPER_ADMIN',
       profession,
@@ -216,11 +242,12 @@ export function AuthModal() {
       drive,
       driveFolderPath: drive,
       causeContribution,
-      profilePictureUrl: profilePictureUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'User')}&background=0284c7&color=fff`,
+      profilePictureUrl: profilePictureUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(name || email || 'User')}&background=0284c7&color=fff`,
       socialMedia: socialMedia.filter((s) => s.handleUrl.trim() !== '')
     };
 
     saveUserData(userData);
+    resetFormFields();
     setShowAuthModal(false);
   };
 
@@ -245,14 +272,20 @@ export function AuthModal() {
             <button
               type="button"
               className={activeTab === 'login' ? styles.activeTab : styles.tab}
-              onClick={() => setActiveTab('login')}
+              onClick={() => {
+                resetFormFields();
+                setActiveTab('login');
+              }}
             >
               Sign In
             </button>
             <button
               type="button"
               className={activeTab === 'register' ? styles.activeTab : styles.tab}
-              onClick={() => setActiveTab('register')}
+              onClick={() => {
+                resetFormFields();
+                setActiveTab('register');
+              }}
             >
               Register
             </button>
@@ -351,6 +384,7 @@ export function AuthModal() {
               <label>Full Name</label>
               <input
                 type="text"
+                placeholder="e.g. John Doe"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
@@ -361,6 +395,7 @@ export function AuthModal() {
               <label>Email Address</label>
               <input
                 type="email"
+                placeholder="email@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -466,7 +501,7 @@ export function AuthModal() {
               />
             </div>
 
-            {/* SOCIAL MEDIA SECTION WITH GREEN ADD BUTTON ABOVE TEXT INPUTS */}
+            {/* SOCIAL MEDIA SECTION */}
             <div className={styles.formGroup}>
               <div className={styles.socialHeaderRow}>
                 <label>Social Media Handles</label>
@@ -509,6 +544,7 @@ export function AuthModal() {
               <textarea
                 value={causeContribution}
                 rows={3}
+                placeholder="Share how you can contribute..."
                 onChange={(e) => setCauseContribution(e.target.value)}
               />
             </div>
