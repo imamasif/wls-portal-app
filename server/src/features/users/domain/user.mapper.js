@@ -16,6 +16,7 @@ export class UserMapper {
   }
 
   static toResDTOList(domainEntities) {
+    if (!Array.isArray(domainEntities)) return [];
     return domainEntities.map(entity => this.toResDTO(entity));
   }
 }

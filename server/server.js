@@ -3,6 +3,7 @@ import cors from 'cors';
 import { connectDB } from './src/common/database/db.js';
 import userController from './src/features/users/user.controller.js';
 import sessionController from './src/features/sessions/session.controller.js';
+import assessmentController from './src/features/assessments/assessment.controller.js';
 
 // Explicitly import models for the seed endpoint
 import { UserModel } from './src/features/users/index.js';
@@ -17,6 +18,8 @@ connectDB();
 
 app.use('/api/users', userController);
 app.use('/api/sessions', sessionController);
+// Mount Route alongside users and sessions
+app.use('/api/assessments', assessmentController);
 
 // Seed Route
 app.post('/api/seed', async (req, res) => {

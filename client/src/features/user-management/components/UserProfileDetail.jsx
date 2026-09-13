@@ -12,30 +12,34 @@ import styles from './UserProfileDetail.module.css';
 
 // Helper component to render brand-specific icons
 const SocialIcon = ({ platform }) => {
-  const normalized = (platform || '').toLowerCase().trim();
+  const normalized = (platform || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
-  switch (normalized) {
-    case 'linkedin':
-      return <Linkedin size={16} className={styles.linkedinIcon} />;
-    case 'youtube':
-      return <Youtube size={16} className={styles.youtubeIcon} />;
-    case 'facebook':
-      return <Facebook size={16} className={styles.facebookIcon} />;
-    case 'twitter':
-    case 'twitter/x':
-    case 'x':
-      return <Twitter size={16} className={styles.twitterIcon} />;
-    case 'github':
-      return <Github size={16} className={styles.githubIcon} />;
-    default:
-      return <GenericLink size={16} className={styles.defaultIcon} />;
+  if (normalized.includes('linkedin')) {
+    return <Linkedin size={16} className={styles.linkedinIcon} />;
   }
+  if (normalized.includes('youtube')) {
+    return <Youtube size={16} className={styles.youtubeIcon} />;
+  }
+  if (normalized.includes('facebook')) {
+    return <Facebook size={16} className={styles.facebookIcon} />;
+  }
+  if (normalized.includes('twitter') || normalized.includes('x')) {
+    return <Twitter size={16} className={styles.twitterIcon} />;
+  }
+  if (normalized.includes('github')) {
+    return <Github size={16} className={styles.githubIcon} />;
+  }
+
+  return <GenericLink size={16} className={styles.defaultIcon} />;
 };
 
 export function UserProfileDetail() {
   const { user, setShowAuthModal } = useAuth();
 
   if (!user) return null;
+
+  // Flexible check for Drive Link
+  const driveUrl = user.driveFolderPath || user.drive;
 
   const displayRole = user.profession 
     ? user.profession 
@@ -62,7 +66,7 @@ export function UserProfileDetail() {
         )}
 
         <div className={styles.headerInfo}>
-          <h2 className={styles.userName}>{user.name}</h2>
+          <h2 className={styles.userName}>{user.name || user.email?.split('@')[0]}</h2>
           <div className={styles.userRole}>{displayRole}</div>
           <div className={styles.locationBadge}>
             📍 {user.city ? `${user.city}, ` : ''}{user.state ? `${user.state}, ` : ''}{user.country || 'Canada'}
@@ -86,7 +90,7 @@ export function UserProfileDetail() {
 
         <div className={styles.gridItem}>
           <span className={styles.fieldLabel}>Highest Education</span>
-          <p className={styles.fieldValue}>{user.education || "Bachelor's Degree"}</p>
+          <p className={styles.fieldValue}>{user.education || 'Not provided'}</p>
         </div>
 
         <div className={styles.gridItem}>
@@ -96,9 +100,9 @@ export function UserProfileDetail() {
 
         <div className={styles.gridItem}>
           <span className={styles.fieldLabel}>Drive Shared Folder</span>
-          {user.driveFolderPath ? (
+          {driveUrl ? (
             <a
-              href={user.driveFolderPath}
+              href={driveUrl.startsWith('http') ? driveUrl : `https://${driveUrl}`}
               target="_blank"
               rel="noreferrer"
               className={styles.driveLink}
@@ -119,7 +123,7 @@ export function UserProfileDetail() {
         </div>
       )}
 
-      {/* Social Handles Section */}
+      {/* Social Handles Section with Lucide Icons */}
       {user.socialMedia && user.socialMedia.length > 0 && (
         <div className={styles.socialSection}>
           <span className={styles.fieldLabel}>Social Profiles</span>
@@ -141,7 +145,7 @@ export function UserProfileDetail() {
                 >
                   <SocialIcon platform={sm.platform} />
                   <span>
-                    <strong>{sm.platform}:</strong> {sm.handleUrl}
+                    <strong>{sm.platform || 'Link'}:</strong> {sm.handleUrl}
                   </span>
                 </a>
               );
