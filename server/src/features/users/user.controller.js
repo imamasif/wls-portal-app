@@ -1,12 +1,11 @@
 import express from 'express';
 import mongoose from 'mongoose';
-import { google } from 'googleapis';
-import stream from 'stream';
+import bcrypt from 'bcrypt';
 import { userUseCase, UserMapper, UserModel } from './index.js';
 
 const router = express.Router();
 
-// GET /api/users
+// GET /api/users - Fetch All Users
 router.get('/', async (req, res) => {
   try {
     const users = await userUseCase.getAllUsers();
@@ -16,24 +15,92 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/users/login - Authenticate or Sync User
-router.post('/login', async (req, res) => {
+// POST /api/users - Register New Account
+router.post('/', async (req, res) => {
   try {
-    const { email, password } = req.body;
-    if (!email) {
-      return res.status(400).json({ error: 'Email is required.' });
+    const { 
+      email, 
+      password, 
+      name, 
+      phones, 
+      profession, 
+      education, 
+      country, 
+      countryCode, 
+      state, 
+      stateCode, 
+      city, 
+      drive, 
+      driveFolderPath, 
+      causeContribution, 
+      profilePictureUrl, 
+      socialMedia 
+    } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required for registration.' });
     }
 
     const cleanEmail = email.toLowerCase().trim();
-    let user = await UserModel.findOne({ email: cleanEmail });
+    const existingUser = await UserModel.findOne({ email: cleanEmail });
+    if (existingUser) {
+      return res.status(400).json({ error: 'An account with this email already exists.' });
+    }
+
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    const validSocialMedia = Array.isArray(socialMedia)
+      ? socialMedia.filter((item) => item && item.handleUrl && item.handleUrl.trim() !== '')
+      : [];
+
+    const newUser = await UserModel.create({
+      email: cleanEmail,
+      password: hashedPassword,
+      name: name || cleanEmail.split('@')[0],
+      role: 'USER',
+      phones: Array.isArray(phones) ? phones : [],
+      phone: phones && phones[0] ? phones[0].number : '',
+      profession: profession || '',
+      education: education || '',
+      country: country || '',
+      countryCode: countryCode || '',
+      state: state || '',
+      stateCode: stateCode || '',
+      city: city || '',
+      drive: driveFolderPath || drive || '',
+      driveFolderPath: driveFolderPath || drive || '',
+      causeContribution: causeContribution || '',
+      profilePictureUrl: profilePictureUrl || '',
+      socialMedia: validSocialMedia
+    });
+
+    const resDto = UserMapper.toResDTO ? UserMapper.toResDTO(newUser) : newUser.toObject();
+    res.status(201).json(resDto);
+  } catch (err) {
+    console.error('Registration error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/users/login - Authenticate User
+router.post('/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required.' });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const user = await UserModel.findOne({ email: cleanEmail });
 
     if (!user) {
-      user = await UserModel.create({
-        email: cleanEmail,
-        name: cleanEmail.split('@')[0],
-        role: req.body.role || 'USER', // ✅ Default new accounts to 'USER'
-        password: password || 'default_pass'
-      });
+      return res.status(401).json({ error: 'Invalid email or password.' });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
     const resDto = UserMapper.toResDTO ? UserMapper.toResDTO(user) : user.toObject();
@@ -44,7 +111,47 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// PUT /api/users/:id - Update User Profile, Roles & Phones
+// PUT /api/users/:id/change-password - Admin or Self Password Change
+router.put('/:id/change-password', async (req, res) => {
+  try {
+    const { currentPassword, newPassword, isAdminReset } = req.body;
+    const paramId = req.params.id;
+
+    if (!newPassword) {
+      return res.status(400).json({ message: 'New password is required.' });
+    }
+
+    const filter = mongoose.Types.ObjectId.isValid(paramId)
+      ? { _id: paramId }
+      : { email: paramId.toLowerCase().trim() };
+
+    const user = await UserModel.findOne(filter);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    // Bypass old password verification if triggered by an Admin
+    if (!isAdminReset) {
+      if (!currentPassword) {
+        return res.status(400).json({ message: 'Current password is required.' });
+      }
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
+      if (!isMatch) {
+        return res.status(400).json({ message: 'Current password is incorrect.' });
+      }
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    await user.save();
+
+    res.status(200).json({ message: 'Password updated successfully.' });
+  } catch (err) {
+    console.error('Change password error:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// PUT /api/users/:id - Update Profile Metadata
 router.put('/:id', async (req, res) => {
   try {
     const paramId = req.params.id;
@@ -54,12 +161,10 @@ router.put('/:id', async (req, res) => {
       ? { _id: paramId }
       : { email: paramId.toLowerCase().trim() };
 
-    // Safely parse phones array
     const phones = Array.isArray(body.phones) ? body.phones : [];
     const primaryObj = phones.find((p) => p.isPrimary) || phones[0];
     const legacyPhone = primaryObj ? primaryObj.number : (body.phone || '');
 
-    // Filter out invalid/empty social media entries
     const validSocialMedia = Array.isArray(body.socialMedia)
       ? body.socialMedia.filter((item) => item && item.handleUrl && item.handleUrl.trim() !== '')
       : [];
@@ -91,7 +196,7 @@ router.put('/:id', async (req, res) => {
     );
 
     if (!updatedUser) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: 'User not found.' });
     }
 
     const resDto = UserMapper.toResDTO

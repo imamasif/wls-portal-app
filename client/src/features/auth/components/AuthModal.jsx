@@ -14,8 +14,13 @@ export function AuthModal() {
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   
+  // Registration State
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+
   const [phones, setPhones] = useState([{ number: '', type: 'Mobile', isPrimary: true }]);
   const [profession, setProfession] = useState('');
   const [education, setEducation] = useState('');
@@ -27,10 +32,12 @@ export function AuthModal() {
   const [profilePictureUrl, setProfilePictureUrl] = useState('');
   const [socialMedia, setSocialMedia] = useState([{ platform: 'LinkedIn', handleUrl: '' }]);
 
-  // Reset form fields to completely blank state for registration
   const resetRegistrationForm = () => {
     setName('');
     setEmail('');
+    setPassword('');
+    setConfirmPassword('');
+    setPasswordError('');
     setPhones([{ number: '', type: 'Mobile', isPrimary: true }]);
     setProfession('');
     setEducation('');
@@ -43,7 +50,6 @@ export function AuthModal() {
     setSocialMedia([{ platform: 'LinkedIn', handleUrl: '' }]);
   };
 
-  // Populate form with existing user state if editing profile
   const populateUserForm = (userData) => {
     setName(userData.name || '');
     setEmail(userData.email || '');
@@ -96,8 +102,35 @@ export function AuthModal() {
     }
   };
 
+  const validatePassword = () => {
+    if (password.length < 8) {
+      return 'Password must be at least 8 characters long.';
+    }
+    if (!/[A-Z]/.test(password)) {
+      return 'Password must contain at least one uppercase letter.';
+    }
+    if (!/[0-9]/.test(password)) {
+      return 'Password must contain at least one number.';
+    }
+    if (password !== confirmPassword) {
+      return 'Passwords do not match.';
+    }
+    return null;
+  };
+
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
+    setPasswordError('');
+
+    // Run password rules if this is a new registration
+    if (!user) {
+      const err = validatePassword();
+      if (err) {
+        setPasswordError(err);
+        return;
+      }
+    }
+
     const countryObj = Country.getCountryByCode(selectedCountryCode);
     const stateObj = State.getStateByCodeAndCountry(selectedStateCode, selectedCountryCode);
     const targetId = user?._id || user?.id;
@@ -106,6 +139,7 @@ export function AuthModal() {
       ...(user?._id && { _id: user._id }),
       name: name || email.split('@')[0],
       email,
+      ...(password && { password }), // Include password in payload for registration
       phones,
       role: user?.role || 'SUPER_ADMIN',
       profession,
@@ -187,6 +221,12 @@ export function AuthModal() {
           </form>
         ) : (
           <form onSubmit={handleRegisterSubmit} className={styles.formContainer}>
+            {passwordError && (
+              <div style={{ color: '#dc2626', backgroundColor: '#fef2f2', padding: '10px', borderRadius: '6px', fontSize: '13px', border: '1px solid #fecaca' }}>
+                ⚠️ {passwordError}
+              </div>
+            )}
+
             <div className={styles.formGroup}>
               <label>Profile Picture</label>
               <ProfilePictureUploader value={profilePictureUrl} name={name || email} onChange={setProfilePictureUrl} />
@@ -201,6 +241,32 @@ export function AuthModal() {
               <label>Email *</label>
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </div>
+
+            {/* Added Password Fields for Registration */}
+            {!user && (
+              <div className={styles.formRow}>
+                <div className={styles.formGroup}>
+                  <label>Password *</label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Min. 8 chars, 1 uppercase, 1 number"
+                    required
+                  />
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Confirm Password *</label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Re-enter password"
+                    required
+                  />
+                </div>
+              </div>
+            )}
 
             <PhoneListInput phones={phones} onChange={setPhones} />
 
@@ -247,7 +313,9 @@ export function AuthModal() {
 
             <div className={styles.modalActions}>
               <button type="button" className={styles.btnCancel} onClick={() => setShowAuthModal(false)}>Cancel</button>
-              <button type="submit" className={styles.btnSave}>Save Profile</button>
+              <button type="submit" className={styles.btnSave}>
+                {user ? 'Save Profile' : 'Register Account'}
+              </button>
             </div>
           </form>
         )}

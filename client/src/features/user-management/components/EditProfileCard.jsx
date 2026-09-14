@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Country, State } from 'country-state-city';
+import { useAuth } from '../../../context/AuthContext';
 import { PhoneListInput } from '../../../components/common/PhoneListInput';
 import { ProfilePictureUploader } from '../../../components/common/ProfilePictureUploader';
 import { LocationSelector } from '../../../components/common/LocationSelector';
@@ -8,6 +9,9 @@ import styles from './EditProfileCard.module.css';
 const PLATFORM_OPTIONS = ['LinkedIn', 'Facebook', 'Twitter', 'YouTube', 'Instagram', 'Other'];
 
 export function EditProfileCard({ targetUser, onCancel, onSaveSuccess }) {
+  const { user: currentUser } = useAuth();
+  const isAdmin = currentUser?.role === 'SUPER_ADMIN';
+
   const [formData, setFormData] = useState({
     profilePictureUrl: '',
     name: '',
@@ -23,6 +27,14 @@ export function EditProfileCard({ targetUser, onCancel, onSaveSuccess }) {
   const [selectedCountryCode, setSelectedCountryCode] = useState('CA');
   const [selectedStateCode, setSelectedStateCode] = useState('ON');
   const [selectedCity, setSelectedCity] = useState('');
+  
+  // Password Management State
+  const [showPasswordSection, setShowPasswordSection] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [passwordMsg, setPasswordMsg] = useState(null);
+
   const [saving, setSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState(null);
 
@@ -38,14 +50,12 @@ export function EditProfileCard({ targetUser, onCancel, onSaveSuccess }) {
         causeContribution: targetUser.causeContribution || ''
       });
 
-      // Initialize Social Media array from user data or empty list
       if (Array.isArray(targetUser.socialMedia) && targetUser.socialMedia.length > 0) {
         setSocialMedia(targetUser.socialMedia.map((s) => ({ ...s })));
       } else {
         setSocialMedia([{ platform: 'LinkedIn', handleUrl: '' }]);
       }
 
-      // Synchronize Phones Array
       if (Array.isArray(targetUser.phones) && targetUser.phones.length > 0) {
         setPhones(targetUser.phones.map((p) => ({ ...p })));
       } else if (targetUser.phone) {
@@ -54,14 +64,12 @@ export function EditProfileCard({ targetUser, onCancel, onSaveSuccess }) {
         setPhones([{ number: '', type: 'Mobile', isPrimary: true }]);
       }
 
-      // Synchronize Location
       setSelectedCountryCode(targetUser.countryCode || 'CA');
       setSelectedStateCode(targetUser.stateCode || 'ON');
       setSelectedCity(targetUser.city || '');
     }
   }, [targetUser]);
 
-  // Social Media handlers
   const handleAddSocial = () => {
     setSocialMedia([...socialMedia, { platform: 'LinkedIn', handleUrl: '' }]);
   };
@@ -76,6 +84,43 @@ export function EditProfileCard({ targetUser, onCancel, onSaveSuccess }) {
     setSocialMedia(updated);
   };
 
+  const handlePasswordUpdate = async () => {
+    setPasswordMsg(null);
+    if (newPassword.length < 8) {
+      setPasswordMsg({ type: 'error', text: 'New password must be at least 8 characters.' });
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setPasswordMsg({ type: 'error', text: 'New passwords do not match.' });
+      return;
+    }
+
+    try {
+      const targetId = targetUser._id || targetUser.id;
+      const res = await fetch(`/api/users/${targetId}/change-password`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentPassword,
+          newPassword,
+          isAdminReset: isAdmin // Admins don't need current password
+        }),
+      });
+
+      if (res.ok) {
+        setPasswordMsg({ type: 'success', text: 'Password updated successfully!' });
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmNewPassword('');
+      } else {
+        const errorData = await res.json();
+        setPasswordMsg({ type: 'error', text: errorData.message || 'Failed to update password.' });
+      }
+    } catch (err) {
+      setPasswordMsg({ type: 'error', text: 'Server error while updating password.' });
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -83,8 +128,6 @@ export function EditProfileCard({ targetUser, onCancel, onSaveSuccess }) {
 
     const countryObj = Country.getCountryByCode(selectedCountryCode);
     const stateObj = State.getStateByCodeAndCountry(selectedStateCode, selectedCountryCode);
-
-    // Filter out blank inputs before saving
     const validSocialMedia = socialMedia.filter((item) => item.handleUrl.trim() !== '');
 
     const payload = {
@@ -110,10 +153,9 @@ export function EditProfileCard({ targetUser, onCancel, onSaveSuccess }) {
         const resData = await res.json();
         setStatusMessage({ type: 'success', text: 'Changes saved successfully!' });
         
-        // Wait 1.5 seconds so user sees the success banner before switching views
         setTimeout(() => {
           if (onSaveSuccess) onSaveSuccess(resData);
-        }, 1500);
+        }, 1200);
       } else {
         setStatusMessage({ type: 'error', text: 'Failed to update user profile.' });
       }
@@ -132,7 +174,6 @@ export function EditProfileCard({ targetUser, onCancel, onSaveSuccess }) {
         <button type="button" onClick={onCancel} className={styles.closeBtn}>✕</button>
       </div>
 
-      {/* Prominent Success / Error Banner */}
       {statusMessage && (
         <div style={{
           padding: '12px 16px',
@@ -206,7 +247,7 @@ export function EditProfileCard({ targetUser, onCancel, onSaveSuccess }) {
           <textarea className={styles.input} rows={3} value={formData.causeContribution} onChange={(e) => setFormData({ ...formData, causeContribution: e.target.value })} />
         </div>
 
-        {/* Dynamic Social Media List matching Phone Input component style */}
+        {/* Dynamic Social Media Section */}
         <div className={styles.fieldGroup}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
             <label className={styles.label} style={{ margin: 0 }}>Social Media Handles</label>
@@ -273,6 +314,91 @@ export function EditProfileCard({ targetUser, onCancel, onSaveSuccess }) {
               </div>
             ))}
           </div>
+        </div>
+
+        {/* Change / Reset Password Collapsible Section */}
+        <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '16px', marginTop: '16px' }}>
+          <button
+            type="button"
+            onClick={() => setShowPasswordSection(!showPasswordSection)}
+            style={{
+              backgroundColor: 'transparent',
+              border: 'none',
+              color: '#0284c7',
+              fontWeight: '700',
+              cursor: 'pointer',
+              padding: 0,
+              fontSize: '14px'
+            }}
+          >
+            {showPasswordSection ? '🔒 Hide Password Settings' : '🔑 Change / Reset Password'}
+          </button>
+
+          {showPasswordSection && (
+            <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '12px', backgroundColor: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+              {passwordMsg && (
+                <div style={{
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: passwordMsg.type === 'success' ? '#15803d' : '#dc2626'
+                }}>
+                  {passwordMsg.text}
+                </div>
+              )}
+
+              {/* Only show Current Password field if NOT an Admin reset */}
+              {!isAdmin && (
+                <div className={styles.fieldGroup}>
+                  <label className={styles.label}>Current Password *</label>
+                  <input
+                    type="password"
+                    className={styles.input}
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                  />
+                </div>
+              )}
+
+              <div className={styles.rowTwo}>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.label}>New Password *</label>
+                  <input
+                    type="password"
+                    className={styles.input}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Min 8 characters"
+                  />
+                </div>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.label}>Confirm New Password *</label>
+                  <input
+                    type="password"
+                    className={styles.input}
+                    value={confirmNewPassword}
+                    onChange={(e) => setConfirmNewPassword(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handlePasswordUpdate}
+                style={{
+                  alignSelf: 'flex-start',
+                  backgroundColor: '#0284c7',
+                  color: '#fff',
+                  border: 'none',
+                  padding: '8px 16px',
+                  borderRadius: '6px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                {isAdmin ? 'Reset User Password' : 'Update Password'}
+              </button>
+            </div>
+          )}
         </div>
 
         <div className={styles.actions}>
