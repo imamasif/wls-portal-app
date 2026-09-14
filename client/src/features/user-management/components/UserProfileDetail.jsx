@@ -6,30 +6,20 @@ import {
   Facebook, 
   Twitter, 
   Github, 
-  Link as GenericLink 
+  Link as GenericLink,
+  Phone
 } from 'lucide-react';
 import { EditProfileCard } from './EditProfileCard';
 import styles from './UserProfileDetail.module.css';
 
-// Helper component to render brand-specific icons
 const SocialIcon = ({ platform }) => {
   const normalized = (platform || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
-  if (normalized.includes('linkedin')) {
-    return <Linkedin size={16} className={styles.linkedinIcon} />;
-  }
-  if (normalized.includes('youtube')) {
-    return <Youtube size={16} className={styles.youtubeIcon} />;
-  }
-  if (normalized.includes('facebook')) {
-    return <Facebook size={16} className={styles.facebookIcon} />;
-  }
-  if (normalized.includes('twitter') || normalized.includes('x')) {
-    return <Twitter size={16} className={styles.twitterIcon} />;
-  }
-  if (normalized.includes('github')) {
-    return <Github size={16} className={styles.githubIcon} />;
-  }
+  if (normalized.includes('linkedin')) return <Linkedin size={16} className={styles.linkedinIcon} />;
+  if (normalized.includes('youtube')) return <Youtube size={16} className={styles.youtubeIcon} />;
+  if (normalized.includes('facebook')) return <Facebook size={16} className={styles.facebookIcon} />;
+  if (normalized.includes('twitter') || normalized.includes('x')) return <Twitter size={16} className={styles.twitterIcon} />;
+  if (normalized.includes('github')) return <Github size={16} className={styles.githubIcon} />;
 
   return <GenericLink size={16} className={styles.defaultIcon} />;
 };
@@ -38,12 +28,10 @@ export function UserProfileDetail({ overrideUser, onUserUpdated }) {
   const { user: authUser } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   
-  // Use overrideUser if passed from the grid view, otherwise fallback to logged-in user
   const user = overrideUser || authUser;
 
   if (!user) return null;
 
-  // Toggle directly into the inline metallic EditProfileCard
   if (isEditing) {
     return (
       <EditProfileCard
@@ -57,7 +45,6 @@ export function UserProfileDetail({ overrideUser, onUserUpdated }) {
     );
   }
 
-  // Flexible check for Drive Link
   const driveUrl = user.driveFolderPath || user.drive;
 
   const displayRole = user.profession 
@@ -117,6 +104,28 @@ export function UserProfileDetail({ overrideUser, onUserUpdated }) {
           <p className={styles.fieldValue}>{user.email}</p>
         </div>
 
+        {/* Multi-Phone Display Field */}
+        <div className={styles.gridItem}>
+          <span className={styles.fieldLabel}>Phone / Mobile Numbers</span>
+          {user.phones && user.phones.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
+              {user.phones.map((p, idx) => (
+                <div key={idx} style={{ fontSize: '13px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Phone size={13} style={{ color: '#0284c7' }} />
+                  <strong>{p.type || 'Phone'}:</strong> {p.number}
+                  {p.isPrimary && (
+                    <span style={{ fontSize: '10px', background: '#e0f2fe', color: '#0284c7', padding: '1px 6px', borderRadius: '4px', fontWeight: 'bold' }}>
+                      Primary
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className={styles.fieldValue}>{user.phone || 'N/A'}</p>
+          )}
+        </div>
+
         <div className={styles.gridItem}>
           <span className={styles.fieldLabel}>Drive Shared Folder</span>
           {driveUrl ? (
@@ -142,7 +151,7 @@ export function UserProfileDetail({ overrideUser, onUserUpdated }) {
         </div>
       )}
 
-      {/* Social Handles Section with Lucide Icons */}
+      {/* Social Handles Section */}
       {user.socialMedia && user.socialMedia.length > 0 && (
         <div className={styles.socialSection}>
           <span className={styles.fieldLabel}>Social Profiles</span>
