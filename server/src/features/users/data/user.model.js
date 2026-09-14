@@ -1,8 +1,15 @@
 import mongoose from 'mongoose';
 
+const AuditTrailSchema = new mongoose.Schema({
+  action: { type: String, required: true },
+  performedBy: { type: String, required: true },
+  performedAt: { type: Date, default: Date.now },
+  details: { type: String, default: '' }
+}, { _id: false });
+
 const SocialMediaSchema = new mongoose.Schema({
   platform: { type: String, default: '' },
-  handleUrl: { type: String, default: '' } // ✅ Optional to allow blank entries
+  handleUrl: { type: String, default: '' }
 }, { _id: false });
 
 const PhoneSchema = new mongoose.Schema({
@@ -17,7 +24,7 @@ const UserSchema = new mongoose.Schema({
   password: { type: String, required: true },
   role: { 
     type: String, 
-    enum: ['SUPER_ADMIN', 'SUPER_USER', 'WLS_ADMIN', 'MARKING_ADMIN', 'STUDENT', 'USER'], // ✅ Updated role list
+    enum: ['SUPER_ADMIN', 'SUPER_USER', 'WLS_ADMIN', 'MARKING_ADMIN', 'STUDENT', 'USER'],
     default: 'USER' 
   },
   phones: [PhoneSchema],
@@ -33,7 +40,15 @@ const UserSchema = new mongoose.Schema({
   driveFolderPath: { type: String, default: '' },
   causeContribution: { type: String, default: '' },
   profilePictureUrl: { type: String, default: '' },
-  socialMedia: [SocialMediaSchema]
+  socialMedia: [SocialMediaSchema],
+
+  // ✅ New Management & Audit Trail Fields
+  isActive: { type: Boolean, default: true },
+  underRadar: { type: Boolean, default: false },
+  radarReason: { type: String, default: '' },
+  auditTrail: [AuditTrailSchema],
+  createdBy: { type: String, default: 'System' },
+  updatedBy: { type: String, default: 'System' }
 }, { timestamps: true });
 
-export const UserModel = mongoose.model('User', UserSchema);
+export const UserModel = mongoose.models.User || mongoose.model('User', UserSchema);

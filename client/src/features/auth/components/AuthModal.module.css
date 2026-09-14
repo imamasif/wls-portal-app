@@ -57,6 +57,39 @@
   color: #0f172a;
 }
 
+/* Icon Styles */
+.iconContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.authIconCircle {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.loginIconBg {
+  background-color: #e0f2fe;
+  color: #0284c7;
+}
+
+.registerIconBg {
+  background-color: #dcfce7;
+  color: #16a34a;
+}
+
+.authSvgIcon {
+  width: 30px;
+  height: 30px;
+}
+
 /* Tabs Switcher */
 .toggleTabs {
   display: flex;

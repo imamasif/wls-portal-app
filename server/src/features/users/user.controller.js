@@ -5,6 +5,18 @@ import { userUseCase, UserMapper, UserModel } from './index.js';
 
 const router = express.Router();
 
+// Helper to record audit logs
+const appendAuditLog = (userDoc, action, performedBy, details) => {
+  if (!userDoc.auditTrail) userDoc.auditTrail = [];
+  userDoc.auditTrail.push({
+    action,
+    performedBy: performedBy || 'System/Admin',
+    performedAt: new Date(),
+    details: details || ''
+  });
+  userDoc.updatedBy = performedBy || 'System/Admin';
+};
+
 // GET /api/users - Fetch All Users
 router.get('/', async (req, res) => {
   try {
@@ -72,7 +84,15 @@ router.post('/', async (req, res) => {
       driveFolderPath: driveFolderPath || drive || '',
       causeContribution: causeContribution || '',
       profilePictureUrl: profilePictureUrl || '',
-      socialMedia: validSocialMedia
+      socialMedia: validSocialMedia,
+      createdBy: cleanEmail,
+      updatedBy: cleanEmail,
+      auditTrail: [{
+        action: 'USER_REGISTERED',
+        performedBy: cleanEmail,
+        performedAt: new Date(),
+        details: 'Account created'
+      }]
     });
 
     const resDto = UserMapper.toResDTO ? UserMapper.toResDTO(newUser) : newUser.toObject();
@@ -92,18 +112,29 @@ router.post('/login', async (req, res) => {
     }
 
     const cleanEmail = email.toLowerCase().trim();
-    const user = await UserModel.findOne({ email: cleanEmail });
+    // Explicitly select password field to prevent missing hash errors
+    const user = await UserModel.findOne({ email: cleanEmail }).select('+password');
 
     if (!user) {
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
+    if (user.isActive === false) {
+      return res.status(403).json({ error: 'Account is disabled. Please contact an administrator.' });
+    }
+
+    // Safety check: ensure user object actually has a hashed password string stored
+    if (!user.password) {
+      return res.status(401).json({ error: 'Account password not configured properly.' });
+    }
+
+    const isMatch = await bcrypt.compare(String(password), String(user.password));
     if (!isMatch) {
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
     const resDto = UserMapper.toResDTO ? UserMapper.toResDTO(user) : user.toObject();
+    delete resDto.password; // Do not leak password hash to client
     res.status(200).json(resDto);
   } catch (err) {
     console.error('Login error:', err);
@@ -114,7 +145,7 @@ router.post('/login', async (req, res) => {
 // PUT /api/users/:id/change-password - Admin or Self Password Change
 router.put('/:id/change-password', async (req, res) => {
   try {
-    const { currentPassword, newPassword, isAdminReset } = req.body;
+    const { currentPassword, newPassword, isAdminReset, performerEmail } = req.body;
     const paramId = req.params.id;
 
     if (!newPassword) {
@@ -125,29 +156,95 @@ router.put('/:id/change-password', async (req, res) => {
       ? { _id: paramId }
       : { email: paramId.toLowerCase().trim() };
 
-    const user = await UserModel.findOne(filter);
+    const user = await UserModel.findOne(filter).select('+password');
     if (!user) {
       return res.status(404).json({ message: 'User not found.' });
     }
 
-    // Bypass old password verification if triggered by an Admin
     if (!isAdminReset) {
       if (!currentPassword) {
         return res.status(400).json({ message: 'Current password is required.' });
       }
-      const isMatch = await bcrypt.compare(currentPassword, user.password);
+      if (!user.password) {
+        return res.status(400).json({ message: 'Existing account password not set.' });
+      }
+      const isMatch = await bcrypt.compare(String(currentPassword), String(user.password));
       if (!isMatch) {
         return res.status(400).json({ message: 'Current password is incorrect.' });
       }
     }
 
     user.password = await bcrypt.hash(newPassword, 10);
+    appendAuditLog(
+      user, 
+      isAdminReset ? 'ADMIN_PASSWORD_RESET' : 'SELF_PASSWORD_CHANGE', 
+      performerEmail || user.email, 
+      'Password updated'
+    );
     await user.save();
 
     res.status(200).json({ message: 'Password updated successfully.' });
   } catch (err) {
     console.error('Change password error:', err);
     res.status(500).json({ message: err.message });
+  }
+});
+
+// PUT /api/users/:id/status - Toggle Active / Inactive
+router.put('/:id/status', async (req, res) => {
+  try {
+    const { isActive, performerEmail } = req.body;
+    const user = await UserModel.findById(req.params.id);
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    user.isActive = isActive;
+    appendAuditLog(
+      user,
+      isActive ? 'ENABLE_ACCOUNT' : 'DISABLE_ACCOUNT',
+      performerEmail,
+      `User account status changed to ${isActive ? 'Active' : 'Inactive'}`
+    );
+    await user.save();
+
+    const resDto = UserMapper.toResDTO ? UserMapper.toResDTO(user) : user.toObject();
+    res.status(200).json(resDto);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/users/:id/radar - Toggle Radar Flag
+router.put('/:id/radar', async (req, res) => {
+  try {
+    const { underRadar, radarReason, performerEmail } = req.body;
+    const user = await UserModel.findById(req.params.id);
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    user.underRadar = Boolean(underRadar);
+    user.radarReason = underRadar ? (radarReason || '') : '';
+    appendAuditLog(
+      user,
+      underRadar ? 'MARK_UNDER_RADAR' : 'UNMARK_UNDER_RADAR',
+      performerEmail,
+      underRadar ? `Flagged: ${radarReason}` : 'Radar flag cleared'
+    );
+    await user.save();
+
+    const resDto = UserMapper.toResDTO ? UserMapper.toResDTO(user) : user.toObject();
+    res.status(200).json(resDto);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/users/:id - Delete User Record
+router.delete('/:id', async (req, res) => {
+  try {
+    const user = await UserModel.findByIdAndDelete(req.params.id);
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+    res.status(200).json({ message: 'User deleted successfully.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -161,6 +258,11 @@ router.put('/:id', async (req, res) => {
       ? { _id: paramId }
       : { email: paramId.toLowerCase().trim() };
 
+    const user = await UserModel.findOne(filter);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
     const phones = Array.isArray(body.phones) ? body.phones : [];
     const primaryObj = phones.find((p) => p.isPrimary) || phones[0];
     const legacyPhone = primaryObj ? primaryObj.number : (body.phone || '');
@@ -169,40 +271,28 @@ router.put('/:id', async (req, res) => {
       ? body.socialMedia.filter((item) => item && item.handleUrl && item.handleUrl.trim() !== '')
       : [];
 
-    const updatePayload = {
-      ...(body.name && { name: body.name }),
-      ...(body.email && { email: body.email.toLowerCase().trim() }),
-      ...(body.role && { role: body.role }),
-      phones,
-      phone: legacyPhone,
-      profession: body.profession ?? '',
-      education: body.education ?? '',
-      country: body.country ?? '',
-      countryCode: body.countryCode ?? '',
-      state: body.state ?? '',
-      stateCode: body.stateCode ?? '',
-      city: body.city ?? '',
-      drive: body.driveFolderPath || body.drive || '',
-      driveFolderPath: body.driveFolderPath || body.drive || '',
-      causeContribution: body.causeContribution ?? '',
-      profilePictureUrl: body.profilePictureUrl ?? '',
-      socialMedia: validSocialMedia
-    };
+    user.name = body.name ?? user.name;
+    user.email = body.email ? body.email.toLowerCase().trim() : user.email;
+    user.role = body.role ?? user.role;
+    user.phones = phones;
+    user.phone = legacyPhone;
+    user.profession = body.profession ?? user.profession;
+    user.education = body.education ?? user.education;
+    user.country = body.country ?? user.country;
+    user.countryCode = body.countryCode ?? user.countryCode;
+    user.state = body.state ?? user.state;
+    user.stateCode = body.stateCode ?? user.stateCode;
+    user.city = body.city ?? user.city;
+    user.drive = body.driveFolderPath || body.drive || user.drive;
+    user.driveFolderPath = body.driveFolderPath || body.drive || user.driveFolderPath;
+    user.causeContribution = body.causeContribution ?? user.causeContribution;
+    user.profilePictureUrl = body.profilePictureUrl ?? user.profilePictureUrl;
+    user.socialMedia = validSocialMedia;
 
-    const updatedUser = await UserModel.findOneAndUpdate(
-      filter,
-      { $set: updatePayload },
-      { new: true, runValidators: true }
-    );
+    appendAuditLog(user, 'UPDATE_PROFILE', body.performerEmail, 'Profile details updated');
+    await user.save();
 
-    if (!updatedUser) {
-      return res.status(404).json({ error: 'User not found.' });
-    }
-
-    const resDto = UserMapper.toResDTO
-      ? UserMapper.toResDTO(updatedUser)
-      : updatedUser.toObject();
-
+    const resDto = UserMapper.toResDTO ? UserMapper.toResDTO(user) : user.toObject();
     return res.status(200).json(resDto);
   } catch (err) {
     console.error('Error updating user profile:', err);
