@@ -27,31 +27,62 @@ export function AuthModal() {
   const [profilePictureUrl, setProfilePictureUrl] = useState('');
   const [socialMedia, setSocialMedia] = useState([{ platform: 'LinkedIn', handleUrl: '' }]);
 
+  // Reset form fields to completely blank state for registration
+  const resetRegistrationForm = () => {
+    setName('');
+    setEmail('');
+    setPhones([{ number: '', type: 'Mobile', isPrimary: true }]);
+    setProfession('');
+    setEducation('');
+    setSelectedCountryCode('CA');
+    setSelectedStateCode('ON');
+    setSelectedCity('');
+    setDrive('');
+    setCauseContribution('');
+    setProfilePictureUrl('');
+    setSocialMedia([{ platform: 'LinkedIn', handleUrl: '' }]);
+  };
+
+  // Populate form with existing user state if editing profile
+  const populateUserForm = (userData) => {
+    setName(userData.name || '');
+    setEmail(userData.email || '');
+    setPhones(
+      userData.phones && userData.phones.length > 0
+        ? userData.phones.map((p) => ({ ...p }))
+        : userData.phone
+        ? [{ number: userData.phone, type: 'Mobile', isPrimary: true }]
+        : [{ number: '', type: 'Mobile', isPrimary: true }]
+    );
+    setProfession(userData.profession || '');
+    setEducation(userData.education || '');
+    setSelectedCountryCode(userData.countryCode || 'CA');
+    setSelectedStateCode(userData.stateCode || 'ON');
+    setSelectedCity(userData.city || '');
+    setDrive(userData.driveFolderPath || userData.drive || '');
+    setCauseContribution(userData.causeContribution || '');
+    setProfilePictureUrl(userData.profilePictureUrl || '');
+    setSocialMedia(userData.socialMedia?.length ? userData.socialMedia : [{ platform: 'LinkedIn', handleUrl: '' }]);
+  };
+
   useEffect(() => {
-    if (showAuthModal && user) {
-      setIsLoginMode(false);
-      setName(user.name || '');
-      setEmail(user.email || '');
-      setPhones(
-        user.phones && user.phones.length > 0
-          ? user.phones.map((p) => ({ ...p }))
-          : user.phone
-          ? [{ number: user.phone, type: 'Mobile', isPrimary: true }]
-          : [{ number: '', type: 'Mobile', isPrimary: true }]
-      );
-      setProfession(user.profession || '');
-      setEducation(user.education || '');
-      setSelectedCountryCode(user.countryCode || 'CA');
-      setSelectedStateCode(user.stateCode || 'ON');
-      setSelectedCity(user.city || '');
-      setDrive(user.driveFolderPath || user.drive || '');
-      setCauseContribution(user.causeContribution || '');
-      setProfilePictureUrl(user.profilePictureUrl || '');
-      setSocialMedia(user.socialMedia?.length ? user.socialMedia : [{ platform: 'LinkedIn', handleUrl: '' }]);
-    } else if (showAuthModal && !user) {
-      setIsLoginMode(true);
+    if (showAuthModal) {
+      if (user && !isLoginMode) {
+        populateUserForm(user);
+      } else if (!user && !isLoginMode) {
+        resetRegistrationForm();
+      } else {
+        setIsLoginMode(true);
+      }
     }
-  }, [user, showAuthModal]);
+  }, [user, showAuthModal, isLoginMode]);
+
+  const handleTabSwitch = (toLogin) => {
+    setIsLoginMode(toLogin);
+    if (!toLogin && !user) {
+      resetRegistrationForm();
+    }
+  };
 
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
@@ -72,7 +103,7 @@ export function AuthModal() {
     const targetId = user?._id || user?.id;
 
     const payload = {
-      _id: user?._id,
+      ...(user?._id && { _id: user._id }),
       name: name || email.split('@')[0],
       email,
       phones,
@@ -123,10 +154,18 @@ export function AuthModal() {
 
         {!user && (
           <div className={styles.toggleTabs}>
-            <button type="button" className={isLoginMode ? styles.activeTab : styles.tab} onClick={() => setIsLoginMode(true)}>
+            <button
+              type="button"
+              className={isLoginMode ? styles.activeTab : styles.tab}
+              onClick={() => handleTabSwitch(true)}
+            >
               Sign In
             </button>
-            <button type="button" className={!isLoginMode ? styles.activeTab : styles.tab} onClick={() => setIsLoginMode(false)}>
+            <button
+              type="button"
+              className={!isLoginMode ? styles.activeTab : styles.tab}
+              onClick={() => handleTabSwitch(false)}
+            >
               Register
             </button>
           </div>

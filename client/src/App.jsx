@@ -17,7 +17,7 @@ export default function App() {
       <AuthModal />
 
       {activeTab === 'users' && isSuperUser ? (
-        <UserGridView />
+        <UserGridView currentUser={user} />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           {user && <UserProfileDetail />}

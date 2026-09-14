@@ -31,7 +31,7 @@ router.post('/login', async (req, res) => {
       user = await UserModel.create({
         email: cleanEmail,
         name: cleanEmail.split('@')[0],
-        role: 'SUPER_ADMIN',
+        role: req.body.role || 'USER', // ✅ Default new accounts to 'USER'
         password: password || 'default_pass'
       });
     }
@@ -44,39 +44,30 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// PUT /api/users/:id - Update User Profile & Phones
+// PUT /api/users/:id - Update User Profile, Roles & Phones
 router.put('/:id', async (req, res) => {
   try {
     const paramId = req.params.id;
     const body = req.body;
 
-    const cleanEmail = body.email ? body.email.toLowerCase().trim() : undefined;
+    const filter = mongoose.Types.ObjectId.isValid(paramId)
+      ? { _id: paramId }
+      : { email: paramId.toLowerCase().trim() };
 
-    // Temporary Fallback: Store the profile picture directly without uploading to Google Drive
-    const finalProfilePictureUrl = body.profilePictureUrl ?? '';
-
-    const queryConditions = [];
-    if (mongoose.Types.ObjectId.isValid(paramId)) {
-      queryConditions.push({ _id: paramId });
-    }
-    if (cleanEmail) {
-      queryConditions.push({ email: cleanEmail });
-    }
-
-    const filter =
-      queryConditions.length > 0
-        ? { $or: queryConditions }
-        : { email: paramId.toLowerCase().trim() };
-
-    // Format phones array & compute legacy string field fallback
+    // Safely parse phones array
     const phones = Array.isArray(body.phones) ? body.phones : [];
     const primaryObj = phones.find((p) => p.isPrimary) || phones[0];
     const legacyPhone = primaryObj ? primaryObj.number : (body.phone || '');
 
+    // Filter out invalid/empty social media entries
+    const validSocialMedia = Array.isArray(body.socialMedia)
+      ? body.socialMedia.filter((item) => item && item.handleUrl && item.handleUrl.trim() !== '')
+      : [];
+
     const updatePayload = {
-      name: body.name,
-      email: cleanEmail,
-      role: body.role || 'SUPER_ADMIN',
+      ...(body.name && { name: body.name }),
+      ...(body.email && { email: body.email.toLowerCase().trim() }),
+      ...(body.role && { role: body.role }),
       phones,
       phone: legacyPhone,
       profession: body.profession ?? '',
@@ -89,24 +80,28 @@ router.put('/:id', async (req, res) => {
       drive: body.driveFolderPath || body.drive || '',
       driveFolderPath: body.driveFolderPath || body.drive || '',
       causeContribution: body.causeContribution ?? '',
-      profilePictureUrl: finalProfilePictureUrl,
-      socialMedia: Array.isArray(body.socialMedia) ? body.socialMedia : []
+      profilePictureUrl: body.profilePictureUrl ?? '',
+      socialMedia: validSocialMedia
     };
 
     const updatedUser = await UserModel.findOneAndUpdate(
       filter,
       { $set: updatePayload },
-      { new: true, returnDocument: 'after', upsert: true, runValidators: true }
+      { new: true, runValidators: true }
     );
+
+    if (!updatedUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
 
     const resDto = UserMapper.toResDTO
       ? UserMapper.toResDTO(updatedUser)
       : updatedUser.toObject();
 
-    res.status(200).json(resDto);
+    return res.status(200).json(resDto);
   } catch (err) {
     console.error('Error updating user profile:', err);
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 });
 

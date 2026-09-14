@@ -14,8 +14,14 @@ export function UserGridView({ currentUser }) {
   const [sortDirection, setSortDirection] = useState('asc');
   const [selectedProfileUser, setSelectedProfileUser] = useState(null);
   const [updatingUserId, setUpdatingUserId] = useState(null);
+  const [toastMessage, setToastMessage] = useState(null);
 
-  // Determine if the logged-in user can modify roles
+  // Helper to show soft notification banners
+  const showToast = (msg, type = 'success') => {
+    setToastMessage({ msg, type });
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
   const canManageRoles = isSuperUserRole(currentUser?.role);
 
   useEffect(() => {
@@ -27,10 +33,15 @@ export function UserGridView({ currentUser }) {
       .catch((err) => console.error('Error fetching users:', err));
   }, []);
 
-  // Handle inline role update via API
+  // Role modification with explicit user confirmation
   const handleRoleChange = async (targetUser, newRole, e) => {
-    e.stopPropagation(); // Prevent opening profile detail
+    e.stopPropagation();
     if (targetUser.role === newRole) return;
+
+    const confirmChange = window.confirm(
+      `Are you sure you want to change ${targetUser.name || 'this user'}'s role to ${newRole}?`
+    );
+    if (!confirmChange) return;
 
     const targetId = targetUser._id || targetUser.id;
     setUpdatingUserId(targetId);
@@ -47,11 +58,12 @@ export function UserGridView({ currentUser }) {
         setUsers((prev) =>
           prev.map((u) => ((u._id || u.id) === targetId ? updatedUser : u))
         );
+        showToast(`Role updated successfully to ${newRole}!`);
       } else {
-        console.error('Failed to update user role');
+        showToast('Failed to update user role.', 'error');
       }
     } catch (err) {
-      console.error('Error updating user role:', err);
+      showToast('Server error while updating role.', 'error');
     } finally {
       setUpdatingUserId(null);
     }
@@ -71,14 +83,10 @@ export function UserGridView({ currentUser }) {
               borderRadius: '6px',
               fontSize: '13px',
               fontWeight: '700',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              boxShadow: '0 1px 3px rgba(2, 132, 199, 0.1)'
+              cursor: 'pointer'
             }}
           >
-            ← Back
+            ← Back to Directory
           </button>
         </div>
         <UserProfileDetail 
@@ -86,13 +94,14 @@ export function UserGridView({ currentUser }) {
           onUserUpdated={(updated) => {
             setSelectedProfileUser(updated);
             setUsers((prev) => prev.map((u) => ((u._id || u.id) === (updated._id || updated.id) ? updated : u)));
+            showToast('User profile & details updated successfully!');
           }}
         />
       </div>
     );
   }
 
-  // Filter Logic
+  // Filter & Sort Logic
   const filteredUsers = users.filter((user) => {
     const primaryPhone = user.phones?.find((p) => p.isPrimary)?.number || user.phone || '';
     const matchesSearch = 
@@ -105,7 +114,6 @@ export function UserGridView({ currentUser }) {
     return matchesSearch && matchesRole;
   });
 
-  // Sort Logic
   const sortedUsers = [...filteredUsers].sort((a, b) => {
     let aVal = a[sortField] || '';
     let bVal = b[sortField] || '';
@@ -145,7 +153,28 @@ export function UserGridView({ currentUser }) {
   };
 
   return (
-    <div className={styles.card}>
+    <div className={styles.card} style={{ position: 'relative' }}>
+      {/* Soft React Message Banner */}
+      {toastMessage && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          backgroundColor: toastMessage.type === 'error' ? '#fef2f2' : '#f0fdf4',
+          border: `1px solid ${toastMessage.type === 'error' ? '#fecaca' : '#bbf7d0'}`,
+          color: toastMessage.type === 'error' ? '#991b1b' : '#166534',
+          padding: '12px 20px',
+          borderRadius: '8px',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+          zIndex: 9999,
+          fontWeight: 600,
+          fontSize: '14px'
+        }}>
+          {toastMessage.type === 'error' ? '❌ ' : '✅ '}
+          {toastMessage.msg}
+        </div>
+      )}
+
       <div className={styles.gridHeader}>
         <h2 className={styles.gridTitle}>User Management Directory</h2>
       </div>
@@ -184,19 +213,11 @@ export function UserGridView({ currentUser }) {
                   checked={paginatedUsers.length > 0 && selectedUserIds.size === paginatedUsers.length} 
                 />
               </th>
-              <th onClick={() => handleSort('name')} style={{ cursor: 'pointer' }}>
-                Name {sortField === 'name' && (sortDirection === 'asc' ? '▲' : '▼')}
-              </th>
-              <th onClick={() => handleSort('email')} style={{ cursor: 'pointer' }}>
-                Email {sortField === 'email' && (sortDirection === 'asc' ? '▲' : '▼')}
-              </th>
+              <th onClick={() => handleSort('name')} style={{ cursor: 'pointer' }}>Name</th>
+              <th onClick={() => handleSort('email')} style={{ cursor: 'pointer' }}>Email</th>
               <th>Phone</th>
-              <th onClick={() => handleSort('role')} style={{ cursor: 'pointer' }}>
-                Role {sortField === 'role' && (sortDirection === 'asc' ? '▲' : '▼')}
-              </th>
-              <th onClick={() => handleSort('city')} style={{ cursor: 'pointer' }}>
-                City / Country {sortField === 'city' && (sortDirection === 'asc' ? '▲' : '▼')}
-              </th>
+              <th onClick={() => handleSort('role')} style={{ cursor: 'pointer' }}>Role</th>
+              <th onClick={() => handleSort('city')} style={{ cursor: 'pointer' }}>City / Country</th>
               <th>Profession</th>
             </tr>
           </thead>
@@ -211,11 +232,13 @@ export function UserGridView({ currentUser }) {
               paginatedUsers.map((uItem, idx) => {
                 const userId = uItem._id || uItem.id || uItem.email;
                 const isSelected = selectedUserIds.has(userId);
-                const isSelf = userId === (currentUser?._id || currentUser?.id);
+                const currentUserId = currentUser?._id || currentUser?.id;
+                const isSelf = Boolean(currentUserId && userId === currentUserId);
 
                 let rowBg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
                 if (isSelected) rowBg = '#f1f5f9';
 
+                // Format primary phone or fallback string
                 const primaryPhoneObj = uItem.phones?.find((p) => p.isPrimary) || uItem.phones?.[0];
                 const displayPhone = primaryPhoneObj ? primaryPhoneObj.number : (uItem.phone || 'N/A');
 
@@ -264,9 +287,7 @@ export function UserGridView({ currentUser }) {
                           <option value={UserRole.SUPER_ADMIN}>SUPER ADMIN</option>
                         </select>
                       ) : (
-                        <span className="role-badge">
-                          {uItem.role || UserRole.USER}
-                        </span>
+                        <span className="role-badge">{uItem.role || UserRole.USER}</span>
                       )}
                     </td>
                     <td style={{ color: '#64748b' }}>
@@ -279,45 +300,6 @@ export function UserGridView({ currentUser }) {
             )}
           </tbody>
         </table>
-      </div>
-
-      <div className={styles.paginationBar}>
-        <div className={styles.paginationInfo}>
-          <span>Rows per page:</span>
-          <select 
-            value={pageSize} 
-            onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
-            className={styles.pageSizeSelect}
-          >
-            <option value={10}>10</option>
-            <option value={25}>25</option>
-            <option value={50}>50</option>
-            <option value={100}>100</option>
-          </select>
-          <span>
-            Showing {sortedUsers.length > 0 ? (currentPage - 1) * pageSize + 1 : 0} - {Math.min(currentPage * pageSize, sortedUsers.length)} of {sortedUsers.length} users
-          </span>
-        </div>
-
-        <div className={styles.pageControls}>
-          <button disabled={currentPage === 1} onClick={() => setCurrentPage(1)} className={styles.pageBtn}>« First</button>
-          <button disabled={currentPage === 1} onClick={() => setCurrentPage(currentPage - 1)} className={styles.pageBtn}>‹ Prev</button>
-
-          {Array.from({ length: totalPages }, (_, i) => i + 1)
-            .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
-            .map((pageNum) => (
-              <button
-                key={pageNum}
-                onClick={() => setCurrentPage(pageNum)}
-                className={`${styles.pageNumberBtn} ${currentPage === pageNum ? styles.activePageNumber : ''}`}
-              >
-                {pageNum}
-              </button>
-            ))}
-
-          <button disabled={currentPage >= totalPages} onClick={() => setCurrentPage(currentPage + 1)} className={styles.pageBtn}>Next ›</button>
-          <button disabled={currentPage >= totalPages} onClick={() => setCurrentPage(totalPages)} className={styles.pageBtn}>Last »</button>
-        </div>
       </div>
     </div>
   );
