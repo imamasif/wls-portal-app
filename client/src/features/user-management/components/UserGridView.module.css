@@ -215,3 +215,69 @@
   opacity: 0.6;
   cursor: wait;
 }
+
+/* Status Toggle Buttons */
+.btnActive {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #86efac;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btnInactive {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Radar Buttons */
+.btnRadar {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btnRadarActive {
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fde047;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Delete Button */
+.btnDelete {
+  background: #fff1f2;
+  color: #e11d48;
+  border: 1px solid #fecdd3;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.btnActive:hover, .btnInactive:hover, .btnRadar:hover, .btnRadarActive:hover, .btnDelete:hover {
+  filter: brightness(0.95);
+}
+
+.btnActive:disabled, .btnInactive:disabled, .btnRadar:disabled, .btnDelete:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}

@@ -1,10 +1,11 @@
+// EditProfileModal.jsx
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../context/AuthContext';
-import { SocialMediaSection } from './SocialMediaSection'; // <-- Reuse here
+import { SocialMediaSection } from './SocialMediaSection';
 import styles from './AuthModal.module.css';
 
 export function EditProfileModal({ onSave }) {
-  const { showEditModal, setShowEditModal, userToEdit, currentUser, setCurrentUser } = useAuth();
+  const { showEditModal, setShowEditModal, userToEdit, user: currentUser, saveUserData } = useAuth();
   
   const [formData, setFormData] = useState({
     name: '',
@@ -51,9 +52,12 @@ export function EditProfileModal({ onSave }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     const updatedUser = { ...userToEdit, ...formData };
-    if (userToEdit.id === currentUser?.id) {
-      setCurrentUser(updatedUser);
+    
+    // Pass updated user through saveUserData to sync AuthContext and localStorage
+    if (userToEdit.email === currentUser?.email || userToEdit._id === currentUser?._id) {
+      saveUserData(updatedUser);
     }
+    
     if (onSave) onSave(updatedUser);
     setShowEditModal(false);
   };
@@ -75,7 +79,6 @@ export function EditProfileModal({ onSave }) {
             />
           </div>
 
-          {/* Reusing the exact same SocialMediaSection component cleanly! */}
           <SocialMediaSection
             socialMedia={formData.socialMedia}
             onChange={handleSocialChange}

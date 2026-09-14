@@ -1,6 +1,7 @@
 // server.js
 import express from 'express';
 import cors from 'cors';
+import bcrypt from 'bcrypt';
 import { connectDB } from './src/common/database/db.js';
 import userController from './src/features/users/user.controller.js';
 import sessionController from './src/features/sessions/session.controller.js';
@@ -31,13 +32,14 @@ app.post('/api/seed', async (req, res) => {
     await UserModel.deleteMany({});
     await SessionModel.deleteMany({});
 
-    const defaultPassword = 'DefaultPassword123!';
+    const rawPassword = 'DefaultPassword123!';
+    const hashedPassword = await bcrypt.hash(rawPassword, 10);
 
     const users = await UserModel.insertMany([
       { 
         name: 'Syed Imam', 
-        email: 'syed.super@iipc.org', 
-        password: defaultPassword, 
+        email: 'syed.imam@iipc.org', // Updated email to match your login
+        password: hashedPassword, // Stored as bcrypt hash
         role: 'SUPER_ADMIN', 
         city: 'Toronto', 
         country: 'Canada', 
@@ -46,7 +48,7 @@ app.post('/api/seed', async (req, res) => {
       { 
         name: 'Dr. Tariq Rahman', 
         email: 'tariq.super@iipc.org', 
-        password: defaultPassword, 
+        password: hashedPassword, 
         role: 'SUPER_ADMIN', 
         city: 'London', 
         country: 'UK', 
@@ -55,7 +57,7 @@ app.post('/api/seed', async (req, res) => {
       { 
         name: 'Sheikh Ahmed Khan', 
         email: 'ahmed.admin@iipc.org', 
-        password: defaultPassword, 
+        password: hashedPassword, 
         role: 'WLS_ADMIN', 
         city: 'Chicago', 
         country: 'USA' 
@@ -63,7 +65,7 @@ app.post('/api/seed', async (req, res) => {
       ...Array.from({ length: 20 }, (_, i) => ({
         name: `Student ${i + 1}`,
         email: `student${i + 1}@iipc.org`,
-        password: defaultPassword,
+        password: hashedPassword,
         role: 'STUDENT',
         city: 'Dallas',
         country: 'USA',

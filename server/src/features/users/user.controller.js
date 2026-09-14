@@ -5,6 +5,17 @@ import { userUseCase, UserMapper, UserModel } from './index.js';
 
 const router = express.Router();
 
+// Helper to safely find user by ObjectId or Email
+const findUserByIdOrEmail = async (paramId, selectPassword = false) => {
+  const filter = mongoose.Types.ObjectId.isValid(paramId)
+    ? { _id: paramId }
+    : { email: decodeURIComponent(paramId).toLowerCase().trim() };
+
+  const query = UserModel.findOne(filter);
+  if (selectPassword) query.select('+password');
+  return await query;
+};
+
 // Helper to record audit logs
 const appendAuditLog = (userDoc, action, performedBy, details) => {
   if (!userDoc.auditTrail) userDoc.auditTrail = [];
@@ -112,7 +123,6 @@ router.post('/login', async (req, res) => {
     }
 
     const cleanEmail = email.toLowerCase().trim();
-    // Explicitly select password field to prevent missing hash errors
     const user = await UserModel.findOne({ email: cleanEmail }).select('+password');
 
     if (!user) {
@@ -123,7 +133,6 @@ router.post('/login', async (req, res) => {
       return res.status(403).json({ error: 'Account is disabled. Please contact an administrator.' });
     }
 
-    // Safety check: ensure user object actually has a hashed password string stored
     if (!user.password) {
       return res.status(401).json({ error: 'Account password not configured properly.' });
     }
@@ -134,7 +143,7 @@ router.post('/login', async (req, res) => {
     }
 
     const resDto = UserMapper.toResDTO ? UserMapper.toResDTO(user) : user.toObject();
-    delete resDto.password; // Do not leak password hash to client
+    delete resDto.password;
     res.status(200).json(resDto);
   } catch (err) {
     console.error('Login error:', err);
@@ -142,31 +151,22 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// PUT /api/users/:id/change-password - Admin or Self Password Change
+// PUT /api/users/:id/change-password
 router.put('/:id/change-password', async (req, res) => {
   try {
     const { currentPassword, newPassword, isAdminReset, performerEmail } = req.body;
-    const paramId = req.params.id;
-
     if (!newPassword) {
       return res.status(400).json({ message: 'New password is required.' });
     }
 
-    const filter = mongoose.Types.ObjectId.isValid(paramId)
-      ? { _id: paramId }
-      : { email: paramId.toLowerCase().trim() };
-
-    const user = await UserModel.findOne(filter).select('+password');
+    const user = await findUserByIdOrEmail(req.params.id, true);
     if (!user) {
       return res.status(404).json({ message: 'User not found.' });
     }
 
     if (!isAdminReset) {
-      if (!currentPassword) {
+      if (!currentPassword || !user.password) {
         return res.status(400).json({ message: 'Current password is required.' });
-      }
-      if (!user.password) {
-        return res.status(400).json({ message: 'Existing account password not set.' });
       }
       const isMatch = await bcrypt.compare(String(currentPassword), String(user.password));
       if (!isMatch) {
@@ -190,11 +190,11 @@ router.put('/:id/change-password', async (req, res) => {
   }
 });
 
-// PUT /api/users/:id/status - Toggle Active / Inactive
+// PUT /api/users/:id/status
 router.put('/:id/status', async (req, res) => {
   try {
     const { isActive, performerEmail } = req.body;
-    const user = await UserModel.findById(req.params.id);
+    const user = await findUserByIdOrEmail(req.params.id);
     if (!user) return res.status(404).json({ error: 'User not found.' });
 
     user.isActive = isActive;
@@ -213,11 +213,11 @@ router.put('/:id/status', async (req, res) => {
   }
 });
 
-// PUT /api/users/:id/radar - Toggle Radar Flag
+// PUT /api/users/:id/radar
 router.put('/:id/radar', async (req, res) => {
   try {
     const { underRadar, radarReason, performerEmail } = req.body;
-    const user = await UserModel.findById(req.params.id);
+    const user = await findUserByIdOrEmail(req.params.id);
     if (!user) return res.status(404).json({ error: 'User not found.' });
 
     user.underRadar = Boolean(underRadar);
@@ -237,11 +237,12 @@ router.put('/:id/radar', async (req, res) => {
   }
 });
 
-// DELETE /api/users/:id - Delete User Record
+// DELETE /api/users/:id
 router.delete('/:id', async (req, res) => {
   try {
-    const user = await UserModel.findByIdAndDelete(req.params.id);
+    const user = await findUserByIdOrEmail(req.params.id);
     if (!user) return res.status(404).json({ error: 'User not found.' });
+    await UserModel.deleteOne({ _id: user._id });
     res.status(200).json({ message: 'User deleted successfully.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -251,14 +252,8 @@ router.delete('/:id', async (req, res) => {
 // PUT /api/users/:id - Update Profile Metadata
 router.put('/:id', async (req, res) => {
   try {
-    const paramId = req.params.id;
     const body = req.body;
-
-    const filter = mongoose.Types.ObjectId.isValid(paramId)
-      ? { _id: paramId }
-      : { email: paramId.toLowerCase().trim() };
-
-    const user = await UserModel.findOne(filter);
+    const user = await findUserByIdOrEmail(req.params.id);
     if (!user) {
       return res.status(404).json({ error: 'User not found.' });
     }

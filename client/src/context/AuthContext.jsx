@@ -22,8 +22,9 @@ export function AuthProvider({ children }) {
         setUser(dbUser);
         localStorage.setItem('user', JSON.stringify(dbUser));
       } else {
+        // Use email as fallback identifier instead of numeric timestamp
         const fallbackUser = {
-          _id: credentials.id || Date.now().toString(),
+          _id: credentials.email, 
           email: credentials.email,
           name: credentials.email.split('@')[0],
           role: credentials.role || 'SUPER_ADMIN'
@@ -43,32 +44,10 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('user');
   };
 
-  const saveUserData = async (userData) => {
-    try {
-      // Optimistically set user state first
-      setUser(userData);
-      localStorage.setItem('user', JSON.stringify(userData));
-
-      const targetId = userData._id || userData.id || userData.email;
-      if (!targetId) return;
-
-      const response = await fetch(`/api/users/${targetId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(userData),
-      });
-
-      if (response.ok) {
-        const updatedUserFromDb = await response.json();
-        setUser(updatedUserFromDb);
-        localStorage.setItem('user', JSON.stringify(updatedUserFromDb));
-        return updatedUserFromDb;
-      }
-    } catch (error) {
-      console.error('Failed to sync profile update with database:', error);
-    }
+  // Pure state updater — eliminate double-fetching
+  const saveUserData = (userData) => {
+    setUser(userData);
+    localStorage.setItem('user', JSON.stringify(userData));
   };
 
   return (

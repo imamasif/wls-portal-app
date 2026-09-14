@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfileDetail } from './UserProfileDetail';
+import { AdminUserControls } from './AdminUserControls'; // <-- Add import
 import { UserRole, isSuperUserRole } from '../../../types/user';
 import styles from './UserGridView.module.css';
 
@@ -8,7 +9,7 @@ export function UserGridView({ currentUser }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL');
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25);
+  const [pageSize] = useState(25);
   const [selectedUserIds, setSelectedUserIds] = useState(new Set());
   const [sortField, setSortField] = useState('name');
   const [sortDirection, setSortDirection] = useState('asc');
@@ -16,13 +17,12 @@ export function UserGridView({ currentUser }) {
   const [updatingUserId, setUpdatingUserId] = useState(null);
   const [toastMessage, setToastMessage] = useState(null);
 
-  // Helper to show soft notification banners
   const showToast = (msg, type = 'success') => {
     setToastMessage({ msg, type });
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  const canManageRoles = isSuperUserRole(currentUser?.role);
+  const isSuperAdmin = isSuperUserRole(currentUser?.role);
 
   useEffect(() => {
     fetch('/api/users')
@@ -33,15 +33,11 @@ export function UserGridView({ currentUser }) {
       .catch((err) => console.error('Error fetching users:', err));
   }, []);
 
-  // Role modification with explicit user confirmation
   const handleRoleChange = async (targetUser, newRole, e) => {
     e.stopPropagation();
     if (targetUser.role === newRole) return;
 
-    const confirmChange = window.confirm(
-      `Are you sure you want to change ${targetUser.name || 'this user'}'s role to ${newRole}?`
-    );
-    if (!confirmChange) return;
+    if (!window.confirm(`Are you sure you want to change ${targetUser.name || 'this user'}'s role to ${newRole}?`)) return;
 
     const targetId = targetUser._id || targetUser.id;
     setUpdatingUserId(targetId);
@@ -55,9 +51,7 @@ export function UserGridView({ currentUser }) {
 
       if (res.ok) {
         const updatedUser = await res.json();
-        setUsers((prev) =>
-          prev.map((u) => ((u._id || u.id) === targetId ? updatedUser : u))
-        );
+        setUsers((prev) => prev.map((u) => ((u._id || u.id) === targetId ? updatedUser : u)));
         showToast(`Role updated successfully to ${newRole}!`);
       } else {
         showToast('Failed to update user role.', 'error');
@@ -92,16 +86,21 @@ export function UserGridView({ currentUser }) {
         <UserProfileDetail 
           overrideUser={selectedProfileUser} 
           onUserUpdated={(updated) => {
-            setSelectedProfileUser(updated);
-            setUsers((prev) => prev.map((u) => ((u._id || u.id) === (updated._id || updated.id) ? updated : u)));
-            showToast('User profile & details updated successfully!');
+            if (!updated) {
+              setSelectedProfileUser(null);
+              setUsers((prev) => prev.filter((u) => (u._id || u.id) !== (selectedProfileUser._id || selectedProfileUser.id)));
+              showToast('User deleted successfully.');
+            } else {
+              setSelectedProfileUser(updated);
+              setUsers((prev) => prev.map((u) => ((u._id || u.id) === (updated._id || updated.id) ? updated : u)));
+              showToast('User details updated successfully!');
+            }
           }}
         />
       </div>
     );
   }
 
-  // Filter & Sort Logic
   const filteredUsers = users.filter((user) => {
     const primaryPhone = user.phones?.find((p) => p.isPrimary)?.number || user.phone || '';
     const matchesSearch = 
@@ -154,7 +153,6 @@ export function UserGridView({ currentUser }) {
 
   return (
     <div className={styles.card} style={{ position: 'relative' }}>
-      {/* Soft React Message Banner */}
       {toastMessage && (
         <div style={{
           position: 'fixed',
@@ -218,13 +216,13 @@ export function UserGridView({ currentUser }) {
               <th>Phone</th>
               <th onClick={() => handleSort('role')} style={{ cursor: 'pointer' }}>Role</th>
               <th onClick={() => handleSort('city')} style={{ cursor: 'pointer' }}>City / Country</th>
-              <th>Profession</th>
+              {isSuperAdmin && <th>Admin Actions</th>}
             </tr>
           </thead>
           <tbody>
             {paginatedUsers.length === 0 ? (
               <tr>
-                <td colSpan="7" style={{ textAlign: 'center', padding: '32px', color: '#64748b' }}>
+                <td colSpan={isSuperAdmin ? 7 : 6} style={{ textAlign: 'center', padding: '32px', color: '#64748b' }}>
                   No users found matching your criteria.
                 </td>
               </tr>
@@ -238,7 +236,6 @@ export function UserGridView({ currentUser }) {
                 let rowBg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
                 if (isSelected) rowBg = '#f1f5f9';
 
-                // Format primary phone or fallback string
                 const primaryPhoneObj = uItem.phones?.find((p) => p.isPrimary) || uItem.phones?.[0];
                 const displayPhone = primaryPhoneObj ? primaryPhoneObj.number : (uItem.phone || 'N/A');
 
@@ -268,12 +265,20 @@ export function UserGridView({ currentUser }) {
                         <span style={{ fontWeight: 600, color: '#0284c7' }}>
                           {uItem.name || 'Unnamed User'}
                         </span>
+                        {uItem.isUnderRadar && (
+                          <span 
+                            title={uItem.radarComment || 'Under Radar'} 
+                            style={{ fontSize: '12px', cursor: 'help' }}
+                          >
+                            📡
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td>{uItem.email}</td>
                     <td style={{ fontSize: '13px', color: '#334155' }}>{displayPhone}</td>
                     <td onClick={(e) => e.stopPropagation()}>
-                      {canManageRoles && !isSelf ? (
+                      {isSuperAdmin && !isSelf ? (
                         <select
                           value={uItem.role || UserRole.USER}
                           disabled={updatingUserId === userId}
@@ -293,7 +298,28 @@ export function UserGridView({ currentUser }) {
                     <td style={{ color: '#64748b' }}>
                       {uItem.city ? `${uItem.city}, ` : ''}{uItem.country || ''}
                     </td>
-                    <td style={{ color: '#64748b' }}>{uItem.profession || 'N/A'}</td>
+
+                    {/* Compact Admin Action Controls */}
+                    {isSuperAdmin && (
+                      <td onClick={(e) => e.stopPropagation()}>
+                        <AdminUserControls
+                          targetUser={uItem}
+                          currentUser={currentUser}
+                          compact={true}
+                          onUserUpdated={(updatedUser, meta) => {
+                            if (meta?.deletedId) {
+                              setUsers((prev) => prev.filter((u) => (u._id || u.id) !== meta.deletedId));
+                              showToast('User record deleted successfully.');
+                            } else if (updatedUser) {
+                              setUsers((prev) =>
+                                prev.map((u) => ((u._id || u.id) === (updatedUser._id || updatedUser.id) ? updatedUser : u))
+                              );
+                              showToast('User updated successfully.');
+                            }
+                          }}
+                        />
+                      </td>
+                    )}
                   </tr>
                 );
               })

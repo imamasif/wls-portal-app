@@ -10,6 +10,7 @@ import {
   Phone
 } from 'lucide-react';
 import { EditProfileCard } from './EditProfileCard';
+import { AdminUserControls } from './AdminUserControls'; // <-- Add import
 import styles from './UserProfileDetail.module.css';
 
 const SocialIcon = ({ platform }) => {
@@ -25,7 +26,7 @@ const SocialIcon = ({ platform }) => {
 };
 
 export function UserProfileDetail({ overrideUser, onUserUpdated }) {
-  const { user: authUser } = useAuth();
+  const { user: authUser, saveUserData } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   
   const user = overrideUser || authUser;
@@ -39,6 +40,7 @@ export function UserProfileDetail({ overrideUser, onUserUpdated }) {
         onCancel={() => setIsEditing(false)}
         onSaveSuccess={(updatedData) => {
           setIsEditing(false);
+          saveUserData(updatedData);
           if (onUserUpdated) onUserUpdated(updatedData);
         }}
       />
@@ -79,12 +81,28 @@ export function UserProfileDetail({ overrideUser, onUserUpdated }) {
           </div>
         </div>
 
-        <button
-          className={styles.btnEditProfile}
-          onClick={() => setIsEditing(true)}
-        >
-          ✏️ Edit Profile
-        </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
+          <button
+            className={styles.btnEditProfile}
+            onClick={() => setIsEditing(true)}
+          >
+            ✏️ Edit Profile
+          </button>
+
+          {/* Render Admin User Controls (Full View) */}
+          <AdminUserControls
+            targetUser={user}
+            currentUser={authUser}
+            compact={false}
+            onUserUpdated={(updatedUser, meta) => {
+              if (meta?.deletedId) {
+                if (onUserUpdated) onUserUpdated(null);
+              } else if (onUserUpdated) {
+                onUserUpdated(updatedUser);
+              }
+            }}
+          />
+        </div>
       </div>
 
       {/* Grid Fields */}
