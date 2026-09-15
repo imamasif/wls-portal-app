@@ -10,8 +10,8 @@ const groupAssignmentSchema = new mongoose.Schema({
 const wlsSessionSchema = new mongoose.Schema({
   topicName: { type: String, required: true },
   sessionDateTimeToronto: { type: Date, required: true },
-  pdfBookletUrl: { type: String, default: '' },
-  quranVideoUrl: { type: String, default: '' },
+  pdfBookletUrl: [{ type: String, default: '' }],
+  quranVideoUrl: [{ type: String, default: '' }],
   groupAssignments: {
     type: Map,
     of: groupAssignmentSchema,
