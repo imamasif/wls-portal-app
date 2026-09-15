@@ -27,7 +27,6 @@ export function WlsManagementPanel() {
   const [wlsAdmins, setWlsAdmins] = useState([]);
   const [sessions, setSessions] = useState([]);
 
-  // Fetch Users and Persisted WLS Sessions whenever component mounts
   useEffect(() => {
     fetch('/api/users')
       .then((res) => res.json())
@@ -42,7 +41,6 @@ export function WlsManagementPanel() {
     fetchSessions();
   }, []);
 
-  // API Call: Retrieve saved sessions from MongoDB
   const fetchSessions = () => {
     fetch('/api/wls-sessions')
       .then((res) => res.json())
@@ -56,7 +54,6 @@ export function WlsManagementPanel() {
     setGroupAssignments((prev) => ({ ...prev, [groupIdx]: updatedGroupData }));
   };
 
-  // API Call: Save new session to backend database
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!topicName || !sessionDate) return;
@@ -83,7 +80,6 @@ export function WlsManagementPanel() {
         const savedSession = await res.json();
         setSessions((prev) => [savedSession, ...prev]);
 
-        // Reset Form Fields
         setTopicName('');
         setSessionDate(null);
         setPdfUrl('');
@@ -98,7 +94,51 @@ export function WlsManagementPanel() {
     }
   };
 
-  // API Call: Delete session from backend database
+  const handleToggleStatus = async (session, index) => {
+    const sessionId = session.id || session._id;
+    if (!sessionId) return;
+
+    const nextStatus = session.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+
+    try {
+      const res = await fetch(`/api/wls-sessions/${sessionId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: nextStatus })
+      });
+
+      if (res.ok) {
+        const updated = await res.json();
+        setSessions((prev) => prev.map((s, idx) => (idx === index ? updated : s)));
+      }
+    } catch (err) {
+      console.error('Failed to toggle status:', err);
+    }
+  };
+
+  const handleCancelSession = async (session, index) => {
+    const sessionId = session.id || session._id;
+    if (!sessionId) return;
+
+    const reason = window.prompt('Enter reason for postponing/cancelling this session:');
+    if (reason === null) return;
+
+    try {
+      const res = await fetch(`/api/wls-sessions/${sessionId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'CANCELLED', cancelReason: reason })
+      });
+
+      if (res.ok) {
+        const updated = await res.json();
+        setSessions((prev) => prev.map((s, idx) => (idx === index ? updated : s)));
+      }
+    } catch (err) {
+      console.error('Failed to postpone session:', err);
+    }
+  };
+
   const handleDeleteSession = async (session, index) => {
     const sessionId = session.id || session._id;
     if (!sessionId) return;
@@ -223,6 +263,18 @@ export function WlsManagementPanel() {
                   </Table.Td>
                   <Table.Td>
                     <Group gap="xs" justify="flex-end">
+                      <Tooltip label="Toggle Active/Inactive">
+                        <ActionIcon variant="light" color="blue" onClick={() => handleToggleStatus(s, idx)}>
+                          <IconRefresh size={16} />
+                        </ActionIcon>
+                      </Tooltip>
+                      {s.status !== 'CANCELLED' && (
+                        <Tooltip label="Postpone / Cancel">
+                          <ActionIcon variant="light" color="orange" onClick={() => handleCancelSession(s, idx)}>
+                            <IconPlayerPause size={16} />
+                          </ActionIcon>
+                        </Tooltip>
+                      )}
                       <Tooltip label="Delete Session">
                         <ActionIcon variant="light" color="red" onClick={() => handleDeleteSession(s, idx)}>
                           <IconTrash size={16} />

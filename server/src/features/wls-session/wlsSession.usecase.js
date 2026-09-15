@@ -12,6 +12,15 @@ export class WlsSessionUseCase {
     return WlsSessionMapper.toResponse(created);
   }
 
+  async updateStatus(id, status, cancelReason = '') {
+    const updated = await WlsSessionModel.findByIdAndUpdate(
+      id,
+      { status, cancelReason },
+      { new: true }
+    );
+    return WlsSessionMapper.toResponse(updated);
+  }
+
   async deleteSession(id) {
     await WlsSessionModel.findByIdAndDelete(id);
     return { success: true };

@@ -28,6 +28,16 @@ export class WlsSessionController {
     }
   };
 
+  updateStatus = async (req, res) => {
+    try {
+      const { status, cancelReason } = req.body;
+      const result = await this.useCase.updateStatus(req.params.id, status, cancelReason);
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  };
+
   delete = async (req, res) => {
     try {
       await this.useCase.deleteSession(req.params.id);
