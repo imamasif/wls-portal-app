@@ -8,11 +8,12 @@ import {
   IconBook, 
   IconTrash, 
   IconPlayerPause, 
-  IconRefresh 
+  IconRefresh,
+  IconListCheck
 } from '@tabler/icons-react';
 import { WlsGroupAssigner } from './WlsGroupAssigner';
 
-export function WlsManagementPanel({ onCreateSession, existingSessions = [] }) {
+export function WlsManagementPanel() {
   const [topicName, setTopicName] = useState('');
   const [sessionDate, setSessionDate] = useState(null);
   const [pdfUrl, setPdfUrl] = useState('');
@@ -24,8 +25,9 @@ export function WlsManagementPanel({ onCreateSession, existingSessions = [] }) {
 
   const [users, setUsers] = useState([]);
   const [wlsAdmins, setWlsAdmins] = useState([]);
-  const [localSessions, setLocalSessions] = useState(existingSessions);
+  const [sessions, setSessions] = useState([]);
 
+  // Fetch Users and Persisted WLS Sessions whenever component mounts
   useEffect(() => {
     fetch('/api/users')
       .then((res) => res.json())
@@ -36,70 +38,82 @@ export function WlsManagementPanel({ onCreateSession, existingSessions = [] }) {
         }
       })
       .catch((err) => console.error('Error fetching users:', err));
+
+    fetchSessions();
   }, []);
+
+  // API Call: Retrieve saved sessions from MongoDB
+  const fetchSessions = () => {
+    fetch('/api/wls-sessions')
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) setSessions(data);
+      })
+      .catch((err) => console.error('Error fetching WLS sessions:', err));
+  };
 
   const handleGroupAssignmentChange = (groupIdx, updatedGroupData) => {
     setGroupAssignments((prev) => ({ ...prev, [groupIdx]: updatedGroupData }));
   };
 
-  const handleSubmit = (e) => {
+  // API Call: Save new session to backend database
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!topicName || !sessionDate) return;
 
-    // Safely parse date object whether sessionDate is a string or Date instance
     const dateObj = sessionDate instanceof Date ? sessionDate : new Date(sessionDate);
 
-    const newSession = {
-      id: Date.now().toString(),
+    const newSessionPayload = {
       topicName,
       sessionDateTimeToronto: dateObj.toISOString(),
       pdfBookletUrl: pdfUrl,
       quranVideoUrl,
       groupAssignments,
-      status: 'ACTIVE',
-      hasPendingActivity: true
+      status: 'ACTIVE'
     };
 
-    if (typeof onCreateSession === 'function') {
-      onCreateSession(newSession);
-    } else {
-      setLocalSessions((prev) => [newSession, ...prev]);
+    try {
+      const res = await fetch('/api/wls-sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newSessionPayload)
+      });
+
+      if (res.ok) {
+        const savedSession = await res.json();
+        setSessions((prev) => [savedSession, ...prev]);
+
+        // Reset Form Fields
+        setTopicName('');
+        setSessionDate(null);
+        setPdfUrl('');
+        setQuranVideoUrl('');
+        setGroupAssignments({ 1: { userIds: [], adminIds: [], selectedAyats: [], instructions: '' } });
+      } else {
+        const err = await res.json();
+        alert(`Failed to save: ${err.message || 'Validation error'}`);
+      }
+    } catch (err) {
+      console.error('Failed to publish session:', err);
     }
-
-    setTopicName('');
-    setSessionDate(null);
-    setPdfUrl('');
-    setQuranVideoUrl('');
-    setGroupAssignments({ 1: { userIds: [], adminIds: [], selectedAyats: [], instructions: '' } });
   };
 
-  const handleToggleStatus = (index) => {
-    setLocalSessions((prev) =>
-      prev.map((s, idx) => (idx === index ? { ...s, status: s.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' } : s))
-    );
-  };
-
-  const handleCancelSession = (index) => {
-    const reason = window.prompt('Enter reason for postponing/cancelling this session:');
-    if (reason === null) return;
-
-    setLocalSessions((prev) =>
-      prev.map((s, idx) => (idx === index ? { ...s, status: 'CANCELLED', cancelReason: reason } : s))
-    );
-  };
-
-  const handleDeleteSession = (session, index) => {
-    if (session.hasPendingActivity) {
-      alert('Cannot Delete: This WLS Session has active user activity. Complete all assessments before deleting.');
-      return;
-    }
+  // API Call: Delete session from backend database
+  const handleDeleteSession = async (session, index) => {
+    const sessionId = session.id || session._id;
+    if (!sessionId) return;
 
     if (window.confirm(`Delete "${session.topicName}"?`)) {
-      setLocalSessions((prev) => prev.filter((_, idx) => idx !== index));
+      try {
+        const res = await fetch(`/api/wls-sessions/${sessionId}`, { method: 'DELETE' });
+        if (res.ok) {
+          setSessions((prev) => prev.filter((_, idx) => idx !== index));
+        }
+      } catch (err) {
+        console.error('Delete failed:', err);
+      }
     }
   };
-
-  const sessionsToDisplay = existingSessions.length > 0 ? existingSessions : localSessions;
 
   return (
     <Stack gap="lg">
@@ -173,8 +187,12 @@ export function WlsManagementPanel({ onCreateSession, existingSessions = [] }) {
       </Card>
 
       <Card withBorder padding="lg" radius="md" shadow="sm">
-        <Title order={4} mb="md">Managed Sessions</Title>
-        {sessionsToDisplay.length === 0 ? (
+        <Group gap="xs" mb="md">
+          <IconListCheck size={20} color="var(--mantine-color-blue-6)" />
+          <Title order={4}>Managed Sessions</Title>
+        </Group>
+
+        {sessions.length === 0 ? (
           <Text c="dimmed" size="sm">No historical or active sessions logged yet.</Text>
         ) : (
           <Table highlightOnHover verticalSpacing="sm">
@@ -187,34 +205,24 @@ export function WlsManagementPanel({ onCreateSession, existingSessions = [] }) {
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {sessionsToDisplay.map((s, idx) => (
-                <Table.Tr key={idx}>
+              {sessions.map((s, idx) => (
+                <Table.Tr key={s.id || s._id || idx}>
                   <Table.Td>
                     <Text fw={500}>{s.topicName}</Text>
                     {s.cancelReason && (
                       <Text size="xs" c="red">Reason: {s.cancelReason}</Text>
                     )}
                   </Table.Td>
-                  <Table.Td>{new Date(s.sessionDateTimeToronto).toLocaleString()}</Table.Td>
+                  <Table.Td>
+                    {s.sessionDateTimeToronto ? new Date(s.sessionDateTimeToronto).toLocaleString() : 'N/A'}
+                  </Table.Td>
                   <Table.Td>
                     <Badge color={s.status === 'ACTIVE' ? 'green' : s.status === 'CANCELLED' ? 'red' : 'gray'}>
-                      {s.status}
+                      {s.status || 'ACTIVE'}
                     </Badge>
                   </Table.Td>
                   <Table.Td>
                     <Group gap="xs" justify="flex-end">
-                      <Tooltip label="Toggle Active/Inactive">
-                        <ActionIcon variant="light" color="blue" onClick={() => handleToggleStatus(idx)}>
-                          <IconRefresh size={16} />
-                        </ActionIcon>
-                      </Tooltip>
-                      {s.status !== 'CANCELLED' && (
-                        <Tooltip label="Postpone / Cancel">
-                          <ActionIcon variant="light" color="orange" onClick={() => handleCancelSession(idx)}>
-                            <IconPlayerPause size={16} />
-                          </ActionIcon>
-                        </Tooltip>
-                      )}
                       <Tooltip label="Delete Session">
                         <ActionIcon variant="light" color="red" onClick={() => handleDeleteSession(s, idx)}>
                           <IconTrash size={16} />

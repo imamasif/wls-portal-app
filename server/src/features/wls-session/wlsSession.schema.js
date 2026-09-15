@@ -1,4 +1,4 @@
-const Ajv = require('ajv');
+import Ajv from 'ajv';
 const ajv = new Ajv({ allErrors: true });
 
 const createWlsSessionSchema = {
@@ -8,10 +8,10 @@ const createWlsSessionSchema = {
     sessionDateTimeToronto: { type: 'string' },
     pdfBookletUrl: { type: 'string' },
     quranVideoUrl: { type: 'string' },
-    numberOfGroups: { type: 'integer', minimum: 1, maximum: 100 }
+    groupAssignments: { type: 'object' }
   },
-  required: ['topicName', 'sessionDateTimeToronto', 'pdfBookletUrl', 'quranVideoUrl', 'numberOfGroups'],
-  additionalProperties: false
+  required: ['topicName', 'sessionDateTimeToronto'],
+  additionalProperties: true
 };
 
-module.exports = ajv.compile(createWlsSessionSchema);
+export const validateCreateWlsSession = ajv.compile(createWlsSessionSchema);

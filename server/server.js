@@ -8,13 +8,15 @@ import bcrypt from 'bcrypt';
 import { connectDB } from './src/common/database/db.js';
 import userController from './src/features/users/user.controller.js';
 import sessionController from './src/features/sessions/session.controller.js';
+import wlsSessionRoutes from './src/features/wls-session/index.js'; // <-- Import WLS Session router
 import assessmentController from './src/features/assessments/assessment.controller.js';
-import ruleRoutes from './src/features/rules/rule.routes.js'; // <-- Import rule routes
+import ruleRoutes from './src/features/rules/rule.routes.js';
 import { notificationController } from './src/features/notifications/index.js';
 
 // Explicitly import models for the seed endpoint
 import { UserModel } from './src/features/users/index.js';
 import { SessionModel } from './src/features/sessions/index.js';
+import { WlsSessionModel } from './src/features/wls-session/wlsSession.model.js'; // <-- Import WlsSessionModel
 import { reportController } from './src/features/reports/index.js';
 
 const app = express();
@@ -28,22 +30,21 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
 connectDB();
 
 app.use('/api/users', userController);
+app.use('/api/wls-sessions', wlsSessionRoutes); // <-- Mount WLS Session endpoints here
 app.use('/api/sessions', sessionController);
-// Mount Route alongside users and sessions
 app.use('/api/assessments', assessmentController);
-app.use('/api/rules', ruleRoutes); // <-- Mount the Rule Engine endpoints here
+app.use('/api/rules', ruleRoutes);
 
-// 2. Mount the routes under your API path prefix
+// 2. Mount remaining feature controllers
 app.use('/api/notifications', notificationController);
-
-// 3. Mount reports endpoints
 app.use('/api/reports', reportController);
 
-// 4. Seed Route
+// 3. Seed Route
 app.post('/api/seed', async (req, res) => {
   try {
     await UserModel.deleteMany({});
     await SessionModel.deleteMany({});
+    await WlsSessionModel.deleteMany({}); // <-- Clear old WLS sessions
 
     const rawPassword = 'DefaultPassword123!';
     const hashedPassword = await bcrypt.hash(rawPassword, 10);
@@ -51,8 +52,8 @@ app.post('/api/seed', async (req, res) => {
     const users = await UserModel.insertMany([
       { 
         name: 'Syed Imam', 
-        email: 'syed.imam@iipc.org', // Updated email to match your login
-        password: hashedPassword, // Stored as bcrypt hash
+        email: 'syed.imam@iipc.org', 
+        password: hashedPassword, 
         role: 'SUPER_ADMIN', 
         city: 'Toronto', 
         country: 'Canada', 
@@ -86,13 +87,28 @@ app.post('/api/seed', async (req, res) => {
       }))
     ]);
 
-    const session = await SessionModel.create({
-      weekNumber: 36,
-      title: 'Week 36: Foundations of Faith & Reflection',
-      groups: []
+    // Seed initial WLS Session
+    const initialWlsSession = await WlsSessionModel.create({
+      topicName: 'Tafseer & Recitation Module - Week 1',
+      sessionDateTimeToronto: new Date(),
+      pdfBookletUrl: 'https://example.com/booklet-week1.pdf',
+      quranVideoUrl: 'https://youtube.com/watch?v=example',
+      status: 'ACTIVE',
+      groupAssignments: {
+        '1': {
+          userIds: [users[3]._id.toString()],
+          adminIds: [users[2]._id.toString()],
+          selectedAyats: ['Surah Al-Fatiha (1:1-7)'],
+          instructions: 'Initial seed instruction for Group 1'
+        }
+      }
     });
 
-    res.json({ message: 'Database seeded successfully!', usersCount: users.length, sessionCreated: session.weekNumber });
+    res.json({ 
+      message: 'Database seeded successfully!', 
+      usersCount: users.length, 
+      wlsSessionCreated: initialWlsSession.topicName 
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
