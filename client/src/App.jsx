@@ -6,31 +6,59 @@ import { UserProfileDetail } from './features/user-management/components/UserPro
 import { UserGridView } from './features/user-management/components/UserGridView';
 import { isSuperUserRole } from './types/user';
 
+// Import actual feature components
+import { WlsManagementPanel } from './features/wls-management/components/WlsManagementPanel';
+import { WlsAssessmentPanel } from './features/wls-assessment/components/WlsAssessmentPanel';
+import { CriteriaRuleEngine } from './features/criteria-engine/components/CriteriaRuleEngine';
+import { ReportingManagement } from './features/reporting/components/ReportingManagement';
+import { NotificationPanel } from './features/notifications/components/NotificationPanel';
+
 export default function App() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
 
   const isSuperUser = isSuperUserRole(user?.role);
+  const isWlsAdmin = isSuperUser || user?.role === 'WLS_ADMIN';
 
   return (
     <MainLayout activeTab={activeTab} setActiveTab={setActiveTab}>
       <AuthModal />
 
-      {activeTab === 'users' && isSuperUser ? (
-        <UserGridView currentUser={user} />
-      ) : (
+      {/* 1. Dashboard Tab */}
+      {activeTab === 'dashboard' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           {user && <UserProfileDetail />}
-
-          <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-            <h3 style={{ margin: '0 0 12px 0', fontSize: '18px', color: '#0f172a' }}>
-              Active Weekly Learning Sessions
-            </h3>
-            <p style={{ margin: 0, color: '#64748b', fontStyle: 'italic' }}>
-              No active sessions found. Create one using the WLS Session Builder.
-            </p>
-          </div>
         </div>
+      )}
+
+      {/* 2. User Management Tab (Super User Only) */}
+      {activeTab === 'users' && isSuperUser && (
+        <UserGridView currentUser={user} />
+      )}
+
+      {/* 3. WLS Session Builder (Admins Only) */}
+      {activeTab === 'wls-mgmt' && isWlsAdmin && (
+        <WlsManagementPanel />
+      )}
+
+      {/* 4. WLS Assessment & Grading (Admins Only) */}
+      {activeTab === 'assessment' && isWlsAdmin && (
+        <WlsAssessmentPanel />
+      )}
+
+      {/* 5. Criteria Rule Engine (Super Admin Only) */}
+      {activeTab === 'criteria' && isSuperUser && (
+        <CriteriaRuleEngine />
+      )}
+
+      {/* 6. Reports & Analytics */}
+      {activeTab === 'reports' && (
+        <ReportingManagement userRole={user?.role} />
+      )}
+
+      {/* 7. Notifications Directory */}
+      {activeTab === 'notifications' && (
+        <NotificationPanel />
       )}
     </MainLayout>
   );

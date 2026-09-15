@@ -1,0 +1,32 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.label {
+  font-weight: 600;
+  color: #334155;
+}
+
+.badge {
+  background-color: #0284c7;
+  color: #ffffff;
+  padding: 2px 12px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.slider {
+  width: 100%;
+  cursor: pointer;
+  accent-color: #0284c7;
+}

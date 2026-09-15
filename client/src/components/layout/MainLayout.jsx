@@ -6,6 +6,7 @@ import styles from './MainLayout.module.css';
 export function MainLayout({ children, activeTab, setActiveTab }) {
   const { user, setShowAuthModal, logout } = useAuth();
   const isSuperUser = isSuperUserRole(user?.role);
+  const isWlsAdmin = isSuperUser || user?.role === 'WLS_ADMIN';
   
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const menuRef = useRef(null);
@@ -41,6 +42,7 @@ export function MainLayout({ children, activeTab, setActiveTab }) {
                 className={styles['notification-btn']} 
                 title="Notifications"
                 aria-label="Notifications"
+                onClick={() => setActiveTab('notifications')}
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={styles['bell-icon']}>
                   <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -53,10 +55,10 @@ export function MainLayout({ children, activeTab, setActiveTab }) {
               <div className={styles['profile-dropdown-container']} ref={menuRef}>
                 <div className={styles['user-info-trigger']} onClick={() => setShowProfileMenu(!showProfileMenu)}>
                   <span className={`${styles['badge-role']} ${isSuperUser ? styles.superuser : styles.regular}`}>
-                    {isSuperUser ? 'Super User' : 'User'}
+                    {isSuperUser ? 'Super User' : user?.role || 'User'}
                   </span>
-                  <span className={styles['user-display-name']}>{user.name}</span>
 
+                  {/* Profile Avatar Trigger (Name removed from header bar) */}
                   <button
                     className={styles['avatar-btn']}
                     aria-label="User Profile Menu"
@@ -71,7 +73,7 @@ export function MainLayout({ children, activeTab, setActiveTab }) {
                   </button>
                 </div>
 
-                {/* Dropdown Menu */}
+                {/* Dropdown Menu (Name visible here on click) */}
                 {showProfileMenu && (
                   <div className={styles['dropdown-menu']}>
                     <div className={styles['dropdown-header']}>
@@ -93,7 +95,7 @@ export function MainLayout({ children, activeTab, setActiveTab }) {
                       className={styles['dropdown-item']}
                       onClick={() => {
                         setShowProfileMenu(false);
-                        // Notifications click handler can be bound here
+                        setActiveTab('notifications');
                       }}
                     >
                       🔔 Notifications
@@ -141,6 +143,39 @@ export function MainLayout({ children, activeTab, setActiveTab }) {
               User Management
             </button>
           )}
+
+          {isWlsAdmin && (
+            <>
+              <button
+                className={`${styles['nav-tab-btn']} ${activeTab === 'wls-mgmt' ? styles.active : ''}`}
+                onClick={() => setActiveTab('wls-mgmt')}
+              >
+                WLS Session Builder
+              </button>
+              <button
+                className={`${styles['nav-tab-btn']} ${activeTab === 'assessment' ? styles.active : ''}`}
+                onClick={() => setActiveTab('assessment')}
+              >
+                WLS Assessment
+              </button>
+            </>
+          )}
+
+          {isSuperUser && (
+            <button
+              className={`${styles['nav-tab-btn']} ${activeTab === 'criteria' ? styles.active : ''}`}
+              onClick={() => setActiveTab('criteria')}
+            >
+              Rule Engine
+            </button>
+          )}
+
+          <button
+            className={`${styles['nav-tab-btn']} ${activeTab === 'reports' ? styles.active : ''}`}
+            onClick={() => setActiveTab('reports')}
+          >
+            Analytics & Reports
+          </button>
         </nav>
       )}
 

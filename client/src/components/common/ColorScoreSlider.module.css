@@ -1,0 +1,44 @@
+.wrapper {
+  margin-bottom: 16px;
+  padding: 12px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.label {
+  font-weight: 600;
+  color: #334155;
+}
+
+.badge {
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 13px;
+  transition: all 0.3s ease;
+}
+
+.rangeInput {
+  width: 100%;
+  cursor: pointer;
+}
+
+/* Color Palette Steps */
+.score1 { background-color: #7f1d1d; color: #ffffff; }
+.score2 { background-color: #dc2626; color: #ffffff; }
+.score3 { background-color: #f97316; color: #ffffff; }
+.score4 { background-color: #facc15; color: #1e293b; }
+.score5 { background-color: #eab308; color: #1e293b; }
+.score6 { background-color: #38bdf8; color: #1e293b; }
+.score7 { background-color: #0284c7; color: #ffffff; }
+.score8 { background-color: #f472b6; color: #ffffff; }
+.score9 { background-color: #db2777; color: #ffffff; }
+.score10 { background-color: #16a34a; color: #ffffff; }
+.scoreDefault { background-color: #94a3b8; color: #ffffff; }

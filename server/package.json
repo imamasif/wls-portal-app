@@ -5,7 +5,9 @@
   "main": "src/app.js",
   "scripts": {
     "start": "node src/app.js",
-    "dev": "nodemon src/app.js"
+    "dev": "nodemon src/app.js",
+    "seed": "node src/data/seeders/seedWlsData.js",
+    "seedmaster": "node src/data/seeders/seedMasterData.js"
   },
   "dependencies": {
     "ajv": "^8.20.0",

@@ -1,0 +1,71 @@
+.container {
+  border: 1px solid #cbd5e1;
+  padding: 16px;
+  border-radius: 8px;
+  background-color: #f8fafc;
+}
+
+.sectionLabel {
+  font-weight: 700;
+  color: #1e293b;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.pickerRow {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.surahSelect {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #94a3b8;
+  flex: 2;
+}
+
+.ayatSelect {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #94a3b8;
+  flex: 1;
+}
+
+.btnAdd {
+  background-color: #0284c7;
+  color: #ffffff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.badgeContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.verseBadge {
+  background-color: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+  padding: 4px 10px;
+  border-radius: 16px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btnRemove {
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  font-weight: 700;
+}
