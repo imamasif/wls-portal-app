@@ -1,18 +1,32 @@
 import React, { useState, useEffect } from 'react';
+import { DataTable } from 'mantine-datatable';
+import { 
+  TextInput, 
+  Select, 
+  Group, 
+  Paper, 
+  Title, 
+  Avatar, 
+  Text, 
+  Badge, 
+  Button,
+  Notification
+} from '@mantine/core';
+import { IconSearch, IconArrowLeft, IconCheck, IconX } from '@tabler/icons-react';
 import { UserProfileDetail } from './UserProfileDetail';
-import { AdminUserControls } from './AdminUserControls'; // <-- Add import
+import { AdminUserControls } from './AdminUserControls';
 import { UserRole, isSuperUserRole } from '../../../types/user';
-import styles from './UserGridView.module.css';
 
 export function UserGridView({ currentUser }) {
   const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(25);
-  const [selectedUserIds, setSelectedUserIds] = useState(new Set());
-  const [sortField, setSortField] = useState('name');
-  const [sortDirection, setSortDirection] = useState('asc');
+  
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [sortStatus, setSortStatus] = useState({ columnAccessor: 'name', direction: 'asc' });
+  const [selectedRecords, setSelectedRecords] = useState([]);
+  
   const [selectedProfileUser, setSelectedProfileUser] = useState(null);
   const [updatingUserId, setUpdatingUserId] = useState(null);
   const [toastMessage, setToastMessage] = useState(null);
@@ -33,11 +47,9 @@ export function UserGridView({ currentUser }) {
       .catch((err) => console.error('Error fetching users:', err));
   }, []);
 
-  const handleRoleChange = async (targetUser, newRole, e) => {
-    e.stopPropagation();
+  const handleRoleChange = async (targetUser, newRole) => {
     if (targetUser.role === newRole) return;
-
-    if (!window.confirm(`Are you sure you want to change ${targetUser.name || 'this user'}'s role to ${newRole}?`)) return;
+    if (!window.confirm(`Change ${targetUser.name || 'user'}'s role to ${newRole}?`)) return;
 
     const targetId = targetUser._id || targetUser.id;
     setUpdatingUserId(targetId);
@@ -65,24 +77,15 @@ export function UserGridView({ currentUser }) {
 
   if (selectedProfileUser) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-          <button 
-            onClick={() => setSelectedProfileUser(null)}
-            style={{
-              background: '#e0f2fe',
-              border: '1px solid #bae6fd',
-              color: '#0284c7',
-              padding: '6px 14px',
-              borderRadius: '6px',
-              fontSize: '13px',
-              fontWeight: '700',
-              cursor: 'pointer'
-            }}
-          >
-            ← Back to Directory
-          </button>
-        </div>
+      <Paper p="lg" radius="md" withBorder shadow="sm">
+        <Button 
+          leftSection={<IconArrowLeft size={16} />} 
+          variant="light" 
+          mb="md"
+          onClick={() => setSelectedProfileUser(null)}
+        >
+          Back to Directory
+        </Button>
         <UserProfileDetail 
           overrideUser={selectedProfileUser} 
           onUserUpdated={(updated) => {
@@ -97,7 +100,7 @@ export function UserGridView({ currentUser }) {
             }
           }}
         />
-      </div>
+      </Paper>
     );
   }
 
@@ -114,219 +117,193 @@ export function UserGridView({ currentUser }) {
   });
 
   const sortedUsers = [...filteredUsers].sort((a, b) => {
-    let aVal = a[sortField] || '';
-    let bVal = b[sortField] || '';
+    let aVal = a[sortStatus.columnAccessor] || '';
+    let bVal = b[sortStatus.columnAccessor] || '';
     if (typeof aVal === 'string') aVal = aVal.toLowerCase();
     if (typeof bVal === 'string') bVal = bVal.toLowerCase();
 
-    if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
-    if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+    if (aVal < bVal) return sortStatus.direction === 'asc' ? -1 : 1;
+    if (aVal > bVal) return sortStatus.direction === 'asc' ? 1 : -1;
     return 0;
   });
 
-  const totalPages = Math.ceil(sortedUsers.length / pageSize) || 1;
-  const paginatedUsers = sortedUsers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-
-  const toggleSelectAll = () => {
-    if (selectedUserIds.size === paginatedUsers.length) {
-      setSelectedUserIds(new Set());
-    } else {
-      setSelectedUserIds(new Set(paginatedUsers.map((u) => u._id || u.email)));
-    }
-  };
-
-  const toggleSelectUser = (id) => {
-    const updated = new Set(selectedUserIds);
-    if (updated.has(id)) updated.delete(id);
-    else updated.add(id);
-    setSelectedUserIds(updated);
-  };
-
-  const handleSort = (field) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
+  const records = sortedUsers.slice((page - 1) * pageSize, page * pageSize);
 
   return (
-    <div className={styles.card} style={{ position: 'relative' }}>
+    <Paper p="md" radius="md" withBorder shadow="sm" style={{ position: 'relative', width: '100%', overflow: 'hidden' }}>
       {toastMessage && (
-        <div style={{
-          position: 'fixed',
-          top: '20px',
-          right: '20px',
-          backgroundColor: toastMessage.type === 'error' ? '#fef2f2' : '#f0fdf4',
-          border: `1px solid ${toastMessage.type === 'error' ? '#fecaca' : '#bbf7d0'}`,
-          color: toastMessage.type === 'error' ? '#991b1b' : '#166534',
-          padding: '12px 20px',
-          borderRadius: '8px',
-          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-          zIndex: 9999,
-          fontWeight: 600,
-          fontSize: '14px'
-        }}>
-          {toastMessage.type === 'error' ? '❌ ' : '✅ '}
-          {toastMessage.msg}
+        <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 9999 }}>
+          <Notification 
+            icon={toastMessage.type === 'error' ? <IconX size={18} /> : <IconCheck size={18} />}
+            color={toastMessage.type === 'error' ? 'red' : 'green'}
+            onClose={() => setToastMessage(null)}
+          >
+            {toastMessage.msg}
+          </Notification>
         </div>
       )}
 
-      <div className={styles.gridHeader}>
-        <h2 className={styles.gridTitle}>User Management Directory</h2>
-      </div>
+      <Group justify="space-between" mb="md">
+        <Title order={3} c="blue.8">User Management Directory</Title>
+      </Group>
 
-      <div className={styles.controlsBar}>
-        <input
-          type="text"
-          placeholder="Search by name, email, phone, or city..."
+      <Group mb="md">
+        <TextInput
+          placeholder="Search by name, email, phone, city..."
+          leftSection={<IconSearch size={16} />}
           value={searchTerm}
-          onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-          className={styles.searchInput}
-          style={{ flex: 1, minWidth: '260px' }}
+          onChange={(e) => { setSearchTerm(e.currentTarget.value); setPage(1); }}
+          style={{ flex: 1, minWidth: 200 }}
         />
-        <select
+        <Select
           value={roleFilter}
-          onChange={(e) => { setRoleFilter(e.target.value); setCurrentPage(1); }}
-          className={styles.roleSelect}
-        >
-          <option value="ALL">All Roles</option>
-          <option value={UserRole.SUPER_ADMIN}>Super Admin</option>
-          <option value={UserRole.SUPER_USER}>Super User</option>
-          <option value={UserRole.WLS_ADMIN}>WLS Admin</option>
-          <option value={UserRole.STUDENT}>Student</option>
-          <option value={UserRole.USER}>User</option>
-        </select>
-      </div>
+          onChange={(val) => { setRoleFilter(val || 'ALL'); setPage(1); }}
+          data={[
+            { value: 'ALL', label: 'All Roles' },
+            { value: UserRole.SUPER_ADMIN, label: 'Super Admin' },
+            { value: UserRole.SUPER_USER, label: 'Super User' },
+            { value: UserRole.WLS_ADMIN, label: 'WLS Admin' },
+            { value: UserRole.STUDENT, label: 'Student' },
+            { value: UserRole.USER, label: 'User' },
+          ]}
+        />
+      </Group>
 
-      <div className={styles.tableWrapper}>
-        <table className={styles.styledTable}>
-          <thead>
-            <tr>
-              <th style={{ width: '40px' }}>
-                <input 
-                  type="checkbox" 
-                  onChange={toggleSelectAll} 
-                  checked={paginatedUsers.length > 0 && selectedUserIds.size === paginatedUsers.length} 
-                />
-              </th>
-              <th onClick={() => handleSort('name')} style={{ cursor: 'pointer' }}>Name</th>
-              <th onClick={() => handleSort('email')} style={{ cursor: 'pointer' }}>Email</th>
-              <th>Phone</th>
-              <th onClick={() => handleSort('role')} style={{ cursor: 'pointer' }}>Role</th>
-              <th onClick={() => handleSort('city')} style={{ cursor: 'pointer' }}>City / Country</th>
-              {isSuperAdmin && <th>Admin Actions</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {paginatedUsers.length === 0 ? (
-              <tr>
-                <td colSpan={isSuperAdmin ? 7 : 6} style={{ textAlign: 'center', padding: '32px', color: '#64748b' }}>
-                  No users found matching your criteria.
-                </td>
-              </tr>
-            ) : (
-              paginatedUsers.map((uItem, idx) => {
-                const userId = uItem._id || uItem.id || uItem.email;
-                const isSelected = selectedUserIds.has(userId);
-                const currentUserId = currentUser?._id || currentUser?.id;
-                const isSelf = Boolean(currentUserId && userId === currentUserId);
+      <DataTable
+        withTableBorder
+        borderRadius="md"
+        striped
+        highlightOnHover
+        fz="xs"
+        verticalSpacing="xs"
+        horizontalSpacing="xs"
+        styles={{
+          root: { width: '100%', overflow: 'hidden' },
+          table: { tableLayout: 'fixed', width: '100%' },
+        }}
+        records={records}
+        totalRecords={sortedUsers.length}
+        recordsPerPage={pageSize}
+        page={page}
+        onPageChange={(p) => setPage(p)}
+        recordsPerPageOptions={[10, 25, 50, 100]}
+        onRecordsPerPageChange={setPageSize}
+        sortStatus={sortStatus}
+        onSortStatusChange={setSortStatus}
+        selectedRecords={selectedRecords}
+        onSelectedRecordsChange={setSelectedRecords}
+        onRowClick={({ record }) => setSelectedProfileUser(record)}
+        columns={[
+          {
+            accessor: 'name',
+            title: 'Name',
+            sortable: true,
+            render: (u) => (
+              <Group gap={4} wrap="nowrap">
+                <Avatar src={u.profilePictureUrl} radius="xl" size={18} color="blue">
+                  {u.name ? u.name.charAt(0).toUpperCase() : 'U'}
+                </Avatar>
+                <Text size="11px" fw={600} c="blue.7" lineClamp={1}>
+                  {u.name || 'Unnamed User'}
+                </Text>
+              </Group>
+            ),
+          },
+          { 
+            accessor: 'email', 
+            title: 'Email', 
+            sortable: true,
+            render: (u) => (
+              <Text size="11px" lineClamp={1}>
+                {u.email}
+              </Text>
+            )
+          },
+          {
+            accessor: 'phone',
+            title: 'Phone',
+            render: (u) => (
+              <Text size="11px" lineClamp={1}>
+                {u.phones?.find((p) => p.isPrimary)?.number || u.phone || 'N/A'}
+              </Text>
+            ),
+          },
+          {
+            accessor: 'role',
+            title: 'Role',
+            sortable: true,
+            render: (u) => {
+              const currentUserId = currentUser?._id || currentUser?.id;
+              const isSelf = Boolean(currentUserId && (u._id || u.id) === currentUserId);
 
-                let rowBg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
-                if (isSelected) rowBg = '#f1f5f9';
-
-                const primaryPhoneObj = uItem.phones?.find((p) => p.isPrimary) || uItem.phones?.[0];
-                const displayPhone = primaryPhoneObj ? primaryPhoneObj.number : (uItem.phone || 'N/A');
-
+              if (isSuperAdmin && !isSelf) {
                 return (
-                  <tr 
-                    key={userId} 
-                    className={styles.tableRow}
-                    style={{ backgroundColor: rowBg }}
-                    onClick={() => setSelectedProfileUser(uItem)}
-                  >
-                    <td onClick={(e) => e.stopPropagation()}>
-                      <input 
-                        type="checkbox" 
-                        checked={isSelected} 
-                        onChange={() => toggleSelectUser(userId)} 
-                      />
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        {uItem.profilePictureUrl ? (
-                          <img src={uItem.profilePictureUrl} alt="" className={styles.gridAvatar} />
-                        ) : (
-                          <div className={styles.gridAvatarFallback}>
-                            {uItem.name ? uItem.name.charAt(0).toUpperCase() : 'U'}
-                          </div>
-                        )}
-                        <span style={{ fontWeight: 600, color: '#0284c7' }}>
-                          {uItem.name || 'Unnamed User'}
-                        </span>
-                        {uItem.isUnderRadar && (
-                          <span 
-                            title={uItem.radarComment || 'Under Radar'} 
-                            style={{ fontSize: '12px', cursor: 'help' }}
-                          >
-                            📡
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td>{uItem.email}</td>
-                    <td style={{ fontSize: '13px', color: '#334155' }}>{displayPhone}</td>
-                    <td onClick={(e) => e.stopPropagation()}>
-                      {isSuperAdmin && !isSelf ? (
-                        <select
-                          value={uItem.role || UserRole.USER}
-                          disabled={updatingUserId === userId}
-                          onChange={(e) => handleRoleChange(uItem, e.target.value, e)}
-                          className={styles.inlineRoleSelect}
-                        >
-                          <option value={UserRole.USER}>USER</option>
-                          <option value={UserRole.STUDENT}>STUDENT</option>
-                          <option value={UserRole.WLS_ADMIN}>WLS ADMIN</option>
-                          <option value={UserRole.SUPER_USER}>SUPER USER</option>
-                          <option value={UserRole.SUPER_ADMIN}>SUPER ADMIN</option>
-                        </select>
-                      ) : (
-                        <span className="role-badge">{uItem.role || UserRole.USER}</span>
-                      )}
-                    </td>
-                    <td style={{ color: '#64748b' }}>
-                      {uItem.city ? `${uItem.city}, ` : ''}{uItem.country || ''}
-                    </td>
-
-                    {/* Compact Admin Action Controls */}
-                    {isSuperAdmin && (
-                      <td onClick={(e) => e.stopPropagation()}>
-                        <AdminUserControls
-                          targetUser={uItem}
-                          currentUser={currentUser}
-                          compact={true}
-                          onUserUpdated={(updatedUser, meta) => {
-                            if (meta?.deletedId) {
-                              setUsers((prev) => prev.filter((u) => (u._id || u.id) !== meta.deletedId));
-                              showToast('User record deleted successfully.');
-                            } else if (updatedUser) {
-                              setUsers((prev) =>
-                                prev.map((u) => ((u._id || u.id) === (updatedUser._id || updatedUser.id) ? updatedUser : u))
-                              );
-                              showToast('User updated successfully.');
-                            }
-                          }}
-                        />
-                      </td>
-                    )}
-                  </tr>
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <Select
+                      size="xs"
+                      w={85}
+                      styles={{
+                        input: { 
+                          fontSize: '10px', 
+                          paddingLeft: '4px', 
+                          paddingRight: '14px', 
+                          height: '22px',
+                          minHeight: '22px' 
+                        }
+                      }}
+                      value={u.role || UserRole.USER}
+                      disabled={updatingUserId === (u._id || u.id)}
+                      onChange={(val) => handleRoleChange(u, val)}
+                      data={[
+                        { value: UserRole.USER, label: 'USER' },
+                        { value: UserRole.STUDENT, label: 'STUDENT' },
+                        { value: UserRole.WLS_ADMIN, label: 'WLS ADMIN' },
+                        { value: UserRole.SUPER_USER, label: 'SUPER USER' },
+                        { value: UserRole.SUPER_ADMIN, label: 'SUPER ADMIN' },
+                      ]}
+                    />
+                  </div>
                 );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
+              }
+              return <Badge size="xs" variant="light">{u.role || UserRole.USER}</Badge>;
+            },
+          },
+          {
+            accessor: 'location',
+            title: 'City / Country',
+            render: (u) => (
+              <Text size="11px" lineClamp={1}>
+                {`${u.city ? u.city + ', ' : ''}${u.country || ''}`}
+              </Text>
+            ),
+          },
+          ...(isSuperAdmin ? [{
+            accessor: 'actions',
+            title: 'Actions',
+            width: 75,
+            render: (u) => (
+              <div onClick={(e) => e.stopPropagation()} style={{ display: 'flex', gap: '2px', flexWrap: 'nowrap' }}>
+                <AdminUserControls
+                  targetUser={u}
+                  currentUser={currentUser}
+                  compact={true}
+                  onUserUpdated={(updatedUser, meta) => {
+                    if (meta?.deletedId) {
+                      setUsers((prev) => prev.filter((item) => (item._id || item.id) !== meta.deletedId));
+                      showToast('User deleted successfully.');
+                    } else if (updatedUser) {
+                      setUsers((prev) =>
+                        prev.map((item) => ((item._id || item.id) === (updatedUser._id || updatedUser.id) ? updatedUser : item))
+                      );
+                      showToast('User updated successfully.');
+                    }
+                  }}
+                />
+              </div>
+            ),
+          }] : []),
+        ]}
+      />
+    </Paper>
   );
 }

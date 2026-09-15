@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { SliderCountSelector } from '../../../common/components/SliderCountSelector';
-import styles from './WlsGroupAssigner.module.css';
+import { Accordion, Checkbox, Textarea, Card, Text, Title, Grid, Stack, Group, Badge, Tooltip } from '@mantine/core';
+import { IconUsersGroup, IconUserCheck } from '@tabler/icons-react';
+import { SliderCountSelector } from '../../../components/common/SliderCountSelector';
+import { QuranVersePicker } from '../../../components/common/QuranVersePicker';
 
 export function WlsGroupAssigner({ users = [], wlsAdmins = [], groupAssignments, onAssignmentsChange }) {
   const [groupCount, setGroupCount] = useState(1);
 
   const handleUserToggle = (groupIdx, userId) => {
-    // Single Group Constraint Verification
     const isAssignedElsewhere = Object.entries(groupAssignments).some(([gIdx, data]) => {
-      return Number(gIdx) !== groupIdx && data.userIds.includes(userId);
+      return Number(gIdx) !== groupIdx && data.userIds?.includes(userId);
     });
 
     if (isAssignedElsewhere) {
@@ -16,7 +17,7 @@ export function WlsGroupAssigner({ users = [], wlsAdmins = [], groupAssignments,
       return;
     }
 
-    const currentGroup = groupAssignments[groupIdx] || { userIds: [], adminIds: [] };
+    const currentGroup = groupAssignments[groupIdx] || { userIds: [], adminIds: [], selectedAyats: [], instructions: '' };
     const exists = currentGroup.userIds.includes(userId);
     const updatedUserIds = exists
       ? currentGroup.userIds.filter((id) => id !== userId)
@@ -26,7 +27,7 @@ export function WlsGroupAssigner({ users = [], wlsAdmins = [], groupAssignments,
   };
 
   const handleAdminToggle = (groupIdx, adminId) => {
-    const currentGroup = groupAssignments[groupIdx] || { userIds: [], adminIds: [] };
+    const currentGroup = groupAssignments[groupIdx] || { userIds: [], adminIds: [], selectedAyats: [], instructions: '' };
     const exists = currentGroup.adminIds.includes(adminId);
     const updatedAdminIds = exists
       ? currentGroup.adminIds.filter((id) => id !== adminId)
@@ -35,9 +36,41 @@ export function WlsGroupAssigner({ users = [], wlsAdmins = [], groupAssignments,
     onAssignmentsChange(groupIdx, { ...currentGroup, adminIds: updatedAdminIds });
   };
 
+  const handleFieldChange = (groupIdx, field, value) => {
+    const currentGroup = groupAssignments[groupIdx] || { userIds: [], adminIds: [], selectedAyats: [], instructions: '' };
+    onAssignmentsChange(groupIdx, { ...currentGroup, [field]: value });
+  };
+
+  const renderUserCheckboxWithTooltip = (person, isChecked, onChange) => {
+    const tooltipContent = (
+      <Stack gap={2} p={2}>
+        <Text size="xs" fw={700}>{person.name}</Text>
+        <Text size="xs">📧 {person.email || 'N/A'}</Text>
+        <Text size="xs">🏙️ {person.city || 'N/A'}</Text>
+        <Text size="xs">🛡️ {person.role || 'User'}</Text>
+      </Stack>
+    );
+
+    return (
+      <Tooltip label={tooltipContent} position="top" withArrow withinPortal multiline>
+        <div>
+          <Checkbox
+            label={person.name}
+            checked={isChecked}
+            onChange={onChange}
+          />
+        </div>
+      </Tooltip>
+    );
+  };
+
   return (
-    <div className={styles.container}>
-      <h4 className={styles.title}>Group Configuration & Member Assignment</h4>
+    <Card withBorder padding="lg" radius="md">
+      <Group gap="xs" mb="md">
+        <IconUsersGroup size={20} color="var(--mantine-color-indigo-6)" />
+        <Title order={4}>Group Configuration & Member Assignment</Title>
+      </Group>
+      
       <SliderCountSelector
         label="Total Groups to Create"
         min={1}
@@ -46,54 +79,82 @@ export function WlsGroupAssigner({ users = [], wlsAdmins = [], groupAssignments,
         onChange={(val) => setGroupCount(val)}
       />
 
-      <div className={styles.accordionList}>
+      <Accordion variant="separated" radius="md" mt="md">
         {Array.from({ length: groupCount }, (_, i) => {
           const groupIdx = i + 1;
-          const assignedData = groupAssignments[groupIdx] || { userIds: [], adminIds: [] };
+          const assignedData = groupAssignments[groupIdx] || { userIds: [], adminIds: [], selectedAyats: [], instructions: '' };
 
           return (
-            <details key={groupIdx} className={styles.accordion}>
-              <summary className={styles.accordionHeader}>
-                Group {groupIdx} ({assignedData.userIds.length} Users, {assignedData.adminIds.length} Admins)
-              </summary>
-              
-              <div className={styles.assignmentPanel}>
-                <div className={styles.section}>
-                  <h5 className={styles.sectionTitle}>Assign WLS-Admins (Monitoring)</h5>
-                  <div className={styles.checkboxGrid}>
-                    {wlsAdmins.map((admin) => (
-                      <label key={admin._id} className={styles.checkboxLabel}>
-                        <input
-                          type="checkbox"
-                          checked={assignedData.adminIds.includes(admin._id)}
-                          onChange={() => handleAdminToggle(groupIdx, admin._id)}
-                        />
-                        <span>{admin.name}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
+            <Accordion.Item key={groupIdx} value={`group-${groupIdx}`}>
+              <Accordion.Control>
+                <Group justify="space-between">
+                  <Group gap="xs">
+                    <IconUserCheck size={18} color="var(--mantine-color-teal-6)" />
+                    <Text fw={600}>Group {groupIdx}</Text>
+                  </Group>
+                  <Group gap="xs">
+                    <Badge color="blue" variant="light">{assignedData.userIds?.length || 0} Users</Badge>
+                    <Badge color="grape" variant="light">{assignedData.adminIds?.length || 0} Admins</Badge>
+                  </Group>
+                </Group>
+              </Accordion.Control>
 
-                <div className={styles.section}>
-                  <h5 className={styles.sectionTitle}>Assign Users</h5>
-                  <div className={styles.checkboxGrid}>
-                    {users.map((u) => (
-                      <label key={u._id} className={styles.checkboxLabel}>
-                        <input
-                          type="checkbox"
-                          checked={assignedData.userIds.includes(u._id)}
-                          onChange={() => handleUserToggle(groupIdx, u._id)}
-                        />
-                        <span>{u.name}</span>
-                      </label>
-                    ))}
+              <Accordion.Panel>
+                <Stack gap="md">
+                  <div>
+                    <Text fw={600} size="sm" mb="xs">Assign WLS-Admins (Monitoring)</Text>
+                    <Grid>
+                      {wlsAdmins.map((admin) => {
+                        const adminId = admin._id || admin.id;
+                        return (
+                          <Grid.Col span={{ base: 12, sm: 6, md: 4 }} key={adminId}>
+                            {renderUserCheckboxWithTooltip(
+                              admin,
+                              assignedData.adminIds?.includes(adminId),
+                              () => handleAdminToggle(groupIdx, adminId)
+                            )}
+                          </Grid.Col>
+                        );
+                      })}
+                    </Grid>
                   </div>
-                </div>
-              </div>
-            </details>
+
+                  <div>
+                    <Text fw={600} size="sm" mb="xs">Assign Users & Students</Text>
+                    <Grid>
+                      {users.map((u) => {
+                        const uId = u._id || u.id;
+                        return (
+                          <Grid.Col span={{ base: 12, sm: 6, md: 4 }} key={uId}>
+                            {renderUserCheckboxWithTooltip(
+                              u,
+                              assignedData.userIds?.includes(uId),
+                              () => handleUserToggle(groupIdx, uId)
+                            )}
+                          </Grid.Col>
+                        );
+                      })}
+                    </Grid>
+                  </div>
+
+                  <QuranVersePicker
+                    selectedAyats={assignedData.selectedAyats || []}
+                    onChange={(newAyats) => handleFieldChange(groupIdx, 'selectedAyats', newAyats)}
+                  />
+
+                  <Textarea
+                    label="📝 Special Instructions & PDF Comments"
+                    placeholder="E.g., Prepare recitation video for Verses 1-5. Refer to PDF pages 12-14."
+                    rows={3}
+                    value={assignedData.instructions || ''}
+                    onChange={(e) => handleFieldChange(groupIdx, 'instructions', e.target.value)}
+                  />
+                </Stack>
+              </Accordion.Panel>
+            </Accordion.Item>
           );
         })}
-      </div>
-    </div>
+      </Accordion>
+    </Card>
   );
 }

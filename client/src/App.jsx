@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { AppShell, Container, Paper } from '@mantine/core';
 import { useAuth } from './context/AuthContext';
 import { MainLayout } from './components/layout/MainLayout';
 import { AuthModal } from './features/auth/components/AuthModal';
@@ -6,7 +7,6 @@ import { UserProfileDetail } from './features/user-management/components/UserPro
 import { UserGridView } from './features/user-management/components/UserGridView';
 import { isSuperUserRole } from './types/user';
 
-// Import actual feature components
 import { WlsManagementPanel } from './features/wls-management/components/WlsManagementPanel';
 import { WlsAssessmentPanel } from './features/wls-assessment/components/WlsAssessmentPanel';
 import { CriteriaRuleEngine } from './features/criteria-engine/components/CriteriaRuleEngine';
@@ -23,43 +23,47 @@ export default function App() {
   return (
     <MainLayout activeTab={activeTab} setActiveTab={setActiveTab}>
       <AuthModal />
+      <Container size="xl" py="md">
+        {activeTab === 'dashboard' && user && (
+          <Paper p="lg" radius="md" withBorder shadow="xs">
+            <UserProfileDetail />
+          </Paper>
+        )}
 
-      {/* 1. Dashboard Tab */}
-      {activeTab === 'dashboard' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {user && <UserProfileDetail />}
-        </div>
-      )}
+        {activeTab === 'users' && isSuperUser && (
+          <UserGridView currentUser={user} />
+        )}
 
-      {/* 2. User Management Tab (Super User Only) */}
-      {activeTab === 'users' && isSuperUser && (
-        <UserGridView currentUser={user} />
-      )}
+        {activeTab === 'wls-mgmt' && isWlsAdmin && (
+          <Paper p="lg" radius="md" withBorder shadow="xs">
+            <WlsManagementPanel />
+          </Paper>
+        )}
 
-      {/* 3. WLS Session Builder (Admins Only) */}
-      {activeTab === 'wls-mgmt' && isWlsAdmin && (
-        <WlsManagementPanel />
-      )}
+        {activeTab === 'assessment' && isWlsAdmin && (
+          <Paper p="lg" radius="md" withBorder shadow="xs">
+            <WlsAssessmentPanel />
+          </Paper>
+        )}
 
-      {/* 4. WLS Assessment & Grading (Admins Only) */}
-      {activeTab === 'assessment' && isWlsAdmin && (
-        <WlsAssessmentPanel />
-      )}
+        {activeTab === 'criteria' && isSuperUser && (
+          <Paper p="lg" radius="md" withBorder shadow="xs">
+            <CriteriaRuleEngine />
+          </Paper>
+        )}
 
-      {/* 5. Criteria Rule Engine (Super Admin Only) */}
-      {activeTab === 'criteria' && isSuperUser && (
-        <CriteriaRuleEngine />
-      )}
+        {activeTab === 'reports' && (
+          <Paper p="lg" radius="md" withBorder shadow="xs">
+            <ReportingManagement userRole={user?.role} />
+          </Paper>
+        )}
 
-      {/* 6. Reports & Analytics */}
-      {activeTab === 'reports' && (
-        <ReportingManagement userRole={user?.role} />
-      )}
-
-      {/* 7. Notifications Directory */}
-      {activeTab === 'notifications' && (
-        <NotificationPanel />
-      )}
+        {activeTab === 'notifications' && (
+          <Paper p="lg" radius="md" withBorder shadow="xs">
+            <NotificationPanel />
+          </Paper>
+        )}
+      </Container>
     </MainLayout>
   );
 }

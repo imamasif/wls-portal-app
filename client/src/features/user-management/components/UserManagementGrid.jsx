@@ -1,16 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import './UserManagementGrid.css';
+import { DataTable } from 'mantine-datatable';
+import { 
+  TextInput, 
+  Select, 
+  Group, 
+  Paper, 
+  Title, 
+  Avatar, 
+  Text, 
+  Badge 
+} from '@mantine/core';
+import { IconSearch } from '@tabler/icons-react';
 
 export function UserManagementGrid({ onSelectUser }) {
   const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [selectedUserIds, setSelectedUserIds] = useState(new Set());
-  const [sortField, setSortField] = useState('name');
-  const [sortDirection, setSortDirection] = useState('asc');
-
-  const pageSize = 50; // Initial 50 records requirement
+  
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+  const [sortStatus, setSortStatus] = useState({ columnAccessor: 'name', direction: 'asc' });
+  const [selectedRecords, setSelectedRecords] = useState([]);
 
   useEffect(() => {
     fetch('/api/users')
@@ -32,149 +42,120 @@ export function UserManagementGrid({ onSelectUser }) {
   });
 
   const sortedUsers = [...filteredUsers].sort((a, b) => {
-    let aVal = a[sortField] || '';
-    let bVal = b[sortField] || '';
+    let aVal = a[sortStatus.columnAccessor] || '';
+    let bVal = b[sortStatus.columnAccessor] || '';
     if (typeof aVal === 'string') aVal = aVal.toLowerCase();
     if (typeof bVal === 'string') bVal = bVal.toLowerCase();
 
-    if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
-    if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+    if (aVal < bVal) return sortStatus.direction === 'asc' ? -1 : 1;
+    if (aVal > bVal) return sortStatus.direction === 'asc' ? 1 : -1;
     return 0;
   });
 
-  const totalPages = Math.ceil(sortedUsers.length / pageSize) || 1;
-  const paginatedUsers = sortedUsers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-
-  const toggleSelectAll = () => {
-    if (selectedUserIds.size === paginatedUsers.length) {
-      setSelectedUserIds(new Set());
-    } else {
-      setSelectedUserIds(new Set(paginatedUsers.map((u) => u._id || u.email)));
-    }
-  };
-
-  const toggleSelectUser = (id) => {
-    const updated = new Set(selectedUserIds);
-    if (updated.has(id)) updated.delete(id);
-    else updated.add(id);
-    setSelectedUserIds(updated);
-  };
-
-  const handleSort = (field) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
+  const records = sortedUsers.slice((page - 1) * pageSize, page * pageSize);
 
   return (
-    <div className="grid-wrapper">
-      <h2>User Management Directory</h2>
+    <Paper p="md" radius="md" withBorder shadow="sm" style={{ width: '100%', overflow: 'hidden' }}>
+      <Group justify="space-between" mb="md">
+        <Title order={3} c="blue.8">User Management Directory</Title>
+      </Group>
 
-      <div className="grid-controls">
-        <input
-          type="text"
+      <Group mb="md">
+        <TextInput
           placeholder="Search by name, email, or city..."
+          leftSection={<IconSearch size={16} />}
           value={searchTerm}
-          onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-          className="search-input"
+          onChange={(e) => { setSearchTerm(e.currentTarget.value); setPage(1); }}
+          style={{ flex: 1, minWidth: 200 }}
         />
-        <select
+        <Select
           value={roleFilter}
-          onChange={(e) => { setRoleFilter(e.target.value); setCurrentPage(1); }}
-          className="role-select"
-        >
-          <option value="ALL">All Roles</option>
-          <option value="SUPER_ADMIN">Super Admin</option>
-          <option value="WLS_ADMIN">WLS Admin</option>
-          <option value="STUDENT">Student</option>
-        </select>
-      </div>
+          onChange={(val) => { setRoleFilter(val || 'ALL'); setPage(1); }}
+          data={[
+            { value: 'ALL', label: 'All Roles' },
+            { value: 'SUPER_ADMIN', label: 'Super Admin' },
+            { value: 'WLS_ADMIN', label: 'WLS Admin' },
+            { value: 'STUDENT', label: 'Student' },
+          ]}
+        />
+      </Group>
 
-      <div className="table-container">
-        <table className="user-table">
-          <thead>
-            <tr>
-              <th className="th-checkbox">
-                <input type="checkbox" onChange={toggleSelectAll} checked={paginatedUsers.length > 0 && selectedUserIds.size === paginatedUsers.length} />
-              </th>
-              <th onClick={() => handleSort('name')}>Name {sortField === 'name' && (sortDirection === 'asc' ? '▲' : '▼')}</th>
-              <th onClick={() => handleSort('email')}>Email {sortField === 'email' && (sortDirection === 'asc' ? '▲' : '▼')}</th>
-              <th onClick={() => handleSort('role')}>Role {sortField === 'role' && (sortDirection === 'asc' ? '▲' : '▼')}</th>
-              <th onClick={() => handleSort('city')}>City / Country {sortField === 'city' && (sortDirection === 'asc' ? '▲' : '▼')}</th>
-              <th>Profession</th>
-            </tr>
-          </thead>
-          <tbody>
-            {paginatedUsers.length === 0 ? (
-              <tr>
-                <td colSpan="6" className="no-records">No users found.</td>
-              </tr>
-            ) : (
-              paginatedUsers.map((user, idx) => {
-                const userId = user._id || user.email;
-                const isSelected = selectedUserIds.has(userId);
-                
-                // Row color classes based on roles and selection
-                let rowClass = idx % 2 === 0 ? 'row-even' : 'row-odd';
-                if (user.role === 'SUPER_ADMIN') rowClass += ' super-admin-row';
-                if (user.role === 'WLS_ADMIN') rowClass += ' wls-admin-row';
-                if (isSelected) rowClass += ' selected-row';
-
-                return (
-                  <tr key={userId} className={rowClass}>
-                    <td className="td-checkbox">
-                      <input type="checkbox" checked={isSelected} onChange={() => toggleSelectUser(userId)} onClick={(e) => e.stopPropagation()} />
-                    </td>
-                    <td className="td-name" onClick={() => onSelectUser(user)}>
-                      <div className="user-cell-content">
-                        {user.profilePictureUrl ? (
-                          <img src={user.profilePictureUrl} alt="" className="user-avatar" />
-                        ) : (
-                          <div className="user-avatar-placeholder">👤</div>
-                        )}
-                        <span>{user.name || 'Unnamed User'}</span>
-                      </div>
-                    </td>
-                    <td>{user.email}</td>
-                    <td>
-                      <span className={`role-badge ${user.role.toLowerCase()}`}>
-                        {user.role}
-                      </span>
-                    </td>
-                    <td className="text-muted">{user.city ? `${user.city}, ` : ''}{user.country}</td>
-                    <td className="text-muted">{user.profession || 'N/A'}</td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="pagination-footer">
-        <span className="pagination-info">
-          Showing {paginatedUsers.length} of {sortedUsers.length} users (Page {currentPage} of {totalPages})
-        </span>
-        <div className="pagination-buttons">
-          <button
-            disabled={currentPage === 1}
-            onClick={() => setCurrentPage(currentPage - 1)}
-            className="page-btn"
-          >
-            Previous
-          </button>
-          <button
-            disabled={currentPage >= totalPages}
-            onClick={() => setCurrentPage(currentPage + 1)}
-            className="page-btn"
-          >
-            Next
-          </button>
-        </div>
-      </div>
-    </div>
+      <DataTable
+        withTableBorder
+        borderRadius="md"
+        striped
+        highlightOnHover
+        fz="xs"
+        verticalSpacing="xs"
+        horizontalSpacing="xs"
+        styles={{
+          root: { width: '100%', overflow: 'hidden' },
+          table: { tableLayout: 'fixed', width: '100%' },
+        }}
+        records={records}
+        totalRecords={sortedUsers.length}
+        recordsPerPage={pageSize}
+        page={page}
+        onPageChange={(p) => setPage(p)}
+        recordsPerPageOptions={[10, 25, 50, 100]}
+        onRecordsPerPageChange={setPageSize}
+        sortStatus={sortStatus}
+        onSortStatusChange={setSortStatus}
+        selectedRecords={selectedRecords}
+        onSelectedRecordsChange={setSelectedRecords}
+        onRowClick={({ record }) => onSelectUser && onSelectUser(record)}
+        columns={[
+          {
+            accessor: 'name',
+            title: 'Name',
+            sortable: true,
+            render: (u) => (
+              <Group gap={4} wrap="nowrap">
+                <Avatar src={u.profilePictureUrl} radius="xl" size={18} color="blue">
+                  {u.name ? u.name.charAt(0).toUpperCase() : 'U'}
+                </Avatar>
+                <Text size="11px" fw={600} c="blue.7" lineClamp={1}>
+                  {u.name || 'Unnamed User'}
+                </Text>
+              </Group>
+            ),
+          },
+          { 
+            accessor: 'email', 
+            title: 'Email', 
+            sortable: true,
+            render: (u) => (
+              <Text size="11px" lineClamp={1}>
+                {u.email}
+              </Text>
+            )
+          },
+          {
+            accessor: 'phone',
+            title: 'Phone',
+            render: (u) => (
+              <Text size="11px" lineClamp={1}>
+                {u.phones?.find((p) => p.isPrimary)?.number || u.phone || 'N/A'}
+              </Text>
+            ),
+          },
+          {
+            accessor: 'role',
+            title: 'Role',
+            sortable: true,
+            render: (u) => <Badge size="xs" variant="light">{u.role || 'USER'}</Badge>,
+          },
+          {
+            accessor: 'location',
+            title: 'City / Country',
+            render: (u) => (
+              <Text size="11px" lineClamp={1}>
+                {`${u.city ? u.city + ', ' : ''}${u.country || ''}`}
+              </Text>
+            ),
+          },
+        ]}
+      />
+    </Paper>
   );
 }

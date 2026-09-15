@@ -1,28 +1,28 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import { 
-  Linkedin, 
-  Youtube, 
-  Facebook, 
-  Twitter, 
-  Github, 
-  Link as GenericLink,
-  Phone
-} from 'lucide-react';
+  IconBrandLinkedin, 
+  IconBrandYoutube, 
+  IconBrandFacebook, 
+  IconBrandTwitter, 
+  IconBrandGithub, 
+  IconLink,
+  IconPhone
+} from '@tabler/icons-react';
 import { EditProfileCard } from './EditProfileCard';
-import { AdminUserControls } from './AdminUserControls'; // <-- Add import
+import { AdminUserControls } from './AdminUserControls';
 import styles from './UserProfileDetail.module.css';
 
 const SocialIcon = ({ platform }) => {
   const normalized = (platform || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
-  if (normalized.includes('linkedin')) return <Linkedin size={16} className={styles.linkedinIcon} />;
-  if (normalized.includes('youtube')) return <Youtube size={16} className={styles.youtubeIcon} />;
-  if (normalized.includes('facebook')) return <Facebook size={16} className={styles.facebookIcon} />;
-  if (normalized.includes('twitter') || normalized.includes('x')) return <Twitter size={16} className={styles.twitterIcon} />;
-  if (normalized.includes('github')) return <Github size={16} className={styles.githubIcon} />;
+  if (normalized.includes('linkedin')) return <IconBrandLinkedin size={16} className={styles.linkedinIcon} />;
+  if (normalized.includes('youtube')) return <IconBrandYoutube size={16} className={styles.youtubeIcon} />;
+  if (normalized.includes('facebook')) return <IconBrandFacebook size={16} className={styles.facebookIcon} />;
+  if (normalized.includes('twitter') || normalized.includes('x')) return <IconBrandTwitter size={16} className={styles.twitterIcon} />;
+  if (normalized.includes('github')) return <IconBrandGithub size={16} className={styles.githubIcon} />;
 
-  return <GenericLink size={16} className={styles.defaultIcon} />;
+  return <IconLink size={16} className={styles.defaultIcon} />;
 };
 
 export function UserProfileDetail({ overrideUser, onUserUpdated }) {
@@ -129,7 +129,7 @@ export function UserProfileDetail({ overrideUser, onUserUpdated }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
               {user.phones.map((p, idx) => (
                 <div key={idx} style={{ fontSize: '13px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Phone size={13} style={{ color: '#0284c7' }} />
+                  <IconPhone size={13} style={{ color: '#0284c7' }} />
                   <strong>{p.type || 'Phone'}:</strong> {p.number}
                   {p.isPrimary && (
                     <span style={{ fontSize: '10px', background: '#e0f2fe', color: '#0284c7', padding: '1px 6px', borderRadius: '4px', fontWeight: 'bold' }}>
