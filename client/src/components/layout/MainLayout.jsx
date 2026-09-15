@@ -1,4 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { Menu, Button, UnstyledButton } from '@mantine/core';
+import { 
+  IconLayoutDashboard, 
+  IconSchool, 
+  IconTools, 
+  IconClipboardCheck, 
+  IconCpu, 
+  IconChartBar, 
+  IconUsers, 
+  IconChevronDown, 
+  IconBell, 
+  IconPencil, 
+  IconLogout 
+} from '@tabler/icons-react';
 import { useAuth } from '../../context/AuthContext';
 import { isSuperUserRole } from '../../types/user';
 import styles from './MainLayout.module.css';
@@ -7,11 +21,14 @@ export function MainLayout({ children, activeTab, setActiveTab }) {
   const { user, setShowAuthModal, logout } = useAuth();
   const isSuperUser = isSuperUserRole(user?.role);
   const isWlsAdmin = isSuperUser || user?.role === 'WLS_ADMIN';
-  
+
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const menuRef = useRef(null);
 
-  // Close dropdown menu when clicking outside
+  // Helper to determine if any WLS sub-tab is currently active
+  const isWlsActive = ['wls-mgmt', 'assessment', 'criteria', 'reports'].includes(activeTab);
+
+  // Close profile dropdown menu when clicking outside
   useEffect(() => {
     function handleClickOutside(event) {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -44,10 +61,7 @@ export function MainLayout({ children, activeTab, setActiveTab }) {
                 aria-label="Notifications"
                 onClick={() => setActiveTab('notifications')}
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={styles['bell-icon']}>
-                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                </svg>
+                <IconBell size={18} className={styles['bell-icon']} />
                 <span className={styles['notification-badge']}>3</span>
               </button>
 
@@ -58,7 +72,7 @@ export function MainLayout({ children, activeTab, setActiveTab }) {
                     {isSuperUser ? 'Super User' : user?.role || 'User'}
                   </span>
 
-                  {/* Profile Avatar Trigger (Name removed from header bar) */}
+                  {/* Profile Avatar Trigger */}
                   <button
                     className={styles['avatar-btn']}
                     aria-label="User Profile Menu"
@@ -73,7 +87,7 @@ export function MainLayout({ children, activeTab, setActiveTab }) {
                   </button>
                 </div>
 
-                {/* Dropdown Menu (Name visible here on click) */}
+                {/* Dropdown Menu */}
                 {showProfileMenu && (
                   <div className={styles['dropdown-menu']}>
                     <div className={styles['dropdown-header']}>
@@ -88,7 +102,7 @@ export function MainLayout({ children, activeTab, setActiveTab }) {
                         setShowAuthModal(true);
                       }}
                     >
-                      ✏️ Edit Profile
+                      <IconPencil size={16} /> Edit Profile
                     </button>
 
                     <button 
@@ -98,7 +112,7 @@ export function MainLayout({ children, activeTab, setActiveTab }) {
                         setActiveTab('notifications');
                       }}
                     >
-                      🔔 Notifications
+                      <IconBell size={16} /> Notifications
                       <span className={styles['dropdown-badge']}>3</span>
                     </button>
 
@@ -111,7 +125,7 @@ export function MainLayout({ children, activeTab, setActiveTab }) {
                         logout();
                       }}
                     >
-                      🚪 Sign Out
+                      <IconLogout size={16} /> Sign Out
                     </button>
                   </div>
                 )}
@@ -125,59 +139,77 @@ export function MainLayout({ children, activeTab, setActiveTab }) {
         </div>
       </header>
 
-      {/* NAVIGATION TABS */}
-      {user && (
-        <nav className={styles['nav-tabs-bar']}>
-          <button
-            className={`${styles['nav-tab-btn']} ${activeTab === 'dashboard' ? styles.active : ''}`}
-            onClick={() => setActiveTab('dashboard')}
+      {/* NAVIGATION TABS BAR WITH WLS DROPDOWN */}
+{user && (
+  <nav className={styles['nav-tabs-bar']}>
+    {/* 1. Dashboard */}
+    <button
+      className={`${styles['nav-tab-btn']} ${activeTab === 'dashboard' ? styles.active : ''}`}
+      onClick={() => setActiveTab('dashboard')}
+    >
+      <IconLayoutDashboard size={18} color={activeTab === 'dashboard' ? '#0ca678' : '#687588'} />
+      <span>Dashboard</span>
+    </button>
+
+    {/* 2. Unified WLS Parent Dropdown Menu */}
+    <Menu shadow="md" width={220} trigger="hover" openDelay={100} closeDelay={150}>
+      <Menu.Target>
+        <button className={`${styles['nav-tab-btn']} ${isWlsActive ? styles.active : ''}`}>
+          <IconSchool size={18} color={isWlsActive ? '#0ca678' : '#0ca678'} />
+          <span>Weekly Leadership Session (WLS)</span>
+          <IconChevronDown size={14} style={{ marginLeft: 2 }} />
+        </button>
+      </Menu.Target>
+
+      <Menu.Dropdown>
+        {isWlsAdmin && (
+          <Menu.Item 
+            leftSection={<IconTools size={16} color="var(--mantine-color-blue-6)" />}
+            onClick={() => setActiveTab('wls-mgmt')}
           >
-            Dashboard
-          </button>
-          
-          {isSuperUser && (
-            <button
-              className={`${styles['nav-tab-btn']} ${activeTab === 'users' ? styles.active : ''}`}
-              onClick={() => setActiveTab('users')}
-            >
-              User Management
-            </button>
-          )}
+            Session Builder
+          </Menu.Item>
+        )}
 
-          {isWlsAdmin && (
-            <>
-              <button
-                className={`${styles['nav-tab-btn']} ${activeTab === 'wls-mgmt' ? styles.active : ''}`}
-                onClick={() => setActiveTab('wls-mgmt')}
-              >
-                WLS Session Builder
-              </button>
-              <button
-                className={`${styles['nav-tab-btn']} ${activeTab === 'assessment' ? styles.active : ''}`}
-                onClick={() => setActiveTab('assessment')}
-              >
-                WLS Assessment
-              </button>
-            </>
-          )}
-
-          {isSuperUser && (
-            <button
-              className={`${styles['nav-tab-btn']} ${activeTab === 'criteria' ? styles.active : ''}`}
-              onClick={() => setActiveTab('criteria')}
-            >
-              Rule Engine
-            </button>
-          )}
-
-          <button
-            className={`${styles['nav-tab-btn']} ${activeTab === 'reports' ? styles.active : ''}`}
-            onClick={() => setActiveTab('reports')}
+        {isWlsAdmin && (
+          <Menu.Item 
+            leftSection={<IconClipboardCheck size={16} color="var(--mantine-color-green-6)" />}
+            onClick={() => setActiveTab('assessment')}
           >
-            Analytics & Reports
-          </button>
-        </nav>
-      )}
+            WLS Assessment
+          </Menu.Item>
+        )}
+
+        {isSuperUser && (
+          <Menu.Item 
+            leftSection={<IconCpu size={16} color="var(--mantine-color-orange-6)" />}
+            onClick={() => setActiveTab('criteria')}
+          >
+            Rule Engine
+          </Menu.Item>
+        )}
+
+        <Menu.Item 
+          leftSection={<IconChartBar size={16} color="var(--mantine-color-grape-6)" />}
+          onClick={() => setActiveTab('reports')}
+        >
+          Analytics & Reports
+        </Menu.Item>
+      </Menu.Dropdown>
+    </Menu>
+
+    {/* 3. User Management */}
+    {isSuperUser && (
+      <button
+        className={`${styles['nav-tab-btn']} ${activeTab === 'users' ? styles.active : ''}`}
+        onClick={() => setActiveTab('users')}
+      >
+        <IconUsers size={18} color={activeTab === 'users' ? '#0ca678' : '#228be6'} />
+        <span>User Management</span>
+      </button>
+    )}
+  </nav>
+)}
 
       {/* MAIN BODY */}
       <main className={styles['main-content']}>

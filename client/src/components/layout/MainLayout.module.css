@@ -279,34 +279,48 @@
   background-color: #0369a1;
 }
 
-/* Tabs Bar */
 .nav-tabs-bar {
-  background-color: #ffffff;
-  border-bottom: 1px solid #e2e8f0;
-  padding: 0 32px;
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background-color: #ffffff;
+  border-bottom: 1px solid var(--mantine-color-gray-3);
 }
 
+/* Base button styling */
 .nav-tab-btn {
-  padding: 14px 20px;
-  border: none;
-  background: none;
-  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px; /* Spacing between icon and text */
+  padding: 8px 14px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background-color: transparent;
+  color: var(--mantine-color-gray-7);
   font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
-  border-bottom: 3px solid transparent;
-  color: #64748b;
-  transition: color 0.2s ease, border-color 0.2s ease;
+  transition: all 0.2s ease-in-out;
 }
 
+/* Hover state */
 .nav-tab-btn:hover {
-  color: #0284c7;
+  background-color: var(--mantine-color-gray-0);
+  color: var(--mantine-color-dark-8);
 }
 
+/* Pale teal highlight for active menu item */
 .nav-tab-btn.active {
-  border-bottom: 3px solid #0284c7;
-  color: #0284c7;
+  background-color: #e6fcf5; /* Soft, pale teal tint */
+  color: #0ca678; /* Deep teal text */
+  border-color: #96f2d7; /* Subtle border ring */
+  font-weight: 600;
+}
+
+/* Icon color inheritance for active tab */
+.nav-tab-btn.active svg {
+  color: #0ca678 !important;
 }
 
 /* Main Content */

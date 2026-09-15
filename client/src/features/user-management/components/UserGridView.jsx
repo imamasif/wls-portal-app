@@ -12,7 +12,13 @@ import {
   Button,
   Notification
 } from '@mantine/core';
-import { IconSearch, IconArrowLeft, IconCheck, IconX } from '@tabler/icons-react';
+import { 
+  IconSearch, 
+  IconArrowLeft, 
+  IconCheck, 
+  IconX, 
+  IconUsers // Correct Tabler icon
+} from '@tabler/icons-react';
 import { UserProfileDetail } from './UserProfileDetail';
 import { AdminUserControls } from './AdminUserControls';
 import { UserRole, isSuperUserRole } from '../../../types/user';
@@ -143,8 +149,12 @@ export function UserGridView({ currentUser }) {
         </div>
       )}
 
+      {/* Directory Header with Icon */}
       <Group justify="space-between" mb="md">
-        <Title order={3} c="blue.8">User Management Directory</Title>
+        <Group gap="xs">
+          <IconUsers size={26} color="var(--mantine-color-indigo-6)" />
+          <Title order={3} c="indigo.8">User Management Directory</Title>
+        </Group>
       </Group>
 
       <Group mb="md">
