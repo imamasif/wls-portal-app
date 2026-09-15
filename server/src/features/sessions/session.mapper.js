@@ -1,5 +1,5 @@
-import { CreateSessionReqDTO, UpdateSessionReqDTO } from '../dto/session.req.js';
-import { SessionResDTO } from '../dto/session.res.js';
+import { CreateSessionReqDTO, UpdateSessionReqDTO } from './session.req.js';
+import { SessionResDTO } from './session.res.js';
 
 export class SessionMapper {
   static toCreateReqDTO(body) {

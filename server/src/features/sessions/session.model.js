@@ -3,13 +3,13 @@ import mongoose from 'mongoose';
 const VerseSequenceSchema = new mongoose.Schema({
   order: { type: Number, required: true },
   chapterNumber: { type: Number, required: true },
-  verseRange: { type: String, required: true }, // e.g., '27-29'
-  partDescription: { type: String } // e.g., 'Recitation / Understanding'
+  verseRange: { type: String, required: true },
+  partDescription: { type: String }
 }, { _id: false });
 
 const GroupSchema = new mongoose.Schema({
   groupName: { type: String, required: true },
-  evaluatorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Assigned Admin
+  evaluatorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   assignedUserIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   verseSequences: [VerseSequenceSchema]
 });

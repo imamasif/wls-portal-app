@@ -7,6 +7,10 @@ export class UserResDTO {
     this.name = doc.name || '';
     this.email = doc.email || '';
     this.role = doc.role || 'USER';
+    this.phones = Array.isArray(doc.phones) && doc.phones.length > 0 
+      ? doc.phones 
+      : (doc.phone ? [{ number: doc.phone, type: 'Mobile', isPrimary: true }] : []);
+    this.phone = doc.phone || (doc.phones?.[0]?.number || '');
     this.profession = doc.profession || '';
     this.education = doc.education || '';
     this.country = doc.country || '';
@@ -19,5 +23,9 @@ export class UserResDTO {
     this.causeContribution = doc.causeContribution || '';
     this.profilePictureUrl = doc.profilePictureUrl || '';
     this.socialMedia = Array.isArray(doc.socialMedia) ? doc.socialMedia : [];
+    this.isActive = doc.isActive !== undefined ? doc.isActive : true;
+    this.underRadar = doc.underRadar || false;
+    this.radarReason = doc.radarReason || '';
+    this.auditTrail = Array.isArray(doc.auditTrail) ? doc.auditTrail : [];
   }
 }

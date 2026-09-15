@@ -16,7 +16,7 @@
 
 /* Enlarged Logo Fix */
 .logo {
-  height: 52px;
+  height: 100px;
   width: auto;
   object-fit: contain;
 }

@@ -1,9 +1,8 @@
-import { UserModel } from '../data/user.model.js';
+import { UserModel } from './user.model.js';
 
 export class UserUseCase {
   static async createUser(dto) {
-    const newUser = await UserModel.create(dto);
-    return newUser;
+    return await UserModel.create(dto);
   }
 
   static async getAllUsers() {
@@ -22,3 +21,5 @@ export class UserUseCase {
     return await UserModel.findByIdAndDelete(id);
   }
 }
+
+export const userUseCase = UserUseCase;

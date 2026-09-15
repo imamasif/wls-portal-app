@@ -9,10 +9,13 @@ import { connectDB } from './src/common/database/db.js';
 import userController from './src/features/users/user.controller.js';
 import sessionController from './src/features/sessions/session.controller.js';
 import assessmentController from './src/features/assessments/assessment.controller.js';
+import ruleRoutes from './src/features/rules/rule.routes.js'; // <-- Import rule routes
+import { notificationController } from './src/features/notifications/index.js';
 
 // Explicitly import models for the seed endpoint
 import { UserModel } from './src/features/users/index.js';
 import { SessionModel } from './src/features/sessions/index.js';
+import { reportController } from './src/features/reports/index.js';
 
 const app = express();
 
@@ -28,8 +31,15 @@ app.use('/api/users', userController);
 app.use('/api/sessions', sessionController);
 // Mount Route alongside users and sessions
 app.use('/api/assessments', assessmentController);
+app.use('/api/rules', ruleRoutes); // <-- Mount the Rule Engine endpoints here
 
-// Seed Route
+// 2. Mount the routes under your API path prefix
+app.use('/api/notifications', notificationController);
+
+// 3. Mount reports endpoints
+app.use('/api/reports', reportController);
+
+// 4. Seed Route
 app.post('/api/seed', async (req, res) => {
   try {
     await UserModel.deleteMany({});

@@ -1,10 +1,7 @@
 import express from 'express';
-import { 
-  sessionUseCase, 
-  SessionMapper, 
-  CreateSessionSchema, 
-  UpdateSessionSchema 
-} from './index.js';
+import { sessionUseCase } from './session.usecase.js';
+import { SessionMapper } from './session.mapper.js';
+import { CreateSessionSchema, UpdateSessionSchema } from './session.schema.js';
 import { validateSchema } from '../../common/middleware/validateSchema.js';
 
 const router = express.Router();

@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import ruleRoutes from './src/features/rules/rule.routes.js';
 
 dotenv.config();
 
@@ -16,6 +17,9 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/wls_portal
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
+
+// Mount under API endpoint
+app.use('/api/rules', ruleRoutes);
 
 mongoose.connect(MONGO_URI)
   .then(() => {

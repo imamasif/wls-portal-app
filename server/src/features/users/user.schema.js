@@ -4,7 +4,7 @@ export const CreateUserSchema = {
     name: { type: 'string', minLength: 2 },
     email: { type: 'string', format: 'email' },
     password: { type: 'string', minLength: 6 },
-    role: { type: 'string', enum: ['SUPER_ADMIN', 'WLS_ADMIN', 'MARKING_ADMIN', 'STUDENT'] },
+    role: { type: 'string', enum: ['SUPER_ADMIN', 'SUPER_USER', 'WLS_ADMIN', 'MARKING_ADMIN', 'STUDENT', 'USER'] },
     city: { type: 'string' },
     country: { type: 'string' },
     profilePictureUrl: { type: 'string' },
@@ -21,7 +21,7 @@ export const CreateUserSchema = {
     }
   },
   required: ['name', 'email', 'password'],
-  additionalProperties: false
+  additionalProperties: true
 };
 
 export const UpdateUserSchema = {
@@ -30,7 +30,7 @@ export const UpdateUserSchema = {
     name: { type: 'string', minLength: 2 },
     email: { type: 'string', format: 'email' },
     password: { type: 'string', minLength: 6 },
-    role: { type: 'string', enum: ['SUPER_ADMIN', 'WLS_ADMIN', 'MARKING_ADMIN', 'STUDENT'] },
+    role: { type: 'string', enum: ['SUPER_ADMIN', 'SUPER_USER', 'WLS_ADMIN', 'MARKING_ADMIN', 'STUDENT', 'USER'] },
     city: { type: 'string' },
     country: { type: 'string' },
     profilePictureUrl: { type: 'string' },
@@ -46,5 +46,5 @@ export const UpdateUserSchema = {
       }
     }
   },
-  additionalProperties: false
+  additionalProperties: true
 };

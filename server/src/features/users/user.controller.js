@@ -5,7 +5,6 @@ import { userUseCase, UserMapper, UserModel } from './index.js';
 
 const router = express.Router();
 
-// Helper to safely find user by ObjectId or Email
 const findUserByIdOrEmail = async (paramId, selectPassword = false) => {
   const filter = mongoose.Types.ObjectId.isValid(paramId)
     ? { _id: paramId }
@@ -16,7 +15,6 @@ const findUserByIdOrEmail = async (paramId, selectPassword = false) => {
   return await query;
 };
 
-// Helper to record audit logs
 const appendAuditLog = (userDoc, action, performedBy, details) => {
   if (!userDoc.auditTrail) userDoc.auditTrail = [];
   userDoc.auditTrail.push({
@@ -28,7 +26,6 @@ const appendAuditLog = (userDoc, action, performedBy, details) => {
   userDoc.updatedBy = performedBy || 'System/Admin';
 };
 
-// GET /api/users - Fetch All Users
 router.get('/', async (req, res) => {
   try {
     const users = await userUseCase.getAllUsers();
@@ -38,26 +35,12 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/users - Register New Account
 router.post('/', async (req, res) => {
   try {
     const { 
-      email, 
-      password, 
-      name, 
-      phones, 
-      profession, 
-      education, 
-      country, 
-      countryCode, 
-      state, 
-      stateCode, 
-      city, 
-      drive, 
-      driveFolderPath, 
-      causeContribution, 
-      profilePictureUrl, 
-      socialMedia 
+      email, password, name, phones, profession, education, 
+      country, countryCode, state, stateCode, city, drive, 
+      driveFolderPath, causeContribution, profilePictureUrl, socialMedia 
     } = req.body;
 
     if (!email || !password) {
@@ -70,9 +53,7 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'An account with this email already exists.' });
     }
 
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-
+    const hashedPassword = await bcrypt.hash(password, 10);
     const validSocialMedia = Array.isArray(socialMedia)
       ? socialMedia.filter((item) => item && item.handleUrl && item.handleUrl.trim() !== '')
       : [];
@@ -114,7 +95,6 @@ router.post('/', async (req, res) => {
   }
 });
 
-// POST /api/users/login - Authenticate User
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -151,7 +131,6 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// PUT /api/users/:id/change-password
 router.put('/:id/change-password', async (req, res) => {
   try {
     const { currentPassword, newPassword, isAdminReset, performerEmail } = req.body;
@@ -190,7 +169,6 @@ router.put('/:id/change-password', async (req, res) => {
   }
 });
 
-// PUT /api/users/:id/status
 router.put('/:id/status', async (req, res) => {
   try {
     const { isActive, performerEmail } = req.body;
@@ -213,7 +191,6 @@ router.put('/:id/status', async (req, res) => {
   }
 });
 
-// PUT /api/users/:id/radar
 router.put('/:id/radar', async (req, res) => {
   try {
     const { underRadar, radarReason, performerEmail } = req.body;
@@ -237,7 +214,6 @@ router.put('/:id/radar', async (req, res) => {
   }
 });
 
-// DELETE /api/users/:id
 router.delete('/:id', async (req, res) => {
   try {
     const user = await findUserByIdOrEmail(req.params.id);
@@ -249,7 +225,6 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// PUT /api/users/:id - Update Profile Metadata
 router.put('/:id', async (req, res) => {
   try {
     const body = req.body;

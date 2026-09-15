@@ -21,7 +21,7 @@ const PhoneSchema = new mongoose.Schema({
 const UserSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-  password: { type: String, required: true },
+  password: { type: String, required: true, select: false },
   role: { 
     type: String, 
     enum: ['SUPER_ADMIN', 'SUPER_USER', 'WLS_ADMIN', 'MARKING_ADMIN', 'STUDENT', 'USER'],
@@ -42,7 +42,6 @@ const UserSchema = new mongoose.Schema({
   profilePictureUrl: { type: String, default: '' },
   socialMedia: [SocialMediaSchema],
 
-  // ✅ New Management & Audit Trail Fields
   isActive: { type: Boolean, default: true },
   underRadar: { type: Boolean, default: false },
   radarReason: { type: String, default: '' },

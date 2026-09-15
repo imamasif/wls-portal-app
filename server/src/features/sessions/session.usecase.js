@@ -1,4 +1,4 @@
-import { SessionModel } from '../data/session.model.js';
+import { SessionModel } from './session.model.js';
 
 export class SessionUseCase {
   static async createSession(dto) {
@@ -21,3 +21,5 @@ export class SessionUseCase {
     return await SessionModel.findByIdAndDelete(id);
   }
 }
+
+export const sessionUseCase = SessionUseCase;

@@ -27,7 +27,7 @@ export function MainLayout({ children, activeTab, setActiveTab }) {
       {/* HEADER */}
       <header className={styles['portal-header']}>
         <div className={styles['brand-section']}>
-          <img src="/iipc-logo.png" alt="IIPC Logo" className={styles['brand-logo']} />
+          <img src="/iipc-logo1.png" alt="IIPC Logo" className={styles['brand-logo']} />
           <div className={styles['brand-text']}>
             <h2 className={styles['portal-title']}>IIPC Learning Portal</h2>
             <span className={styles['portal-subtitle']}>Weekly Learning Sessions</span>

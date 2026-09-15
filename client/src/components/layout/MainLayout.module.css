@@ -21,15 +21,13 @@
 .brand-section {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 20px;
 }
 
-/* Larger IIPC Logo Fix */
+/* Properly Sized IIPC Logo */
 .brand-logo {
-  width: 72px !important;
-  height: 72px !important;
-  max-width: 72px !important;
-  max-height: 72px !important;
+  width: 75px;
+  height: 75px;
   object-fit: contain;
   flex-shrink: 0;
 }
