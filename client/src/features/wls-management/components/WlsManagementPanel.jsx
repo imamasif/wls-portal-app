@@ -7,7 +7,7 @@ import { DateTimePicker } from '@mantine/dates';
 import { 
   IconSchool, IconCalendarEvent, IconFileTypePdf, IconBook, 
   IconTrash, IconPlayerPause, IconRefresh, IconListCheck, IconEye,
-  IconPlus, IconMinus
+  IconPlus, IconMinus, IconBookmark, IconBooks, IconQuotes
 } from '@tabler/icons-react';
 import { WlsGroupAssigner } from './WlsGroupAssigner';
 
@@ -51,7 +51,6 @@ export function WlsManagementPanel() {
       .catch((err) => console.error('Error fetching WLS sessions:', err));
   };
 
-  // Helper functions to manage PDF URL dynamic list
   const handlePdfChange = (index, value) => {
     const updated = [...pdfUrls];
     updated[index] = value;
@@ -60,7 +59,6 @@ export function WlsManagementPanel() {
   const addPdfField = () => setPdfUrls((prev) => [...prev, '']);
   const removePdfField = (index) => setPdfUrls((prev) => prev.filter((_, i) => i !== index));
 
-  // Helper functions to manage Video URL dynamic list
   const handleVideoChange = (index, value) => {
     const updated = [...quranVideoUrls];
     updated[index] = value;
@@ -79,7 +77,6 @@ export function WlsManagementPanel() {
 
     const dateObj = sessionDate instanceof Date ? sessionDate : new Date(sessionDate);
 
-    // Filter out empty URL strings before saving
     const cleanPdfUrls = pdfUrls.map((url) => url.trim()).filter(Boolean);
     const cleanVideoUrls = quranVideoUrls.map((url) => url.trim()).filter(Boolean);
 
@@ -103,7 +100,6 @@ export function WlsManagementPanel() {
         const savedSession = await res.json();
         setSessions((prev) => [savedSession, ...prev]);
 
-        // Reset form
         setTopicName('');
         setSessionDate(null);
         setPdfUrls(['']);
@@ -374,7 +370,6 @@ export function WlsManagementPanel() {
               </Badge>
             </Group>
 
-            {/* Render Multiple PDFs */}
             {(selectedSession.pdfBookletUrls?.length > 0 || selectedSession.pdfBookletUrl) && (
               <div>
                 <Text size="sm" fw={700}>📄 PDF Booklets:</Text>
@@ -388,7 +383,6 @@ export function WlsManagementPanel() {
               </div>
             )}
 
-            {/* Render Multiple Quran Streams */}
             {(selectedSession.quranVideoUrls?.length > 0 || selectedSession.quranVideoUrl) && (
               <div>
                 <Text size="sm" fw={700}>📖 Quran Streams:</Text>
@@ -431,7 +425,10 @@ export function WlsManagementPanel() {
 
                   {gData.selectedAyats?.length > 0 && (
                     <div>
-                      <Text size="xs" fw={700}>Selected Ayats:</Text>
+                      <Group gap={4} align="center" mb={2}>
+                        <IconBookmark size={14} color="var(--mantine-color-teal-6)" />
+                        <Text size="xs" fw={700}>Selected Verses:</Text>
+                      </Group>
                       <Group gap={4}>{gData.selectedAyats.map((ayat, i) => <Badge key={i} size="xs" color="teal">{ayat}</Badge>)}</Group>
                     </div>
                   )}

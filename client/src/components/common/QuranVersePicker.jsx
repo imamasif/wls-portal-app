@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Group, Select, Button, Badge, Text, Stack, Card, ActionIcon, Transition } from '@mantine/core';
-import { IconPlus, IconX, IconBook } from '@tabler/icons-react';
+import { Group, Select, Button, Badge, Text, Stack, Card, ActionIcon } from '@mantine/core';
+import { IconPlus, IconX, IconBook, IconBookmark, IconBooks, IconQuotes } from '@tabler/icons-react';
 
 export const SURAH_LIST = [
   { value: '1', label: '1. Al-Fatihah (7 Ayats)', total: 7 },
@@ -147,10 +147,14 @@ export function QuranVersePicker({ selectedAyats = [], onChange }) {
 
   return (
     <Stack gap="sm">
+      {/* Header with Bookmark / Signmark Icon */}
       <Group justify="space-between" align="center">
-        <Text fw={600} size="sm">
-          Select Quranic Verses
-        </Text>
+        <Group gap={6} align="center">
+          <IconBookmark size={18} color="var(--mantine-color-teal-6)" />
+          <Text fw={600} size="sm">
+            Select Quranic Verses
+          </Text>
+        </Group>
         {selectedAyats.length > 0 && (
           <Badge variant="light" color="teal" size="sm">
             {selectedAyats.length} selected
@@ -159,8 +163,14 @@ export function QuranVersePicker({ selectedAyats = [], onChange }) {
       </Group>
 
       <Group align="flex-end" gap="xs">
+        {/* Surah Dropdown with Chapter Icon */}
         <Select
-          label="Surah"
+          label={
+            <Group gap={4} align="center" style={{ display: 'inline-flex' }}>
+              <IconBooks size={15} color="var(--mantine-color-indigo-6)" />
+              <span>Surah</span>
+            </Group>
+          }
           placeholder="Search Surah..."
           leftSection={<IconBook size={16} />}
           data={SURAH_LIST.map((s) => ({ value: s.value, label: s.label }))}
@@ -174,8 +184,15 @@ export function QuranVersePicker({ selectedAyats = [], onChange }) {
           style={{ flex: 2 }}
           size="sm"
         />
+
+        {/* Ayat Dropdown with Verse/Sentence Icon */}
         <Select
-          label="Ayat"
+          label={
+            <Group gap={4} align="center" style={{ display: 'inline-flex' }}>
+              <IconQuotes size={15} color="var(--mantine-color-teal-6)" />
+              <span>Ayat</span>
+            </Group>
+          }
           placeholder="Ayat #"
           data={ayatOptions}
           value={selectedAyat}
@@ -186,6 +203,7 @@ export function QuranVersePicker({ selectedAyats = [], onChange }) {
           style={{ flex: 1 }}
           size="sm"
         />
+
         <Button
           size="sm"
           variant="filled"
