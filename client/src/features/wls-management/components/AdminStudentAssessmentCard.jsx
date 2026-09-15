@@ -1,0 +1,254 @@
+import React, { useState } from 'react';
+import { 
+  Paper, Group, Stack, Text, Badge, Slider, Textarea, Button, 
+  Collapse, ActionIcon, ThemeIcon, Anchor, Modal, Alert, Box 
+} from '@mantine/core';
+import { 
+  IconChevronDown, IconChevronUp, IconVideo, IconCheck, 
+  IconX, IconClock, IconAlertCircle, IconMaximize, IconBook 
+} from '@tabler/icons-react';
+import { getSliderColor } from './utils';
+
+// Default dynamic assessment criteria configured by Super User
+const DEFAULT_CRITERIA = [
+  { id: 'presentation', label: 'Presentation (Camera, Light, Sound & Video Quality)' },
+  { id: 'attire', label: 'Attire / Dress Code' },
+  { id: 'arabicReading', label: 'Arabic Reading / Recitation' },
+  { id: 'onTimeDelivery', label: 'On Time Delivery' },
+  { id: 'transferenceOfSpirit', label: 'Transference of Spirit' },
+  { id: 'bodyLanguage', label: 'Body Language' }
+];
+
+export function AdminStudentAssessmentCard({ 
+  student, 
+  assignedAyats = [], 
+  deadline, 
+  sessionConfigCriteria = DEFAULT_CRITERIA,
+  onSaveAssessment 
+}) {
+  const [opened, setOpened] = useState(false);
+  const [videoModalOpen, setVideoModalOpen] = useState(false);
+  const [selectedVideoUrl, setSelectedVideoUrl] = useState('');
+  
+  // Local state for assessment ratings and notes
+  const [ratings, setRatings] = useState(student.assessment?.scores || {});
+  const [comments, setComments] = useState(student.assessment?.comments || '');
+  const [saving, setSaving] = useState(false);
+
+  const hasSubmitted = Array.isArray(student.submissionUrls) && student.submissionUrls.length > 0;
+  const isMissedWithReason = !hasSubmitted && Boolean(student.missedReason);
+
+  // Helper to format Google Drive links into embeddable URLs
+  const getEmbedUrl = (url) => {
+    if (!url) return '';
+    if (url.includes('drive.google.com') && url.includes('/view')) {
+      return url.replace('/view', '/preview');
+    }
+    return url;
+  };
+
+  const handleSliderChange = (criterionId, val) => {
+    setRatings((prev) => ({ ...prev, [criterionId]: val }));
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    await onSaveAssessment({
+      studentId: student.id || student._id,
+      scores: ratings,
+      comments,
+    });
+    setSaving(false);
+  };
+
+  return (
+    <Paper withBorder shadow="sm" radius="md" p="md" mb="md">
+      {/* Card Header Bar (Collapsible Toggle) */}
+      <Group justify="space-between" style={{ cursor: 'pointer' }} onClick={() => setOpened((o) => !o)}>
+        <Group gap="sm">
+          <ThemeIcon color="indigo" variant="light" size="md">
+            <IconBook size={18} />
+          </ThemeIcon>
+          <div>
+            <Text fw={600} size="sm">{student.fullName || student.name || 'Student Name'}</Text>
+            <Text size="xs" c="dimmed">{student.email}</Text>
+          </div>
+        </Group>
+
+        <Group gap="xs">
+          {/* Status Indicator Badges */}
+          {hasSubmitted ? (
+            <Badge color="green" leftSection={<IconCheck size={12} />}>
+              File Received ({student.submissionUrls.length})
+            </Badge>
+          ) : isMissedWithReason ? (
+            <Badge color="orange" leftSection={<IconAlertCircle size={12} />}>
+              Missed (Reason Stated)
+            </Badge>
+          ) : (
+            <Badge color="red" leftSection={<IconX size={12} />}>
+              Not Submitted
+            </Badge>
+          )}
+
+          <ActionIcon variant="subtle" color="gray">
+            {opened ? <IconChevronUp size={18} /> : <IconChevronDown size={18} />}
+          </ActionIcon>
+        </Group>
+      </Group>
+
+      {/* Expandable Assessment Panel */}
+      <Collapse in={opened} mt="md">
+        <Stack gap="md">
+          {/* Assigned Verses & Submission Details */}
+          <Paper withBorder p="xs" bg="gray.0" radius="sm">
+            <Group justify="space-between" align="flex-start">
+              <Box>
+                <Text size="xs" fw={700} c="dimmed" tt="uppercase">Assigned Verses</Text>
+                <Text size="xs" fw={600}>
+                  {assignedAyats.length > 0 ? assignedAyats.join(', ') : 'None assigned'}
+                </Text>
+              </Box>
+
+              {deadline && (
+                <Box style={{ textAlign: 'right' }}>
+                  <Text size="xs" fw={700} c="dimmed" tt="uppercase">Deadline</Text>
+                  <Text size="xs" fw={600} c="red.8">
+                    {new Date(deadline).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
+                  </Text>
+                </Box>
+              )}
+            </Group>
+          </Paper>
+
+          {/* Missed Reason Alert */}
+          {isMissedWithReason && (
+            <Alert color="orange" icon={<IconAlertCircle size={16} />} title="Non-Submission Reason">
+              <Text size="xs">{student.missedReason}</Text>
+            </Alert>
+          )}
+
+          {/* Submitted Video Links & Embedded Player */}
+          {hasSubmitted && (
+            <Stack gap="xs">
+              <Text size="xs" fw={700} c="dimmed" tt="uppercase">Student Video Submissions</Text>
+              {student.submissionUrls.map((url, idx) => (
+                <Paper key={idx} withBorder p="xs" radius="xs" bg="blue.0">
+                  <Group justify="space-between" mb="xs">
+                    <Anchor href={url} target="_blank" size="xs" fw={500} c="blue.8">
+                      <Group gap={4}>
+                        <IconVideo size={14} />
+                        <span>Video Link #{idx + 1}</span>
+                      </Group>
+                    </Anchor>
+                    <Button 
+                      size="xs" 
+                      variant="subtle" 
+                      leftSection={<IconMaximize size={12} />}
+                      onClick={() => {
+                        setSelectedVideoUrl(url);
+                        setVideoModalOpen(true);
+                      }}
+                    >
+                      Maximize Player
+                    </Button>
+                  </Group>
+
+                  {/* In-Card Video iFrame Embed */}
+                  <Box style={{ position: 'relative', paddingTop: '56.25%', width: '100%' }}>
+                    <iframe
+                      src={getEmbedUrl(url)}
+                      title={`Submission ${idx + 1}`}
+                      allow="autoplay"
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        border: 'none',
+                        borderRadius: '4px'
+                      }}
+                    />
+                  </Box>
+                </Paper>
+              ))}
+            </Stack>
+          )}
+
+          {/* Dynamic Criteria Grading Sliders */}
+          <Stack gap="sm" mt="xs">
+            <Text size="xs" fw={700} c="dimmed" tt="uppercase">Evaluation & Criteria Marking (1 - 10)</Text>
+            
+            {sessionConfigCriteria.map((criterion) => {
+              const currentValue = ratings[criterion.id] || 1;
+              const activeColor = getSliderColor(currentValue);
+
+              return (
+                <Paper key={criterion.id} withBorder p="xs" radius="xs">
+                  <Group justify="space-between" mb={6}>
+                    <Text size="xs" fw={600}>{criterion.label}</Text>
+                    <Badge style={{ backgroundColor: activeColor, color: '#fff' }}>
+                      {currentValue} / 10
+                    </Badge>
+                  </Group>
+                  <Slider
+                    value={currentValue}
+                    min={1}
+                    max={10}
+                    step={1}
+                    onChange={(val) => handleSliderChange(criterion.id, val)}
+                    styles={{
+                      bar: { backgroundColor: activeColor },
+                      thumb: { borderColor: activeColor }
+                    }}
+                  />
+                </Paper>
+              );
+            })}
+          </Stack>
+
+          {/* Admin Feedback Comments Box */}
+          <Textarea
+            label="Admin Feedback & Comments"
+            placeholder="Provide comments or guidance visible to the student..."
+            value={comments}
+            onChange={(e) => setComments(e.currentTarget.value)}
+            rows={3}
+            size="xs"
+          />
+
+          <Group justify="flex-end">
+            <Button color="indigo" size="xs" loading={saving} onClick={handleSave}>
+              Save Assessment & Feedback
+            </Button>
+          </Group>
+        </Stack>
+      </Collapse>
+
+      {/* Expanded Video Modal */}
+      <Modal 
+        opened={videoModalOpen} 
+        onClose={() => setVideoModalOpen(false)} 
+        size="xl" 
+        title="Student Submission Video"
+      >
+        <Box style={{ position: 'relative', paddingTop: '56.25%', width: '100%' }}>
+          <iframe
+            src={getEmbedUrl(selectedVideoUrl)}
+            title="Maximized Video Player"
+            allow="autoplay"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              border: 'none'
+            }}
+          />
+        </Box>
+      </Modal>
+    </Paper>
+  );
+}

@@ -1,21 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Card, TextInput, Button, Title, Stack, Group, Table, Badge, 
-  ActionIcon, Text, Tooltip, Modal, Divider, Paper, List 
+  ActionIcon, Text, Tooltip, Modal, Divider, Paper, List, Textarea, Grid 
 } from '@mantine/core';
 import { DateTimePicker } from '@mantine/dates';
 import { 
   IconSchool, IconCalendarEvent, IconFileTypePdf, IconBook, 
   IconTrash, IconPlayerPause, IconRefresh, IconListCheck, IconEye,
-  IconPlus, IconMinus, IconBookmark, IconBooks, IconQuotes
+  IconPlus, IconMinus, IconBookmark
 } from '@tabler/icons-react';
 import { WlsGroupAssigner } from './WlsGroupAssigner';
+import { IconVideo, IconBrandZoom } from '@tabler/icons-react';
 
 export function WlsManagementPanel() {
   const [topicName, setTopicName] = useState('');
   const [sessionDate, setSessionDate] = useState(null);
+  const [videoDeadline, setVideoDeadline] = useState(null);
+  const [description, setDescription] = useState('');
   
-  // Dynamic Arrays for URLs
   const [pdfUrls, setPdfUrls] = useState(['']);
   const [quranVideoUrls, setQuranVideoUrls] = useState(['']);
   
@@ -76,6 +78,7 @@ export function WlsManagementPanel() {
     if (!topicName || !sessionDate) return;
 
     const dateObj = sessionDate instanceof Date ? sessionDate : new Date(sessionDate);
+    const deadlineObj = videoDeadline instanceof Date ? videoDeadline : (videoDeadline ? new Date(videoDeadline) : null);
 
     const cleanPdfUrls = pdfUrls.map((url) => url.trim()).filter(Boolean);
     const cleanVideoUrls = quranVideoUrls.map((url) => url.trim()).filter(Boolean);
@@ -83,6 +86,8 @@ export function WlsManagementPanel() {
     const newSessionPayload = {
       topicName,
       sessionDateTimeToronto: dateObj.toISOString(),
+      videoDeadline: deadlineObj ? deadlineObj.toISOString() : null,
+      description,
       pdfBookletUrls: cleanPdfUrls,
       quranVideoUrls: cleanVideoUrls,
       groupAssignments,
@@ -102,6 +107,8 @@ export function WlsManagementPanel() {
 
         setTopicName('');
         setSessionDate(null);
+        setVideoDeadline(null);
+        setDescription('');
         setPdfUrls(['']);
         setQuranVideoUrls(['']);
         setGroupAssignments({ 1: { userIds: [], adminIds: [], selectedAyats: [], instructions: '' } });
@@ -193,27 +200,62 @@ export function WlsManagementPanel() {
 
         <form onSubmit={handleSubmit}>
           <Stack gap="md">
-            <Group grow align="flex-start">
-              <TextInput
-                label="Topic Name"
-                placeholder="e.g., Tafseer & Recitation Module - Week 1"
-                value={topicName}
-                onChange={(e) => setTopicName(e.target.value)}
-                required
-              />
-              <DateTimePicker
-                label={
-                  <Group gap={4} wrap="nowrap" style={{ display: 'inline-flex' }}>
-                    <IconCalendarEvent size={15} color="var(--mantine-color-blue-6)" />
-                    <span>Session Date & Time (Toronto ET)</span>
-                  </Group>
-                }
-                placeholder="Pick date and time"
-                value={sessionDate}
-                onChange={setSessionDate}
-                required
-              />
-            </Group>
+            {/* 1. Topic Name on its own full line */}
+            <TextInput
+              label="Topic Name"
+              placeholder="e.g., Tafseer & Recitation Module - Week 1"
+              value={topicName}
+              onChange={(e) => setTopicName(e.target.value)}
+              required
+            />
+
+            {/* 2. Two Date Pickers Side-by-Side in a Grid */}
+            <Grid gutter="md">
+              <Grid.Col span={{ base: 12, md: 6 }}>
+                <DateTimePicker
+                  label={
+                    <Group gap={4} wrap="nowrap" style={{ display: 'inline-flex' }}>
+                      <IconCalendarEvent size={15} color="var(--mantine-color-blue-6)" />
+                      <span>Session Date & Time (Toronto ET)</span>
+                    </Group>
+                  }
+                  placeholder="Pick date and time"
+                  value={sessionDate}
+                  onChange={setSessionDate}
+                  required
+                />
+              </Grid.Col>
+              <Grid.Col span={{ base: 12, md: 6 }}>
+                <DateTimePicker
+                  label={
+                    <Group gap={4} wrap="nowrap" style={{ display: 'inline-flex' }}>
+                      <IconCalendarEvent size={15} color="var(--mantine-color-red-6)" />
+                      <span>Video Submission Deadline</span>
+                    </Group>
+                  }
+                  placeholder="Select last date/time to submit video"
+                  value={videoDeadline}
+                  onChange={setVideoDeadline}
+                />
+              </Grid.Col>
+            </Grid>
+
+            {/* 3. Description & Zoom Info */}
+            <Textarea
+  label={
+    <Group gap={4} wrap="nowrap" style={{ display: 'inline-flex', alignItems: 'center' }}>
+      <IconVideo size={16} color="var(--mantine-color-blue-6)" />
+      <span>Session Description & Zoom Meeting Details</span>
+    </Group>
+  }
+  placeholder="Assalam-u-Alaikum Brothers and Sisters... Paste full Zoom invite here"
+  description="Formatting line breaks and URLs will be preserved for student view."
+  minRows={4}
+  maxRows={8}
+  autosize
+  value={description}
+  onChange={(e) => setDescription(e.target.value)}
+/>
 
             {/* Dynamic PDF Booklet URLs */}
             <Stack gap="xs">
@@ -285,6 +327,7 @@ export function WlsManagementPanel() {
         </form>
       </Card>
 
+      {/* 4. Streamlined Table Grid */}
       <Card withBorder padding="lg" radius="md" shadow="sm">
         <Group gap="xs" mb="md">
           <IconListCheck size={20} color="var(--mantine-color-blue-6)" />
@@ -306,7 +349,7 @@ export function WlsManagementPanel() {
             <Table.Tbody>
               {sessions.map((s, idx) => (
                 <Table.Tr key={s.id || s._id || idx} onClick={() => setSelectedSession(s)}>
-                  <Table.Td>
+                  <Table.Td style={{ width: '45%' }}>
                     <Text fw={600} c="blue">{s.topicName}</Text>
                     {s.cancelReason && (
                       <Text size="xs" c="red">Reason: {s.cancelReason}</Text>
@@ -353,7 +396,7 @@ export function WlsManagementPanel() {
         )}
       </Card>
 
-      {/* Session Detail Modal */}
+      {/* 5. Detail Modal (Displays Video Deadline, Zoom Info, URLs, and Groups on Row Click) */}
       <Modal 
         opened={!!selectedSession} 
         onClose={() => setSelectedSession(null)} 
@@ -369,6 +412,26 @@ export function WlsManagementPanel() {
                 {selectedSession.status}
               </Badge>
             </Group>
+
+            {selectedSession.videoDeadline && (
+              <Text size="sm">
+                <strong>Video Deadline:</strong>{' '}
+                <Badge color="red" variant="light" size="xs">
+                  {new Date(selectedSession.videoDeadline).toLocaleString()}
+                </Badge>
+              </Text>
+            )}
+
+            {selectedSession.description && (
+              <div>
+                <Text size="sm" fw={700} mb={4}>📹 Zoom Meeting Details / Description:</Text>
+                <Paper withBorder p="xs" bg="gray.0" radius="sm">
+                  <Text size="xs" style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
+                    {selectedSession.description}
+                  </Text>
+                </Paper>
+              </div>
+            )}
 
             {(selectedSession.pdfBookletUrls?.length > 0 || selectedSession.pdfBookletUrl) && (
               <div>

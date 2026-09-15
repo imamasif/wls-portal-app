@@ -1,5 +1,5 @@
-import { SubmitAssessmentReqDTO, GradeAssessmentReqDTO } from './assessment.req.js';
-import { AssessmentResDTO } from './assessment.res.js';
+import { SubmitAssessmentReqDTO, GradeAssessmentReqDTO } from './wlsAssessment.req.js';
+import { AssessmentResDTO } from './wlsAssessment.res.js';
 
 export class AssessmentMapper {
   static toSubmitReqDTO(body) {

@@ -7,6 +7,7 @@ import { UserProfileDetail } from './features/user-management/components/UserPro
 import { UserGridView } from './features/user-management/components/UserGridView';
 import { isSuperUserRole } from './types/user';
 
+import { DashboardView } from './features/dashboard/components/DashboardView'; // <-- ADD THIS
 import { WlsManagementPanel } from './features/wls-management/components/WlsManagementPanel';
 import { WlsAssessmentPanel } from './features/wls-assessment/components/WlsAssessmentPanel';
 import { CriteriaRuleEngine } from './features/criteria-engine/components/CriteriaRuleEngine';
@@ -15,7 +16,7 @@ import { NotificationPanel } from './features/notifications/components/Notificat
 
 export default function App() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState('wls-session'); // <-- Default to WLS view on load
 
   const isSuperUser = isSuperUserRole(user?.role);
   const isWlsAdmin = isSuperUser || user?.role === 'WLS_ADMIN';
@@ -24,9 +25,17 @@ export default function App() {
     <MainLayout activeTab={activeTab} setActiveTab={setActiveTab}>
       <AuthModal />
       <Container size="xl" py="md">
-        {activeTab === 'dashboard' && user && (
+        {/* Profile Details Tab */}
+        {activeTab === 'profile' && user && (
           <Paper p="lg" radius="md" withBorder shadow="xs">
             <UserProfileDetail />
+          </Paper>
+        )}
+
+        {/* WLS Student Portal View (David Gossen & All Users) */}
+        {(activeTab === 'dashboard' || activeTab === 'wls-session') && (
+          <Paper p="lg" radius="md" withBorder shadow="xs">
+            <DashboardView user={user} />
           </Paper>
         )}
 

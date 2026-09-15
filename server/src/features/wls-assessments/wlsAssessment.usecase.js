@@ -1,4 +1,4 @@
-import { AssessmentModel } from './assessment.model.js';
+import { AssessmentModel } from './wlsAssessment.model.js';
 
 export class AssessmentUseCase {
   static async getAllAssessments() {

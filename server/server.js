@@ -9,7 +9,7 @@ import { connectDB } from './src/common/database/db.js';
 import userController from './src/features/users/user.controller.js';
 import sessionController from './src/features/sessions/session.controller.js';
 import wlsSessionRoutes from './src/features/wls-session/index.js'; // <-- Import WLS Session router
-import assessmentController from './src/features/assessments/assessment.controller.js';
+import assessmentController from './src/features/wls-assessments/index.js';
 import ruleRoutes from './src/features/rules/rule.routes.js';
 import { notificationController } from './src/features/notifications/index.js';
 
