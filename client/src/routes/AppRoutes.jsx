@@ -1,5 +1,5 @@
 import React from 'react';
-import { DashboardView } from '../features/dashboard/components/DashboardView';
+import { DashboardView } from '../features/dashboard/components/WlsStudentView';
 import { SessionBuilderView } from '../features/sessions/components/SessionBuilderView';
 import { UserGridView } from '../features/user-management/components/UserGridView';
 import { UserProfileDetail } from '../features/user-management/components/UserProfileDetail';
@@ -37,11 +37,21 @@ export function AppRoutes({
     case 'users':
       return <UserGridView onSelectUser={(user) => setSelectedUser(user)} />;
 
+    /* Added 'wls-assignment' to route WLS student view correctly */
+    case 'wls-assignment':
     case 'wls-session':
-      return <DashboardView viewMode="active-sessions" />;
+      return <DashboardView user={currentUser} viewMode="active-sessions" />;
 
     case 'assessment':
       return <WlsAssessmentPanel currentUser={currentUser} activeTab={activeTab} />;
+
+    case 'criteria':
+      return (
+        <div style={{ padding: '2rem', background: '#ffffff', borderRadius: '12px', marginTop: '1rem' }}>
+          <h2 style={{ margin: 0, marginBottom: '0.5rem', color: '#1e293b' }}>Rule Engine &amp; Criteria</h2>
+          <p style={{ color: '#64748b', margin: 0 }}>Configure evaluation rules and assessment criteria.</p>
+        </div>
+      );
 
     case 'reports':
       return (
@@ -61,6 +71,6 @@ export function AppRoutes({
 
     case 'dashboard':
     default:
-      return <DashboardView />;
+      return <DashboardView user={currentUser} />;
   }
 }

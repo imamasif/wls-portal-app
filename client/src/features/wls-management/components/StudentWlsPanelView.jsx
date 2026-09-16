@@ -13,6 +13,8 @@ import {
   Box,
   Paper,
   Divider,
+  Tooltip,
+  Timeline,
   useMantineTheme
 } from '@mantine/core';
 import {
@@ -25,8 +27,10 @@ import {
   IconLink,
   IconMessages,
   IconUsers,
-  IconCalendar,
-  IconBook
+  IconBook,
+  IconInfoCircle,
+  IconSend,
+  IconClock
 } from '@tabler/icons-react';
 import { ColorScoreSlider } from '../../../components/common/ColorScoreSlider';
 
@@ -57,6 +61,19 @@ function formatDriveEmbedUrl(url) {
   return { embedUrl: '', error: 'Unrecognized URL or invalid video stream link.' };
 }
 
+// Permission verification for Google Drive link
+async function checkDrivePermission(url) {
+  const { embedUrl, error } = formatDriveEmbedUrl(url);
+  if (error || !embedUrl) return false;
+
+  try {
+    const res = await fetch(embedUrl, { method: 'HEAD', mode: 'no-cors' });
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
 export function StudentWlsPanelView({ currentUser, sessionData }) {
   const theme = useMantineTheme();
   const [videoUrl, setVideoUrl] = useState('');
@@ -66,6 +83,11 @@ export function StudentWlsPanelView({ currentUser, sessionData }) {
   const [criteriaList, setCriteriaList] = useState([]);
   const [saving, setSaving] = useState(false);
   const [iframeError, setIframeError] = useState(false);
+  const [urlPermissionError, setUrlPermissionError] = useState('');
+
+  // Conversation history between Student & Admin
+  const [conversationHistory, setConversationHistory] = useState([]);
+  const [replyMessage, setReplyMessage] = useState('');
 
   useEffect(() => {
     setCriteriaList([
@@ -82,12 +104,31 @@ export function StudentWlsPanelView({ currentUser, sessionData }) {
       setUserComment(sessionData.userComments || '');
       setScores(sessionData.scores || {});
       setInstructorFeedback(sessionData.instructorFeedback || '');
+      setConversationHistory(sessionData.studentResponses || []);
     }
   }, [sessionData]);
 
   const handleSave = async () => {
+    setUrlPermissionError('');
+    setSaving(true);
+
+    if (!videoUrl.trim()) {
+      setUrlPermissionError('Please provide a Google Drive video link.');
+      setSaving(false);
+      return;
+    }
+
+    // Check link access permissions
+    const isAccessible = await checkDrivePermission(videoUrl);
+    if (!isAccessible) {
+      setUrlPermissionError(
+        'Access Restricted: Please adjust your Google Drive link permissions so admins can view it.'
+      );
+      setSaving(false);
+      return;
+    }
+
     try {
-      setSaving(true);
       const payload = {
         userId: currentUser?.id,
         submissionUrl: videoUrl,
@@ -109,12 +150,38 @@ export function StudentWlsPanelView({ currentUser, sessionData }) {
     }
   };
 
+  const handleSendResponse = async () => {
+    if (!replyMessage.trim()) return;
+
+    const newResponse = {
+      senderId: currentUser?.id,
+      senderName: currentUser?.name || 'Student',
+      message: replyMessage.trim(),
+      timestamp: new Date().toISOString()
+    };
+
+    try {
+      await fetch(`/api/assessments/user/${currentUser?.id || 'me'}/respond`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newResponse)
+      });
+
+      setConversationHistory((prev) => [...prev, newResponse]);
+      setReplyMessage('');
+    } catch (err) {
+      console.error('Failed to submit response:', err);
+      setConversationHistory((prev) => [...prev, newResponse]);
+      setReplyMessage('');
+    }
+  };
+
   const { embedUrl, error: urlCheckError } = formatDriveEmbedUrl(videoUrl);
-  const hasActiveError = Boolean(urlCheckError || iframeError);
+  const hasActiveError = Boolean(urlCheckError || iframeError || urlPermissionError);
 
   return (
     <Stack spacing="lg" sx={{ width: '100%' }}>
-      {/* Group Assignment Banner */}
+      {/* Assignment Header */}
       <Paper
         p="md"
         radius="md"
@@ -156,7 +223,7 @@ export function StudentWlsPanelView({ currentUser, sessionData }) {
         </Group>
       </Paper>
 
-      {/* Video Submission & Player Section */}
+      {/* Video Submission Section */}
       <Card
         withBorder
         padding="lg"
@@ -166,7 +233,7 @@ export function StudentWlsPanelView({ currentUser, sessionData }) {
           borderColor: hasActiveError ? theme.colors.red[3] : theme.colors.gray[3]
         }}
       >
-        <Group position="apart" mb="md">
+        <Group position="apart" mb="xs">
           <Group spacing="xs">
             <ThemeIcon size="lg" radius="xl" color={hasActiveError ? 'red' : 'green'} variant="light">
               <IconVideo size={22} />
@@ -175,26 +242,66 @@ export function StudentWlsPanelView({ currentUser, sessionData }) {
               Video Submission & Stream Player
             </Text>
           </Group>
+
+          <Tooltip
+            label="In Google Drive, click Share -> General Access -> Set to 'Anyone with the link can view'."
+            position="top"
+            multiline
+            width={240}
+            withArrow
+          >
+            <Group spacing={4} style={{ cursor: 'pointer' }}>
+              <IconInfoCircle size={16} color="#2b8a3e" />
+              <Text size="xs" color="green.8" weight={600}>
+                Link Sharing Instructions
+              </Text>
+            </Group>
+          </Tooltip>
         </Group>
 
         <TextInput
-          icon={<IconLink size={18} color="#2b8a3e" />}
+          icon={<IconLink size={18} color={hasActiveError ? '#e03131' : '#2b8a3e'} />}
           label="Google Drive / Video Stream Link:"
-          placeholder="Paste your public Google Drive video link here..."
+          placeholder="Paste your Google Drive video link here..."
           value={videoUrl}
           onChange={(e) => {
             setVideoUrl(e.target.value);
             setIframeError(false);
+            setUrlPermissionError('');
           }}
           mb="md"
           error={hasActiveError}
+          styles={{
+            input: {
+              borderColor: hasActiveError ? theme.colors.red[5] : undefined,
+              backgroundColor: hasActiveError ? theme.colors.red[0] : theme.white
+            }
+          }}
         />
 
-        {videoUrl && (
+        {urlPermissionError && (
+          <Alert icon={<IconAlertTriangle size={20} />} title="Access Permission Error" color="red" variant="filled" mb="md" radius="md">
+            <Group position="apart" align="center">
+              <Text size="xs" weight={600}>{urlPermissionError}</Text>
+              <Tooltip
+                label="Open Drive file -> Share -> General Access -> Change from 'Restricted' to 'Anyone with the link'."
+                multiline
+                width={250}
+                withArrow
+              >
+                <Text size="xs" sx={{ textDecoration: 'underline', cursor: 'pointer' }}>
+                  How to grant full access?
+                </Text>
+              </Tooltip>
+            </Group>
+          </Alert>
+        )}
+
+        {videoUrl && !urlPermissionError && (
           <Box mb="md">
             {urlCheckError || iframeError ? (
               <Alert icon={<IconAlertTriangle size={20} />} title="Video Stream Issue" color="red" variant="light" radius="md">
-                {urlCheckError || 'The player encountered an error streaming this video. Ensure Google Drive link sharing is set to "Anyone with the link can view".'}
+                {urlCheckError || 'Error loading player. Ensure Google Drive link sharing is set to "Anyone with the link can view".'}
               </Alert>
             ) : (
               <Alert icon={<IconCircleCheck size={20} />} color="green" variant="light" radius="md">
@@ -204,7 +311,7 @@ export function StudentWlsPanelView({ currentUser, sessionData }) {
           </Box>
         )}
 
-        {embedUrl ? (
+        {embedUrl && !urlPermissionError ? (
           <Box
             sx={{
               position: 'relative',
@@ -237,7 +344,7 @@ export function StudentWlsPanelView({ currentUser, sessionData }) {
             align="center"
             justify="center"
             sx={{
-              height: 260,
+              height: 240,
               backgroundColor: '#0f172a',
               borderRadius: 8,
               border: '1px dashed #334155'
@@ -245,13 +352,13 @@ export function StudentWlsPanelView({ currentUser, sessionData }) {
           >
             <IconVideo size={44} color="#64748b" />
             <Text weight={600} color="gray.3" size="sm">
-              No Video Link Provided. Please paste a link above.
+              No Video Link Provided or Permission Required
             </Text>
           </Stack>
         )}
       </Card>
 
-      {/* WLS-ADMIN Communication Panel */}
+      {/* Admin Comments & Interactive Responses */}
       <Card
         padding="lg"
         radius="md"
@@ -275,24 +382,88 @@ export function StudentWlsPanelView({ currentUser, sessionData }) {
               borderRadius: theme.radius.xs
             }}
           >
-            Communication & Comments for WLS-ADMINS
+            Communication & Admin Discussion Thread
           </Text>
         </Group>
 
+        {/* Initial Submission Notes */}
         <Textarea
-          minRows={3}
-          placeholder="Write your notes, questions, or comments here to communicate with WLS-ADMINS regarding your video or assessment..."
+          minRows={2}
+          label="Submission Notes for Admin:"
+          placeholder="Write initial notes regarding your submission..."
           value={userComment}
           onChange={(e) => setUserComment(e.target.value)}
-          mb="sm"
+          mb="lg"
           styles={{
             input: {
               borderColor: '#86efac',
-              fontSize: 15,
+              fontSize: 14,
               backgroundColor: theme.white
             }
           }}
         />
+
+        {/* Conversation History */}
+        {conversationHistory.length > 0 && (
+          <Box mb="md">
+            <Text weight={700} size="sm" color="gray.8" mb="sm">
+              Discussion History:
+            </Text>
+            <Timeline active={conversationHistory.length - 1} bulletSize={22} lineWidth={2}>
+              {conversationHistory.map((item, idx) => (
+                <Timeline.Item
+                  key={idx}
+                  bullet={<IconMessages size={12} />}
+                  title={
+                    <Group position="apart">
+                      <Text size="xs" weight={700} color="teal.8">
+                        {item.senderName || 'Student'}
+                      </Text>
+                      <Group spacing={4}>
+                        <IconClock size={12} color="gray" />
+                        <Text size="xs" color="dimmed">
+                          {new Date(item.timestamp).toLocaleString()}
+                        </Text>
+                      </Group>
+                    </Group>
+                  }
+                >
+                  <Paper p="xs" radius="sm" withBorder mt={4} sx={{ backgroundColor: theme.white }}>
+                    <Text size="xs" color="gray.8">{item.message}</Text>
+                  </Paper>
+                </Timeline.Item>
+              ))}
+            </Timeline>
+          </Box>
+        )}
+
+        {/* Reply Input Box */}
+        <Stack spacing="xs">
+          <Textarea
+            placeholder="Type your reply to admin comments here..."
+            minRows={2}
+            value={replyMessage}
+            onChange={(e) => setReplyMessage(e.target.value)}
+            styles={{
+              input: {
+                borderColor: '#86efac',
+                fontSize: 14,
+                backgroundColor: theme.white
+              }
+            }}
+          />
+          <Group position="right">
+            <Button
+              size="xs"
+              color="teal"
+              disabled={!replyMessage.trim()}
+              onClick={handleSendResponse}
+              leftIcon={<IconSend size={14} />}
+            >
+              Send Response
+            </Button>
+          </Group>
+        </Stack>
       </Card>
 
       {/* Evaluation & Scoring */}

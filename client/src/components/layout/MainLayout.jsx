@@ -1,5 +1,19 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Menu, Button, UnstyledButton } from '@mantine/core';
+import React from 'react';
+import { 
+  AppShell, 
+  Group, 
+  Title, 
+  Text, 
+  Menu, 
+  Avatar, 
+  Badge, 
+  ActionIcon, 
+  Button, 
+  UnstyledButton, 
+  Indicator, 
+  Divider, 
+  Box 
+} from '@mantine/core';
 import { 
   IconLayoutDashboard, 
   IconSchool, 
@@ -11,215 +25,211 @@ import {
   IconChevronDown, 
   IconBell, 
   IconPencil, 
-  IconLogout 
+  IconLogout, 
+  IconVideo 
 } from '@tabler/icons-react';
 import { useAuth } from '../../context/AuthContext';
 import { isSuperUserRole } from '../../types/user';
-import styles from './MainLayout.module.css';
 
 export function MainLayout({ children, activeTab, setActiveTab }) {
   const { user, setShowAuthModal, logout } = useAuth();
   const isSuperUser = isSuperUserRole(user?.role);
   const isWlsAdmin = isSuperUser || user?.role === 'WLS_ADMIN';
 
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const menuRef = useRef(null);
-
   // Helper to determine if any WLS sub-tab is currently active
-  const isWlsActive = ['wls-mgmt', 'assessment', 'criteria', 'reports'].includes(activeTab);
-
-  // Close profile dropdown menu when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setShowProfileMenu(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  const isWlsActive = ['wls-mgmt', 'assessment', 'criteria', 'reports', 'wls-assignment'].includes(activeTab);
 
   return (
-    <div className={styles['main-layout-wrapper']}>
-      {/* HEADER */}
-      <header className={styles['portal-header']}>
-        <div className={styles['brand-section']}>
-          <img src="/iipc-logo1.png" alt="IIPC Logo" className={styles['brand-logo']} />
-          <div className={styles['brand-text']}>
-            <h2 className={styles['portal-title']}>IIPC Learning Portal</h2>
-            <span className={styles['portal-subtitle']}>Weekly Learning Sessions</span>
-          </div>
-        </div>
+    <AppShell header={{ height: 110 }} padding="md">
+      {/* HEADER SECTION */}
+      <AppShell.Header p="xs" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+        <Group justify="space-between" align="center" px="md">
+          {/* Brand Logo & Title */}
+          <Group gap="sm">
+            <img src="/iipc-logo1.png" alt="IIPC Logo" style={{ height: 40 }} />
+            <Box>
+              <Title order={4} lh={1.2}>IIPC Learning Portal</Title>
+              <Text size="xs" c="dimmed">Weekly Learning Sessions</Text>
+            </Box>
+          </Group>
 
-        <div className={styles['user-controls']}>
-          {user ? (
-            <>
-              {/* Notification Bell Icon */}
-              <button 
-                className={styles['notification-btn']} 
-                title="Notifications"
-                aria-label="Notifications"
-                onClick={() => setActiveTab('notifications')}
-              >
-                <IconBell size={18} className={styles['bell-icon']} />
-                <span className={styles['notification-badge']}>3</span>
-              </button>
-
-              {/* User Info & Dropdown Container */}
-              <div className={styles['profile-dropdown-container']} ref={menuRef}>
-                <div className={styles['user-info-trigger']} onClick={() => setShowProfileMenu(!showProfileMenu)}>
-                  <span className={`${styles['badge-role']} ${isSuperUser ? styles.superuser : styles.regular}`}>
-                    {isSuperUser ? 'Super User' : user?.role || 'User'}
-                  </span>
-
-                  {/* Profile Avatar Trigger */}
-                  <button
-                    className={styles['avatar-btn']}
-                    aria-label="User Profile Menu"
+          {/* Controls & Profile Dropdown */}
+          <Group gap="md">
+            {user ? (
+              <>
+                {/* Notification Bell Badge */}
+                <Indicator label="3" size={16} color="red" offset={2}>
+                  <ActionIcon 
+                    variant="subtle" 
+                    color="gray" 
+                    size="lg" 
+                    onClick={() => setActiveTab('notifications')}
+                    aria-label="Notifications"
                   >
-                    {user.profilePictureUrl ? (
-                      <img src={user.profilePictureUrl} alt={user.name} className={styles['avatar-img']} />
-                    ) : (
-                      <div className={styles['avatar-fallback']}>
-                        {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
-                      </div>
-                    )}
-                  </button>
-                </div>
+                    <IconBell size={20} />
+                  </ActionIcon>
+                </Indicator>
 
-                {/* Dropdown Menu */}
-                {showProfileMenu && (
-                  <div className={styles['dropdown-menu']}>
-                    <div className={styles['dropdown-header']}>
-                      <div className={styles['dropdown-user-name']}>{user.name}</div>
-                      <div className={styles['dropdown-user-email']}>{user.email}</div>
-                    </div>
-                    
-                    <button 
-                      className={styles['dropdown-item']}
-                      onClick={() => {
-                        setShowProfileMenu(false);
-                        setShowAuthModal(true);
-                      }}
+                {/* Profile Avatar Menu */}
+                <Menu shadow="md" width={200} position="bottom-end">
+                  <Menu.Target>
+                    <UnstyledButton style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Badge color={isSuperUser ? 'violet' : 'blue'} variant="light">
+                        {isSuperUser ? 'Super User' : user?.role || 'User'}
+                      </Badge>
+                      <Avatar 
+                        src={user?.profilePictureUrl} 
+                        alt={user?.name} 
+                        radius="xl" 
+                        color="teal"
+                      >
+                        {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                      </Avatar>
+                    </UnstyledButton>
+                  </Menu.Target>
+
+                  <Menu.Dropdown>
+                    <Box p="xs">
+                      <Text size="sm" fw={500}>{user.name}</Text>
+                      <Text size="xs" c="dimmed">{user.email}</Text>
+                    </Box>
+                    <Divider my="xs" />
+                    <Menu.Item 
+                      leftSection={<IconPencil size={16} />} 
+                      onClick={() => setShowAuthModal(true)}
                     >
-                      <IconPencil size={16} /> Edit Profile
-                    </button>
-
-                    <button 
-                      className={styles['dropdown-item']}
-                      onClick={() => {
-                        setShowProfileMenu(false);
-                        setActiveTab('notifications');
-                      }}
+                      Edit Profile
+                    </Menu.Item>
+                    <Menu.Item 
+                      leftSection={<IconBell size={16} />} 
+                      onClick={() => setActiveTab('notifications')}
+                      rightSection={<Badge size="xs" color="red">3</Badge>}
                     >
-                      <IconBell size={16} /> Notifications
-                      <span className={styles['dropdown-badge']}>3</span>
-                    </button>
-
-                    <div className={styles['dropdown-divider']} />
-
-                    <button 
-                      className={`${styles['dropdown-item']} ${styles['danger']}`}
-                      onClick={() => {
-                        setShowProfileMenu(false);
-                        logout();
-                      }}
+                      Notifications
+                    </Menu.Item>
+                    <Divider my="xs" />
+                    <Menu.Item 
+                      color="red" 
+                      leftSection={<IconLogout size={16} />} 
+                      onClick={logout}
                     >
-                      <IconLogout size={16} /> Sign Out
-                    </button>
-                  </div>
+                      Sign Out
+                    </Menu.Item>
+                  </Menu.Dropdown>
+                </Menu>
+              </>
+            ) : (
+              <Button color="teal" onClick={() => setShowAuthModal(true)}>
+                Sign In / Register
+              </Button>
+            )}
+          </Group>
+        </Group>
+
+        {/* NAVIGATION TABS BAR */}
+        {user && (
+          <Group gap="xs" px="md" pt="xs" style={{ borderTop: '1px solid var(--mantine-color-gray-2)' }}>
+            {/* 1. Dashboard */}
+            <Button
+              variant={activeTab === 'dashboard' ? 'light' : 'subtle'}
+              color={activeTab === 'dashboard' ? 'teal' : 'gray'}
+              leftSection={<IconLayoutDashboard size={18} />}
+              onClick={() => setActiveTab('dashboard')}
+              size="xs"
+            >
+              Dashboard
+            </Button>
+
+            {/* 2. WLS Dropdown */}
+            <Menu shadow="md" width={220} trigger="hover" openDelay={100} closeDelay={150}>
+              <Menu.Target>
+                <Button
+                  variant={isWlsActive ? 'light' : 'subtle'}
+                  color={isWlsActive ? 'teal' : 'gray'}
+                  leftSection={<IconSchool size={18} />}
+                  rightSection={<IconChevronDown size={14} />}
+                  size="xs"
+                >
+                  Weekly Leadership Session (WLS)
+                </Button>
+              </Menu.Target>
+
+              <Menu.Dropdown>
+                <Menu.Item 
+                  leftSection={<IconVideo size={16} color="var(--mantine-color-teal-6)" />}
+                  onClick={() => setActiveTab('wls-assignment')}
+                >
+                  My WLS Assignment
+                </Menu.Item>
+
+                {isWlsAdmin && (
+                  <Menu.Item 
+                    leftSection={<IconTools size={16} color="var(--mantine-color-blue-6)" />}
+                    onClick={() => setActiveTab('wls-mgmt')}
+                  >
+                    Session Builder
+                  </Menu.Item>
                 )}
-              </div>
-            </>
-          ) : (
-            <button className={styles['btn-auth-signin']} onClick={() => setShowAuthModal(true)}>
-              Sign In / Register
-            </button>
-          )}
-        </div>
-      </header>
 
-      {/* NAVIGATION TABS BAR WITH WLS DROPDOWN */}
-{user && (
-  <nav className={styles['nav-tabs-bar']}>
-    {/* 1. Dashboard */}
-    <button
-      className={`${styles['nav-tab-btn']} ${activeTab === 'dashboard' ? styles.active : ''}`}
-      onClick={() => setActiveTab('dashboard')}
-    >
-      <IconLayoutDashboard size={18} color={activeTab === 'dashboard' ? '#0ca678' : '#687588'} />
-      <span>Dashboard</span>
-    </button>
+                {isWlsAdmin && (
+                  <Menu.Item 
+                    leftSection={<IconClipboardCheck size={16} color="var(--mantine-color-green-6)" />}
+                    onClick={() => setActiveTab('assessment')}
+                  >
+                    WLS Assessment
+                  </Menu.Item>
+                )}
 
-    {/* 2. Unified WLS Parent Dropdown Menu */}
-    <Menu shadow="md" width={220} trigger="hover" openDelay={100} closeDelay={150}>
-      <Menu.Target>
-        <button className={`${styles['nav-tab-btn']} ${isWlsActive ? styles.active : ''}`}>
-          <IconSchool size={18} color={isWlsActive ? '#0ca678' : '#0ca678'} />
-          <span>Weekly Leadership Session (WLS)</span>
-          <IconChevronDown size={14} style={{ marginLeft: 2 }} />
-        </button>
-      </Menu.Target>
+                {isSuperUser && (
+                  <Menu.Item 
+                    leftSection={<IconCpu size={16} color="var(--mantine-color-orange-6)" />}
+                    onClick={() => setActiveTab('criteria')}
+                  >
+                    Rule Engine
+                  </Menu.Item>
+                )}
 
-      <Menu.Dropdown>
-        {isWlsAdmin && (
-          <Menu.Item 
-            leftSection={<IconTools size={16} color="var(--mantine-color-blue-6)" />}
-            onClick={() => setActiveTab('wls-mgmt')}
-          >
-            Session Builder
-          </Menu.Item>
+                <Menu.Item 
+                  leftSection={<IconChartBar size={16} color="var(--mantine-color-grape-6)" />}
+                  onClick={() => setActiveTab('reports')}
+                >
+                  Analytics & Reports
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
+
+            {/* 3. User Management */}
+            {isSuperUser && (
+              <Button
+                variant={activeTab === 'users' ? 'light' : 'subtle'}
+                color={activeTab === 'users' ? 'teal' : 'gray'}
+                leftSection={<IconUsers size={18} />}
+                onClick={() => setActiveTab('users')}
+                size="xs"
+              >
+                User Management
+              </Button>
+            )}
+          </Group>
         )}
+      </AppShell.Header>
 
-        {isWlsAdmin && (
-          <Menu.Item 
-            leftSection={<IconClipboardCheck size={16} color="var(--mantine-color-green-6)" />}
-            onClick={() => setActiveTab('assessment')}
-          >
-            WLS Assessment
-          </Menu.Item>
-        )}
-
-        {isSuperUser && (
-          <Menu.Item 
-            leftSection={<IconCpu size={16} color="var(--mantine-color-orange-6)" />}
-            onClick={() => setActiveTab('criteria')}
-          >
-            Rule Engine
-          </Menu.Item>
-        )}
-
-        <Menu.Item 
-          leftSection={<IconChartBar size={16} color="var(--mantine-color-grape-6)" />}
-          onClick={() => setActiveTab('reports')}
-        >
-          Analytics & Reports
-        </Menu.Item>
-      </Menu.Dropdown>
-    </Menu>
-
-    {/* 3. User Management */}
-    {isSuperUser && (
-      <button
-        className={`${styles['nav-tab-btn']} ${activeTab === 'users' ? styles.active : ''}`}
-        onClick={() => setActiveTab('users')}
-      >
-        <IconUsers size={18} color={activeTab === 'users' ? '#0ca678' : '#228be6'} />
-        <span>User Management</span>
-      </button>
-    )}
-  </nav>
-)}
-
-      {/* MAIN BODY */}
-      <main className={styles['main-content']}>
+      {/* MAIN BODY CONTENT */}
+      <AppShell.Main style={{ paddingTop: 120 }}>
         {children}
-      </main>
+      </AppShell.Main>
 
       {/* FOOTER */}
-      <footer className={styles['portal-footer']}>
-        &copy; {new Date().getFullYear()} IIPC Learning Portal. All rights reserved.
-      </footer>
-    </div>
+      <Box 
+        component="footer" 
+        p="sm" 
+        mt="xl" 
+        style={{ textAlign: 'center', borderTop: '1px solid var(--mantine-color-gray-2)' }}
+      >
+        <Text size="xs" c="dimmed">
+          &copy; {new Date().getFullYear()} IIPC Learning Portal. All rights reserved.
+        </Text>
+      </Box>
+    </AppShell>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AppShell, Container, Paper } from '@mantine/core';
+import { Container, Paper } from '@mantine/core';
 import { useAuth } from './context/AuthContext';
 import { MainLayout } from './components/layout/MainLayout';
 import { AuthModal } from './features/auth/components/AuthModal';
@@ -7,7 +7,8 @@ import { UserProfileDetail } from './features/user-management/components/UserPro
 import { UserGridView } from './features/user-management/components/UserGridView';
 import { isSuperUserRole } from './types/user';
 
-import { DashboardView } from './features/dashboard/components/DashboardView'; // <-- ADD THIS
+// Updated import path and component name
+import { WlsStudentView } from './features/dashboard/components/WlsStudentView';
 import { WlsManagementPanel } from './features/wls-management/components/WlsManagementPanel';
 import { WlsAssessmentPanel } from './features/wls-assessment/components/WlsAssessmentPanel';
 import { CriteriaRuleEngine } from './features/criteria-engine/components/CriteriaRuleEngine';
@@ -16,7 +17,7 @@ import { NotificationPanel } from './features/notifications/components/Notificat
 
 export default function App() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('wls-session'); // <-- Default to WLS view on load
+  const [activeTab, setActiveTab] = useState('wls-session');
 
   const isSuperUser = isSuperUserRole(user?.role);
   const isWlsAdmin = isSuperUser || user?.role === 'WLS_ADMIN';
@@ -32,10 +33,10 @@ export default function App() {
           </Paper>
         )}
 
-        {/* WLS Student Portal View (David Gossen & All Users) */}
-        {(activeTab === 'dashboard' || activeTab === 'wls-session') && (
+        {/* WLS Student Portal View */}
+        {(activeTab === 'wls-session' || activeTab === 'wls-assignment') && (
           <Paper p="lg" radius="md" withBorder shadow="xs">
-            <DashboardView user={user} />
+            <WlsStudentView user={user} />
           </Paper>
         )}
 
@@ -51,8 +52,8 @@ export default function App() {
 
         {activeTab === 'assessment' && isWlsAdmin && (
           <Paper p="lg" radius="md" withBorder shadow="xs">
-    <WlsAssessmentPanel currentUser={user} activeTab={activeTab} />
-  </Paper>
+            <WlsAssessmentPanel currentUser={user} activeTab={activeTab} />
+          </Paper>
         )}
 
         {activeTab === 'criteria' && isSuperUser && (
