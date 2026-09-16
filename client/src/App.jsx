@@ -51,8 +51,8 @@ export default function App() {
 
         {activeTab === 'assessment' && isWlsAdmin && (
           <Paper p="lg" radius="md" withBorder shadow="xs">
-            <WlsAssessmentPanel />
-          </Paper>
+    <WlsAssessmentPanel currentUser={user} activeTab={activeTab} />
+  </Paper>
         )}
 
         {activeTab === 'criteria' && isSuperUser && (

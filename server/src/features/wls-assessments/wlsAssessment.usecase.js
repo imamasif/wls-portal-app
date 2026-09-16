@@ -31,29 +31,44 @@ export class AssessmentUseCase {
     );
   }
 
-  static async gradeSubmission(assessmentId, dto) {
-    const assessment = await AssessmentModel.findById(assessmentId);
-    if (!assessment) return null;
+  // wlsAssessment.usecase.js
+static async gradeSubmission(assessmentId, dto) {
+  const assessment = await AssessmentModel.findById(assessmentId);
+  if (!assessment) return null;
 
-    assessment.evaluations = assessment.evaluations.filter(
-      e => e.evaluatorId.toString() !== dto.evaluatorId.toString()
-    );
-    assessment.evaluations.push(dto);
+  // Filter out existing evaluations by the same evaluator
+  assessment.evaluations = assessment.evaluations.filter(
+    e => e.evaluatorId && e.evaluatorId.toString() !== dto.evaluatorId.toString()
+  );
+  
+  assessment.evaluations.push(dto);
 
-    let totalObtained = 0;
-    const totalPossible = assessment.evaluations.length * 30; // 3 categories * 10 max
+  let totalObtained = 0;
 
-    assessment.evaluations.forEach(ev => {
-      totalObtained += (ev.scores.presentation + ev.scores.recitation + ev.scores.reflection);
-    });
+  assessment.evaluations.forEach(ev => {
+    // Handle both Map and plain Object formats safely with fallback to 0
+    const scores = ev.scores instanceof Map ? Object.fromEntries(ev.scores) : (ev.scores || {});
+    
+    const presentation = Number(scores.presentation) || 0;
+    const recitation = Number(scores.recitation) || 0;
+    const reflection = Number(scores.reflection) || 0;
 
-    const percentage = totalPossible > 0 ? Math.round((totalObtained / totalPossible) * 100) : 0;
-    assessment.finalScore = percentage;
-    assessment.conclusionStatus = percentage >= 70 ? 'PASSED' : 'FAILED';
-    assessment.status = 'COMPLETED';
+    totalObtained += (presentation + recitation + reflection);
+  });
 
-    return await assessment.save();
-  }
+  const totalPossible = assessment.evaluations.length * 30; // 3 categories * 10 max
+  
+  // Guard against NaN by ensuring percentage falls back to 0
+  const percentage = (totalPossible > 0 && !isNaN(totalObtained)) 
+    ? Math.round((totalObtained / totalPossible) * 100) 
+    : 0;
+
+  assessment.finalScore = isNaN(percentage) ? 0 : percentage;
+  assessment.conclusionStatus = assessment.finalScore >= 70 ? 'PASSED' : 'FAILED';
+  assessment.status = 'COMPLETED';
+
+  return await assessment.save();
+}
 }
 
 export const assessmentUseCase = AssessmentUseCase;

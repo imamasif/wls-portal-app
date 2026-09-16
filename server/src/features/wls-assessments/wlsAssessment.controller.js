@@ -2,7 +2,7 @@ import express from 'express';
 import mongoose from 'mongoose';
 import { assessmentUseCase } from './wlsAssessment.usecase.js';
 import { AssessmentMapper } from './wlsAssessment.mapper.js';
-import { submitAssessmentSchema, gradeAssessmentSchema } from './wlsAssessment.schema.js';
+import { submitAssessmentSchema, gradeAssessmentSchema } from './index.js';
 import { validateSchema } from '../../common/middleware/validateSchema.js';
 
 const router = express.Router();

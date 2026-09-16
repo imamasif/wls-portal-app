@@ -1,3 +1,5 @@
+// src/features/wls-assessments/wlsAssessment.schema.js
+
 export const submitAssessmentSchema = {
   type: 'object',
   properties: {
@@ -12,20 +14,14 @@ export const submitAssessmentSchema = {
 
 export const gradeAssessmentSchema = {
   type: 'object',
+  required: ['evaluatorId', 'scores'],
   properties: {
     evaluatorId: { type: 'string' },
     evaluatorName: { type: 'string' },
+    feedback: { type: 'string' },
     scores: {
       type: 'object',
-      properties: {
-        presentation: { type: 'number', minimum: 0, maximum: 10 },
-        recitation: { type: 'number', minimum: 0, maximum: 10 },
-        reflection: { type: 'number', minimum: 0, maximum: 10 }
-      },
-      required: ['presentation', 'recitation', 'reflection']
-    },
-    feedback: { type: 'string' }
-  },
-  required: ['evaluatorId', 'scores'],
-  additionalProperties: true
+      additionalProperties: { type: 'number' } // Allows any numeric score keys
+    }
+  }
 };
