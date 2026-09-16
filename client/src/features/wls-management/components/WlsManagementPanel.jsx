@@ -7,12 +7,13 @@ import { DateTimePicker } from '@mantine/dates';
 import { 
   IconSchool, IconCalendarEvent, IconFileTypePdf, IconBook, 
   IconTrash, IconPlayerPause, IconRefresh, IconListCheck, IconEye,
-  IconPlus, IconMinus, IconBookmark
+  IconPlus, IconMinus, IconBookmark, IconEdit, IconX, IconVideo
 } from '@tabler/icons-react';
 import { WlsGroupAssigner } from './WlsGroupAssigner';
-import { IconVideo, IconBrandZoom } from '@tabler/icons-react';
 
 export function WlsManagementPanel() {
+  const [editingSessionId, setEditingSessionId] = useState(null);
+
   const [topicName, setTopicName] = useState('');
   const [sessionDate, setSessionDate] = useState(null);
   const [videoDeadline, setVideoDeadline] = useState(null);
@@ -53,6 +54,44 @@ export function WlsManagementPanel() {
       .catch((err) => console.error('Error fetching WLS sessions:', err));
   };
 
+  const resetForm = () => {
+    setEditingSessionId(null);
+    setTopicName('');
+    setSessionDate(null);
+    setVideoDeadline(null);
+    setDescription('');
+    setPdfUrls(['']);
+    setQuranVideoUrls(['']);
+    setGroupAssignments({ 1: { userIds: [], adminIds: [], selectedAyats: [], instructions: '' } });
+  };
+
+ const handleEditSelect = (session) => {
+  const sId = session.id || session._id;
+  setEditingSessionId(sId);
+  setTopicName(session.topicName || '');
+  setSessionDate(session.sessionDateTimeToronto ? new Date(session.sessionDateTimeToronto) : null);
+  setVideoDeadline(session.videoDeadline ? new Date(session.videoDeadline) : null);
+  setDescription(session.description || '');
+
+  const pdfs = Array.isArray(session.pdfBookletUrls) && session.pdfBookletUrls.length > 0
+    ? session.pdfBookletUrls 
+    : (session.pdfBookletUrl ? [session.pdfBookletUrl] : ['']);
+  setPdfUrls(pdfs);
+
+  const videos = Array.isArray(session.quranVideoUrls) && session.quranVideoUrls.length > 0
+    ? session.quranVideoUrls 
+    : (session.quranVideoUrl ? [session.quranVideoUrl] : ['']);
+  setQuranVideoUrls(videos);
+
+  // Set group assignments from saved session data
+  const loadedGroups = session.groupAssignments && Object.keys(session.groupAssignments).length > 0
+    ? session.groupAssignments
+    : { 1: { userIds: [], adminIds: [], selectedAyats: [], instructions: '' } };
+
+  setGroupAssignments(loadedGroups);
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
   const handlePdfChange = (index, value) => {
     const updated = [...pdfUrls];
     updated[index] = value;
@@ -83,7 +122,7 @@ export function WlsManagementPanel() {
     const cleanPdfUrls = pdfUrls.map((url) => url.trim()).filter(Boolean);
     const cleanVideoUrls = quranVideoUrls.map((url) => url.trim()).filter(Boolean);
 
-    const newSessionPayload = {
+    const sessionPayload = {
       topicName,
       sessionDateTimeToronto: dateObj.toISOString(),
       videoDeadline: deadlineObj ? deadlineObj.toISOString() : null,
@@ -95,29 +134,31 @@ export function WlsManagementPanel() {
     };
 
     try {
-      const res = await fetch('/api/wls-sessions', {
-        method: 'POST',
+      const isEditing = Boolean(editingSessionId);
+      const endpoint = isEditing ? `/api/wls-sessions/${editingSessionId}` : '/api/wls-sessions';
+      const method = isEditing ? 'PUT' : 'POST';
+
+      const res = await fetch(endpoint, {
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newSessionPayload)
+        body: JSON.stringify(sessionPayload)
       });
 
       if (res.ok) {
         const savedSession = await res.json();
-        setSessions((prev) => [savedSession, ...prev]);
-
-        setTopicName('');
-        setSessionDate(null);
-        setVideoDeadline(null);
-        setDescription('');
-        setPdfUrls(['']);
-        setQuranVideoUrls(['']);
-        setGroupAssignments({ 1: { userIds: [], adminIds: [], selectedAyats: [], instructions: '' } });
+        if (isEditing) {
+          setSessions((prev) => prev.map((s) => ((s.id || s._id) === editingSessionId ? savedSession : s)));
+        } else {
+          setSessions((prev) => [savedSession, ...prev]);
+        }
+        resetForm();
+        setSelectedSession(null);
       } else {
         const err = await res.json();
         alert(`Failed to save: ${err.message || 'Validation error'}`);
       }
     } catch (err) {
-      console.error('Failed to publish session:', err);
+      console.error('Failed to save session:', err);
     }
   };
 
@@ -178,6 +219,9 @@ export function WlsManagementPanel() {
         const res = await fetch(`/api/wls-sessions/${sessionId}`, { method: 'DELETE' });
         if (res.ok) {
           setSessions((prev) => prev.filter((_, idx) => idx !== index));
+          if (selectedSession && (selectedSession.id || selectedSession._id) === sessionId) {
+            setSelectedSession(null);
+          }
         }
       } catch (err) {
         console.error('Delete failed:', err);
@@ -193,14 +237,22 @@ export function WlsManagementPanel() {
   return (
     <Stack gap="lg">
       <Card withBorder padding="lg" radius="md" shadow="sm">
-        <Group gap="xs" mb="md">
-          <IconSchool size={24} color="var(--mantine-color-teal-6)" />
-          <Title order={3}>WLS Session Builder & Management</Title>
+        <Group justify="space-between" mb="md">
+          <Group gap="xs">
+            <IconSchool size={24} color="var(--mantine-color-teal-6)" />
+            <Title order={3}>
+              {editingSessionId ? 'Edit WLS Session' : 'WLS Session Builder & Management'}
+            </Title>
+          </Group>
+          {editingSessionId && (
+            <Button variant="light" color="gray" size="xs" leftSection={<IconX size={14} />} onClick={resetForm}>
+              Cancel Editing
+            </Button>
+          )}
         </Group>
 
         <form onSubmit={handleSubmit}>
           <Stack gap="md">
-            {/* 1. Topic Name on its own full line */}
             <TextInput
               label="Topic Name"
               placeholder="e.g., Tafseer & Recitation Module - Week 1"
@@ -209,7 +261,6 @@ export function WlsManagementPanel() {
               required
             />
 
-            {/* 2. Two Date Pickers Side-by-Side in a Grid */}
             <Grid gutter="md">
               <Grid.Col span={{ base: 12, md: 6 }}>
                 <DateTimePicker
@@ -240,22 +291,21 @@ export function WlsManagementPanel() {
               </Grid.Col>
             </Grid>
 
-            {/* 3. Description & Zoom Info */}
             <Textarea
-  label={
-    <Group gap={4} wrap="nowrap" style={{ display: 'inline-flex', alignItems: 'center' }}>
-      <IconVideo size={16} color="var(--mantine-color-blue-6)" />
-      <span>Session Description & Zoom Meeting Details</span>
-    </Group>
-  }
-  placeholder="Assalam-u-Alaikum Brothers and Sisters... Paste full Zoom invite here"
-  description="Formatting line breaks and URLs will be preserved for student view."
-  minRows={4}
-  maxRows={8}
-  autosize
-  value={description}
-  onChange={(e) => setDescription(e.target.value)}
-/>
+              label={
+                <Group gap={4} wrap="nowrap" style={{ display: 'inline-flex', alignItems: 'center' }}>
+                  <IconVideo size={16} color="var(--mantine-color-blue-6)" />
+                  <span>Session Description & Zoom Meeting Details</span>
+                </Group>
+              }
+              placeholder="Assalam-u-Alaikum Brothers and Sisters... Paste full Zoom invite here"
+              description="Formatting line breaks and URLs will be preserved for student view."
+              minRows={4}
+              maxRows={8}
+              autosize
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
 
             {/* Dynamic PDF Booklet URLs */}
             <Stack gap="xs">
@@ -320,14 +370,14 @@ export function WlsManagementPanel() {
               onAssignmentsChange={handleGroupAssignmentChange}
             />
 
-            <Button type="submit" size="md" color="teal" fullWidth>
-              Publish & Create Active Session
+            <Button type="submit" size="md" color={editingSessionId ? 'blue' : 'teal'} fullWidth>
+              {editingSessionId ? 'Update Session Details' : 'Publish & Create Active Session'}
             </Button>
           </Stack>
         </form>
       </Card>
 
-      {/* 4. Streamlined Table Grid */}
+      {/* Streamlined Table Grid */}
       <Card withBorder padding="lg" radius="md" shadow="sm">
         <Group gap="xs" mb="md">
           <IconListCheck size={20} color="var(--mantine-color-blue-6)" />
@@ -349,7 +399,7 @@ export function WlsManagementPanel() {
             <Table.Tbody>
               {sessions.map((s, idx) => (
                 <Table.Tr key={s.id || s._id || idx} onClick={() => setSelectedSession(s)}>
-                  <Table.Td style={{ width: '45%' }}>
+                  <Table.Td style={{ width: '40%' }}>
                     <Text fw={600} c="blue">{s.topicName}</Text>
                     {s.cancelReason && (
                       <Text size="xs" c="red">Reason: {s.cancelReason}</Text>
@@ -365,6 +415,11 @@ export function WlsManagementPanel() {
                   </Table.Td>
                   <Table.Td>
                     <Group gap="xs" justify="flex-end">
+                      <Tooltip label="Edit Session">
+                        <ActionIcon variant="light" color="teal" onClick={(e) => { e.stopPropagation(); handleEditSelect(s); }}>
+                          <IconEdit size={16} />
+                        </ActionIcon>
+                      </Tooltip>
                       <Tooltip label="View Full Details">
                         <ActionIcon variant="light" color="indigo" onClick={(e) => { e.stopPropagation(); setSelectedSession(s); }}>
                           <IconEye size={16} />
@@ -396,7 +451,7 @@ export function WlsManagementPanel() {
         )}
       </Card>
 
-      {/* 5. Detail Modal (Displays Video Deadline, Zoom Info, URLs, and Groups on Row Click) */}
+      {/* Detail Modal */}
       <Modal 
         opened={!!selectedSession} 
         onClose={() => setSelectedSession(null)} 
@@ -407,14 +462,16 @@ export function WlsManagementPanel() {
         {selectedSession && (
           <Stack gap="md">
             <Group justify="space-between">
-              <Text size="sm"><strong>Date & Time (Toronto):</strong> {new Date(selectedSession.sessionDateTimeToronto).toLocaleString()}</Text>
+              <Text size="sm">
+                <strong>Date & Time (Toronto):</strong> {selectedSession.sessionDateTimeToronto ? new Date(selectedSession.sessionDateTimeToronto).toLocaleString() : 'N/A'}
+              </Text>
               <Badge color={selectedSession.status === 'ACTIVE' ? 'green' : selectedSession.status === 'CANCELLED' ? 'red' : 'gray'}>
                 {selectedSession.status}
               </Badge>
             </Group>
 
             {selectedSession.videoDeadline && (
-              <Text size="sm">
+              <Text size="sm" component="div">
                 <strong>Video Deadline:</strong>{' '}
                 <Badge color="red" variant="light" size="xs">
                   {new Date(selectedSession.videoDeadline).toLocaleString()}
@@ -505,6 +562,23 @@ export function WlsManagementPanel() {
                 </Stack>
               </Paper>
             ))}
+
+            <Group justify="space-between" mt="md">
+              <Text size="xs" c="dimmed">
+                {editingSessionId === (selectedSession.id || selectedSession._id) ? (
+                  <Badge color="blue" variant="light">Loaded in top panel for editing</Badge>
+                ) : null}
+              </Text>
+
+              <Group gap="xs">
+                <Button variant="default" onClick={() => setSelectedSession(null)}>
+                  Close
+                </Button>
+                <Button color="teal" leftSection={<IconEdit size={16} />} onClick={() => handleEditSelect(selectedSession)}>
+                  Load into Form & Edit
+                </Button>
+              </Group>
+            </Group>
           </Stack>
         )}
       </Modal>

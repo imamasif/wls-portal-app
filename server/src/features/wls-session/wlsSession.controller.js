@@ -46,4 +46,14 @@ export class WlsSessionController {
       res.status(500).json({ error: err.message });
     }
   };
+
+  update = async (req, res) => {
+    try {
+      const dto = new CreateWlsSessionReqDto(req.body);
+      const result = await this.useCase.updateSession(req.params.id, dto);
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  };
 }

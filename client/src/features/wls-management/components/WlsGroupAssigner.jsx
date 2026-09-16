@@ -1,11 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Accordion, Checkbox, Textarea, Card, Text, Title, Grid, Stack, Group, Badge, Tooltip } from '@mantine/core';
 import { IconUsersGroup, IconUserCheck } from '@tabler/icons-react';
 import { SliderCountSelector } from '../../../components/common/SliderCountSelector';
 import { QuranVersePicker } from '../../../components/common/QuranVersePicker';
 
-export function WlsGroupAssigner({ users = [], wlsAdmins = [], groupAssignments, onAssignmentsChange }) {
+export function WlsGroupAssigner({ users = [], wlsAdmins = [], groupAssignments = {}, onAssignmentsChange }) {
   const [groupCount, setGroupCount] = useState(1);
+
+  // Synchronize internal groupCount state with incoming groupAssignments prop
+  useEffect(() => {
+    if (groupAssignments && typeof groupAssignments === 'object') {
+      const keys = Object.keys(groupAssignments);
+      if (keys.length > 0) {
+        // Find maximum group index or default to total keys length
+        const maxGroupIdx = Math.max(...keys.map((k) => Number(k) || 0), keys.length);
+        setGroupCount(Math.max(1, maxGroupIdx));
+      }
+    }
+  }, [groupAssignments]);
 
   const handleUserToggle = (groupIdx, userId) => {
     const isAssignedElsewhere = Object.entries(groupAssignments).some(([gIdx, data]) => {
@@ -18,20 +30,20 @@ export function WlsGroupAssigner({ users = [], wlsAdmins = [], groupAssignments,
     }
 
     const currentGroup = groupAssignments[groupIdx] || { userIds: [], adminIds: [], selectedAyats: [], instructions: '' };
-    const exists = currentGroup.userIds.includes(userId);
+    const exists = currentGroup.userIds?.includes(userId);
     const updatedUserIds = exists
       ? currentGroup.userIds.filter((id) => id !== userId)
-      : [...currentGroup.userIds, userId];
+      : [...(currentGroup.userIds || []), userId];
 
     onAssignmentsChange(groupIdx, { ...currentGroup, userIds: updatedUserIds });
   };
 
   const handleAdminToggle = (groupIdx, adminId) => {
     const currentGroup = groupAssignments[groupIdx] || { userIds: [], adminIds: [], selectedAyats: [], instructions: '' };
-    const exists = currentGroup.adminIds.includes(adminId);
+    const exists = currentGroup.adminIds?.includes(adminId);
     const updatedAdminIds = exists
       ? currentGroup.adminIds.filter((id) => id !== adminId)
-      : [...currentGroup.adminIds, adminId];
+      : [...(currentGroup.adminIds || []), adminId];
 
     onAssignmentsChange(groupIdx, { ...currentGroup, adminIds: updatedAdminIds });
   };

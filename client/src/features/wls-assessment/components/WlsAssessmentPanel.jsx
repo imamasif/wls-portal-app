@@ -28,7 +28,9 @@ import {
   IconShieldCheck,
   IconDeviceFloppy,
   IconX,
-  IconBookmark
+  IconBookmark,
+  IconUserCheck,
+  IconCalendarEvent
 } from '@tabler/icons-react';
 import { ColorScoreSlider } from '../../../components/common/ColorScoreSlider';
 
@@ -37,7 +39,8 @@ function formatDriveEmbedUrl(url) {
   const cleanUrl = url.trim();
 
   if (cleanUrl.includes('drive.google.com')) {
-    const fileIdMatch = cleanUrl.match(/\/d\/([a-zA-Z0-9_-]+)/) || cleanUrl.match(/id=([a-zA-Z0-9_-]+)/);
+    const fileIdMatch =
+      cleanUrl.match(/\/d\/([a-zA-Z0-9_-]+)/) || cleanUrl.match(/id=([a-zA-Z0-9_-]+)/);
 
     if (!fileIdMatch || !fileIdMatch[1]) {
       return {
@@ -67,7 +70,8 @@ function formatDriveEmbedUrl(url) {
   return { embedUrl: '', error: 'Unrecognized URL or invalid video stream link.' };
 }
 
-export function WlsAssessmentPanel({ currentAdminId, onSubmitAssessment }) {
+export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'WLS Admin Evaluator', onSubmitAssessment }) {
+  const [sessionInfo, setSessionInfo] = useState({ topic: '', date: '', rawSession: null });
   const [assignedUsers, setAssignedUsers] = useState([]);
   const [criteriaList, setCriteriaList] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -89,88 +93,108 @@ export function WlsAssessmentPanel({ currentAdminId, onSubmitAssessment }) {
     }, 4000);
   };
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        setLoading(true);
+  const fetchData = async () => {
+    try {
+      setLoading(true);
 
-        const [resSessions, resAssessments, resUsers, resRules] = await Promise.all([
-          fetch('/api/wls-sessions?status=ACTIVE'),
-          fetch('/api/assessments'),
-          fetch('/api/users'),
-          fetch('/api/rules').catch(() => null)
+      const [resSessions, resAssessments, resUsers, resRules] = await Promise.all([
+        fetch('/api/wls-sessions?status=ACTIVE'),
+        fetch('/api/assessments'),
+        fetch('/api/users'),
+        fetch('/api/rules').catch(() => null)
+      ]);
+
+      const sessions = await resSessions.json();
+      const assessments = await resAssessments.json();
+      const allUsers = await resUsers.json();
+      const rulesData = resRules && resRules.ok ? await resRules.json() : [];
+
+      if (Array.isArray(rulesData) && rulesData.length > 0) {
+        setCriteriaList(rulesData);
+      } else {
+        setCriteriaList([
+          { key: 'presentation', title: '1. Presentation - camera position, Light, Picture and Sound Quality - Video Size' },
+          { key: 'attire', title: '2. Attire / Dress Code' },
+          { key: 'arabicReading', title: '3. Arabic Reading' },
+          { key: 'onTimeDelivery', title: '4. On Time Delivery' },
+          { key: 'transferenceOfSpirit', title: '5. Transference of Spirit' },
+          { key: 'bodyLanguage', title: '6. Body Language' }
         ]);
-
-        const sessions = await resSessions.json();
-        const assessments = await resAssessments.json();
-        const allUsers = await resUsers.json();
-        const rulesData = resRules && resRules.ok ? await resRules.json() : [];
-
-        if (Array.isArray(rulesData) && rulesData.length > 0) {
-          setCriteriaList(rulesData);
-        } else {
-          setCriteriaList([
-            { key: 'presentation', title: '1. Presentation - camera position, Light, Picture and Sound Quality - Video Size' },
-            { key: 'attire', title: '2. Attire / Dress Code' },
-            { key: 'arabicReading', title: '3. Arabic Reading' },
-            { key: 'onTimeDelivery', title: '4. On Time Delivery' },
-            { key: 'transferenceOfSpirit', title: '5. Transference of Spirit' },
-            { key: 'bodyLanguage', title: '6. Body Language' }
-          ]);
-        }
-
-        const activeSession = Array.isArray(sessions) ? sessions[0] : null;
-        const assignedStudentIds = new Set();
-
-        if (activeSession?.groupAssignments) {
-          Object.values(activeSession.groupAssignments).forEach((group) => {
-            const isAssignedAdmin = !currentAdminId || group.adminIds?.includes(currentAdminId);
-            if (isAssignedAdmin && Array.isArray(group.userIds)) {
-              group.userIds.forEach((id) => assignedStudentIds.add(id));
-            }
-          });
-        }
-
-        const userMap = new Map((Array.isArray(allUsers) ? allUsers : []).map((u) => [u.id || u._id, u]));
-        const assessmentMap = new Map((Array.isArray(assessments) ? assessments : []).map((a) => [a.userId?.id || a.userId, a]));
-
-        const memberList = Array.from(assignedStudentIds).map((studentId) => {
-          const userObj = userMap.get(studentId) || {};
-          const assessment = assessmentMap.get(studentId) || {};
-          const studentUrl = assessment.submissionUrl || (assessment.submissionUrls?.[0] || '');
-          const adminUrl = assessment.adminSubmissionUrl || '';
-
-          return {
-            id: studentId,
-            name: userObj.name || `Student (${studentId.slice(-4)})`,
-            email: userObj.email || '',
-            assessmentId: assessment.id || assessment._id,
-            submissionUrl: studentUrl,
-            adminSubmissionUrl: adminUrl,
-            status: assessment.status || (assessment.isCompleted ? 'COMPLETED' : studentUrl || adminUrl ? 'SUBMITTED' : 'MISSING'),
-            missedReason: assessment.missedReason || '',
-            groupNumber: assessment.groupNumber || 1,
-            evaluations: assessment.evaluations || assessment.scores || {},
-            feedback: assessment.feedback || assessment.comments || ''
-          };
-        });
-
-        setAssignedUsers(memberList);
-
-        if (memberList.length > 0) {
-          handleUserSelect(memberList[0]);
-        }
-      } catch (err) {
-        console.error('Failed to load assessment panel data:', err);
-      } finally {
-        setLoading(false);
       }
-    }
 
+      const activeSession = Array.isArray(sessions) ? sessions[0] : null;
+
+      if (activeSession) {
+        setSessionInfo({
+          topic:
+            activeSession.topic ||
+            activeSession.topicName ||
+            activeSession.sessionTitle ||
+            activeSession.title ||
+            activeSession.name ||
+            'WLS : Topic Taurat & Injeel',
+          date: activeSession.sessionDateTimeToronto || activeSession.sessionDate || activeSession.date || '',
+          rawSession: activeSession
+        });
+      } else {
+        setSessionInfo({
+          topic: 'WLS : Topic Taurat & Injeel',
+          date: '',
+          rawSession: null
+        });
+      }
+
+      const assignedStudentIds = new Set();
+
+      if (activeSession?.groupAssignments) {
+        Object.values(activeSession.groupAssignments).forEach((group) => {
+          const isAssignedAdmin = !currentAdminId || group.adminIds?.includes(currentAdminId);
+          if (isAssignedAdmin && Array.isArray(group.userIds)) {
+            group.userIds.forEach((id) => assignedStudentIds.add(id));
+          }
+        });
+      }
+
+      const userMap = new Map((Array.isArray(allUsers) ? allUsers : []).map((u) => [u.id || u._id, u]));
+      const assessmentMap = new Map((Array.isArray(assessments) ? assessments : []).map((a) => [a.userId?.id || a.userId, a]));
+
+      const memberList = Array.from(assignedStudentIds).map((studentId) => {
+        const userObj = userMap.get(studentId) || {};
+        const assessment = assessmentMap.get(studentId) || {};
+        const studentUrl = assessment.submissionUrl || (assessment.submissionUrls?.[0] || '');
+        const adminUrl = assessment.adminSubmissionUrl || '';
+
+        return {
+          id: studentId,
+          name: userObj.name || `Student (${studentId.slice(-4)})`,
+          email: userObj.email || '',
+          assessmentId: assessment.id || assessment._id,
+          submissionUrl: studentUrl,
+          adminSubmissionUrl: adminUrl,
+          status: assessment.status || (assessment.isCompleted ? 'COMPLETED' : studentUrl || adminUrl ? 'SUBMITTED' : 'MISSING'),
+          missedReason: assessment.missedReason || '',
+          groupNumber: assessment.groupNumber || 1,
+          evaluations: assessment.evaluations || assessment.scores || {},
+          feedback: assessment.feedback || assessment.comments || ''
+        };
+      });
+
+      setAssignedUsers(memberList);
+
+      if (memberList.length > 0) {
+        handleUserSelect(memberList[0]);
+      }
+    } catch (err) {
+      console.error('Failed to load assessment panel data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
   }, [currentAdminId]);
 
-  // ✅ FIX 1: Enhanced Score Extraction supporting both Object & Array shapes
   const handleUserSelect = (user) => {
     setSelectedUser(user);
     setFeedback(user.feedback || '');
@@ -198,7 +222,6 @@ export function WlsAssessmentPanel({ currentAdminId, onSubmitAssessment }) {
       });
     }
 
-    // Map fallbacks for standard keys
     if (existingScores.recitation && !existingScores.arabicReading) {
       existingScores.arabicReading = existingScores.recitation;
     }
@@ -213,7 +236,6 @@ export function WlsAssessmentPanel({ currentAdminId, onSubmitAssessment }) {
     const updatedScores = { ...scores, [criterionKey]: Number(score) };
     setScores(updatedScores);
 
-    // Keep active selection updated locally
     if (selectedUser) {
       setSelectedUser((prev) => ({
         ...prev,
@@ -227,7 +249,6 @@ export function WlsAssessmentPanel({ currentAdminId, onSubmitAssessment }) {
     handleUserSelect(selectedUser);
   };
 
-  // ✅ FIX 2: Dynamic & Schema-Safe Score Saving
   const handleSaveAssessment = async (saveType) => {
     if (!selectedUser) return;
     setIsSaving(true);
@@ -268,7 +289,6 @@ export function WlsAssessmentPanel({ currentAdminId, onSubmitAssessment }) {
         throw new Error(`Invalid Assessment Record ID (${targetId}). Unable to save grade.`);
       }
 
-      // Save both UI dynamic keys & schema required keys
       const savedScores = {
         ...scores,
         presentation: Number(scores.presentation ?? scores.attire ?? 1),
@@ -278,7 +298,7 @@ export function WlsAssessmentPanel({ currentAdminId, onSubmitAssessment }) {
 
       const payload = {
         evaluatorId: currentAdminId || selectedUser.id,
-        evaluatorName: 'Admin Evaluator',
+        evaluatorName: currentAdminName,
         scores: savedScores,
         feedback: feedback || '',
         adminSubmissionUrl: adminVideoUrl || ''
@@ -315,6 +335,10 @@ export function WlsAssessmentPanel({ currentAdminId, onSubmitAssessment }) {
         'success',
         `Assessment successfully ${saveType === 'complete' ? 'completed' : 'saved'}!`
       );
+
+      if (onSubmitAssessment) {
+        onSubmitAssessment(updatedUserObj);
+      }
 
       setTimeout(() => {
         setShowSaveModal(false);
@@ -355,6 +379,54 @@ export function WlsAssessmentPanel({ currentAdminId, onSubmitAssessment }) {
 
   return (
     <Box sx={{ width: '100%', px: '16px', py: '12px', boxSizing: 'border-box' }}>
+      {/* Active WLS Session & Admin Header Banner */}
+      <Card
+        shadow="xs"
+        padding="md"
+        radius="lg"
+        withBorder
+        mb="lg"
+        sx={(theme) => ({
+          backgroundColor: theme.colors.teal[0],
+          borderColor: theme.colors.teal[2]
+        })}
+      >
+        <Group justify="space-between" align="center">
+          <Group gap="md">
+            <ThemeIcon size={44} radius="xl" color="teal" variant="filled">
+              <IconCalendarEvent size={26} />
+            </ThemeIcon>
+            <Box>
+              <Text size="xs" color="teal.8" style={{ textTransform: 'uppercase', letterSpacing: 0.8, fontWeight: 800 }}>
+                Topic Name
+              </Text>
+              <Text weight={900} size="xl" color="teal.9">
+                {sessionInfo.topic}
+              </Text>
+              {sessionInfo.date && (
+                <Text size="xs" color="dimmed" mt={2}>
+                  Session Date: {new Date(sessionInfo.date).toLocaleString()}
+                </Text>
+              )}
+            </Box>
+          </Group>
+
+          <Group gap="xs">
+            <ThemeIcon size="md" radius="xl" color="blue" variant="light">
+              <IconUserCheck size={18} />
+            </ThemeIcon>
+            <Box>
+              <Text size="xs" color="dimmed" style={{ fontWeight: 600 }}>
+                Evaluator:
+              </Text>
+              <Text size="sm" weight={700} color="dark">
+                {currentAdminName}
+              </Text>
+            </Box>
+          </Group>
+        </Group>
+      </Card>
+
       <Grid gutter="lg" align="flex-start" style={{ width: '100%', margin: 0 }}>
         {/* Sidebar */}
         <Grid.Col span={{ base: 12, md: 3, lg: 3 }}>

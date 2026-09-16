@@ -57,4 +57,26 @@ export class WlsSessionUseCase {
     await WlsSessionModel.findByIdAndDelete(id);
     return { success: true };
   }
+
+  async updateSession(id, dto) {
+  const updated = await WlsSessionModel.findByIdAndUpdate(
+    id,
+    {
+      topicName: dto.topicName,
+      sessionDateTimeToronto: dto.sessionDateTimeToronto,
+      description: dto.description,
+      videoDeadline: dto.videoDeadline,
+      pdfBookletUrls: dto.pdfBookletUrls,
+      quranVideoUrls: dto.quranVideoUrls,
+      groupAssignments: dto.groupAssignments
+    },
+    { new: true, runValidators: true }
+  );
+
+  if (!updated) {
+    throw new Error('WLS Session not found');
+  }
+
+  return WlsSessionMapper.toResponse(updated);
+}
 }
