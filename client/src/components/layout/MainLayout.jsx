@@ -19,34 +19,43 @@ import {
   IconSchool, 
   IconTools, 
   IconClipboardCheck, 
-  IconCpu, 
   IconChartBar, 
   IconUsers, 
   IconChevronDown, 
   IconBell, 
   IconPencil, 
   IconLogout, 
-  IconVideo 
+  IconVideo,
+  IconBrandWhatsapp,
+  IconBrandTeams,
+  IconBuildingBank,
+  IconUserCheck,
+  IconShieldLock,
+  IconHistory
 } from '@tabler/icons-react';
 import { useAuth } from '../../context/AuthContext';
-import { isSuperUserRole } from '../../types/user';
+import { UserRole } from '../../types/user';
 
 export function MainLayout({ children, activeTab, setActiveTab }) {
   const { user, setShowAuthModal, logout } = useAuth();
-  const isSuperUser = isSuperUserRole(user?.role);
-  const isWlsAdmin = isSuperUser || user?.role === 'WLS_ADMIN';
 
-  // Helper to determine if any WLS sub-tab is currently active
-  const isWlsActive = ['wls-mgmt', 'assessment', 'criteria', 'reports', 'wls-assignment'].includes(activeTab);
+  const activeRole = (user?.role || '').toUpperCase();
+  const isSuperAdmin = activeRole === UserRole.SUPER_ADMIN;
+  const isWlsAdmin = isSuperAdmin || activeRole === UserRole.WLS_ADMIN;
+
+  const isWlsActive = ['wls-session', 'wls-mgmt', 'assessment', 'reports', 'wls-assignment'].includes(activeTab);
+  const isUserMgmtActive = ['users', 'roles-control', 'user-activity'].includes(activeTab);
+  const isGroupMgmtActive = ['whatsapp-groups', 'teams-groups', 'university-portal'].includes(activeTab);
 
   return (
     <AppShell header={{ height: 110 }} padding="md">
       {/* HEADER SECTION */}
       <AppShell.Header p="xs" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+        {/* Top Header Row */}
         <Group justify="space-between" align="center" px="md">
           {/* Brand Logo & Title */}
           <Group gap="sm">
-            <img src="/iipc-logo1.png" alt="IIPC Logo" style={{ height: 40 }} />
+            <img src="/iipc-logo.png" alt="IIPC Logo" style={{ height: 40 }} />
             <Box>
               <Title order={4} lh={1.2}>IIPC Learning Portal</Title>
               <Text size="xs" c="dimmed">Weekly Learning Sessions</Text>
@@ -57,7 +66,6 @@ export function MainLayout({ children, activeTab, setActiveTab }) {
           <Group gap="md">
             {user ? (
               <>
-                {/* Notification Bell Badge */}
                 <Indicator label="3" size={16} color="red" offset={2}>
                   <ActionIcon 
                     variant="subtle" 
@@ -70,12 +78,14 @@ export function MainLayout({ children, activeTab, setActiveTab }) {
                   </ActionIcon>
                 </Indicator>
 
-                {/* Profile Avatar Menu */}
-                <Menu shadow="md" width={200} position="bottom-end">
+                <Menu shadow="md" width={220} position="bottom-end">
                   <Menu.Target>
                     <UnstyledButton style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Badge color={isSuperUser ? 'violet' : 'blue'} variant="light">
-                        {isSuperUser ? 'Super User' : user?.role || 'User'}
+                      <Badge 
+                        color={isSuperAdmin ? 'violet' : isWlsAdmin ? 'indigo' : 'blue'} 
+                        variant="light"
+                      >
+                        {user?.role || 'STUDENT'}
                       </Badge>
                       <Avatar 
                         src={user?.profilePictureUrl} 
@@ -129,10 +139,11 @@ export function MainLayout({ children, activeTab, setActiveTab }) {
         {/* NAVIGATION TABS BAR */}
         {user && (
           <Group gap="xs" px="md" pt="xs" style={{ borderTop: '1px solid var(--mantine-color-gray-2)' }}>
-            {/* 1. Dashboard */}
+            
+            {/* 1. Dashboard (Replaced My Profile) */}
             <Button
-              variant={activeTab === 'dashboard' ? 'light' : 'subtle'}
-              color={activeTab === 'dashboard' ? 'teal' : 'gray'}
+              variant={activeTab === 'dashboard' ? 'filled' : 'subtle'}
+              color="teal"
               leftSection={<IconLayoutDashboard size={18} />}
               onClick={() => setActiveTab('dashboard')}
               size="xs"
@@ -140,81 +151,142 @@ export function MainLayout({ children, activeTab, setActiveTab }) {
               Dashboard
             </Button>
 
-            {/* 2. WLS Dropdown */}
-            <Menu shadow="md" width={220} trigger="hover" openDelay={100} closeDelay={150}>
+            {/* 2. User Management Dropdown */}
+            {isSuperAdmin && (
+              <Menu shadow="md" width={240} trigger="hover" openDelay={100} closeDelay={150}>
+                <Menu.Target>
+                  <Button
+                    variant={isUserMgmtActive ? 'filled' : 'subtle'}
+                    color="cyan"
+                    leftSection={<IconUsers size={18} />}
+                    rightSection={<IconChevronDown size={14} />}
+                    size="xs"
+                  >
+                    User Management
+                  </Button>
+                </Menu.Target>
+
+                <Menu.Dropdown>
+                  <Menu.Label>User Controls</Menu.Label>
+                  <Menu.Item 
+                    leftSection={<IconUserCheck size={16} color="var(--mantine-color-cyan-6)" />}
+                    onClick={() => setActiveTab('users')}
+                  >
+                    User Directory
+                  </Menu.Item>
+                  <Menu.Item 
+                    leftSection={<IconShieldLock size={16} color="var(--mantine-color-grape-6)" />}
+                    onClick={() => setActiveTab('roles-control')}
+                  >
+                    Role & Access Control
+                  </Menu.Item>
+                  <Menu.Item 
+                    leftSection={<IconHistory size={16} color="var(--mantine-color-orange-6)" />}
+                    onClick={() => setActiveTab('user-activity')}
+                  >
+                    User Activity Logs
+                  </Menu.Item>
+                </Menu.Dropdown>
+              </Menu>
+            )}
+
+            {/* 3. Group Management Dropdown (Social Area + University Area) */}
+            {isWlsAdmin && (
+              <Menu shadow="md" width={250} trigger="hover" openDelay={100} closeDelay={150}>
+                <Menu.Target>
+                  <Button
+                    variant={isGroupMgmtActive ? 'filled' : 'subtle'}
+                    color="green"
+                    leftSection={<IconBrandWhatsapp size={18} />}
+                    rightSection={<IconChevronDown size={14} />}
+                    size="xs"
+                  >
+                    Group Management
+                  </Button>
+                </Menu.Target>
+
+                <Menu.Dropdown>
+                  <Menu.Label>Social Area</Menu.Label>
+                  <Menu.Item 
+                    leftSection={<IconBrandWhatsapp size={16} color="var(--mantine-color-green-6)" />}
+                    onClick={() => setActiveTab('whatsapp-groups')}
+                  >
+                    WhatsApp Groups
+                  </Menu.Item>
+                  <Menu.Item 
+                    leftSection={<IconBrandTeams size={16} color="var(--mantine-color-blue-6)" />}
+                    onClick={() => setActiveTab('teams-groups')}
+                  >
+                    Microsoft Teams Groups
+                  </Menu.Item>
+
+                  <Menu.Divider />
+                  <Menu.Label>University Area</Menu.Label>
+                  <Menu.Item 
+                    leftSection={<IconBuildingBank size={16} color="var(--mantine-color-violet-6)" />}
+                    onClick={() => setActiveTab('university-portal')}
+                  >
+                    Online University Portals
+                  </Menu.Item>
+                </Menu.Dropdown>
+              </Menu>
+            )}
+
+            {/* 4. WLS Management Dropdown */}
+            <Menu shadow="md" width={240} trigger="hover" openDelay={100} closeDelay={150}>
               <Menu.Target>
                 <Button
-                  variant={isWlsActive ? 'light' : 'subtle'}
-                  color={isWlsActive ? 'teal' : 'gray'}
+                  variant={isWlsActive ? 'filled' : 'subtle'}
+                  color="indigo"
                   leftSection={<IconSchool size={18} />}
                   rightSection={<IconChevronDown size={14} />}
                   size="xs"
                 >
-                  Weekly Leadership Session (WLS)
+                  WLS Management
                 </Button>
               </Menu.Target>
 
               <Menu.Dropdown>
+                <Menu.Label>Student Area</Menu.Label>
                 <Menu.Item 
                   leftSection={<IconVideo size={16} color="var(--mantine-color-teal-6)" />}
-                  onClick={() => setActiveTab('wls-assignment')}
+                  onClick={() => setActiveTab('wls-session')}
                 >
-                  My WLS Assignment
+                  Active Sessions & Resources
                 </Menu.Item>
-
-                {isWlsAdmin && (
-                  <Menu.Item 
-                    leftSection={<IconTools size={16} color="var(--mantine-color-blue-6)" />}
-                    onClick={() => setActiveTab('wls-mgmt')}
-                  >
-                    Session Builder
-                  </Menu.Item>
-                )}
-
-                {isWlsAdmin && (
-                  <Menu.Item 
-                    leftSection={<IconClipboardCheck size={16} color="var(--mantine-color-green-6)" />}
-                    onClick={() => setActiveTab('assessment')}
-                  >
-                    WLS Assessment
-                  </Menu.Item>
-                )}
-
-                {isSuperUser && (
-                  <Menu.Item 
-                    leftSection={<IconCpu size={16} color="var(--mantine-color-orange-6)" />}
-                    onClick={() => setActiveTab('criteria')}
-                  >
-                    Rule Engine
-                  </Menu.Item>
-                )}
-
                 <Menu.Item 
                   leftSection={<IconChartBar size={16} color="var(--mantine-color-grape-6)" />}
                   onClick={() => setActiveTab('reports')}
                 >
                   Analytics & Reports
                 </Menu.Item>
+
+                {isWlsAdmin && (
+                  <>
+                    <Menu.Divider />
+                    <Menu.Label>Admin Controls</Menu.Label>
+                    <Menu.Item 
+                      leftSection={<IconTools size={16} color="var(--mantine-color-blue-6)" />}
+                      onClick={() => setActiveTab('wls-mgmt')}
+                    >
+                      Session Builder
+                    </Menu.Item>
+                    <Menu.Item 
+                      leftSection={<IconClipboardCheck size={16} color="var(--mantine-color-orange-6)" />}
+                      onClick={() => setActiveTab('assessment')}
+                    >
+                      Assessments & Grading
+                    </Menu.Item>
+                  </>
+                )}
               </Menu.Dropdown>
             </Menu>
 
-            {/* 3. User Management */}
-            {isSuperUser && (
-              <Button
-                variant={activeTab === 'users' ? 'light' : 'subtle'}
-                color={activeTab === 'users' ? 'teal' : 'gray'}
-                leftSection={<IconUsers size={18} />}
-                onClick={() => setActiveTab('users')}
-                size="xs"
-              >
-                User Management
-              </Button>
-            )}
           </Group>
         )}
       </AppShell.Header>
 
-      {/* MAIN BODY CONTENT */}
+      {/* MAIN CONTENT AREA */}
       <AppShell.Main style={{ paddingTop: 120 }}>
         {children}
       </AppShell.Main>

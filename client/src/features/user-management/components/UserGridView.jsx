@@ -17,7 +17,7 @@ import {
   IconArrowLeft, 
   IconCheck, 
   IconX, 
-  IconUsers // Correct Tabler icon
+  IconUsers 
 } from '@tabler/icons-react';
 import { UserProfileDetail } from './UserProfileDetail';
 import { AdminUserControls } from './AdminUserControls';
@@ -136,7 +136,7 @@ export function UserGridView({ currentUser }) {
   const records = sortedUsers.slice((page - 1) * pageSize, page * pageSize);
 
   return (
-    <Paper p="md" radius="md" withBorder shadow="sm" style={{ position: 'relative', width: '100%', overflow: 'hidden' }}>
+    <Paper p="md" radius="md" withBorder shadow="sm" style={{ position: 'relative', width: '100%' }}>
       {toastMessage && (
         <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 9999 }}>
           <Notification 
@@ -149,7 +149,7 @@ export function UserGridView({ currentUser }) {
         </div>
       )}
 
-      {/* Directory Header with Icon */}
+      {/* Directory Header */}
       <Group justify="space-between" mb="md">
         <Group gap="xs">
           <IconUsers size={26} color="var(--mantine-color-indigo-6)" />
@@ -171,10 +171,8 @@ export function UserGridView({ currentUser }) {
           data={[
             { value: 'ALL', label: 'All Roles' },
             { value: UserRole.SUPER_ADMIN, label: 'Super Admin' },
-            { value: UserRole.SUPER_USER, label: 'Super User' },
             { value: UserRole.WLS_ADMIN, label: 'WLS Admin' },
             { value: UserRole.STUDENT, label: 'Student' },
-            { value: UserRole.USER, label: 'User' },
           ]}
         />
       </Group>
@@ -185,12 +183,8 @@ export function UserGridView({ currentUser }) {
         striped
         highlightOnHover
         fz="xs"
-        verticalSpacing="xs"
-        horizontalSpacing="xs"
-        styles={{
-          root: { width: '100%', overflow: 'hidden' },
-          table: { tableLayout: 'fixed', width: '100%' },
-        }}
+        verticalSpacing="sm"
+        horizontalSpacing="sm"
         records={records}
         totalRecords={sortedUsers.length}
         recordsPerPage={pageSize}
@@ -207,13 +201,14 @@ export function UserGridView({ currentUser }) {
           {
             accessor: 'name',
             title: 'Name',
+            width: 220,
             sortable: true,
             render: (u) => (
-              <Group gap={4} wrap="nowrap">
-                <Avatar src={u.profilePictureUrl} radius="xl" size={18} color="blue">
+              <Group gap="xs" wrap="nowrap">
+                <Avatar src={u.profilePictureUrl} radius="xl" size="sm" color="blue">
                   {u.name ? u.name.charAt(0).toUpperCase() : 'U'}
                 </Avatar>
-                <Text size="11px" fw={600} c="blue.7" lineClamp={1}>
+                <Text size="xs" fw={600} c="blue.7" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {u.name || 'Unnamed User'}
                 </Text>
               </Group>
@@ -222,9 +217,10 @@ export function UserGridView({ currentUser }) {
           { 
             accessor: 'email', 
             title: 'Email', 
+            width: 220,
             sortable: true,
             render: (u) => (
-              <Text size="11px" lineClamp={1}>
+              <Text size="xs" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {u.email}
               </Text>
             )
@@ -232,8 +228,9 @@ export function UserGridView({ currentUser }) {
           {
             accessor: 'phone',
             title: 'Phone',
+            width: 140,
             render: (u) => (
-              <Text size="11px" lineClamp={1}>
+              <Text size="xs" style={{ whiteSpace: 'nowrap' }}>
                 {u.phones?.find((p) => p.isPrimary)?.number || u.phone || 'N/A'}
               </Text>
             ),
@@ -241,6 +238,7 @@ export function UserGridView({ currentUser }) {
           {
             accessor: 'role',
             title: 'Role',
+            width: 160,
             sortable: true,
             render: (u) => {
               const currentUserId = currentUser?._id || currentUser?.id;
@@ -251,38 +249,29 @@ export function UserGridView({ currentUser }) {
                   <div onClick={(e) => e.stopPropagation()}>
                     <Select
                       size="xs"
-                      w={85}
-                      styles={{
-                        input: { 
-                          fontSize: '10px', 
-                          paddingLeft: '4px', 
-                          paddingRight: '14px', 
-                          height: '22px',
-                          minHeight: '22px' 
-                        }
-                      }}
-                      value={u.role || UserRole.USER}
+                      w={130}
+                      comboboxProps={{ width: 150, zIndex: 1000 }}
+                      value={u.role || UserRole.STUDENT}
                       disabled={updatingUserId === (u._id || u.id)}
                       onChange={(val) => handleRoleChange(u, val)}
                       data={[
-                        { value: UserRole.USER, label: 'USER' },
                         { value: UserRole.STUDENT, label: 'STUDENT' },
                         { value: UserRole.WLS_ADMIN, label: 'WLS ADMIN' },
-                        { value: UserRole.SUPER_USER, label: 'SUPER USER' },
                         { value: UserRole.SUPER_ADMIN, label: 'SUPER ADMIN' },
                       ]}
                     />
                   </div>
                 );
               }
-              return <Badge size="xs" variant="light">{u.role || UserRole.USER}</Badge>;
+              return <Badge size="sm" variant="light">{u.role || UserRole.STUDENT}</Badge>;
             },
           },
           {
             accessor: 'location',
             title: 'City / Country',
+            width: 160,
             render: (u) => (
-              <Text size="11px" lineClamp={1}>
+              <Text size="xs" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {`${u.city ? u.city + ', ' : ''}${u.country || ''}`}
               </Text>
             ),
@@ -290,9 +279,9 @@ export function UserGridView({ currentUser }) {
           ...(isSuperAdmin ? [{
             accessor: 'actions',
             title: 'Actions',
-            width: 75,
+            width: 80,
             render: (u) => (
-              <div onClick={(e) => e.stopPropagation()} style={{ display: 'flex', gap: '2px', flexWrap: 'nowrap' }}>
+              <div onClick={(e) => e.stopPropagation()} style={{ display: 'flex', gap: '4px' }}>
                 <AdminUserControls
                   targetUser={u}
                   currentUser={currentUser}

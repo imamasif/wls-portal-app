@@ -7,17 +7,21 @@ import {
   IconChartBar, 
   IconSettings,
   IconUserCheck,
-  IconUsers
+  IconUsers,
+  IconBrandWhatsapp,
+  IconBrandTeams // <-- Import Teams icon
 } from '@tabler/icons-react';
-import { isSuperUserRole } from '../../types/user';
+import { UserRole } from '../../types/user';
 
-export function NavigationMenu({ activeTab, setActiveTab, user }) {
-  const isSuperUser = isSuperUserRole(user?.role);
-  const isWlsAdmin = isSuperUser || user?.role === 'WLS_ADMIN';
+export function NavigationMenu({ activeTab, setActiveTab, user, currentUser }) {
+  const activeRole = (user?.role || currentUser?.role || '').toUpperCase();
+
+  const isSuperAdmin = activeRole === UserRole.SUPER_ADMIN;
+  const isWlsAdmin = isSuperAdmin || activeRole === UserRole.WLS_ADMIN;
 
   return (
     <Group gap="sm" mb="md">
-      {/* Profile / Personal Dashboard Button */}
+      {/* 1. My Profile */}
       <Button
         variant={activeTab === 'profile' ? 'filled' : 'light'}
         color="teal"
@@ -27,8 +31,52 @@ export function NavigationMenu({ activeTab, setActiveTab, user }) {
         My Profile
       </Button>
 
-      {/* WLS Dropdown */}
-      <Menu shadow="md" width={240} trigger="hover" openDelay={100} closeDelay={150}>
+      {/* 2. User Management */}
+      {isSuperAdmin && (
+        <Button
+          variant={activeTab === 'users' ? 'filled' : 'light'}
+          color="cyan"
+          leftSection={<IconUsers size={18} />}
+          onClick={() => setActiveTab('users')}
+        >
+          User Management
+        </Button>
+      )}
+
+      {/* 3. Social & University Groups Dropdown */}
+      {isWlsAdmin && (
+        <Menu shadow="md" width={220} trigger="hover" openDelay={100} closeDelay={150}>
+          <Menu.Target>
+            <Button
+              variant={['whatsapp-groups', 'teams-groups'].includes(activeTab) ? 'filled' : 'light'}
+              color="green"
+              leftSection={<IconBrandWhatsapp size={18} />}
+            >
+              Social & University Groups
+            </Button>
+          </Menu.Target>
+
+          <Menu.Dropdown>
+            <Menu.Label>Platform Groups</Menu.Label>
+            <Menu.Item
+              leftSection={<IconBrandWhatsapp size={16} color="var(--mantine-color-green-6)" />}
+              onClick={() => setActiveTab('whatsapp-groups')}
+            >
+              WhatsApp Groups
+            </Menu.Item>
+
+            <Menu.Item
+              leftSection={<IconBrandTeams size={16} color="var(--mantine-color-indigo-6)" />}
+              onClick={() => setActiveTab('teams-groups')}
+            >
+              MS Teams Groups
+            </Menu.Item>
+          </Menu.Dropdown>
+        </Menu>
+      )}
+
+      {/* 4. Weekly Leadership Session (WLS) Dropdown */}
+      <Menu shadow="md" width={260} trigger="hover" openDelay={100} closeDelay={150}>
         <Menu.Target>
           <Button
             variant={['wls-session', 'wls-mgmt', 'assessment', 'reports'].includes(activeTab) ? 'filled' : 'subtle'}
@@ -72,15 +120,6 @@ export function NavigationMenu({ activeTab, setActiveTab, user }) {
                 Assessments & Grading
               </Menu.Item>
             </>
-          )}
-
-          {isSuperUser && (
-            <Menu.Item
-              leftSection={<IconUsers size={16} color="var(--mantine-color-cyan-6)" />}
-              onClick={() => setActiveTab('users')}
-            >
-              User Management
-            </Menu.Item>
           )}
         </Menu.Dropdown>
       </Menu>

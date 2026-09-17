@@ -12,6 +12,7 @@ import wlsSessionRoutes from './src/features/wls-session/index.js'; // <-- Impor
 import assessmentController from './src/features/wls-assessments/index.js';
 import ruleRoutes from './src/features/rules/rule.routes.js';
 import { notificationController } from './src/features/notifications/index.js';
+import socialController from './src/features/social-groups/social.controller.js'; 
 
 // Explicitly import models for the seed endpoint
 import { UserModel } from './src/features/users/index.js';
@@ -34,10 +35,10 @@ app.use('/api/wls-sessions', wlsSessionRoutes); // <-- Mount WLS Session endpoin
 app.use('/api/sessions', sessionController);
 app.use('/api/assessments', assessmentController);
 app.use('/api/rules', ruleRoutes);
-
-// 2. Mount remaining feature controllers
 app.use('/api/notifications', notificationController);
 app.use('/api/reports', reportController);
+app.use('/api/social-groups', socialController);
+
 
 // 3. Seed Route
 app.post('/api/seed', async (req, res) => {
