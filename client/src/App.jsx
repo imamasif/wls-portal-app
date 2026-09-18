@@ -1,3 +1,4 @@
+// src/App.jsx
 import React, { useState } from 'react';
 import { MantineProvider, Container, Paper, Text } from '@mantine/core';
 import { useAuth } from './context/AuthContext';
@@ -12,7 +13,7 @@ import { DashboardView } from './components/dashboard/DashboardView';
 import { WlsStudentView } from './features/dashboard/components/WlsStudentView';
 import { WlsManagementPanel } from './features/wls-management/components/WlsManagementPanel';
 import { WlsAssessmentPanel } from './features/wls-assessment/components/WlsAssessmentPanel';
-import { ReportingManagement } from './features/reporting/components/ReportingManagement';
+import { ReportingDashboard } from './features/reporting/components/WlsReportingDashboard'; // <-- Live DB Reporting Dashboard
 import { NotificationPanel } from './features/notifications/components/NotificationPanel';
 
 // Group Management Imports
@@ -26,7 +27,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
 
   const activeRole = (user?.role || '').toUpperCase();
-  const isSuperAdmin = activeRole === UserRole.SUPER_ADMIN;
+  const isSuperAdmin = activeRole === UserRole.SUPER_USER;
   const isWlsAdmin = isSuperAdmin || activeRole === UserRole.WLS_ADMIN;
 
   return (
@@ -34,8 +35,7 @@ export default function App() {
       <MainLayout activeTab={activeTab} setActiveTab={setActiveTab}>
         <AuthModal />
         
-        <Container size="xl" py="sm">
-          {/* 1. Dashboard View */}
+<Container size="xl" py="lg" mt="md">          {/* 1. Dashboard View */}
           {activeTab === 'dashboard' && (
             <DashboardView setActiveTab={setActiveTab} />
           )}
@@ -96,9 +96,7 @@ export default function App() {
 
           {/* 5. Reporting & Notifications */}
           {activeTab === 'reports' && (
-            <Paper p="lg" radius="md" withBorder shadow="xs">
-              <ReportingManagement userRole={user?.role} />
-            </Paper>
+            <ReportingDashboard />
           )}
 
           {activeTab === 'notifications' && (

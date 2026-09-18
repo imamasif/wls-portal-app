@@ -38,7 +38,7 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { 
-      email, password, name, phones, profession, education, 
+      email, password, name, groupNumbers, groupNumber, phones, profession, education, 
       country, countryCode, state, stateCode, city, drive, 
       driveFolderPath, causeContribution, profilePictureUrl, socialMedia 
     } = req.body;
@@ -58,20 +58,26 @@ router.post('/', async (req, res) => {
       ? socialMedia.filter((item) => item && item.handleUrl && item.handleUrl.trim() !== '')
       : [];
 
+    // Support both multi-group array and legacy single groupNumber
+    const assignedGroups = Array.isArray(groupNumbers) && groupNumbers.length > 0 
+      ? groupNumbers 
+      : [groupNumber || 1];
+
     const newUser = await UserModel.create({
       email: cleanEmail,
       password: hashedPassword,
       name: name || cleanEmail.split('@')[0],
       role: 'USER',
+      groupNumbers: assignedGroups,
       phones: Array.isArray(phones) ? phones : [],
       phone: phones && phones[0] ? phones[0].number : '',
       profession: profession || '',
       education: education || '',
-      country: country || '',
-      countryCode: countryCode || '',
+      country: country || 'Canada',
+      countryCode: countryCode || 'CA',
       state: state || '',
       stateCode: stateCode || '',
-      city: city || '',
+      city: city || 'Toronto',
       drive: driveFolderPath || drive || '',
       driveFolderPath: driveFolderPath || drive || '',
       causeContribution: causeContribution || '',
@@ -244,6 +250,11 @@ router.put('/:id', async (req, res) => {
     user.name = body.name ?? user.name;
     user.email = body.email ? body.email.toLowerCase().trim() : user.email;
     user.role = body.role ?? user.role;
+    
+    if (Array.isArray(body.groupNumbers)) {
+      user.groupNumbers = body.groupNumbers;
+    }
+
     user.phones = phones;
     user.phone = legacyPhone;
     user.profession = body.profession ?? user.profession;

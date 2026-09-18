@@ -1,5 +1,5 @@
 import React from 'react';
-import { SimpleGrid, Text, Group, ThemeIcon, Badge, Title, Box } from '@mantine/core';
+import { SimpleGrid, Text, Group, ThemeIcon, Badge, Title, Box, Container } from '@mantine/core';
 import { 
   IconChartBar, 
   IconUsers, 
@@ -80,7 +80,9 @@ export function DashboardView({ setActiveTab }) {
   ];
 
   return (
+    <Container size="xl" py="lg" mt="md">
     <Box 
+      mt="md"
       style={{ 
         backgroundColor: '#e6ecf5', 
         minHeight: 'calc(100vh - 160px)', 
@@ -112,8 +114,8 @@ export function DashboardView({ setActiveTab }) {
 
       <Group justify="space-between" mb="xl">
         <Box>
-          <Title order={2} c="indigo.9">System Dashboard</Title>
-          <Text size="sm" c="dimmed">Overview of management controls, analytics, and active groups</Text>
+          <Title order={2} c="indigo.9">Dashboard</Title>
+          <Text size="sm" c="dimmed">Overview of management controls, analytics, and active userss & groups monitoring</Text>
         </Box>
       </Group>
 
@@ -147,5 +149,8 @@ export function DashboardView({ setActiveTab }) {
         })}
       </SimpleGrid>
     </Box>
+    </Container>
   );
 }
+
+export default DashboardView;

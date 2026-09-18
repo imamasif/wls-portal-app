@@ -50,7 +50,7 @@ let memoryUsers = [
     name: 'Syed Imam', 
     email: 'syed.imam@iipc.org', 
     password: 'password123',
-    role: 'SUPER_ADMIN', 
+    role: 'SUPER_USER', 
     city: 'Lincoln', 
     country: 'Canada', 
     profilePictureUrl: 'https://ui-avatars.com/api/?name=Syed+Imam&background=0284c7&color=fff', 

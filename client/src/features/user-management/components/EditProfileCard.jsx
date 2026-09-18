@@ -10,7 +10,7 @@ const PLATFORM_OPTIONS = ['LinkedIn', 'Facebook', 'Twitter', 'YouTube', 'Instagr
 
 export function EditProfileCard({ targetUser, onCancel, onSaveSuccess }) {
   const { user: currentUser } = useAuth();
-  const isAdmin = currentUser?.role === 'SUPER_ADMIN';
+  const isAdmin = currentUser?.role === 'SUPER_USER';
 
   const [formData, setFormData] = useState({
     profilePictureUrl: '',

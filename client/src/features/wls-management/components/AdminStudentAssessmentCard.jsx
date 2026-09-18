@@ -1,15 +1,14 @@
 import React, { useState } from 'react';
 import { 
   Paper, Group, Stack, Text, Badge, Slider, Textarea, Button, 
-  Collapse, ActionIcon, ThemeIcon, Anchor, Modal, Alert, Box, Avatar, Title 
+  Collapse, ActionIcon, Anchor, Modal, Alert, Box, Avatar, Title 
 } from '@mantine/core';
 import { 
   IconChevronDown, IconChevronUp, IconVideo, IconCheck, 
-  IconX, IconClock, IconAlertCircle, IconMaximize, IconBook, IconUser, IconCalendar 
+  IconX, IconAlertCircle, IconMaximize, IconUser, IconCalendar 
 } from '@tabler/icons-react';
 import { getSliderColor } from './utils';
 
-// Default dynamic assessment criteria configured by Super User
 const DEFAULT_CRITERIA = [
   { id: 'presentation', label: 'Presentation (Camera, Light, Sound & Video Quality)' },
   { id: 'attire', label: 'Attire / Dress Code' },
@@ -31,7 +30,6 @@ export function AdminStudentAssessmentCard({
   const [videoModalOpen, setVideoModalOpen] = useState(false);
   const [selectedVideoUrl, setSelectedVideoUrl] = useState('');
   
-  // Local state for assessment ratings and notes
   const [ratings, setRatings] = useState(student?.assessment?.scores || {});
   const [comments, setComments] = useState(student?.assessment?.comments || '');
   const [saving, setSaving] = useState(false);
@@ -39,7 +37,6 @@ export function AdminStudentAssessmentCard({
   const hasSubmitted = Array.isArray(student?.submissionUrls) && student.submissionUrls.length > 0;
   const isMissedWithReason = !hasSubmitted && Boolean(student?.missedReason);
 
-  // Helper to format Google Drive links into embeddable URLs
   const getEmbedUrl = (url) => {
     if (!url) return '';
     if (url.includes('drive.google.com') && url.includes('/view')) {
@@ -66,14 +63,11 @@ export function AdminStudentAssessmentCard({
 
   return (
     <Stack gap="md">
-      {/* 1. TOP WLS SESSION BANNER (Fixes missing session Name / Title) */}
       <Paper withBorder p="md" radius="md" bg="blue.0">
         <Group justify="space-between" align="center">
           <div>
             <Group gap="xs" mb={4}>
-              <Badge color="indigo" variant="light">
-                Session Under Assessment
-              </Badge>
+              <Badge color="indigo" variant="light">Session Under Assessment</Badge>
               {session?.status && (
                 <Badge color={session.status === 'ACTIVE' ? 'green' : 'gray'}>
                   {session.status}
@@ -99,12 +93,9 @@ export function AdminStudentAssessmentCard({
         </Group>
       </Paper>
 
-      {/* 2. MAIN EVALUATION CARD */}
       <Paper withBorder shadow="sm" radius="md" p="md">
-        {/* Card Header Bar (Collapsible Toggle) */}
         <Group justify="space-between" style={{ cursor: 'pointer' }} onClick={() => setOpened((o) => !o)}>
           <Group gap="md">
-            {/* Circular Profile Picture / Avatar */}
             <Avatar
               src={student?.avatarUrl || student?.snapUrl || student?.drive}
               alt={student?.fullName || student?.name}
@@ -129,7 +120,6 @@ export function AdminStudentAssessmentCard({
           </Group>
 
           <Group gap="xs">
-            {/* Status Indicator Badges */}
             {hasSubmitted ? (
               <Badge color="green" leftSection={<IconCheck size={12} />}>
                 File Received ({student.submissionUrls.length})
@@ -150,10 +140,8 @@ export function AdminStudentAssessmentCard({
           </Group>
         </Group>
 
-        {/* Expandable Assessment Panel */}
         <Collapse in={opened} mt="md">
           <Stack gap="md">
-            {/* Assigned Verses & Submission Details */}
             <Paper withBorder p="xs" bg="gray.0" radius="sm">
               <Group justify="space-between" align="flex-start">
                 <Box>
@@ -174,14 +162,12 @@ export function AdminStudentAssessmentCard({
               </Group>
             </Paper>
 
-            {/* Missed Reason Alert */}
             {isMissedWithReason && (
               <Alert color="orange" icon={<IconAlertCircle size={16} />} title="Non-Submission Reason">
                 <Text size="xs">{student.missedReason}</Text>
               </Alert>
             )}
 
-            {/* Submitted Video Links & Embedded Player */}
             {hasSubmitted && (
               <Stack gap="xs">
                 <Text size="xs" fw={700} c="dimmed" tt="uppercase">Student Video Submissions</Text>
@@ -207,21 +193,12 @@ export function AdminStudentAssessmentCard({
                       </Button>
                     </Group>
 
-                    {/* In-Card Video iFrame Embed */}
                     <Box style={{ position: 'relative', paddingTop: '56.25%', width: '100%' }}>
                       <iframe
                         src={getEmbedUrl(url)}
                         title={`Submission ${idx + 1}`}
                         allow="autoplay"
-                        style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          width: '100%',
-                          height: '100%',
-                          border: 'none',
-                          borderRadius: '4px'
-                        }}
+                        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none', borderRadius: '4px' }}
                       />
                     </Box>
                   </Paper>
@@ -229,7 +206,6 @@ export function AdminStudentAssessmentCard({
               </Stack>
             )}
 
-            {/* Dynamic Criteria Grading Sliders */}
             <Stack gap="sm" mt="xs">
               <Text size="xs" fw={700} c="dimmed" tt="uppercase">Evaluation & Criteria Marking (1 - 10)</Text>
               
@@ -261,7 +237,6 @@ export function AdminStudentAssessmentCard({
               })}
             </Stack>
 
-            {/* Admin Feedback Comments Box */}
             <Textarea
               label="Admin Feedback & Comments"
               placeholder="Provide comments or guidance visible to the student..."
@@ -279,7 +254,6 @@ export function AdminStudentAssessmentCard({
           </Stack>
         </Collapse>
 
-        {/* Expanded Video Modal */}
         <Modal 
           opened={videoModalOpen} 
           onClose={() => setVideoModalOpen(false)} 
@@ -291,14 +265,7 @@ export function AdminStudentAssessmentCard({
               src={getEmbedUrl(selectedVideoUrl)}
               title="Maximized Video Player"
               allow="autoplay"
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                border: 'none'
-              }}
+              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
             />
           </Box>
         </Modal>

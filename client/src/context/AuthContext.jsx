@@ -27,7 +27,7 @@ export function AuthProvider({ children }) {
           _id: credentials.email, 
           email: credentials.email,
           name: credentials.email.split('@')[0],
-          role: credentials.role || 'SUPER_ADMIN'
+          role: credentials.role || 'SUPER_USER'
         };
         setUser(fallbackUser);
         localStorage.setItem('user', JSON.stringify(fallbackUser));

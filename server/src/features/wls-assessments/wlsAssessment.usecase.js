@@ -31,43 +31,52 @@ export class AssessmentUseCase {
     );
   }
 
-  // wlsAssessment.usecase.js
-static async gradeSubmission(assessmentId, dto) {
-  const assessment = await AssessmentModel.findById(assessmentId);
-  if (!assessment) return null;
+  static async gradeSubmission(assessmentId, dto) {
+    const assessment = await AssessmentModel.findById(assessmentId);
+    if (!assessment) return null;
 
-  // Filter out existing evaluations by the same evaluator
-  assessment.evaluations = assessment.evaluations.filter(
-    e => e.evaluatorId && e.evaluatorId.toString() !== dto.evaluatorId.toString()
-  );
-  
-  assessment.evaluations.push(dto);
-
-  let totalObtained = 0;
-
-  assessment.evaluations.forEach(ev => {
-    // Handle both Map and plain Object formats safely with fallback to 0
-    const scores = ev.scores instanceof Map ? Object.fromEntries(ev.scores) : (ev.scores || {});
+    // Remove existing evaluation by the same evaluator if updating
+    assessment.evaluations = assessment.evaluations.filter(
+      e => e.evaluatorId && e.evaluatorId.toString() !== dto.evaluatorId.toString()
+    );
     
-    const presentation = Number(scores.presentation) || 0;
-    const recitation = Number(scores.recitation) || 0;
-    const reflection = Number(scores.reflection) || 0;
+    assessment.evaluations.push({
+      evaluatorId: dto.evaluatorId,
+      evaluatorName: dto.evaluatorName,
+      scores: dto.scores,
+      feedback: dto.feedback
+    });
 
-    totalObtained += (presentation + recitation + reflection);
-  });
+    let totalObtained = 0;
+    let totalPossible = 0;
 
-  const totalPossible = assessment.evaluations.length * 30; // 3 categories * 10 max
-  
-  // Guard against NaN by ensuring percentage falls back to 0
-  const percentage = (totalPossible > 0 && !isNaN(totalObtained)) 
-    ? Math.round((totalObtained / totalPossible) * 100) 
-    : 0;
+    assessment.evaluations.forEach(ev => {
+      const scores = ev.scores instanceof Map ? Object.fromEntries(ev.scores) : (ev.scores || {});
+      
+      Object.values(scores).forEach(val => {
+        totalObtained += Number(val) || 0;
+        totalPossible += 10; // Assumes 10 points per scored criterion
+      });
+    });
 
-  assessment.finalScore = isNaN(percentage) ? 0 : percentage;
-  assessment.conclusionStatus = assessment.finalScore >= 70 ? 'PASSED' : 'FAILED';
-  assessment.status = 'COMPLETED';
+    const percentage = totalPossible > 0 ? Math.round((totalObtained / totalPossible) * 100) : 0;
 
-  return await assessment.save();
+    assessment.finalScore = percentage;
+    assessment.conclusionStatus = assessment.finalScore >= 70 ? 'PASSED' : 'FAILED';
+
+    // FIX: Only mark as COMPLETED if explicitly finalized, otherwise use REVIEWED for partial saves
+    // You can also check if dto.isDraft or similar flag is passed from the frontend
+    assessment.status = dto.isDraft ? 'REVIEWED' : 'COMPLETED';
+
+    return await assessment.save();
+  }
+
+static async markAsCompleted(assessmentId) {
+  return await AssessmentModel.findByIdAndUpdate(
+    assessmentId,
+    { status: 'SUBMITTED', completedAt: new Date() },
+    { new: true }
+  );
 }
 }
 

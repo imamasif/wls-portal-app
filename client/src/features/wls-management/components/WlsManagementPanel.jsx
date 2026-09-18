@@ -37,7 +37,7 @@ export function WlsManagementPanel() {
       .then((data) => {
         if (Array.isArray(data)) {
           setUsers(data);
-          setWlsAdmins(data.filter((u) => u.role === 'WLS_ADMIN' || u.role === 'SUPER_ADMIN'));
+          setWlsAdmins(data.filter((u) => u.role === 'WLS_ADMIN' || u.role === 'SUPER_USER'));
         }
       })
       .catch((err) => console.error('Error fetching users:', err));

@@ -11,7 +11,9 @@ const SocialGroupSchema = new mongoose.Schema({
   type: { 
     type: String, 
     required: true, 
-    enum: ['WHATSAPP', 'MICROSOFT_TEAMS', 'ONLINE_UNIVERSITY'] 
+    uppercase: true, // Automatically converts input to uppercase
+    enum: ['WHATSAPP', 'MICROSOFT_TEAMS', 'ONLINE_UNIVERSITY'],
+    default: 'WHATSAPP'
   },
   isActive: { type: Boolean, default: true },
   allowedRoles: [{ type: String }],

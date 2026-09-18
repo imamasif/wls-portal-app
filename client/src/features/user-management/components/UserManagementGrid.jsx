@@ -73,9 +73,9 @@ export function UserManagementGrid({ onSelectUser }) {
           onChange={(val) => { setRoleFilter(val || 'ALL'); setPage(1); }}
           data={[
             { value: 'ALL', label: 'All Roles' },
-            { value: 'SUPER_ADMIN', label: 'Super Admin' },
+            { value: 'SUPER_USER', label: 'Super User' },
             { value: 'WLS_ADMIN', label: 'WLS Admin' },
-            { value: 'STUDENT', label: 'Student' },
+            { value: 'USER', label: 'User' },
           ]}
         />
       </Group>

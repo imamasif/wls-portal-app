@@ -14,10 +14,8 @@ import {
 } from '@mantine/core';
 import {
   IconUsers,
-  IconVideo,
   IconAward,
-  IconCheck,
-  IconShieldCheck
+  IconCheck
 } from '@tabler/icons-react';
 import { ColorScoreSlider } from '../../../components/common/ColorScoreSlider';
 
@@ -32,18 +30,15 @@ export function AdminGroupAssessmentView({
   getStatusBadge
 }) {
   return (
-    <Box sx={{ width: '100%', px: '16px', py: '12px', boxSizing: 'border-box' }}>
-      {/* Group Header Banner */}
+    <Box w="100%" px="16px" py="12px" style={{ boxSizing: 'border-box' }}>
       <Card
         shadow="xs"
         padding="md"
         radius="lg"
         withBorder
         mb="lg"
-        sx={(theme) => ({
-          backgroundColor: theme.colors.blue[0],
-          borderColor: theme.colors.blue[2]
-        })}
+        bg="blue.0"
+        style={{ borderColor: 'var(--mantine-color-blue-2)' }}
       >
         <Group justify="space-between">
           <Group gap="sm">
@@ -51,10 +46,10 @@ export function AdminGroupAssessmentView({
               <IconUsers size={20} />
             </ThemeIcon>
             <Box>
-              <Text weight={800} size="lg" color="blue.9">
+              <Text fw={800} size="lg" c="blue.9">
                 Group Assessment Overview
               </Text>
-              <Text size="xs" color="dimmed">
+              <Text size="xs" c="dimmed">
                 Select a student avatar below to review video submissions and record evaluation scores.
               </Text>
             </Box>
@@ -65,7 +60,6 @@ export function AdminGroupAssessmentView({
         </Group>
       </Card>
 
-      {/* Avatar Grid */}
       <Grid gutter="md" mb="xl">
         {assignedUsers.map((user) => {
           const isSelected = selectedUser?.id === user.id;
@@ -86,34 +80,31 @@ export function AdminGroupAssessmentView({
                 padding="sm"
                 radius="md"
                 withBorder
-                sx={(theme) => ({
+                bg={isSelected ? 'blue.0' : 'white'}
+                style={{
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
                   cursor: 'pointer',
-                  backgroundColor: isSelected ? theme.colors.blue[0] : theme.white,
-                  borderColor: isSelected ? theme.colors.blue[5] : theme.colors.gray[3],
+                  borderColor: isSelected ? 'var(--mantine-color-blue-5)' : 'var(--mantine-color-gray-3)',
                   borderWidth: isSelected ? 2 : 1,
-                  transition: 'all 0.15s ease',
-                  '&:hover': {
-                    backgroundColor: isSelected ? theme.colors.blue[0] : theme.colors.gray[0]
-                  }
-                })}
+                  transition: 'all 0.15s ease'
+                }}
               >
                 <Avatar
                   size="xl"
                   radius="xl"
                   color={isSelected ? 'blue' : 'gray'}
                   mb="xs"
-                  sx={{ border: isSelected ? '2px solid #1c7ed6' : 'none' }}
+                  style={{ border: isSelected ? '2px solid #1c7ed6' : 'none' }}
                 >
                   {userInitials}
                 </Avatar>
 
-                <Text weight={700} size="sm" align="center" lineClamp={1} color="dark">
+                <Text fw={700} size="sm" ta="center" lineClamp={1} c="dark">
                   {user.name}
                 </Text>
-                <Text size="xs" color="dimmed" mb="xs">
+                <Text size="xs" c="dimmed" mb="xs">
                   Group {user.groupNumber}
                 </Text>
 
@@ -124,7 +115,6 @@ export function AdminGroupAssessmentView({
         })}
       </Grid>
 
-      {/* Assessment Controls for Selected User */}
       {selectedUser && (
         <Card shadow="xs" padding="xl" radius="lg" withBorder>
           <Group justify="space-between" mb="lg">
@@ -133,10 +123,10 @@ export function AdminGroupAssessmentView({
                 {selectedUser.name?.slice(0, 2).toUpperCase()}
               </Avatar>
               <Box>
-                <Text size="xl" weight={800}>
+                <Text size="xl" fw={800}>
                   {selectedUser.name}
                 </Text>
-                <Text size="xs" color="dimmed">
+                <Text size="xs" c="dimmed">
                   {selectedUser.email || `Student ID: ${selectedUser.id}`}
                 </Text>
               </Box>
@@ -144,12 +134,11 @@ export function AdminGroupAssessmentView({
             {getStatusBadge && getStatusBadge(selectedUser.status)}
           </Group>
 
-          {/* Criteria Scoring */}
           <Group gap="xs" mb="md">
             <ThemeIcon size="lg" radius="xl" color="green" variant="light">
               <IconAward size={22} />
             </ThemeIcon>
-            <Text weight={800} size="lg" color="green.7">
+            <Text fw={800} size="lg" c="green.7">
               Evaluation Criteria
             </Text>
           </Group>
@@ -191,3 +180,5 @@ export function AdminGroupAssessmentView({
     </Box>
   );
 }
+
+export default AdminGroupAssessmentView;

@@ -7,23 +7,13 @@ export class AssessmentMapper {
   }
 
   static toGradeReqDTO(body) {
-    return {
-      evaluatorId: body.evaluatorId,
-      evaluatorName: body.evaluatorName,
-      scores: body.scores || {}, // Accepts dynamic criteria object
-      feedback: body.feedback || '',
-      adminSubmissionUrl: body.adminSubmissionUrl || ''
-    };
+    return new GradeAssessmentReqDTO(body);
   }
 
   static toResDTO(doc) {
     if (!doc) return null;
-    return {
-      id: doc._id ? doc._id.toString() : doc.id,
-      userId: doc.userId,
-      submissionUrl: doc.submissionUrl,
-      status: doc.status
-    };
+    const docObj = doc.toObject ? doc.toObject() : doc;
+    return new AssessmentResDTO(docObj);
   }
 
   static toResDTOList(entities) {

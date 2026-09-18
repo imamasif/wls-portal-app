@@ -14,8 +14,9 @@ import {
   Box,
   UnstyledButton,
   Paper,
-  Modal
+  Select
 } from '@mantine/core';
+import { modals } from '@mantine/modals';
 import {
   IconClipboardCheck,
   IconVideo,
@@ -27,12 +28,15 @@ import {
   IconCircleCheck,
   IconShieldCheck,
   IconDeviceFloppy,
-  IconX,
-  IconBookmark,
   IconUserCheck,
   IconCalendarEvent
 } from '@tabler/icons-react';
 import { ColorScoreSlider } from '../../../components/common/ColorScoreSlider';
+import {
+  fetchAssessmentPanelData,
+  createAssessmentRecord,
+  gradeAssessmentRecord
+} from '../api/wlsAssessmentApi';
 
 function formatDriveEmbedUrl(url) {
   if (!url) return { embedUrl: '', error: null };
@@ -71,6 +75,8 @@ function formatDriveEmbedUrl(url) {
 }
 
 export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'WLS Admin Evaluator', onSubmitAssessment }) {
+  const [allSessions, setAllSessions] = useState([]);
+  const [selectedSessionId, setSelectedSessionId] = useState('');
   const [sessionInfo, setSessionInfo] = useState({ topic: '', date: '', rawSession: null });
   const [assignedUsers, setAssignedUsers] = useState([]);
   const [criteriaList, setCriteriaList] = useState([]);
@@ -81,9 +87,6 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'WLS Adm
   const [adminVideoUrl, setAdminVideoUrl] = useState('');
   const [loading, setLoading] = useState(true);
   const [iframeError, setIframeError] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [showSaveModal, setShowSaveModal] = useState(false);
-
   const [banner, setBanner] = useState({ show: false, type: '', message: '' });
 
   const showBanner = (type, message) => {
@@ -93,21 +96,15 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'WLS Adm
     }, 4000);
   };
 
-  const fetchData = async () => {
+  const loadPanelData = async (targetSessionId = null) => {
     try {
       setLoading(true);
 
-      const [resSessions, resAssessments, resUsers, resRules] = await Promise.all([
-        fetch('/api/wls-sessions?status=ACTIVE'),
-        fetch('/api/assessments'),
-        fetch('/api/users'),
-        fetch('/api/rules').catch(() => null)
-      ]);
+      const { sessions, assessments, allUsers, rulesData } = await fetchAssessmentPanelData(currentAdminId);
 
-      const sessions = await resSessions.json();
-      const assessments = await resAssessments.json();
-      const allUsers = await resUsers.json();
-      const rulesData = resRules && resRules.ok ? await resRules.json() : [];
+      if (Array.isArray(sessions)) {
+        setAllSessions(sessions);
+      }
 
       if (Array.isArray(rulesData) && rulesData.length > 0) {
         setCriteriaList(rulesData);
@@ -122,9 +119,12 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'WLS Adm
         ]);
       }
 
-      const activeSession = Array.isArray(sessions) ? sessions[0] : null;
+      const activeSession = targetSessionId 
+        ? sessions.find((s) => (s.id || s._id) === targetSessionId)
+        : (Array.isArray(sessions) ? sessions[0] : null);
 
       if (activeSession) {
+        setSelectedSessionId(activeSession.id || activeSession._id);
         setSessionInfo({
           topic:
             activeSession.topic ||
@@ -132,13 +132,13 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'WLS Adm
             activeSession.sessionTitle ||
             activeSession.title ||
             activeSession.name ||
-            'WLS : Topic Taurat & Injeel',
+            'WLS Session Assessment',
           date: activeSession.sessionDateTimeToronto || activeSession.sessionDate || activeSession.date || '',
           rawSession: activeSession
         });
       } else {
         setSessionInfo({
-          topic: 'WLS : Topic Taurat & Injeel',
+          topic: 'WLS Session Assessment',
           date: '',
           rawSession: null
         });
@@ -166,6 +166,7 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'WLS Adm
 
         return {
           id: studentId,
+          sessionId: activeSession?.id || activeSession?._id,
           name: userObj.name || `Student (${studentId.slice(-4)})`,
           email: userObj.email || '',
           assessmentId: assessment.id || assessment._id,
@@ -183,6 +184,12 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'WLS Adm
 
       if (memberList.length > 0) {
         handleUserSelect(memberList[0]);
+      } else {
+        setSelectedUser(null);
+        setVideoUrl('');
+        setAdminVideoUrl('');
+        setScores({});
+        setFeedback('');
       }
     } catch (err) {
       console.error('Failed to load assessment panel data:', err);
@@ -192,8 +199,13 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'WLS Adm
   };
 
   useEffect(() => {
-    fetchData();
+    loadPanelData();
   }, [currentAdminId]);
+
+  const handleSessionSwitch = (newSessionId) => {
+    if (!newSessionId) return;
+    loadPanelData(newSessionId);
+  };
 
   const handleUserSelect = (user) => {
     setSelectedUser(user);
@@ -222,13 +234,6 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'WLS Adm
       });
     }
 
-    if (existingScores.recitation && !existingScores.arabicReading) {
-      existingScores.arabicReading = existingScores.recitation;
-    }
-    if (existingScores.reflection && !existingScores.transferenceOfSpirit) {
-      existingScores.transferenceOfSpirit = existingScores.reflection;
-    }
-
     setScores(existingScores);
   };
 
@@ -244,77 +249,45 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'WLS Adm
     }
   };
 
-  const resetToSelectedUserOriginalState = () => {
-    if (!selectedUser) return;
-    handleUserSelect(selectedUser);
-  };
-
   const handleSaveAssessment = async (saveType) => {
     if (!selectedUser) return;
-    setIsSaving(true);
     setBanner({ show: false, type: '', message: '' });
+
+    const activeStreamUrl = adminVideoUrl || videoUrl;
+
+    if (saveType === 'complete' && (!activeStreamUrl || activeStreamUrl.trim() === '')) {
+      showBanner(
+        'error',
+        'Cannot complete assessment: Student has not provided a mandatory video link, and no admin override link exists.'
+      );
+      return;
+    }
 
     let targetId = selectedUser.assessmentId;
 
     try {
       if (!targetId) {
-        const resolvedSessionId =
-          selectedUser.sessionId ||
-          selectedUser.sessionId?._id ||
-          '650000000000000000000001';
+        const resolvedSessionId = selectedSessionId || selectedUser.sessionId;
 
-        const submitResponse = await fetch('/api/assessments/submit', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sessionId: resolvedSessionId,
-            userId: selectedUser.id || selectedUser._id,
-            videoUrl: videoUrl || 'https://placeholder-url.com',
-            groupNumber: selectedUser.groupNumber || 1
-          })
+        const submitData = await createAssessmentRecord({
+          sessionId: resolvedSessionId,
+          userId: selectedUser.id || selectedUser._id,
+          videoUrl: activeStreamUrl || 'https://placeholder-url.com',
+          groupNumber: selectedUser.groupNumber || 1
         });
-
-        const submitData = await submitResponse.json();
-
-        if (!submitResponse.ok) {
-          throw new Error(
-            submitData.error || submitData.message || 'Failed to initialize assessment record'
-          );
-        }
 
         targetId = submitData.id || submitData._id;
       }
 
-      if (!targetId || !/^[0-9a-fA-F]{24}$/.test(targetId)) {
-        throw new Error(`Invalid Assessment Record ID (${targetId}). Unable to save grade.`);
-      }
-
-      const savedScores = {
-        ...scores,
-        presentation: Number(scores.presentation ?? scores.attire ?? 1),
-        recitation: Number(scores.recitation ?? scores.arabicReading ?? 1),
-        reflection: Number(scores.reflection ?? scores.transferenceOfSpirit ?? 1)
-      };
-
       const payload = {
         evaluatorId: currentAdminId || selectedUser.id,
         evaluatorName: currentAdminName,
-        scores: savedScores,
+        scores,
         feedback: feedback || '',
         adminSubmissionUrl: adminVideoUrl || ''
       };
 
-      const gradeResponse = await fetch(`/api/assessments/${targetId}/grade`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      const gradeData = await gradeResponse.json();
-
-      if (!gradeResponse.ok) {
-        throw new Error(gradeData.message || gradeData.error || 'Validation Failed');
-      }
+      await gradeAssessmentRecord(targetId, payload);
 
       const updatedUserObj = {
         ...selectedUser,
@@ -339,25 +312,35 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'WLS Adm
       if (onSubmitAssessment) {
         onSubmitAssessment(updatedUserObj);
       }
-
-      setTimeout(() => {
-        setShowSaveModal(false);
-      }, 1000);
     } catch (err) {
       console.error('Save failed:', err);
       showBanner('error', `Save Failed: ${err.message}`);
-    } finally {
-      setIsSaving(false);
     }
   };
 
-  const handleCancel = () => {
-    resetToSelectedUserOriginalState();
-    setShowSaveModal(false);
+  const openSaveConfirmationModal = () => {
+    if (!selectedUser) return;
+
+    modals.openConfirmModal({
+      title: <Text fw={700} size="lg">Confirm Assessment Save</Text>,
+      centered: true,
+      radius: 'md',
+      labels: { confirm: 'Save as Completed', cancel: 'Partial Save' },
+      confirmProps: { color: 'green' },
+      cancelProps: { color: 'blue', variant: 'filled' },
+      children: (
+        <Text size="sm" c="gray.7" mb="md">
+          Are you sure you want to save grades for <strong>{selectedUser.name}</strong>? 
+          Select <strong>Save as Completed</strong> to mark status as fully completed, or <strong>Partial Save</strong> to save progress and resume later.
+        </Text>
+      ),
+      onConfirm: () => handleSaveAssessment('complete'),
+      onCancel: () => handleSaveAssessment('partial')
+    });
   };
 
   if (loading) {
-    return <Text align="center" py="xl" color="dimmed">Loading assigned members...</Text>;
+    return <Text ta="center" py="xl" c="dimmed">Loading assigned members...</Text>;
   }
 
   const activeVideoToRender = adminVideoUrl || videoUrl;
@@ -378,51 +361,83 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'WLS Adm
   };
 
   return (
-    <Box sx={{ width: '100%', px: '16px', py: '12px', boxSizing: 'border-box' }}>
-      {/* Active WLS Session & Admin Header Banner */}
+    <Box style={{ width: '100%', paddingLeft: '16px', paddingRight: '16px', paddingTop: '12px', paddingBottom: '12px', boxSizing: 'border-box' }}>
+      {/* Metallic Shining Banner with Hover Glow Effect */}
       <Card
-        shadow="xs"
-        padding="md"
+        shadow="md"
+        padding="lg"
         radius="lg"
         withBorder
         mb="lg"
-        sx={(theme) => ({
-          backgroundColor: theme.colors.teal[0],
-          borderColor: theme.colors.teal[2]
-        })}
+        style={{
+          background: 'linear-gradient(135deg, #10b981 0%, #047857 100%)',
+          borderColor: '#059669',
+          boxShadow: '0 4px 20px rgba(16, 185, 129, 0.25)',
+          transition: 'all 0.3s ease',
+        }}
+        styles={{
+          root: {
+            '&:hover': {
+              boxShadow: '0 6px 28px rgba(16, 185, 129, 0.45)',
+              transform: 'translateY(-2px)'
+            }
+          }
+        }}
       >
-        <Group justify="space-between" align="center">
+        <Group justify="space-between" align="center" wrap="wrap" gap="md">
           <Group gap="md">
-            <ThemeIcon size={44} radius="xl" color="teal" variant="filled">
-              <IconCalendarEvent size={26} />
+            <ThemeIcon size={50} radius="xl" color="white" variant="white" style={{ boxShadow: '0 2px 10px rgba(0,0,0,0.15)' }}>
+              <IconCalendarEvent size={28} color="#047857" />
             </ThemeIcon>
             <Box>
-              <Text size="xs" color="teal.8" style={{ textTransform: 'uppercase', letterSpacing: 0.8, fontWeight: 800 }}>
-                Topic Name
+              <Text size="xs" c="emerald.1" style={{ textTransform: 'uppercase', letterSpacing: 1, fontWeight: 800, color: '#d1fae5' }}>
+                Active Session Topic
               </Text>
-              <Text weight={900} size="xl" color="teal.9">
+              <Text fw={900} size="xl" c="white" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.2)' }}>
                 {sessionInfo.topic}
               </Text>
               {sessionInfo.date && (
-                <Text size="xs" color="dimmed" mt={2}>
+                <Text size="xs" c="emerald.1" mt={2} style={{ color: '#a7f3d0' }}>
                   Session Date: {new Date(sessionInfo.date).toLocaleString()}
                 </Text>
               )}
             </Box>
           </Group>
 
-          <Group gap="xs">
-            <ThemeIcon size="md" radius="xl" color="blue" variant="light">
-              <IconUserCheck size={18} />
-            </ThemeIcon>
-            <Box>
-              <Text size="xs" color="dimmed" style={{ fontWeight: 600 }}>
-                Evaluator:
-              </Text>
-              <Text size="sm" weight={700} color="dark">
-                {currentAdminName}
-              </Text>
-            </Box>
+          <Group gap="lg" align="flex-end">
+            <Select
+              label={<Text size="xs" fw={700} c="white">Switch Assessment Session</Text>}
+              placeholder="Select active session..."
+              data={allSessions.map((s) => ({
+                value: s.id || s._id,
+                label: s.topic || s.topicName || s.title || `Session (${(s.id || s._id).slice(-4)})`
+              }))}
+              value={selectedSessionId}
+              onChange={handleSessionSwitch}
+              style={{ width: '280px' }}
+              size="sm"
+              styles={{
+                input: {
+                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                  fontWeight: 600,
+                  borderColor: '#047857'
+                }
+              }}
+            />
+
+            <Group gap="xs" bg="rgba(0, 0, 0, 0.15)" px="md" py="xs" style={{ borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.2)' }}>
+              <ThemeIcon size="md" radius="xl" color="white" variant="white">
+                <IconUserCheck size={18} color="#047857" />
+              </ThemeIcon>
+              <Box>
+                <Text size="xs" c="emerald.1" style={{ fontWeight: 600, color: '#a7f3d0', lineHeight: 1.1 }}>
+                  Active Evaluator:
+                </Text>
+                <Text size="sm" fw={800} c="white" style={{ lineHeight: 1.2 }}>
+                  {currentAdminName}
+                </Text>
+              </Box>
+            </Group>
           </Group>
         </Group>
       </Card>
@@ -436,7 +451,7 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'WLS Adm
                 <ThemeIcon size="lg" radius="xl" color="blue" variant="light">
                   <IconUsers size={20} />
                 </ThemeIcon>
-                <Text weight={800} size="md" color="dark">
+                <Text fw={800} size="md" c="dark">
                   Assigned Members
                 </Text>
               </Group>
@@ -446,73 +461,76 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'WLS Adm
             </Group>
 
             <Stack gap="xs">
-              {assignedUsers.map((item) => {
-                const isSelected = selectedUser?.id === item.id;
+              {assignedUsers.length === 0 ? (
+                <Text size="xs" c="dimmed" ta="center" py="md">
+                  No members assigned to you for this session.
+                </Text>
+              ) : (
+                assignedUsers.map((item) => {
+                  const isSelected = selectedUser?.id === item.id;
 
-                return (
-                  <Paper
-                    key={item.id}
-                    component={UnstyledButton}
-                    onClick={() => handleUserSelect(item)}
-                    p="sm"
-                    radius="md"
-                    withBorder
-                    sx={(theme) => ({
-                      display: 'block',
-                      width: '100%',
-                      cursor: 'pointer',
-                      backgroundColor: isSelected ? theme.colors.blue[0] : theme.white,
-                      borderColor: isSelected ? theme.colors.blue[5] : theme.colors.gray[3],
-                      borderWidth: isSelected ? 2 : 1,
-                      boxShadow: isSelected ? '0 2px 8px rgba(28, 126, 214, 0.15)' : 'none',
-                      transition: 'all 0.15s ease',
-                      '&:hover': {
-                        backgroundColor: isSelected ? theme.colors.blue[0] : theme.colors.gray[0]
-                      }
-                    })}
-                  >
-                    <Group justify="space-between" wrap="nowrap" align="center">
-                      <Group gap="xs" wrap="nowrap">
-                        <ThemeIcon
-                          size="md"
-                          radius="xl"
-                          color={isSelected ? 'blue' : 'gray'}
-                          variant={isSelected ? 'filled' : 'light'}
-                        >
-                          <IconUser size={16} />
-                        </ThemeIcon>
+                  return (
+                    <Paper
+                      key={item.id}
+                      component={UnstyledButton}
+                      onClick={() => handleUserSelect(item)}
+                      p="sm"
+                      radius="md"
+                      withBorder
+                      style={{
+                        display: 'block',
+                        width: '100%',
+                        cursor: 'pointer',
+                        backgroundColor: isSelected ? 'var(--mantine-color-blue-0)' : '#ffffff',
+                        borderColor: isSelected ? 'var(--mantine-color-blue-5)' : 'var(--mantine-color-gray-3)',
+                        borderWidth: isSelected ? 2 : 1,
+                        boxShadow: isSelected ? '0 2px 8px rgba(28, 126, 214, 0.15)' : 'none',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <Group justify="space-between" wrap="nowrap" align="center">
+                        <Group gap="xs" wrap="nowrap">
+                          <ThemeIcon
+                            size="md"
+                            radius="xl"
+                            color={isSelected ? 'blue' : 'gray'}
+                            variant={isSelected ? 'filled' : 'light'}
+                          >
+                            <IconUser size={16} />
+                          </ThemeIcon>
 
-                        <Box>
-                          <Text weight={700} size="sm" color="dark">
-                            {item.name}
-                          </Text>
-                          <Text size="xs" color="dimmed">
-                            Group {item.groupNumber}
-                          </Text>
-                        </Box>
+                          <Box>
+                            <Text fw={700} size="sm" c="dark">
+                              {item.name}
+                            </Text>
+                            <Text size="xs" c="dimmed">
+                              Group {item.groupNumber}
+                            </Text>
+                          </Box>
+                        </Group>
+
+                        {getStatusBadge(item.status)}
                       </Group>
-
-                      {getStatusBadge(item.status)}
-                    </Group>
-                  </Paper>
-                );
-              })}
+                    </Paper>
+                  );
+                })
+              )}
             </Stack>
           </Card>
         </Grid.Col>
 
-        {/* Main Panel */}
+        {/* Main Workspace */}
         <Grid.Col span={{ base: 12, md: 9, lg: 9 }}>
           {selectedUser ? (
-            <Card shadow="xs" padding="xl" radius="lg" withBorder sx={{ width: '100%' }}>
+            <Card shadow="xs" padding="xl" radius="lg" withBorder style={{ width: '100%' }}>
               <Group justify="space-between" mb="xl">
                 <Group gap="sm">
                   <ThemeIcon size="xl" radius="xl" color="blue" variant="light">
                     <IconClipboardCheck size={28} />
                   </ThemeIcon>
-                  <Text size="xl" weight={800}>
+                  <Text size="xl" fw={800}>
                     Assessment for:{' '}
-                    <Text component="span" color="blue">
+                    <Text component="span" c="blue">
                       {selectedUser.name}
                     </Text>
                   </Text>
@@ -533,23 +551,46 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'WLS Adm
                 </Alert>
               )}
 
-              {/* Video Player */}
+              {/* Mandatory Video Submission Status Alert */}
+              {!activeVideoToRender ? (
+                <Alert
+                  icon={<IconAlertTriangle size={20} />}
+                  title="Missing Mandatory Video Submission"
+                  color="red"
+                  variant="filled"
+                  radius="md"
+                  mb="md"
+                >
+                  This student has <strong>not submitted a video link</strong>. You cannot mark this assessment as <strong>COMPLETED</strong> until a valid video URL is provided by the student or entered in the Admin Override section.
+                </Alert>
+              ) : (
+                <Alert
+                  icon={<IconCircleCheck size={20} />}
+                  title="Submission Received"
+                  color="green"
+                  variant="light"
+                  radius="md"
+                  mb="md"
+                >
+                  Student video submission detected for evaluation.
+                </Alert>
+              )}
+
+              {/* Video Player Box */}
               <Card
                 withBorder
                 padding="lg"
                 radius="md"
                 mb="xl"
-                sx={(theme) => ({
-                  backgroundColor: hasActiveError ? theme.colors.red[0] : theme.colors.gray[0],
-                  borderColor: hasActiveError ? theme.colors.red[3] : theme.colors.gray[3]
-                })}
+                bg={hasActiveError ? 'red.0' : 'gray.0'}
+                style={{ borderColor: hasActiveError ? 'var(--mantine-color-red-3)' : 'var(--mantine-color-gray-3)' }}
               >
                 <Group justify="space-between" mb="md">
                   <Group gap="xs">
                     <ThemeIcon size="lg" radius="xl" color={hasActiveError ? 'red' : 'indigo'} variant="light">
                       <IconVideo size={22} />
                     </ThemeIcon>
-                    <Text weight={700} size="md" color="gray.8">
+                    <Text fw={700} size="md" c="gray.8">
                       Student Video Stream
                     </Text>
                   </Group>
@@ -591,7 +632,7 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'WLS Adm
 
                 {embedUrl ? (
                   <Box
-                    sx={{
+                    style={{
                       position: 'relative',
                       width: '100%',
                       paddingTop: '56.25%',
@@ -621,7 +662,7 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'WLS Adm
                   <Stack
                     align="center"
                     justify="center"
-                    sx={{
+                    style={{
                       height: 320,
                       backgroundColor: '#0f172a',
                       borderRadius: 8,
@@ -629,52 +670,31 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'WLS Adm
                     }}
                   >
                     <IconVideo size={42} color="#64748b" />
-                    <Text weight={600} color="gray.3" size="sm">
+                    <Text fw={600} c="gray.3" size="sm">
                       No Video Link Provided
                     </Text>
                   </Stack>
                 )}
-
-                {activeVideoToRender && (
-                  <Group justify="space-between" mt="sm">
-                    <Text
-                      component="a"
-                      href={activeVideoToRender}
-                      target="_blank"
-                      rel="noreferrer"
-                      size="xs"
-                      weight={600}
-                      color="blue"
-                    >
-                      Open Original Link in Google Drive ↗
-                    </Text>
-                    <Text size="xs" color="dimmed">
-                      Tip: Ensure Google Drive view permissions are set to "Anyone with the link".
-                    </Text>
-                  </Group>
-                )}
               </Card>
 
-              {/* Admin Video Override */}
+              {/* Admin Override Input */}
               <Card
                 padding="lg"
                 radius="md"
                 withBorder
                 mb="xl"
-                sx={(theme) => ({
-                  backgroundColor: theme.colors.indigo[0],
-                  borderColor: theme.colors.indigo[2]
-                })}
+                bg="indigo.0"
+                style={{ borderColor: 'var(--mantine-color-indigo-2)' }}
               >
                 <Group gap="xs" mb="xs">
                   <ThemeIcon size="md" radius="xl" color="indigo" variant="filled">
                     <IconShieldCheck size={18} />
                   </ThemeIcon>
-                  <Text weight={800} size="md" color="indigo.9">
+                  <Text fw={800} size="md" c="indigo.9">
                     Admin Video Override & Submission Menu
                   </Text>
                 </Group>
-                <Text size="xs" color="dimmed" mb="md">
+                <Text size="xs" c="dimmed" mb="md">
                   Paste or overwrite a verified video link here if the user submitted an invalid link or sent it via external channels.
                 </Text>
 
@@ -686,21 +706,15 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'WLS Adm
                     setAdminVideoUrl(e.target.value);
                     setIframeError(false);
                   }}
-                  styles={(theme) => ({
-                    input: {
-                      borderColor: theme.colors.indigo[3],
-                      backgroundColor: theme.white
-                    }
-                  })}
                 />
               </Card>
 
-              {/* Evaluation Criteria */}
+              {/* Criteria Controls */}
               <Group gap="xs" mb="md">
                 <ThemeIcon size="lg" radius="xl" color="green" variant="light">
                   <IconAward size={22} />
                 </ThemeIcon>
-                <Text weight={800} size="lg" color="green.7">
+                <Text fw={800} size="lg" c="green.7">
                   Evaluation Criteria
                 </Text>
               </Group>
@@ -721,30 +735,28 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'WLS Adm
                 })}
               </Stack>
 
-              {/* Feedback Block */}
+              {/* Feedback Field */}
               <Card
                 padding="lg"
                 radius="md"
                 withBorder
                 mb="xl"
-                sx={(theme) => ({
-                  backgroundColor: theme.colors.cyan[0],
-                  borderColor: theme.colors.cyan[3]
-                })}
+                bg="cyan.0"
+                style={{ borderColor: 'var(--mantine-color-cyan-3)' }}
               >
                 <Group gap="xs" mb="xs">
                   <ThemeIcon size="md" radius="xl" color="cyan" variant="filled">
                     <IconMessageDots size={18} />
                   </ThemeIcon>
                   <Text
-                    weight={800}
+                    fw={800}
                     size="md"
-                    color="cyan.9"
-                    sx={(theme) => ({
-                      backgroundColor: theme.colors.cyan[1],
+                    c="cyan.9"
+                    style={{
+                      backgroundColor: 'var(--mantine-color-cyan-1)',
                       padding: '4px 10px',
-                      borderRadius: theme.radius.xs
-                    })}
+                      borderRadius: 'var(--mantine-radius-xs)'
+                    }}
                   >
                     Instructor Feedback & Comments (Visible to Student)
                   </Text>
@@ -755,13 +767,6 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'WLS Adm
                   placeholder="Enter comprehensive assessment feedback..."
                   value={feedback}
                   onChange={(e) => setFeedback(e.target.value)}
-                  styles={(theme) => ({
-                    input: {
-                      borderColor: theme.colors.cyan[4],
-                      fontSize: 15,
-                      backgroundColor: theme.white
-                    }
-                  })}
                 />
               </Card>
 
@@ -770,77 +775,19 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'WLS Adm
                 color="blue"
                 fullWidth
                 leftSection={<IconDeviceFloppy size={20} />}
-                onClick={() => setShowSaveModal(true)}
+                onClick={openSaveConfirmationModal}
                 radius="md"
               >
                 Save Video & Submit Assessment Record
               </Button>
             </Card>
           ) : (
-            <Text align="center" color="dimmed" py="xl">
-              Select a user from the left sidebar to begin assessment.
+            <Text ta="center" c="dimmed" py="xl">
+              {assignedUsers.length === 0 ? 'No students are assigned to you for this session.' : 'Select a user from the left sidebar to begin assessment.'}
             </Text>
           )}
         </Grid.Col>
       </Grid>
-
-      {/* Confirmation Modal */}
-      <Modal
-        opened={showSaveModal}
-        onClose={handleCancel}
-        title={<Text weight={700} size="lg">Confirm Assessment Save</Text>}
-        centered
-        radius="md"
-        padding="lg"
-      >
-        <Text size="sm" color="gray.7" mb="xl">
-          Choose how you would like to save this assessment for <strong>{selectedUser?.name}</strong>:
-        </Text>
-
-        <Stack gap="md">
-          <Paper withBorder p="md" radius="md" sx={(theme) => ({ backgroundColor: theme.colors.green[0], borderColor: theme.colors.green[3] })}>
-            <Text weight={700} color="green.9" size="sm" mb={4}>Save & Mark Completed (Green)</Text>
-            <Text size="xs" color="dimmed" mb="md">
-              Marks evaluation as finished, saves all scores/feedback to database, and tags as <strong>Assessment Completed</strong>.
-            </Text>
-            <Button
-              color="green"
-              fullWidth
-              loading={isSaving}
-              leftSection={<IconDeviceFloppy size={18} />}
-              onClick={() => handleSaveAssessment('complete')}
-            >
-              Save as Completed
-            </Button>
-          </Paper>
-
-          <Paper withBorder p="md" radius="md" sx={(theme) => ({ backgroundColor: theme.colors.blue[0], borderColor: theme.colors.blue[3] })}>
-            <Text weight={700} color="blue.9" size="sm" mb={4}>Partial Save (Blue)</Text>
-            <Text size="xs" color="dimmed" mb="md">
-              Saves current progress so you can complete marking later. Highlights status as <strong>Partial Saved</strong>.
-            </Text>
-            <Button
-              color="blue"
-              fullWidth
-              loading={isSaving}
-              leftSection={<IconBookmark size={18} />}
-              onClick={() => handleSaveAssessment('partial')}
-            >
-              Partial Save
-            </Button>
-          </Paper>
-
-          <Button
-            variant="default"
-            fullWidth
-            leftSection={<IconX size={18} />}
-            onClick={handleCancel}
-            disabled={isSaving}
-          >
-            Cancel & Revert Changes
-          </Button>
-        </Stack>
-      </Modal>
     </Box>
   );
 }

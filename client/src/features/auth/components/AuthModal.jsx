@@ -93,7 +93,7 @@ export function AuthModal() {
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     try {
-      await login({ email: loginEmail, password: loginPassword, role: 'SUPER_ADMIN' });
+      await login({ email: loginEmail, password: loginPassword, role: 'SUPER_USER' });
       setLoginEmail('');
       setLoginPassword('');
       setShowAuthModal(false);
@@ -141,7 +141,7 @@ export function AuthModal() {
       email,
       ...(password && { password }), // Include password in payload for registration
       phones,
-      role: user?.role || 'SUPER_ADMIN',
+      role: user?.role || 'SUPER_USER',
       profession,
       education,
       country: countryObj ? countryObj.name : selectedCountryCode,

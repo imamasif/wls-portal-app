@@ -2,9 +2,9 @@
  * User Role Enum defining all available system permissions
  */
 export enum UserRole {
-  SUPER_ADMIN = "SUPER_ADMIN",
+  SUPER_USER = "SUPER_USER",
   WLS_ADMIN = "WLS_ADMIN",
-  STUDENT = "STUDENT",
+  USER = "USER",
 }
 
 /**
@@ -44,5 +44,5 @@ export interface IUser {
 export const isSuperUserRole = (role?: UserRole | string): boolean => {
   if (!role) return false;
   const upper = role.toUpperCase();
-  return upper === UserRole.SUPER_ADMIN || upper === UserRole.WLS_ADMIN;
+  return upper === UserRole.SUPER_USER || upper === UserRole.WLS_ADMIN;
 };

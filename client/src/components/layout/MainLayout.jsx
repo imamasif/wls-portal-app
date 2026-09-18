@@ -40,7 +40,7 @@ export function MainLayout({ children, activeTab, setActiveTab }) {
   const { user, setShowAuthModal, logout } = useAuth();
 
   const activeRole = (user?.role || '').toUpperCase();
-  const isSuperAdmin = activeRole === UserRole.SUPER_ADMIN;
+  const isSuperAdmin = activeRole === UserRole.SUPER_USER;
   const isWlsAdmin = isSuperAdmin || activeRole === UserRole.WLS_ADMIN;
 
   const isWlsActive = ['wls-session', 'wls-mgmt', 'assessment', 'reports', 'wls-assignment'].includes(activeTab);

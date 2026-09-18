@@ -13,12 +13,12 @@ import assessmentController from './src/features/wls-assessments/index.js';
 import ruleRoutes from './src/features/rules/rule.routes.js';
 import { notificationController } from './src/features/notifications/index.js';
 import socialController from './src/features/social-groups/social.controller.js'; 
+import reportController from './src/features/wls-reporting/index.js';
 
 // Explicitly import models for the seed endpoint
 import { UserModel } from './src/features/users/index.js';
 import { SessionModel } from './src/features/sessions/index.js';
 import { WlsSessionModel } from './src/features/wls-session/wlsSession.model.js'; // <-- Import WlsSessionModel
-import { reportController } from './src/features/reports/index.js';
 
 const app = express();
 
@@ -38,6 +38,8 @@ app.use('/api/rules', ruleRoutes);
 app.use('/api/notifications', notificationController);
 app.use('/api/reports', reportController);
 app.use('/api/social-groups', socialController);
+app.use('/api/assessments', assessmentController);
+app.use('/api/reports', reportController);
 
 
 // 3. Seed Route
@@ -55,7 +57,7 @@ app.post('/api/seed', async (req, res) => {
         name: 'Syed Imam', 
         email: 'syed.imam@iipc.org', 
         password: hashedPassword, 
-        role: 'SUPER_ADMIN', 
+        role: 'SUPER_USER', 
         city: 'Toronto', 
         country: 'Canada', 
         drive: 'https://drive.google.com/drive/folders/syed-sa' 
@@ -64,7 +66,7 @@ app.post('/api/seed', async (req, res) => {
         name: 'Dr. Tariq Rahman', 
         email: 'tariq.super@iipc.org', 
         password: hashedPassword, 
-        role: 'SUPER_ADMIN', 
+        role: 'SUPER_USER', 
         city: 'London', 
         country: 'UK', 
         drive: 'https://drive.google.com/drive/folders/tariq-sa' 

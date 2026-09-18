@@ -67,7 +67,7 @@ export function UserProfileDetail({ overrideUser, onUserUpdated }) {
 
   const displayRole = user.profession
     ? user.profession
-    : user.role === 'SUPER_USER' || user.role === 'SUPER_ADMIN'
+    : user.role === 'SUPER_USER' || user.role === 'SUPER_USER'
       ? 'Super User'
       : 'User';
 

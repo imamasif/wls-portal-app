@@ -14,7 +14,11 @@ const SocialMediaSchema = new mongoose.Schema({
 
 const PhoneSchema = new mongoose.Schema({
   number: { type: String, default: '' },
-  type: { type: String, enum: ['Mobile', 'Work', 'Home', 'Other'], default: 'Mobile' },
+  type: { 
+    type: String, 
+    enum: ['Mobile', 'Work', 'Home', 'Other'], 
+    default: 'Mobile' 
+  },
   isPrimary: { type: Boolean, default: false }
 }, { _id: false });
 
@@ -24,30 +28,30 @@ const UserSchema = new mongoose.Schema({
   password: { type: String, required: true, select: false },
   role: { 
     type: String, 
-    enum: ['SUPER_ADMIN', 'SUPER_USER', 'WLS_ADMIN', 'MARKING_ADMIN', 'STUDENT', 'USER'],
+    enum: ['SUPER_USER', 'WLS_ADMIN', 'USER'],
     default: 'USER' 
   },
-  phones: [PhoneSchema],
-  phone: { type: String, default: '' }, 
+  groupNumbers: { type: [Number], default: [1] },
+  isActive: { type: Boolean, default: true },
+  underRadar: { type: Boolean, default: false },
+  radarReason: { type: String, default: '' },
+  country: { type: String, default: 'Canada' },
+  city: { type: String, default: 'Toronto' },
   profession: { type: String, default: '' },
   education: { type: String, default: '' },
-  country: { type: String, default: '' },
-  countryCode: { type: String, default: '' },
+  countryCode: { type: String, default: 'CA' },
   state: { type: String, default: '' },
   stateCode: { type: String, default: '' },
-  city: { type: String, default: '' },
   drive: { type: String, default: '' },
   driveFolderPath: { type: String, default: '' },
   causeContribution: { type: String, default: '' },
   profilePictureUrl: { type: String, default: '' },
+  phone: { type: String, default: '' },
+  phones: [PhoneSchema],
   socialMedia: [SocialMediaSchema],
-
-  isActive: { type: Boolean, default: true },
-  underRadar: { type: Boolean, default: false },
-  radarReason: { type: String, default: '' },
-  auditTrail: [AuditTrailSchema],
   createdBy: { type: String, default: 'System' },
-  updatedBy: { type: String, default: 'System' }
+  updatedBy: { type: String, default: 'System' },
+  auditTrail: [AuditTrailSchema]
 }, { timestamps: true });
 
 export const UserModel = mongoose.models.User || mongoose.model('User', UserSchema);

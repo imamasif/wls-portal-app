@@ -99,9 +99,9 @@
   fontSize: 12px;
   font-weight: 600;
 }
-.role-badge.super_admin { background: #dbeafe; color: #1e40af; }
+.role-badge.super_user { background: #dbeafe; color: #1e40af; }
 .role-badge.wls_admin { background: #fae8ff; color: #86198f; }
-.role-badge.student { background: #f1f5f9; color: #334155; }
+.role-badge.user { background: #f1f5f9; color: #334155; }
 
 .text-muted { color: #64748b; }
 .no-records { padding: 24px; text-align: center; color: #64748b; }

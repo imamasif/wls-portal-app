@@ -16,7 +16,7 @@ import { UserRole } from '../../types/user';
 export function NavigationMenu({ activeTab, setActiveTab, user, currentUser }) {
   const activeRole = (user?.role || currentUser?.role || '').toUpperCase();
 
-  const isSuperAdmin = activeRole === UserRole.SUPER_ADMIN;
+  const isSuperAdmin = activeRole === UserRole.SUPER_USER;
   const isWlsAdmin = isSuperAdmin || activeRole === UserRole.WLS_ADMIN;
 
   return (
