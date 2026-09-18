@@ -21,6 +21,13 @@ export class SocialGroupResDTO {
     this.members = Array.isArray(group.members) 
       ? group.members.map(m => new SocialGroupMemberResDTO(m)) 
       : [];
+    
+    // Explicit UI helper counters
+    this.totalParticipants = this.members.length;
+    this.totalAdmins = Array.isArray(group.members)
+      ? group.members.filter(m => m.role === 'ADMIN' || m.role === 'WHATSAPP_ADMIN').length
+      : 0;
+
     this.createdAt = group.createdAt;
     this.updatedAt = group.updatedAt;
   }

@@ -38,6 +38,17 @@ const uploadFileToDrive = (fileBuffer, fileName, mimeType) => {
   });
 };
 
+// GET /api/users -> Fetches all users for UserGridView
+router.get('/', async (req, res) => {
+  try {
+    const users = await UserModel.find({});
+    return res.status(200).json(users);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    return res.status(500).json({ error: 'Server error retrieving users.' });
+  }
+});
+
 // Route mounted at /api/users in server.js -> Path relative to prefix is '/:id'
 router.put('/:id', upload.single('profileImage'), async (req, res) => {
   try {

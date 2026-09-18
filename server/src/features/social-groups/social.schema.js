@@ -6,9 +6,22 @@ export const CreateSocialGroupSchema = {
       type: 'string', 
       enum: ['WHATSAPP', 'MICROSOFT_TEAMS', 'ONLINE_UNIVERSITY'] 
     },
+    isActive: { type: 'boolean' },
     allowedRoles: { 
       type: 'array', 
       items: { type: 'string' } 
+    },
+    members: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          userId: { type: 'string' },
+          role: { type: 'string' }
+        },
+        required: ['userId', 'role'],
+        additionalProperties: false
+      }
     }
   },
   required: ['name', 'type'],
@@ -27,6 +40,18 @@ export const UpdateSocialGroupSchema = {
     allowedRoles: { 
       type: 'array', 
       items: { type: 'string' } 
+    },
+    members: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          userId: { type: 'string' },
+          role: { type: 'string' }
+        },
+        required: ['userId', 'role'],
+        additionalProperties: false
+      }
     }
   },
   additionalProperties: false
@@ -35,8 +60,8 @@ export const UpdateSocialGroupSchema = {
 export const AssignSocialMemberSchema = {
   type: 'object',
   properties: {
-    userId: { type: 'string' },
-    role: { type: 'string' }
+    userId: { type: 'string', minLength: 1 },
+    role: { type: 'string', minLength: 1 }
   },
   required: ['userId', 'role'],
   additionalProperties: false

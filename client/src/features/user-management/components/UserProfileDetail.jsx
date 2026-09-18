@@ -1,32 +1,44 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../../context/AuthContext';
-import { 
-  Paper, 
-  Stack
+import {
+  Paper,
+  Stack,
+  Card,
+  Group,
+  Avatar,
+  Text,
+  Title,
+  Button,
+  Grid,
+  Badge,
+  Anchor
 } from '@mantine/core';
-import { 
-  IconBrandLinkedin, 
-  IconBrandYoutube, 
-  IconBrandFacebook, 
-  IconBrandTwitter, 
-  IconBrandGithub, 
-  IconLink
+import {
+  IconBrandLinkedin,
+  IconBrandYoutube,
+  IconBrandFacebook,
+  IconBrandTwitter,
+  IconBrandGithub,
+  IconLink,
+  IconPhone,
+  IconMapPin,
+  IconPencil,
+  IconExternalLink
 } from '@tabler/icons-react';
 import { EditProfileCard } from './EditProfileCard';
 import { AdminUserControls } from './AdminUserControls';
 import { UserGroupMemberships } from './UserGroupMemberships';
-import styles from './UserProfileDetail.module.css';
 
 const SocialIcon = ({ platform }) => {
   const normalized = (platform || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
-  if (normalized.includes('linkedin')) return <IconBrandLinkedin size={16} className={styles.linkedinIcon} />;
-  if (normalized.includes('youtube')) return <IconBrandYoutube size={16} className={styles.youtubeIcon} />;
-  if (normalized.includes('facebook')) return <IconBrandFacebook size={16} className={styles.facebookIcon} />;
-  if (normalized.includes('twitter') || normalized.includes('x')) return <IconBrandTwitter size={16} className={styles.twitterIcon} />;
-  if (normalized.includes('github')) return <IconBrandGithub size={16} className={styles.githubIcon} />;
+  if (normalized.includes('linkedin')) return <IconBrandLinkedin size={16} color="#0a66c2" />;
+  if (normalized.includes('youtube')) return <IconBrandYoutube size={16} color="#ff0000" />;
+  if (normalized.includes('facebook')) return <IconBrandFacebook size={16} color="#1877f2" />;
+  if (normalized.includes('twitter') || normalized.includes('x')) return <IconBrandTwitter size={16} color="#1da1f2" />;
+  if (normalized.includes('github')) return <IconBrandGithub size={16} color="#333" />;
 
-  return <IconLink size={16} className={styles.defaultIcon} />;
+  return <IconLink size={16} />;
 };
 
 export function UserProfileDetail({ overrideUser, onUserUpdated }) {
@@ -53,10 +65,10 @@ export function UserProfileDetail({ overrideUser, onUserUpdated }) {
 
   const driveUrl = user.driveFolderPath || user.drive;
 
-  const displayRole = user.profession 
-    ? user.profession 
+  const displayRole = user.profession
+    ? user.profession
     : user.role === 'SUPER_USER' || user.role === 'SUPER_ADMIN'
-      ? 'Super User' 
+      ? 'Super User'
       : 'User';
 
   const userInitials = user.name
@@ -68,149 +80,200 @@ export function UserProfileDetail({ overrideUser, onUserUpdated }) {
   return (
     <Stack gap="lg">
       {/* Primary Profile Details Card */}
-      <div className={styles.profileCard}>
-        {/* Header Row */}
-        <div className={styles.header}>
-          {user.profilePictureUrl ? (
-            <img
-              src={user.profilePictureUrl}
-              alt={user.name}
-              className={styles.avatar}
-            />
-          ) : (
-            <div className={styles.avatarFallback}>{userInitials}</div>
-          )}
-
-          <div className={styles.headerInfo}>
-            <h2 className={styles.userName}>{user.name || user.email?.split('@')[0]}</h2>
-            <div className={styles.userRole}>{displayRole}</div>
-            <div className={styles.locationBadge}>
-              📍 {user.city ? `${user.city}, ` : ''}{user.state ? `${user.state}, ` : ''}{user.country || 'Canada'}
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
-            <button
-              className={styles.btnEditProfile}
-              onClick={() => setIsEditing(true)}
-            >
-              ✏️ Edit Profile
-            </button>
-
-            {/* Render Admin User Controls */}
-            <AdminUserControls
-              targetUser={user}
-              currentUser={authUser}
-              compact={false}
-              onUserUpdated={(updatedUser, meta) => {
-                if (meta?.deletedId) {
-                  if (onUserUpdated) onUserUpdated(null);
-                } else if (onUserUpdated) {
-                  onUserUpdated(updatedUser);
-                }
-              }}
-            />
-          </div>
-        </div>
-
-        {/* Grid Fields */}
-        <div className={styles.detailsGrid}>
-          <div className={styles.gridItem}>
-            <span className={styles.fieldLabel}>Timezone Difference</span>
-            <p className={styles.fieldValue}>Same time as Toronto (America/Toronto)</p>
-          </div>
-
-          <div className={styles.gridItem}>
-            <span className={styles.fieldLabel}>Highest Education</span>
-            <p className={styles.fieldValue}>{user.education || 'Not provided'}</p>
-          </div>
-
-          <div className={styles.gridItem}>
-            <span className={styles.fieldLabel}>Email</span>
-            <p className={styles.fieldValue}>{user.email}</p>
-          </div>
-
-          {/* Multi-Phone Display Field */}
-          <div className={styles.gridItem}>
-            <span className={styles.fieldLabel}>Phone / Mobile Numbers</span>
-            {user.phones && user.phones.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
-                {user.phones.map((p, idx) => (
-                  <div key={idx} style={{ fontSize: '13px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <IconPhone size={13} style={{ color: '#0284c7' }} />
-                    <strong>{p.type || 'Phone'}:</strong> {p.number}
-                    {p.isPrimary && (
-                      <span style={{ fontSize: '10px', background: '#e0f2fe', color: '#0284c7', padding: '1px 6px', borderRadius: '4px', fontWeight: 'bold' }}>
-                        Primary
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className={styles.fieldValue}>{user.phone || 'N/A'}</p>
-            )}
-          </div>
-
-          <div className={styles.gridItem}>
-            <span className={styles.fieldLabel}>Drive Shared Folder</span>
-            {driveUrl ? (
-              <a
-                href={driveUrl.startsWith('http') ? driveUrl : `https://${driveUrl}`}
-                target="_blank"
-                rel="noreferrer"
-                className={styles.driveLink}
+      <Card withBorder padding="lg" radius="md" shadow="xs">
+        <Stack gap="lg">
+          {/* Header Row */}
+          <Group justify="space-between" align="flex-start" wrap="nowrap">
+            <Group gap="md">
+              <Avatar
+                src={user.profilePictureUrl}
+                alt={user.name}
+                size={72}
+                radius="xl"
+                color="blue"
               >
-                Open Shared Drive ↗
-              </a>
-            ) : (
-              <p className={styles.fieldValue}>Not connected</p>
-            )}
-          </div>
-        </div>
+                {userInitials}
+              </Avatar>
 
-        {/* Cause Support Section */}
-        {user.causeContribution && (
-          <div className={styles.causeSection}>
-            <span className={styles.fieldLabel}>How I Can Help in Cause</span>
-            <p className={styles.causeText}>{user.causeContribution}</p>
-          </div>
-        )}
+              <Stack gap={2}>
+                <Title order={2} fw={700}>
+                  {user.name || user.email?.split('@')[0]}
+                </Title>
+                <Text size="sm" c="dimmed" fw={500}>
+                  {displayRole}
+                </Text>
+                <Group gap={4} mt={4}>
+                  <IconMapPin size={14} style={{ color: 'var(--mantine-color-gray-6)' }} />
+                  <Text size="xs" c="dimmed">
+                    {user.city ? `${user.city}, ` : ''}
+                    {user.state ? `${user.state}, ` : ''}
+                    {user.country || 'Canada'}
+                  </Text>
+                </Group>
+              </Stack>
+            </Group>
 
-        {/* Social Handles Section */}
-        {user.socialMedia && user.socialMedia.length > 0 && (
-          <div className={styles.socialSection}>
-            <span className={styles.fieldLabel}>Social Profiles</span>
-            <div className={styles.socialList}>
-              {user.socialMedia.map((sm, i) => {
-                if (!sm.handleUrl) return null;
+            <Stack gap="xs" align="flex-end">
+              <Button
+                variant="light"
+                color="blue"
+                size="xs"
+                leftSection={<IconPencil size={14} />}
+                onClick={() => setIsEditing(true)}
+              >
+                Edit Profile
+              </Button>
 
-                const href = sm.handleUrl.startsWith('http') 
-                  ? sm.handleUrl 
-                  : `https://${sm.handleUrl}`;
+              <AdminUserControls
+                targetUser={user}
+                currentUser={authUser}
+                compact={false}
+                onUserUpdated={(updatedUser, meta) => {
+                  if (meta?.deletedId) {
+                    if (onUserUpdated) onUserUpdated(null);
+                  } else if (onUserUpdated) {
+                    onUserUpdated(updatedUser);
+                  }
+                }}
+              />
+            </Stack>
+          </Group>
 
-                return (
-                  <a
-                    key={i}
-                    href={href}
+          {/* Details Grid */}
+          <Grid gutter="md">
+            <Grid.Col span={{ base: 12, sm: 6, md: 4 }}>
+              <Text size="xs" c="dimmed" fw={700} tt="uppercase">
+                Timezone Difference
+              </Text>
+              <Text size="sm" fw={500} mt={2}>
+                Same time as Toronto (America/Toronto)
+              </Text>
+            </Grid.Col>
+
+            <Grid.Col span={{ base: 12, sm: 6, md: 4 }}>
+              <Text size="xs" c="dimmed" fw={700} tt="uppercase">
+                Highest Education
+              </Text>
+              <Text size="sm" fw={500} mt={2}>
+                {user.education || 'Not provided'}
+              </Text>
+            </Grid.Col>
+
+            <Grid.Col span={{ base: 12, sm: 6, md: 4 }}>
+              <Text size="xs" c="dimmed" fw={700} tt="uppercase">
+                Email
+              </Text>
+              <Text size="sm" fw={500} mt={2}>
+                {user.email}
+              </Text>
+            </Grid.Col>
+
+            <Grid.Col span={{ base: 12, sm: 6, md: 4 }}>
+              <Text size="xs" c="dimmed" fw={700} tt="uppercase">
+                Phone / Mobile Numbers
+              </Text>
+              {user.phones && user.phones.length > 0 ? (
+                <Stack gap={4} mt={4}>
+                  {user.phones.map((p, idx) => (
+                    <Group key={idx} gap={6}>
+                      <IconPhone size={14} style={{ color: 'var(--mantine-color-blue-6)' }} />
+                      <Text size="sm" fw={500}>
+                        <Text component="span" fw={700}>{p.type || 'Phone'}:</Text> {p.number}
+                      </Text>
+                      {p.isPrimary && (
+                        <Badge size="xs" color="blue" variant="light">
+                          Primary
+                        </Badge>
+                      )}
+                    </Group>
+                  ))}
+                </Stack>
+              ) : (
+                <Text size="sm" fw={500} mt={2}>
+                  {user.phone || 'N/A'}
+                </Text>
+              )}
+            </Grid.Col>
+
+            <Grid.Col span={{ base: 12, sm: 6, md: 4 }}>
+              <Text size="xs" c="dimmed" fw={700} tt="uppercase">
+                Drive Shared Folder
+              </Text>
+              <Text size="sm" fw={500} mt={2}>
+                {driveUrl ? (
+                  <Anchor
+                    href={driveUrl.startsWith('http') ? driveUrl : `https://${driveUrl}`}
                     target="_blank"
                     rel="noreferrer"
-                    className={styles.socialBadge}
+                    size="sm"
+                    fw={600}
                   >
-                    <SocialIcon platform={sm.platform} />
-                    <span>
-                      <strong>{sm.platform || 'Link'}:</strong> {sm.handleUrl}
-                    </span>
-                  </a>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
+                    <Group gap={4} wrap="nowrap">
+                      <span>Open Shared Drive</span>
+                      <IconExternalLink size={14} />
+                    </Group>
+                  </Anchor>
+                ) : (
+                  'Not connected'
+                )}
+              </Text>
+            </Grid.Col>
+          </Grid>
+
+          {/* Cause Support Section */}
+          {user.causeContribution && (
+            <Paper p="sm" withBorder radius="sm" bg="gray.0">
+              <Text size="xs" c="dimmed" fw={700} tt="uppercase" mb={4}>
+                How I Can Help in Cause
+              </Text>
+              <Text size="sm">{user.causeContribution}</Text>
+            </Paper>
+          )}
+
+          {/* Social Handles Section */}
+          {user.socialMedia && user.socialMedia.length > 0 && (
+            <Stack gap={6}>
+              <Text size="xs" c="dimmed" fw={700} tt="uppercase">
+                Social Profiles
+              </Text>
+              <Group gap="xs">
+                {user.socialMedia.map((sm, i) => {
+                  if (!sm.handleUrl) return null;
+
+                  const href = sm.handleUrl.startsWith('http')
+                    ? sm.handleUrl
+                    : `https://${sm.handleUrl}`;
+
+                  return (
+                    <Anchor
+                      key={i}
+                      href={href}
+                      target="_blank"
+                      rel="noreferrer"
+                      underline="none"
+                    >
+                      <Paper p="xs" withBorder radius="sm" style={{ cursor: 'pointer' }}>
+                        <Group gap={6}>
+                          <SocialIcon platform={sm.platform} />
+                          <Text size="xs" fw={600}>
+                            {sm.platform || 'Link'}:
+                          </Text>
+                          <Text size="xs" c="dimmed">
+                            {sm.handleUrl}
+                          </Text>
+                        </Group>
+                      </Paper>
+                    </Anchor>
+                  );
+                })}
+              </Group>
+            </Stack>
+          )}
+        </Stack>
+      </Card>
 
       {/* Interactive Group Assignment & Membership Management Component */}
-      <Paper p="lg" radius="md" bg="white" shadow="xs">
+      <Paper p="lg" radius="md" bg="white" shadow="xs" withBorder>
         <UserGroupMemberships userId={userId} />
       </Paper>
     </Stack>

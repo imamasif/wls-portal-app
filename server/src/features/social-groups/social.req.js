@@ -12,6 +12,7 @@ export class UpdateSocialGroupReqDTO {
     if (payload.type) this.type = payload.type;
     if (payload.isActive !== undefined) this.isActive = payload.isActive;
     if (payload.allowedRoles) this.allowedRoles = payload.allowedRoles;
+    if (payload.members) this.members = payload.members; // <-- Added
   }
 }
 

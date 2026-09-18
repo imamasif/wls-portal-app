@@ -14,8 +14,10 @@ export class SocialGroupUseCase {
   }
 
   static async updateGroup(id, dto) {
-    return await SocialGroupModel.findByIdAndUpdate(id, dto, { new: true }).populate('members.userId', 'name email');
-  }
+  const updated = await SocialGroupModel.findByIdAndUpdate(id, dto, { new: true });
+  if (!updated) return null;
+  return await updated.populate('members.userId', 'name email');
+}
 
   static async deleteGroup(id) {
     return await SocialGroupModel.findByIdAndDelete(id);
