@@ -17,25 +17,21 @@ export function AuthProvider({ children }) {
         body: JSON.stringify(credentials)
       });
 
-      if (response.ok) {
-        const dbUser = await response.json();
-        setUser(dbUser);
-        localStorage.setItem('user', JSON.stringify(dbUser));
-      } else {
-        // Use email as fallback identifier instead of numeric timestamp
-        const fallbackUser = {
-          _id: credentials.email, 
-          email: credentials.email,
-          name: credentials.email.split('@')[0],
-          role: credentials.role || 'SUPER_USER'
-        };
-        setUser(fallbackUser);
-        localStorage.setItem('user', JSON.stringify(fallbackUser));
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Invalid email or password');
       }
-    } catch (err) {
-      console.error('Login error, using fallback:', err);
-    } finally {
+
+      setUser(data);
+      localStorage.setItem('user', JSON.stringify(data));
       setShowAuthModal(false);
+      return { success: true };
+    } catch (err) {
+      console.error('Login error:', err.message);
+      setUser(null);
+      localStorage.removeItem('user');
+      throw err; // Re-throw to allow AuthModal to display error UI
     }
   };
 
@@ -44,7 +40,6 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('user');
   };
 
-  // Pure state updater — eliminate double-fetching
   const saveUserData = (userData) => {
     setUser(userData);
     localStorage.setItem('user', JSON.stringify(userData));

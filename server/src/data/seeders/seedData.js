@@ -22,12 +22,11 @@ const seedMasterData = async () => {
     await mongoose.connection.dropDatabase();
     console.log('✅ Database dropped cleanly.');
 
-    const hashedPassword = await bcrypt.hash('DefaultPassword123!', 10);
-
+    // 1. SEED USERS
     const superUserNames = ['Syed Imam', 'Alam Muhammed', 'Fawad Gilani', 'Jahanzaib Najam'];
     const wlsAdminNames = ['Aazim Kamal', 'Nasir Khan', 'Salman Hunter', 'Mukaram Khan'];
 
-    console.log('👤 Seeding 50 Users with Multi-Group Support...');
+    console.log('👤 Seeding Users with secure password hashing...');
     let userDocs = [];
 
     const privilegedList = [
@@ -40,7 +39,7 @@ const seedMasterData = async () => {
       userDocs.push({
         name: p.name,
         email,
-        password: hashedPassword,        
+        password: 'DefaultPassword123!',
         role: p.role,
         groupNumbers: p.groups,
         isActive: true,
@@ -50,8 +49,8 @@ const seedMasterData = async () => {
       });
     }
 
-    const firstNames = ['Ali', 'Omar', 'Usman', 'Bilal', 'Zain', 'Hamza', 'Ibrahim', 'Yusuf', 'Hassan', 'Hussein', 'Maryam', 'Ayesha', 'Fatima', 'Zahra', 'Khadija', 'Amna', 'Sara', 'Noor', 'Mariam', 'Hajar'];
-    const lastNames = ['Khan', 'Ahmed', 'Ali', 'Malik', 'Sheikh', 'Siddiqui', 'Chaudhry', 'Butt', 'Mirza', 'Qureshi'];
+    const firstNames = ['Ali', 'Omar','Zulfi', 'Usman', 'Bilal', 'Zain', 'Hamza', 'Ibrahim', 'Yusuf', 'Hassan', 'Hussein', 'Maryam', 'Ayesha', 'Fatima', 'Zahra', 'Khadija', 'Amna', 'Sara', 'Noor', 'Mariam', 'Hajar'];
+    const lastNames = ['Khan', 'Ahmed', 'Awan','Ali', 'Malik', 'Sheikh', 'Siddiqui', 'Chaudhry', 'Butt', 'Mirza', 'Qureshi'];
 
     for (let i = userDocs.length + 1; i <= 50; i++) {
       const fName = firstNames[i % firstNames.length];
@@ -60,7 +59,7 @@ const seedMasterData = async () => {
       userDocs.push({
         name: `${fName} ${lName} ${i}`,
         email: `user${i}@example.com`,
-        password: hashedPassword,
+        password: 'DefaultPassword123!',
         role: 'USER',
         groupNumbers: [(i % 3) + 1, ((i + 1) % 3) + 1],
         isActive: i % 10 !== 0,
@@ -72,28 +71,120 @@ const seedMasterData = async () => {
       });
     }
 
-    await UserModel.create(userDocs);
+    // Save one by one with explicit hashing to guarantee compatibility
+    const createdUsers = [];
+    for (const userData of userDocs) {
+      // Explicitly hash password to match controller expectations
+      const hashedPassword = await bcrypt.hash(userData.password, 10);
+      const user = new UserModel({
+        ...userData,
+        password: hashedPassword
+      });
+      await user.save();
+      createdUsers.push(user);
+    }
+    console.log(`✅ Successfully seeded and hashed ${createdUsers.length} users.`);
 
-    console.log('💬 Seeding Social Groups...');
-    await SocialGroupModel.create([
-      { name: 'WLS Group 1 - Core', type: 'WHATSAPP', allowedRoles: ['SUPER_USER', 'WLS_ADMIN', 'USER'] },
-      { name: 'WLS Group 2 - Advanced', type: 'WHATSAPP', allowedRoles: ['SUPER_USER', 'WLS_ADMIN'] },
-      { name: 'WLS Group 3 - General', type: 'WHATSAPP', allowedRoles: ['SUPER_USER', 'WLS_ADMIN', 'USER'] }
+    // 2. SEED SOCIAL GROUPS & TEAMS
+    console.log('💬 Seeding WhatsApp Groups & Microsoft Teams Channels...');
+    const socialGroups = await SocialGroupModel.create([
+      { 
+        name: 'WLS Group 1 - Core Leadership & Announcements', 
+        type: 'WHATSAPP', 
+        allowedRoles: ['SUPER_USER', 'WLS_ADMIN', 'USER'],
+        members: createdUsers.slice(0, 10).map(u => ({ userId: u._id, role: 'MEMBER' }))
+      },
+      { 
+        name: 'WLS Group 2 - Advanced Mentorship Circle', 
+        type: 'WHATSAPP', 
+        allowedRoles: ['SUPER_USER', 'WLS_ADMIN'],
+        members: createdUsers.slice(0, 5).map(u => ({ userId: u._id, role: 'ADMIN' }))
+      },
+      { 
+        name: 'WLS MS Teams - General Faculty & Student Portal', 
+        type: 'MICROSOFT_TEAMS', 
+        allowedRoles: ['SUPER_USER', 'WLS_ADMIN', 'USER'],
+        members: createdUsers.slice(0, 20).map(u => ({ userId: u._id, role: 'MEMBER' }))
+      },
+      { 
+        name: 'WLS MS Teams - Admin Committee Sync', 
+        type: 'MICROSOFT_TEAMS', 
+        allowedRoles: ['SUPER_USER', 'WLS_ADMIN'],
+        members: createdUsers.filter(u => u.role === 'SUPER_USER' || u.role === 'WLS_ADMIN').map(u => ({ userId: u._id, role: 'OWNER' }))
+      }
     ]);
 
-    await RuleModel.create([
-      { key: 'presentation', criterion: 'Presentation Quality', maxScore: 10, isActive: true },
-      { key: 'tajweed', criterion: 'Tajweed Accuracy', maxScore: 10, isActive: true }
+    // 3. SEED RULES (SCORING CRITERIA)
+    console.log('⚖️ Seeding Assessment Rules...');
+    const rules = await RuleModel.create([
+      { key: 'presentation', criterion: 'Presentation Quality & Fluency', maxScore: 10, isActive: true },
+      { key: 'tajweed', criterion: 'Tajweed Pronunciation & Rules', maxScore: 10, isActive: true },
+      { key: 'memorization', criterion: 'Memorization Accuracy / Hifz', maxScore: 10, isActive: true }
     ]);
 
-    await WlsSessionModel.create({
-      topicName: 'Tafseer & Recitation Module - Week 1',
+    // 4. SEED WLS SESSIONS
+    console.log('📅 Seeding WLS Sessions...');
+    const pastSession = await WlsSessionModel.create({
+      topicName: 'Tafseer & Recitation Module - Week 1 (Surah Al-Mulk)',
+      sessionDateTimeToronto: new Date('2026-09-01T18:00:00-04:00'),
+      videoDeadline: new Date('2026-08-31T23:59:59-04:00'),
+      status: 'ACTIVE'
+    });
+
+    const activeSession = await WlsSessionModel.create({
+      topicName: 'Tafseer & Recitation Module - Week 2 (Surah Al-Waqiah)',
       sessionDateTimeToronto: new Date('2026-10-15T18:00:00-04:00'),
       videoDeadline: new Date('2026-10-14T23:59:59-04:00'),
       status: 'ACTIVE'
     });
 
-    console.log('\n✅ Master Seeding Completed Successfully with 50 Users!');
+    // 5. SEED ASSESSMENTS & SUBMISSIONS FOR THE PAST SESSION
+    console.log('📝 Seeding Submissions and Admin Marking/Assessments...');
+    const regularUsers = createdUsers.filter(u => u.role === 'USER').slice(0, 15);
+    const adminUser = createdUsers.find(u => u.role === 'WLS_ADMIN') || createdUsers[0];
+
+    const assessmentDocs = regularUsers.map((user, idx) => ({
+      sessionId: pastSession._id,
+      userId: user._id,
+      videoSubmissionUrl: `https://youtube.com/watch?v=mock_submission_${idx}`,
+      submissionDate: new Date('2026-08-30T14:30:00-04:00'),
+      scores: [
+        { ruleId: rules[0]._id, score: 8 + (idx % 3), feedback: 'Good clear voice projection.' },
+        { ruleId: rules[1]._id, score: 7 + (idx % 4), feedback: 'Proper application of Madd rules.' },
+        { ruleId: rules[2]._id, score: 9 - (idx % 2), feedback: 'Excellent retention.' }
+      ],
+      totalScore: 24 + (idx % 3),
+      maxPossibleScore: 30,
+      gradedBy: adminUser.email,
+      gradedAt: new Date('2026-09-02T10:00:00-04:00'),
+      adminGeneralFeedback: 'Great effort overall. Keep practicing Makharij.'
+    }));
+
+    await AssessmentModel.insertMany(assessmentDocs);
+
+    // 6. SEED REPORTING DATA
+    console.log('📊 Seeding WLS Reporting Summaries...');
+    const reportingDocs = regularUsers.map((user, idx) => ({
+      sessionId: pastSession._id,
+      userId: user._id,
+      videoLink: `https://youtube.com/watch?v=mock_submission_${idx}`,
+      status: 'SUBMITTED', // Now fully supported by the model enum!
+      finalScore: 24 + (idx % 3),
+      evaluations: [
+        {
+          adminId: adminUser._id,
+          score: 24 + (idx % 3),
+          feedback: 'Good recitation.'
+        }
+      ]
+    }));
+
+    await WlsReportingModel.insertMany(reportingDocs);
+
+    console.log('\n✅ Master Seeding Completed Successfully with Full End-to-End Test Data!');
+    console.log('👉 Super User Login: syedimam@iipccanada.com / DefaultPassword123!');
+    console.log('👉 WLS Admin Login: aazimkamal@iipccanada.com / DefaultPassword123!');
+    console.log('👉 Student Login: user5@example.com / DefaultPassword123!');
     process.exit(0);
   } catch (error) {
     console.error('❌ Master Seeding Failed:', error);

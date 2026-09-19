@@ -12,7 +12,11 @@ const reportingSchema = new mongoose.Schema({
   sessionId: { type: mongoose.Schema.Types.ObjectId, ref: 'WlsSession' }, // Add session binding if applicable
   groupNumber: { type: Number, default: 1 },
   videoLink: { type: String, required: true },
-  status: { type: String, enum: ['PENDING', 'REVIEWED', 'COMPLETED'], default: 'PENDING' },
+  status: { 
+  type: String, 
+  enum: ['ASSIGNED', 'WORKING', 'SUBMITTED', 'REVIEWING', 'COMPLETED', 'PENDING', 'CANCELLED'], 
+  default: 'ASSIGNED' 
+},
   evaluations: [evaluationSchema],
   finalScore: { type: Number, default: 0 },
 }, { timestamps: true });

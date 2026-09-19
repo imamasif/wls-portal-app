@@ -1,19 +1,50 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../../context/AuthContext';
+import { 
+  Modal, 
+  Button, 
+  TextInput, 
+  PasswordInput, 
+  Textarea, 
+  Alert, 
+  SegmentedControl, 
+  Stack, 
+  Group, 
+  Text, 
+  ThemeIcon,
+  Box,
+  Divider,
+  Paper
+} from '@mantine/core';
+import { 
+  IconAlertCircle, 
+  IconLogin, 
+  IconUserPlus, 
+  IconLock, 
+  IconMail,
+  IconUser,
+  IconWorld,
+  IconBriefcase,
+  IconSchool, // <-- Changed from IconAcademic
+  IconFolder,
+  IconHeartHandshake
+} from '@tabler/icons-react';
 import { Country, State } from 'country-state-city';
+import { useAuth } from '../../../context/AuthContext';
 import { LocationSelector } from '../../../components/common/LocationSelector';
 import { PhoneListInput } from '../../../components/common/PhoneListInput';
 import { SocialMediaSection } from '../../../components/common/SocialMediaSection';
 import { ProfilePictureUploader } from '../../../components/common/ProfilePictureUploader';
-import styles from './AuthModal.module.css';
 
 export function AuthModal() {
   const { user, showAuthModal, setShowAuthModal, login, saveUserData } = useAuth();
   const [isLoginMode, setIsLoginMode] = useState(!user);
 
+  // Authentication & Feedback States
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
-  
+  const [authError, setAuthError] = useState('');
+  const [loading, setLoading] = useState(false);
+
   // Registration State
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -38,6 +69,7 @@ export function AuthModal() {
     setPassword('');
     setConfirmPassword('');
     setPasswordError('');
+    setAuthError('');
     setPhones([{ number: '', type: 'Mobile', isPrimary: true }]);
     setProfession('');
     setEducation('');
@@ -73,6 +105,7 @@ export function AuthModal() {
 
   useEffect(() => {
     if (showAuthModal) {
+      setAuthError('');
       if (user && !isLoginMode) {
         populateUserForm(user);
       } else if (!user && !isLoginMode) {
@@ -83,8 +116,10 @@ export function AuthModal() {
     }
   }, [user, showAuthModal, isLoginMode]);
 
-  const handleTabSwitch = (toLogin) => {
+  const handleTabSwitch = (value) => {
+    const toLogin = value === 'login';
     setIsLoginMode(toLogin);
+    setAuthError('');
     if (!toLogin && !user) {
       resetRegistrationForm();
     }
@@ -92,13 +127,18 @@ export function AuthModal() {
 
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
+    setAuthError('');
+    setLoading(true);
+
     try {
       await login({ email: loginEmail, password: loginPassword, role: 'SUPER_USER' });
       setLoginEmail('');
       setLoginPassword('');
       setShowAuthModal(false);
     } catch (err) {
-      console.error('Login failed:', err);
+      setAuthError(err.message || 'Invalid email or password. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -121,8 +161,8 @@ export function AuthModal() {
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
     setPasswordError('');
+    setAuthError('');
 
-    // Run password rules if this is a new registration
     if (!user) {
       const err = validatePassword();
       if (err) {
@@ -139,7 +179,7 @@ export function AuthModal() {
       ...(user?._id && { _id: user._id }),
       name: name || email.split('@')[0],
       email,
-      ...(password && { password }), // Include password in payload for registration
+      ...(password && { password }),
       phones,
       role: user?.role || 'SUPER_USER',
       profession,
@@ -157,6 +197,7 @@ export function AuthModal() {
     };
 
     try {
+      setLoading(true);
       const url = targetId ? `/api/users/${targetId}` : `/api/users`;
       const method = targetId ? 'PUT' : 'POST';
 
@@ -166,202 +207,268 @@ export function AuthModal() {
         body: JSON.stringify(payload)
       });
 
+      const resData = await response.json();
+
       if (response.ok) {
-        const updatedUserRecord = await response.json();
-        saveUserData(updatedUserRecord);
+        saveUserData(resData);
         setShowAuthModal(false);
+      } else {
+        setAuthError(resData.error || 'Failed to submit registration request.');
       }
     } catch (err) {
-      console.error('API Error submitting user profile:', err);
+      setAuthError('Server error occurred during processing.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (!showAuthModal) return null;
-
   return (
-    <div className={styles.modalOverlay}>
-      <div className={styles.modalContent}>
-        <div className={styles.modalHeader}>
-          <h3>{isLoginMode ? 'Sign In' : (user ? 'Edit Profile' : 'Register')}</h3>
-          <button className={styles.closeBtn} onClick={() => setShowAuthModal(false)}>✕</button>
-        </div>
-
-        {/* Beautiful Icon Banner in Middle */}
+    <Modal
+      opened={showAuthModal}
+      onClose={() => {
+        setAuthError('');
+        setShowAuthModal(false);
+      }}
+      title={
+        <Text fw={700} size="lg">
+          {isLoginMode ? 'Sign In' : user ? 'Edit Profile' : 'Register Account'}
+        </Text>
+      }
+      centered
+      radius="md"
+      size={isLoginMode ? 'sm' : 'lg'}
+      padding="xl"
+    >
+      <Stack spacing="md">
+        {/* Top Visual Branding Header */}
         {!user && (
-          <div className={styles.iconContainer}>
-            {isLoginMode ? (
-              <div className={`${styles.authIconCircle} ${styles.loginIconBg}`}>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className={styles.authSvgIcon}
-                >
-                  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-                  <polyline points="10 17 15 12 10 7" />
-                  <line x1="15" y1="12" x2="3" y2="12" />
-                </svg>
-              </div>
-            ) : (
-              <div className={`${styles.authIconCircle} ${styles.registerIconBg}`}>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className={styles.authSvgIcon}
-                >
-                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                  <circle cx="8.5" cy="7" r="4" />
-                  <line x1="20" y1="8" x2="20" y2="14" />
-                  <line x1="23" y1="11" x2="17" y2="11" />
-                </svg>
-              </div>
-            )}
-          </div>
+          <Group justify="center" align="center" my="xs">
+            <ThemeIcon
+              size={54}
+              radius="xl"
+              variant="light"
+              color={isLoginMode ? 'indigo' : 'teal'}
+            >
+              {isLoginMode ? <IconLogin size={28} /> : <IconUserPlus size={28} />}
+            </ThemeIcon>
+          </Group>
         )}
 
+        {/* Mantine Mode Navigation Tabs */}
         {!user && (
-          <div className={styles.toggleTabs}>
-            <button
-              type="button"
-              className={isLoginMode ? styles.activeTab : styles.tab}
-              onClick={() => handleTabSwitch(true)}
-            >
-              Sign In
-            </button>
-            <button
-              type="button"
-              className={!isLoginMode ? styles.activeTab : styles.tab}
-              onClick={() => handleTabSwitch(false)}
-            >
-              Register
-            </button>
-          </div>
+          <SegmentedControl
+            fullWidth
+            value={isLoginMode ? 'login' : 'register'}
+            onChange={handleTabSwitch}
+            data={[
+              { label: 'Sign In', value: 'login' },
+              { label: 'Register', value: 'register' }
+            ]}
+            color="indigo"
+            mb="xs"
+            radius="md"
+          />
         )}
-        
+
+        {/* Global Failure Alert Banner */}
+        {authError && (
+          <Alert
+            icon={<IconAlertCircle size={16} />}
+            title="Authentication Error"
+            color="red"
+            variant="filled"
+            withCloseButton
+            onClose={() => setAuthError('')}
+            radius="md"
+          >
+            {authError}
+          </Alert>
+        )}
+
+        {/* ==================== LOGIN FORM ==================== */}
         {isLoginMode ? (
-          <form onSubmit={handleLoginSubmit} className={styles.formContainer}>
-            <div className={styles.formGroup}>
-              <label>Email Address</label>
-              <input type="email" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} required />
-            </div>
-            <div className={styles.formGroup}>
-              <label>Password</label>
-              <input type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} required />
-            </div>
-            <div className={styles.modalActions}>
-              <button type="submit" className={styles.btnSave}>Log In</button>
-            </div>
-          </form>
+          <Box component="form" onSubmit={handleLoginSubmit}>
+            <Stack spacing="md">
+              <TextInput
+                label="Email Address"
+                placeholder="name@company.com"
+                icon={<IconMail size={16} />}
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                required
+                radius="md"
+              />
+
+              <PasswordInput
+                label="Password"
+                placeholder="Your password"
+                icon={<IconLock size={16} />}
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                required
+                radius="md"
+              />
+
+              <Button 
+                type="submit" 
+                fullWidth 
+                loading={loading} 
+                mt="sm" 
+                radius="md"
+                color="indigo"
+                size="md"
+              >
+                Sign In
+              </Button>
+            </Stack>
+          </Box>
         ) : (
-          <form onSubmit={handleRegisterSubmit} className={styles.formContainer}>
-            {passwordError && (
-              <div style={{ color: '#dc2626', backgroundColor: '#fef2f2', padding: '10px', borderRadius: '6px', fontSize: '13px', border: '1px solid #fecaca' }}>
-                ⚠️ {passwordError}
-              </div>
-            )}
+          /* ==================== REGISTER / EDIT FORM ==================== */
+          <Box component="form" onSubmit={handleRegisterSubmit}>
+            <Stack spacing="md">
+              {passwordError && (
+                <Alert
+                  icon={<IconAlertCircle size={16} />}
+                  title="Password Requirement Failed"
+                  color="red"
+                  variant="outline"
+                  radius="md"
+                >
+                  {passwordError}
+                </Alert>
+              )}
 
-            <div className={styles.formGroup}>
-              <label>Profile Picture</label>
-              <ProfilePictureUploader value={profilePictureUrl} name={name || email} onChange={setProfilePictureUrl} />
-            </div>
+              <Paper withBorder p="md" radius="md" bg="gray.0">
+  <Stack align="center" spacing="xs">
+    <Text size="sm" fw={600}>
+      Profile Photo
+    </Text>
+    <ProfilePictureUploader
+      value={profilePictureUrl}
+      name={name || email}
+      onChange={setProfilePictureUrl}
+    />
+  </Stack>
+</Paper>
 
-            <div className={styles.formGroup}>
-              <label>Full Name</label>
-              <input type="text" value={name} onChange={(e) => setName(e.target.value)} />
-            </div>
+              <Group grow align="flex-start">
+                <TextInput
+                  label="Full Name"
+                  placeholder="John Doe"
+                  icon={<IconUser size={16} />}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  radius="md"
+                />
 
-            <div className={styles.formGroup}>
-              <label>Email *</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-            </div>
+                <TextInput
+                  label="Email Address"
+                  placeholder="name@company.com"
+                  icon={<IconMail size={16} />}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  radius="md"
+                />
+              </Group>
 
-            {/* Added Password Fields for Registration */}
-            {!user && (
-              <div className={styles.formRow}>
-                <div className={styles.formGroup}>
-                  <label>Password *</label>
-                  <input
-                    type="password"
+              {!user && (
+                <Group grow align="flex-start">
+                  <PasswordInput
+                    label="Password"
+                    placeholder="Min 8 chars, 1 upper, 1 num"
+                    icon={<IconLock size={16} />}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Min. 8 chars, 1 uppercase, 1 number"
                     required
+                    radius="md"
                   />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Confirm Password *</label>
-                  <input
-                    type="password"
+                  <PasswordInput
+                    label="Confirm Password"
+                    placeholder="Re-enter password"
+                    icon={<IconLock size={16} />}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Re-enter password"
                     required
+                    radius="md"
                   />
-                </div>
-              </div>
-            )}
+                </Group>
+              )}
 
-            <PhoneListInput phones={phones} onChange={setPhones} />
+              <PhoneListInput phones={phones} onChange={setPhones} />
 
-            <div className={styles.formRow}>
-              <div className={styles.formGroup}>
-                <label>Profession</label>
-                <input type="text" value={profession} onChange={(e) => setProfession(e.target.value)} />
-              </div>
-              <div className={styles.formGroup}>
-                <label>Highest Education</label>
-                <input type="text" value={education} onChange={(e) => setEducation(e.target.value)} />
-              </div>
-            </div>
+              <Group grow align="flex-start">
+                <TextInput
+                  label="Profession"
+                  placeholder="Software Engineer"
+                  icon={<IconBriefcase size={16} />}
+                  value={profession}
+                  onChange={(e) => setProfession(e.target.value)}
+                  radius="md"
+                />
+                <TextInput
+                  label="Highest Education"
+                  placeholder="B.Sc. Computer Science"
+  icon={<IconSchool size={16} />} // <-- Updated here
+  value={education}
+  onChange={(e) => setEducation(e.target.value)}
+  radius="md"
+                />
+              </Group>
 
-            <LocationSelector
-              selectedCountryCode={selectedCountryCode}
-              setSelectedCountryCode={setSelectedCountryCode}
-              selectedStateCode={selectedStateCode}
-              setSelectedStateCode={setSelectedStateCode}
-              selectedCity={selectedCity}
-              setSelectedCity={setSelectedCity}
-            />
+              <LocationSelector
+                selectedCountryCode={selectedCountryCode}
+                setSelectedCountryCode={setSelectedCountryCode}
+                selectedStateCode={selectedStateCode}
+                setSelectedStateCode={setSelectedStateCode}
+                selectedCity={selectedCity}
+                setSelectedCity={setSelectedCity}
+              />
 
-            <div className={styles.formGroup}>
-              <label>Google Drive Folder URL</label>
-              <input type="text" value={drive} onChange={(e) => setDrive(e.target.value)} />
-            </div>
+              <TextInput
+                label="Google Drive Folder URL"
+                placeholder="https://drive.google.com/drive/folders/..."
+                icon={<IconFolder size={16} />}
+                value={drive}
+                onChange={(e) => setDrive(e.target.value)}
+                radius="md"
+              />
 
-            <div className={styles.formGroup}>
-              <label>How I Can Help in Cause</label>
-              <textarea value={causeContribution} onChange={(e) => setCauseContribution(e.target.value)} />
-            </div>
+              <Textarea
+                label="How I Can Help in Cause"
+                placeholder="Describe your capabilities, skills, or available support..."
+                icon={<IconHeartHandshake size={16} />}
+                value={causeContribution}
+                onChange={(e) => setCauseContribution(e.target.value)}
+                minRows={2}
+                radius="md"
+              />
 
-            <SocialMediaSection
-              socialMedia={socialMedia}
-              onChange={(i, f, v) => {
-                const updated = [...socialMedia];
-                updated[i][f] = v;
-                setSocialMedia(updated);
-              }}
-              onAdd={() => setSocialMedia([...socialMedia, { platform: 'LinkedIn', handleUrl: '' }])}
-              onRemove={(i) => setSocialMedia(socialMedia.filter((_, idx) => idx !== i))}
-            />
+              <SocialMediaSection
+                socialMedia={socialMedia}
+                onChange={(i, f, v) => {
+                  const updated = [...socialMedia];
+                  updated[i][f] = v;
+                  setSocialMedia(updated);
+                }}
+                onAdd={() => setSocialMedia([...socialMedia, { platform: 'LinkedIn', handleUrl: '' }])}
+                onRemove={(i) => setSocialMedia(socialMedia.filter((_, idx) => idx !== i))}
+              />
 
-            <div className={styles.modalActions}>
-              <button type="button" className={styles.btnCancel} onClick={() => setShowAuthModal(false)}>Cancel</button>
-              <button type="submit" className={styles.btnSave}>
-                {user ? 'Save Profile' : 'Register Account'}
-              </button>
-            </div>
-          </form>
+              <Divider my="xs" />
+
+              <Group position="right">
+                <Button variant="default" onClick={() => setShowAuthModal(false)} radius="md">
+                  Cancel
+                </Button>
+                <Button type="submit" loading={loading} color="teal" radius="md">
+                  {user ? 'Save Profile' : 'Register Account'}
+                </Button>
+              </Group>
+            </Stack>
+          </Box>
         )}
-      </div>
-    </div>
+      </Stack>
+    </Modal>
   );
 }

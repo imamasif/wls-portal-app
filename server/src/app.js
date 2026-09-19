@@ -12,7 +12,7 @@ app.use(express.json());
 
 // Sample MongoDB Connection & Server Boot
 const PORT = process.env.PORT || 5000;
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/wls_portal';
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/wls-portal-db';
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });

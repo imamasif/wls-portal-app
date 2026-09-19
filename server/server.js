@@ -55,7 +55,7 @@ app.post('/api/seed', async (req, res) => {
     const users = await UserModel.insertMany([
       { 
         name: 'Syed Imam', 
-        email: 'syed.imam@iipc.org', 
+        email: 'syedimam@iipccanada.com', 
         password: hashedPassword, 
         role: 'SUPER_USER', 
         city: 'Toronto', 

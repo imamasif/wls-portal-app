@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import bcrypt from 'bcrypt';
 
 const AuditTrailSchema = new mongoose.Schema({
   action: { type: String, required: true },
@@ -53,5 +54,17 @@ const UserSchema = new mongoose.Schema({
   updatedBy: { type: String, default: 'System' },
   auditTrail: [AuditTrailSchema]
 }, { timestamps: true });
+
+// --- ADD THIS PRE-SAVE HOOK ---
+UserSchema.pre('save', async function (next) {
+  if (!this.isModified('password')) return next();
+  try {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
 
 export const UserModel = mongoose.models.User || mongoose.model('User', UserSchema);

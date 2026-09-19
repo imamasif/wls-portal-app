@@ -65,7 +65,7 @@ router.post('/', async (req, res) => {
 
     const newUser = await UserModel.create({
       email: cleanEmail,
-      password: hashedPassword,
+      password: password,
       name: name || cleanEmail.split('@')[0],
       role: 'USER',
       groupNumbers: assignedGroups,
@@ -101,6 +101,7 @@ router.post('/', async (req, res) => {
   }
 });
 
+
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -128,14 +129,18 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
-    const resDto = UserMapper.toResDTO ? UserMapper.toResDTO(user) : user.toObject();
-    delete resDto.password;
-    res.status(200).json(resDto);
+    // Convert document to plain object safely before removing password
+    const userObj = user.toObject();
+    delete userObj.password;
+
+    const resDto = UserMapper.toResDTO ? UserMapper.toResDTO(userObj) : userObj;
+    return res.status(200).json(resDto);
   } catch (err) {
     console.error('Login error:', err);
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 });
+
 
 router.put('/:id/change-password', async (req, res) => {
   try {
