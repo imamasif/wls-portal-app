@@ -47,10 +47,13 @@ export const UpdateSocialGroupSchema = {
         type: 'object',
         properties: {
           userId: { type: 'string' },
-          role: { type: 'string' }
+          user: { type: 'object' },
+          id: { type: 'string' },
+          role: { type: 'string' },
+          assignedAt: { type: ['string', 'object'] }
         },
-        required: ['userId', 'role'],
-        additionalProperties: false
+        required: ['role'],
+        additionalProperties: true
       }
     }
   },
@@ -61,8 +64,10 @@ export const AssignSocialMemberSchema = {
   type: 'object',
   properties: {
     userId: { type: 'string', minLength: 1 },
+    user: { type: 'string', minLength: 1 },
+    id: { type: 'string', minLength: 1 },
     role: { type: 'string', minLength: 1 }
   },
-  required: ['userId', 'role'],
-  additionalProperties: false
+  required: ['role'],
+  additionalProperties: true
 };

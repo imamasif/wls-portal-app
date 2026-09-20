@@ -31,7 +31,8 @@ import {
   IconBuildingBank,
   IconUserCheck,
   IconShieldLock,
-  IconHistory
+  IconHistory,
+  IconShieldCheck
 } from '@tabler/icons-react';
 import { useAuth } from '../../context/AuthContext';
 import { UserRole } from '../../types/user';
@@ -45,7 +46,7 @@ export function MainLayout({ children, activeTab, setActiveTab }) {
 
   const isWlsActive = ['wls-session', 'wls-mgmt', 'assessment', 'reports', 'wls-assignment'].includes(activeTab);
   const isUserMgmtActive = ['users', 'roles-control', 'user-activity'].includes(activeTab);
-  const isGroupMgmtActive = ['whatsapp-groups', 'teams-groups', 'university-portal'].includes(activeTab);
+  const isGroupMgmtActive = ['whatsapp-groups', 'teams-groups', 'university-portal', 'menu-permissions'].includes(activeTab);
 
   return (
     <AppShell header={{ height: 110 }} padding="md">
@@ -206,6 +207,15 @@ export function MainLayout({ children, activeTab, setActiveTab }) {
                 </Menu.Target>
 
                 <Menu.Dropdown>
+                  <Menu.Label>Access Controls</Menu.Label>
+                  <Menu.Item 
+                    leftSection={<IconShieldCheck size={16} color="var(--mantine-color-red-6)" />}
+                    onClick={() => setActiveTab('menu-permissions')}
+                  >
+                    Menu Items & Permissions
+                  </Menu.Item>
+
+                  <Menu.Divider />
                   <Menu.Label>Social Area</Menu.Label>
                   <Menu.Item 
                     leftSection={<IconBrandWhatsapp size={16} color="var(--mantine-color-green-6)" />}
@@ -231,7 +241,6 @@ export function MainLayout({ children, activeTab, setActiveTab }) {
                 </Menu.Dropdown>
               </Menu>
             )}
-
             {/* 4. WLS Management Dropdown */}
             <Menu shadow="md" width={240} trigger="hover" openDelay={100} closeDelay={150}>
               <Menu.Target>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Group, Button, Menu } from '@mantine/core';
 import { 
   IconLayoutDashboard, 
@@ -9,120 +9,124 @@ import {
   IconUserCheck,
   IconUsers,
   IconBrandWhatsapp,
-  IconBrandTeams // <-- Import Teams icon
+  IconBrandTeams,
+  IconShieldCheck // <-- Import this
 } from '@tabler/icons-react';
-import { UserRole } from '../../types/user';
+
+// Icon mapping dictionary to link database menuKeys to Tabler icons
+const ICON_MAP = {
+  dashboard: <IconLayoutDashboard size={18} />,
+  user_management: <IconUsers size={18} />,
+  group_management: <IconUsers size={18} />,
+  wls_management: <IconSchool size={18} />,
+  wls_active_sessions: <IconCalendarEvent size={16} color="var(--mantine-color-teal-6)" />,
+  wls_analytics_reports: <IconChartBar size={16} color="var(--mantine-color-grape-6)" />,
+  wls_session_builder: <IconSettings size={16} color="var(--mantine-color-blue-6)" />,
+  wls_assessments_grading: <IconUserCheck size={16} color="var(--mantine-color-orange-6)" />,
+  menu_permissions_matrix: <IconShieldCheck size={16} color="var(--mantine-color-red-6)" /> // <-- Add this line
+};
 
 export function NavigationMenu({ activeTab, setActiveTab, user, currentUser }) {
-  const activeRole = (user?.role || currentUser?.role || '').toUpperCase();
+  const activeRole = (user?.role || currentUser?.role || 'USER').toUpperCase();
+  const [menuTree, setMenuTree] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const isSuperAdmin = activeRole === UserRole.SUPER_USER;
-  const isWlsAdmin = isSuperAdmin || activeRole === UserRole.WLS_ADMIN;
+  useEffect(() => {
+    // Fetch multi-level menu structure from your backend API based on active role
+    fetch(`/api/menu-permissions?role=${activeRole}`)
+      .then(res => res.json())
+      .then(flatMenus => {
+        setMenuTree(buildMenuHierarchy(flatMenus));
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Failed to load dynamic navigation', err);
+        setLoading(false);
+      });
+  }, [activeRole]);
+
+  // Helper function to structure flat database items into a parent/child tree
+  const buildMenuHierarchy = (items) => {
+    const map = {};
+    const roots = [];
+
+    items.forEach(item => {
+      // Normalize _id or id depending on Mongoose response format
+      const id = item.id || item._id;
+      map[id] = { ...item, id, children: [] };
+    });
+
+    items.forEach(item => {
+      const id = item.id || item._id;
+      if (item.parentId && map[item.parentId]) {
+        map[item.parentId].children.push(map[id]);
+      } else {
+        roots.push(map[id]);
+      }
+    });
+
+    roots.sort((a, b) => a.order - b.order);
+    roots.forEach(root => root.children.sort((a, b) => a.order - b.order));
+    return roots;
+  };
+
+  if (loading) return null; // or a simple loader skeleton
 
   return (
     <Group gap="sm" mb="md">
-      {/* 1. My Profile */}
-      <Button
-        variant={activeTab === 'profile' ? 'filled' : 'light'}
-        color="teal"
-        leftSection={<IconLayoutDashboard size={18} />}
-        onClick={() => setActiveTab('profile')}
-      >
-        My Profile
-      </Button>
+      {menuTree.map(menuItem => {
+        const hasChildren = menuItem.children && menuItem.children.length > 0;
+        const icon = ICON_MAP[menuItem.menuKey] || <IconLayoutDashboard size={18} />;
 
-      {/* 2. User Management */}
-      {isSuperAdmin && (
-        <Button
-          variant={activeTab === 'users' ? 'filled' : 'light'}
-          color="cyan"
-          leftSection={<IconUsers size={18} />}
-          onClick={() => setActiveTab('users')}
-        >
-          User Management
-        </Button>
-      )}
+        // If it has children, render as a Mantine Dropdown Menu
+        if (hasChildren) {
+          const isChildActive = menuItem.children.some(child => child.path === activeTab || child.menuKey === activeTab);
+          
+          return (
+            <Menu key={menuItem.id} shadow="md" width={240} trigger="hover" openDelay={100} closeDelay={150}>
+              <Menu.Target>
+                <Button
+                  variant={isChildActive ? 'filled' : 'light'}
+                  color="indigo"
+                  leftSection={icon}
+                >
+                  {menuItem.label}
+                </Button>
+              </Menu.Target>
 
-      {/* 3. Social & University Groups Dropdown */}
-      {isWlsAdmin && (
-        <Menu shadow="md" width={220} trigger="hover" openDelay={100} closeDelay={150}>
-          <Menu.Target>
-            <Button
-              variant={['whatsapp-groups', 'teams-groups'].includes(activeTab) ? 'filled' : 'light'}
-              color="green"
-              leftSection={<IconBrandWhatsapp size={18} />}
-            >
-              Social & University Groups
-            </Button>
-          </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Label>Navigation Options</Menu.Label>
+                {menuItem.children.map(child => {
+                  const childIcon = ICON_MAP[child.menuKey] || <IconCalendarEvent size={16} />;
+                  return (
+                    <Menu.Item
+                      key={child.id}
+                      leftSection={childIcon}
+                      onClick={() => setActiveTab(child.menuKey)}
+                    >
+                      {child.label}
+                    </Menu.Item>
+                  );
+                })}
+              </Menu.Dropdown>
+            </Menu>
+          );
+        }
 
-          <Menu.Dropdown>
-            <Menu.Label>Platform Groups</Menu.Label>
-            <Menu.Item
-              leftSection={<IconBrandWhatsapp size={16} color="var(--mantine-color-green-6)" />}
-              onClick={() => setActiveTab('whatsapp-groups')}
-            >
-              WhatsApp Groups
-            </Menu.Item>
-
-            <Menu.Item
-              leftSection={<IconBrandTeams size={16} color="var(--mantine-color-indigo-6)" />}
-              onClick={() => setActiveTab('teams-groups')}
-            >
-              MS Teams Groups
-            </Menu.Item>
-          </Menu.Dropdown>
-        </Menu>
-      )}
-
-      {/* 4. Weekly Leadership Session (WLS) Dropdown */}
-      <Menu shadow="md" width={260} trigger="hover" openDelay={100} closeDelay={150}>
-        <Menu.Target>
+        // Otherwise, render as a standard top-level button tab
+        const isActive = activeTab === menuItem.menuKey || activeTab === menuItem.path;
+        return (
           <Button
-            variant={['wls-session', 'wls-mgmt', 'assessment', 'reports'].includes(activeTab) ? 'filled' : 'subtle'}
-            color="indigo"
-            leftSection={<IconSchool size={18} />}
+            key={menuItem.id}
+            variant={isActive ? 'filled' : 'light'}
+            color="teal"
+            leftSection={icon}
+            onClick={() => setActiveTab(menuItem.menuKey)}
           >
-            Weekly Leadership Session (WLS)
+            {menuItem.label}
           </Button>
-        </Menu.Target>
-
-        <Menu.Dropdown>
-          <Menu.Label>Student Area</Menu.Label>
-          <Menu.Item
-            leftSection={<IconCalendarEvent size={16} color="var(--mantine-color-teal-6)" />}
-            onClick={() => setActiveTab('wls-session')}
-          >
-            Active Sessions & Resources
-          </Menu.Item>
-
-          <Menu.Item
-            leftSection={<IconChartBar size={16} color="var(--mantine-color-grape-6)" />}
-            onClick={() => setActiveTab('reports')}
-          >
-            Analytics & Reports
-          </Menu.Item>
-
-          {isWlsAdmin && (
-            <>
-              <Menu.Divider />
-              <Menu.Label>Admin Controls</Menu.Label>
-              <Menu.Item
-                leftSection={<IconSettings size={16} color="var(--mantine-color-blue-6)" />}
-                onClick={() => setActiveTab('wls-mgmt')}
-              >
-                Session Builder & Management
-              </Menu.Item>
-              <Menu.Item
-                leftSection={<IconUserCheck size={16} color="var(--mantine-color-orange-6)" />}
-                onClick={() => setActiveTab('assessment')}
-              >
-                Assessments & Grading
-              </Menu.Item>
-            </>
-          )}
-        </Menu.Dropdown>
-      </Menu>
+        );
+      })}
     </Group>
   );
 }

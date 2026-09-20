@@ -14,6 +14,7 @@ import ruleRoutes from './src/features/rules/rule.routes.js';
 import { notificationController } from './src/features/notifications/index.js';
 import socialController from './src/features/social-groups/social.controller.js'; 
 import reportController from './src/features/wls-reporting/index.js';
+import { menuPermissionController } from './src/features/menu-permissions/index.js';
 
 // Explicitly import models for the seed endpoint
 import { UserModel } from './src/features/users/index.js';
@@ -40,6 +41,7 @@ app.use('/api/reports', reportController);
 app.use('/api/social-groups', socialController);
 app.use('/api/assessments', assessmentController);
 app.use('/api/reports', reportController);
+app.use('/api/menu-permissions', menuPermissionController);
 
 
 // 3. Seed Route

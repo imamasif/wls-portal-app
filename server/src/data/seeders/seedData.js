@@ -9,6 +9,7 @@ import { WlsSessionModel } from '../../features/wls-session/wlsSession.model.js'
 import { NotificationModel } from '../../features/notifications/notification.model.js';
 import { AssessmentModel } from '../../features/wls-assessments/wlsAssessment.model.js';
 import { WlsReportingModel } from '../../features/wls-reporting/wlsReporting.model.js';
+import { MenuPermissionModel } from '../../features/menu-permissions/menuPermission.model.js';
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/wls-portal-db';
 
@@ -71,15 +72,10 @@ const seedMasterData = async () => {
       });
     }
 
-    // Save one by one with explicit hashing to guarantee compatibility
     const createdUsers = [];
     for (const userData of userDocs) {
-      // Explicitly hash password to match controller expectations
-      const hashedPassword = await bcrypt.hash(userData.password, 10);
-      const user = new UserModel({
-        ...userData,
-        password: hashedPassword
-      });
+      // REMOVE bcrypt.hash here because the model pre-save hook handles it!
+      const user = new UserModel(userData); // Pass raw userData directly
       await user.save();
       createdUsers.push(user);
     }
@@ -87,7 +83,7 @@ const seedMasterData = async () => {
 
     // 2. SEED SOCIAL GROUPS & TEAMS
     console.log('💬 Seeding WhatsApp Groups & Microsoft Teams Channels...');
-    const socialGroups = await SocialGroupModel.create([
+    await SocialGroupModel.create([
       { 
         name: 'WLS Group 1 - Core Leadership & Announcements', 
         type: 'WHATSAPP', 
@@ -114,7 +110,7 @@ const seedMasterData = async () => {
       }
     ]);
 
-    // 3. SEED RULES (SCORING CRITERIA)
+    // 3. SEED RULES
     console.log('⚖️ Seeding Assessment Rules...');
     const rules = await RuleModel.create([
       { key: 'presentation', criterion: 'Presentation Quality & Fluency', maxScore: 10, isActive: true },
@@ -131,14 +127,14 @@ const seedMasterData = async () => {
       status: 'ACTIVE'
     });
 
-    const activeSession = await WlsSessionModel.create({
+    await WlsSessionModel.create({
       topicName: 'Tafseer & Recitation Module - Week 2 (Surah Al-Waqiah)',
       sessionDateTimeToronto: new Date('2026-10-15T18:00:00-04:00'),
       videoDeadline: new Date('2026-10-14T23:59:59-04:00'),
       status: 'ACTIVE'
     });
 
-    // 5. SEED ASSESSMENTS & SUBMISSIONS FOR THE PAST SESSION
+    // 5. SEED ASSESSMENTS & SUBMISSIONS
     console.log('📝 Seeding Submissions and Admin Marking/Assessments...');
     const regularUsers = createdUsers.filter(u => u.role === 'USER').slice(0, 15);
     const adminUser = createdUsers.find(u => u.role === 'WLS_ADMIN') || createdUsers[0];
@@ -168,7 +164,7 @@ const seedMasterData = async () => {
       sessionId: pastSession._id,
       userId: user._id,
       videoLink: `https://youtube.com/watch?v=mock_submission_${idx}`,
-      status: 'SUBMITTED', // Now fully supported by the model enum!
+      status: 'SUBMITTED',
       finalScore: 24 + (idx % 3),
       evaluations: [
         {
@@ -181,11 +177,103 @@ const seedMasterData = async () => {
 
     await WlsReportingModel.insertMany(reportingDocs);
 
+    // 7. SEED UNIFIED MULTI-LEVEL MENU HIERARCHY
+    console.log('🧭 Seeding Unified Multi-Level Menu & Permissions...');
+    await MenuPermissionModel.deleteMany({});
+
+    const dashboard = await MenuPermissionModel.create({
+      menuKey: 'dashboard',
+      label: 'Dashboard',
+      path: '/dashboard',
+      order: 1,
+      allowedRoles: ['SUPER_USER', 'WLS_ADMIN', 'USER'],
+      scopeRestriction: 'ALL'
+    });
+
+    const userMgmt = await MenuPermissionModel.create({
+      menuKey: 'user_management',
+      label: 'User Management',
+      path: '/users',
+      order: 2,
+      allowedRoles: ['SUPER_USER', 'WLS_ADMIN'],
+      scopeRestriction: 'ALL'
+    });
+
+    const groupMgmt = await MenuPermissionModel.create({
+  menuKey: 'group_management',
+  label: 'Group Management',
+  path: '/groups', // or your groups route/tab
+  order: 3,
+  allowedRoles: ['SUPER_USER'],
+  scopeRestriction: 'ALL'
+});
+
+// Add this sub-item right beneath Group Management
+await MenuPermissionModel.create({
+  menuKey: 'menu_permissions_matrix',
+  label: 'Menu Items & Permissions',
+  path: 'menu-permissions', // Matches your activeTab string
+  parentId: groupMgmt._id,
+  order: 1,
+  allowedRoles: ['SUPER_USER'], // Strictly hidden from everyone else
+  scopeRestriction: 'ALL'
+});
+
+    const wlsManagement = await MenuPermissionModel.create({
+      menuKey: 'wls_management',
+      label: 'WLS Management',
+      path: '', 
+      order: 4,
+      allowedRoles: ['SUPER_USER', 'WLS_ADMIN', 'USER'],
+      scopeRestriction: 'ALL'
+    });
+
+    await MenuPermissionModel.create([
+      {
+        menuKey: 'wls_active_sessions',
+        label: 'Active Sessions & Resources',
+        path: '/wls/sessions',
+        parentId: wlsManagement._id,
+        order: 1,
+        allowedRoles: ['SUPER_USER', 'WLS_ADMIN', 'USER'],
+        scopeRestriction: 'ALL'
+      },
+      {
+        menuKey: 'wls_analytics_reports',
+        label: 'Analytics & Reports',
+        path: '/wls/reporting',
+        parentId: wlsManagement._id,
+        order: 2,
+        allowedRoles: ['SUPER_USER', 'WLS_ADMIN', 'USER'],
+        scopeRestriction: 'SELF_ONLY'
+      },
+      {
+        menuKey: 'wls_session_builder',
+        label: 'Session Builder',
+        path: '/wls/builder',
+        parentId: wlsManagement._id,
+        order: 3,
+        allowedRoles: ['SUPER_USER', 'WLS_ADMIN'],
+        scopeRestriction: 'ALL'
+      },
+      {
+        menuKey: 'wls_assessments_grading',
+        label: 'Assessments & Grading',
+        path: '/wls/assessments',
+        parentId: wlsManagement._id,
+        order: 4,
+        allowedRoles: ['SUPER_USER', 'WLS_ADMIN'],
+        scopeRestriction: 'ALL'
+      }
+    ]);
+    console.log('✅ Multi-level menu hierarchy seeded successfully.');
+
     console.log('\n✅ Master Seeding Completed Successfully with Full End-to-End Test Data!');
     console.log('👉 Super User Login: syedimam@iipccanada.com / DefaultPassword123!');
     console.log('👉 WLS Admin Login: aazimkamal@iipccanada.com / DefaultPassword123!');
     console.log('👉 Student Login: user5@example.com / DefaultPassword123!');
     process.exit(0);
+
   } catch (error) {
     console.error('❌ Master Seeding Failed:', error);
     process.exit(1);
