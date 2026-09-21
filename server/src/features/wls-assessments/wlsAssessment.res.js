@@ -25,6 +25,7 @@ export class AssessmentResDTO {
     this.evaluations = entity.evaluations || [];
     this.finalScore = entity.finalScore || 0;
     this.conclusionStatus = entity.conclusionStatus || 'PENDING';
+    this.messages = entity.messages || [];
     this.createdAt = entity.createdAt;
   }
 }

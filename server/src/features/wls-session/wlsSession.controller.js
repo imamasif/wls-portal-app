@@ -56,4 +56,14 @@ export class WlsSessionController {
       res.status(500).json({ error: err.message });
     }
   };
+
+  addComment = async (req, res) => {
+    try {
+      const { id } = req.params;
+      const result = await this.useCase.addComment(id, req.body);
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  };
 }

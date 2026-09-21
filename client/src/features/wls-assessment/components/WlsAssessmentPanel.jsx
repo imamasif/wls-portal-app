@@ -1,41 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Grid,
-  Card,
-  Group,
-  Stack,
-  Text,
-  Badge,
-  TextInput,
-  Textarea,
-  Button,
-  ThemeIcon,
-  Alert,
-  Box,
-  UnstyledButton,
-  Paper,
-  Select
-} from '@mantine/core';
+import { Grid, Box, Text } from '@mantine/core';
 import { modals } from '@mantine/modals';
-import {
-  IconClipboardCheck,
-  IconVideo,
-  IconAward,
-  IconMessageDots,
-  IconUsers,
-  IconUser,
-  IconAlertTriangle,
-  IconCircleCheck,
-  IconShieldCheck,
-  IconDeviceFloppy,
-  IconUserCheck,
-  IconCalendarEvent
-} from '@tabler/icons-react';
-import { ColorScoreSlider } from '../../../components/common/ColorScoreSlider';
+import { WlsSessionHeader } from './WlsSessionHeader';
+import { WlsAssignedMembers } from './WlsAssignedMembers';
+import { WlsAssessmentWorkspace } from './WlsAssessmentWorkspace';
+import { WlsStudentVideoStream } from './WlsStudentVideoStream';
 import {
   fetchAssessmentPanelData,
   createAssessmentRecord,
-  gradeAssessmentRecord
+  gradeAssessmentRecord,
+  sendAssessmentMessage
 } from '../api/wlsAssessmentApi';
 
 function formatDriveEmbedUrl(url) {
@@ -74,7 +48,7 @@ function formatDriveEmbedUrl(url) {
   return { embedUrl: '', error: 'Unrecognized URL or invalid video stream link.' };
 }
 
-export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'WLS Admin Evaluator', onSubmitAssessment }) {
+export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'Syed Imam', onSubmitAssessment }) {
   const [allSessions, setAllSessions] = useState([]);
   const [selectedSessionId, setSelectedSessionId] = useState('');
   const [sessionInfo, setSessionInfo] = useState({ topic: '', date: '', rawSession: null });
@@ -88,6 +62,7 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'WLS Adm
   const [loading, setLoading] = useState(true);
   const [iframeError, setIframeError] = useState(false);
   const [banner, setBanner] = useState({ show: false, type: '', message: '' });
+  const [newMessageText, setNewMessageText] = useState('');
 
   const showBanner = (type, message) => {
     setBanner({ show: true, type, message });
@@ -158,16 +133,34 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'WLS Adm
       const userMap = new Map((Array.isArray(allUsers) ? allUsers : []).map((u) => [u.id || u._id, u]));
       const assessmentMap = new Map((Array.isArray(assessments) ? assessments : []).map((a) => [a.userId?.id || a.userId, a]));
 
+      const sessionSubmissions = activeSession?.studentSubmissions || {};
+
       const memberList = Array.from(assignedStudentIds).map((studentId) => {
         const userObj = userMap.get(studentId) || {};
         const assessment = assessmentMap.get(studentId) || {};
-        const studentUrl = assessment.submissionUrl || (assessment.submissionUrls?.[0] || '');
+        
+        const sessionSubRecord = sessionSubmissions instanceof Map 
+          ? sessionSubmissions.get(studentId) 
+          : sessionSubmissions[studentId];
+
+        const studentUrl = assessment.submissionUrl || sessionSubRecord?.submissionUrl || (assessment.submissionUrls?.[0] || '');
         const adminUrl = assessment.adminSubmissionUrl || '';
+
+        const extractedUserComments =
+          sessionSubRecord?.userComments ||
+          sessionSubRecord?.submissionNote ||
+          assessment.userComments ||
+          assessment.submissionNote ||
+          assessment.notes ||
+          assessment.comments ||
+          userObj.submissionNote ||
+          userObj.userComments ||
+          '';
 
         return {
           id: studentId,
           sessionId: activeSession?.id || activeSession?._id,
-          name: userObj.name || `Student (${studentId.slice(-4)})`,
+          name: userObj.name || userObj.fullName || `Student (${studentId.slice(-4)})`,
           email: userObj.email || '',
           assessmentId: assessment.id || assessment._id,
           submissionUrl: studentUrl,
@@ -176,7 +169,9 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'WLS Adm
           missedReason: assessment.missedReason || '',
           groupNumber: assessment.groupNumber || 1,
           evaluations: assessment.evaluations || assessment.scores || {},
-          feedback: assessment.feedback || assessment.comments || ''
+          feedback: assessment.feedback || assessment.adminComments || '',
+          userComments: extractedUserComments,
+          messages: assessment.messages || []
         };
       });
 
@@ -318,6 +313,68 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'WLS Adm
     }
   };
 
+  const handleSendMessage = async () => {
+    if (!selectedUser) {
+      showBanner('error', 'Please select a user first.');
+      return;
+    }
+
+    if (!newMessageText.trim()) {
+      showBanner('error', 'Message cannot be empty.');
+      return;
+    }
+
+    const validSenderId = (currentAdminId && currentAdminId !== 'admin') 
+      ? currentAdminId 
+      : (selectedUser.id || selectedUser._id);
+
+    try {
+      let targetAssessmentId = selectedUser.assessmentId;
+
+      // If assessment record doesn't exist yet, create it first
+      if (!targetAssessmentId) {
+        const resolvedSessionId = selectedSessionId || selectedUser.sessionId;
+        const activeStreamUrl = adminVideoUrl || selectedUser.submissionUrl || 'https://placeholder-url.com';
+
+        const submitData = await createAssessmentRecord({
+          sessionId: resolvedSessionId,
+          userId: selectedUser.id || selectedUser._id,
+          videoUrl: activeStreamUrl,
+          groupNumber: selectedUser.groupNumber || 1
+        });
+
+        targetAssessmentId = submitData.id || submitData._id;
+      }
+
+      // Send the message via API
+      const response = await sendAssessmentMessage(targetAssessmentId, {
+        senderId: validSenderId,
+        senderName: currentAdminName || 'Syed Imam',
+        senderRole: 'ADMIN',
+        text: newMessageText.trim()
+      });
+
+      // Safely extract messages from whatever format the backend response uses
+      const updatedMessages = response.messages || response.assessment?.messages || response.data?.messages || [];
+
+      const updatedUserObj = {
+        ...selectedUser,
+        assessmentId: targetAssessmentId,
+        messages: updatedMessages
+      };
+
+      setAssignedUsers((prev) =>
+        prev.map((u) => (u.id === selectedUser.id ? updatedUserObj : u))
+      );
+      setSelectedUser(updatedUserObj);
+      setNewMessageText('');
+      showBanner('success', 'Message sent successfully!');
+    } catch (err) {
+      console.error('Failed to send message:', err);
+      showBanner('error', `Failed to send message: ${err.message || 'Unknown error'}`);
+    }
+  };
+
   const openSaveConfirmationModal = () => {
     if (!selectedUser) return;
 
@@ -345,447 +402,59 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'WLS Adm
 
   const activeVideoToRender = adminVideoUrl || videoUrl;
   const { embedUrl, error: urlCheckError } = formatDriveEmbedUrl(activeVideoToRender);
-  const hasActiveError = Boolean(urlCheckError || iframeError);
-
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'COMPLETED':
-        return <Badge size="xs" color="green" variant="filled">COMPLETED</Badge>;
-      case 'PARTIAL_SAVED':
-        return <Badge size="xs" color="blue" variant="filled">PARTIAL SAVED</Badge>;
-      case 'SUBMITTED':
-        return <Badge size="xs" color="cyan" variant="light">SUBMITTED</Badge>;
-      default:
-        return <Badge size="xs" color="red" variant="light">MISSING</Badge>;
-    }
-  };
 
   return (
     <Box style={{ width: '100%', paddingLeft: '16px', paddingRight: '16px', paddingTop: '12px', paddingBottom: '12px', boxSizing: 'border-box' }}>
-      {/* Metallic Shining Banner with Hover Glow Effect */}
-      <Card
-        shadow="md"
-        padding="lg"
-        radius="lg"
-        withBorder
-        mb="lg"
-        style={{
-          background: 'linear-gradient(135deg, #10b981 0%, #047857 100%)',
-          borderColor: '#059669',
-          boxShadow: '0 4px 20px rgba(16, 185, 129, 0.25)',
-          transition: 'all 0.3s ease',
-        }}
-        styles={{
-          root: {
-            '&:hover': {
-              boxShadow: '0 6px 28px rgba(16, 185, 129, 0.45)',
-              transform: 'translateY(-2px)'
-            }
-          }
-        }}
-      >
-        <Group justify="space-between" align="center" wrap="wrap" gap="md">
-          <Group gap="md">
-            <ThemeIcon size={50} radius="xl" color="white" variant="white" style={{ boxShadow: '0 2px 10px rgba(0,0,0,0.15)' }}>
-              <IconCalendarEvent size={28} color="#047857" />
-            </ThemeIcon>
-            <Box>
-              <Text size="xs" c="emerald.1" style={{ textTransform: 'uppercase', letterSpacing: 1, fontWeight: 800, color: '#d1fae5' }}>
-                Active Session Topic
-              </Text>
-              <Text fw={900} size="xl" c="white" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.2)' }}>
-                {sessionInfo.topic}
-              </Text>
-              {sessionInfo.date && (
-                <Text size="xs" c="emerald.1" mt={2} style={{ color: '#a7f3d0' }}>
-                  Session Date: {new Date(sessionInfo.date).toLocaleString()}
-                </Text>
-              )}
-            </Box>
-          </Group>
-
-          <Group gap="lg" align="flex-end">
-            <Select
-              label={<Text size="xs" fw={700} c="white">Switch Assessment Session</Text>}
-              placeholder="Select active session..."
-              data={allSessions.map((s) => ({
-                value: s.id || s._id,
-                label: s.topic || s.topicName || s.title || `Session (${(s.id || s._id).slice(-4)})`
-              }))}
-              value={selectedSessionId}
-              onChange={handleSessionSwitch}
-              style={{ width: '280px' }}
-              size="sm"
-              styles={{
-                input: {
-                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                  fontWeight: 600,
-                  borderColor: '#047857'
-                }
-              }}
-            />
-
-            <Group gap="xs" bg="rgba(0, 0, 0, 0.15)" px="md" py="xs" style={{ borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.2)' }}>
-              <ThemeIcon size="md" radius="xl" color="white" variant="white">
-                <IconUserCheck size={18} color="#047857" />
-              </ThemeIcon>
-              <Box>
-                <Text size="xs" c="emerald.1" style={{ fontWeight: 600, color: '#a7f3d0', lineHeight: 1.1 }}>
-                  Active Evaluator:
-                </Text>
-                <Text size="sm" fw={800} c="white" style={{ lineHeight: 1.2 }}>
-                  {currentAdminName}
-                </Text>
-              </Box>
-            </Group>
-          </Group>
-        </Group>
-      </Card>
+      <WlsSessionHeader
+        sessionInfo={sessionInfo}
+        allSessions={allSessions}
+        selectedSessionId={selectedSessionId}
+        onSessionSwitch={handleSessionSwitch}
+        currentAdminName={currentAdminName}
+      />
 
       <Grid gutter="lg" align="flex-start" style={{ width: '100%', margin: 0 }}>
-        {/* Sidebar */}
         <Grid.Col span={{ base: 12, md: 3, lg: 3 }}>
-          <Card shadow="xs" padding="lg" radius="lg" withBorder>
-            <Group justify="space-between" mb="md">
-              <Group gap="xs">
-                <ThemeIcon size="lg" radius="xl" color="blue" variant="light">
-                  <IconUsers size={20} />
-                </ThemeIcon>
-                <Text fw={800} size="md" c="dark">
-                  Assigned Members
-                </Text>
-              </Group>
-              <Badge color="blue" variant="filled" radius="sm">
-                {assignedUsers.length}
-              </Badge>
-            </Group>
-
-            <Stack gap="xs">
-              {assignedUsers.length === 0 ? (
-                <Text size="xs" c="dimmed" ta="center" py="md">
-                  No members assigned to you for this session.
-                </Text>
-              ) : (
-                assignedUsers.map((item) => {
-                  const isSelected = selectedUser?.id === item.id;
-
-                  return (
-                    <Paper
-                      key={item.id}
-                      component={UnstyledButton}
-                      onClick={() => handleUserSelect(item)}
-                      p="sm"
-                      radius="md"
-                      withBorder
-                      style={{
-                        display: 'block',
-                        width: '100%',
-                        cursor: 'pointer',
-                        backgroundColor: isSelected ? 'var(--mantine-color-blue-0)' : '#ffffff',
-                        borderColor: isSelected ? 'var(--mantine-color-blue-5)' : 'var(--mantine-color-gray-3)',
-                        borderWidth: isSelected ? 2 : 1,
-                        boxShadow: isSelected ? '0 2px 8px rgba(28, 126, 214, 0.15)' : 'none',
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      <Group justify="space-between" wrap="nowrap" align="center">
-                        <Group gap="xs" wrap="nowrap">
-                          <ThemeIcon
-                            size="md"
-                            radius="xl"
-                            color={isSelected ? 'blue' : 'gray'}
-                            variant={isSelected ? 'filled' : 'light'}
-                          >
-                            <IconUser size={16} />
-                          </ThemeIcon>
-
-                          <Box>
-                            <Text fw={700} size="sm" c="dark">
-                              {item.name}
-                            </Text>
-                            <Text size="xs" c="dimmed">
-                              Group {item.groupNumber}
-                            </Text>
-                          </Box>
-                        </Group>
-
-                        {getStatusBadge(item.status)}
-                      </Group>
-                    </Paper>
-                  );
-                })
-              )}
-            </Stack>
-          </Card>
+          <WlsAssignedMembers
+            assignedUsers={assignedUsers}
+            selectedUserId={selectedUser?.id}
+            onUserSelect={handleUserSelect}
+          />
         </Grid.Col>
 
-        {/* Main Workspace */}
         <Grid.Col span={{ base: 12, md: 9, lg: 9 }}>
-          {selectedUser ? (
-            <Card shadow="xs" padding="xl" radius="lg" withBorder style={{ width: '100%' }}>
-              <Group justify="space-between" mb="xl">
-                <Group gap="sm">
-                  <ThemeIcon size="xl" radius="xl" color="blue" variant="light">
-                    <IconClipboardCheck size={28} />
-                  </ThemeIcon>
-                  <Text size="xl" fw={800}>
-                    Assessment for:{' '}
-                    <Text component="span" c="blue">
-                      {selectedUser.name}
-                    </Text>
-                  </Text>
-                </Group>
-                {getStatusBadge(selectedUser.status)}
-              </Group>
+          {/* Integrated Student Video Stream Component */}
+          <WlsStudentVideoStream 
+            selectedUser={selectedUser} 
+            adminVideoUrl={adminVideoUrl} 
+          />
 
-              {banner.show && (
-                <Alert
-                  color={banner.type === 'success' ? 'green' : 'red'}
-                  title={banner.type === 'success' ? 'Success' : 'Error'}
-                  withCloseButton
-                  onClose={() => setBanner({ show: false, type: '', message: '' })}
-                  mb="md"
-                  radius="md"
-                >
-                  {banner.message}
-                </Alert>
-              )}
-
-              {/* Mandatory Video Submission Status Alert */}
-              {!activeVideoToRender ? (
-                <Alert
-                  icon={<IconAlertTriangle size={20} />}
-                  title="Missing Mandatory Video Submission"
-                  color="red"
-                  variant="filled"
-                  radius="md"
-                  mb="md"
-                >
-                  This student has <strong>not submitted a video link</strong>. You cannot mark this assessment as <strong>COMPLETED</strong> until a valid video URL is provided by the student or entered in the Admin Override section.
-                </Alert>
-              ) : (
-                <Alert
-                  icon={<IconCircleCheck size={20} />}
-                  title="Submission Received"
-                  color="green"
-                  variant="light"
-                  radius="md"
-                  mb="md"
-                >
-                  Student video submission detected for evaluation.
-                </Alert>
-              )}
-
-              {/* Video Player Box */}
-              <Card
-                withBorder
-                padding="lg"
-                radius="md"
-                mb="xl"
-                bg={hasActiveError ? 'red.0' : 'gray.0'}
-                style={{ borderColor: hasActiveError ? 'var(--mantine-color-red-3)' : 'var(--mantine-color-gray-3)' }}
-              >
-                <Group justify="space-between" mb="md">
-                  <Group gap="xs">
-                    <ThemeIcon size="lg" radius="xl" color={hasActiveError ? 'red' : 'indigo'} variant="light">
-                      <IconVideo size={22} />
-                    </ThemeIcon>
-                    <Text fw={700} size="md" c="gray.8">
-                      Student Video Stream
-                    </Text>
-                  </Group>
-                  {selectedUser.submissionUrl && (
-                    <Badge color="blue" variant="light">
-                      User Submitted Link
-                    </Badge>
-                  )}
-                </Group>
-
-                <TextInput
-                  label="Student Provided Video Link:"
-                  placeholder="No link submitted by student..."
-                  value={videoUrl}
-                  readOnly
-                  mb="md"
-                  error={hasActiveError}
-                />
-
-                {activeVideoToRender && (
-                  <Box mb="md">
-                    {urlCheckError || iframeError ? (
-                      <Alert
-                        icon={<IconAlertTriangle size={20} />}
-                        title="Video Stream Issue Detected"
-                        color="red"
-                        variant="light"
-                        radius="md"
-                      >
-                        {urlCheckError || 'The player encountered an error streaming this video. Ensure Google Drive link sharing is set to "Anyone with the link can view".'}
-                      </Alert>
-                    ) : (
-                      <Alert icon={<IconCircleCheck size={20} />} color="green" variant="light" radius="md">
-                        Valid link format detected. Streaming video below...
-                      </Alert>
-                    )}
-                  </Box>
-                )}
-
-                {embedUrl ? (
-                  <Box
-                    style={{
-                      position: 'relative',
-                      width: '100%',
-                      paddingTop: '56.25%',
-                      backgroundColor: '#000000',
-                      borderRadius: 8,
-                      overflow: 'hidden',
-                      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)'
-                    }}
-                  >
-                    <iframe
-                      src={embedUrl}
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '100%',
-                        border: 'none'
-                      }}
-                      allow="autoplay; encrypted-media; picture-in-picture"
-                      allowFullScreen
-                      onError={() => setIframeError(true)}
-                      title="Google Drive Video Player"
-                    />
-                  </Box>
-                ) : (
-                  <Stack
-                    align="center"
-                    justify="center"
-                    style={{
-                      height: 320,
-                      backgroundColor: '#0f172a',
-                      borderRadius: 8,
-                      border: '1px dashed #334155'
-                    }}
-                  >
-                    <IconVideo size={42} color="#64748b" />
-                    <Text fw={600} c="gray.3" size="sm">
-                      No Video Link Provided
-                    </Text>
-                  </Stack>
-                )}
-              </Card>
-
-              {/* Admin Override Input */}
-              <Card
-                padding="lg"
-                radius="md"
-                withBorder
-                mb="xl"
-                bg="indigo.0"
-                style={{ borderColor: 'var(--mantine-color-indigo-2)' }}
-              >
-                <Group gap="xs" mb="xs">
-                  <ThemeIcon size="md" radius="xl" color="indigo" variant="filled">
-                    <IconShieldCheck size={18} />
-                  </ThemeIcon>
-                  <Text fw={800} size="md" c="indigo.9">
-                    Admin Video Override & Submission Menu
-                  </Text>
-                </Group>
-                <Text size="xs" c="dimmed" mb="md">
-                  Paste or overwrite a verified video link here if the user submitted an invalid link or sent it via external channels.
-                </Text>
-
-                <TextInput
-                  label="Admin Overridden Drive / Video Link:"
-                  placeholder="Paste official Google Drive link here..."
-                  value={adminVideoUrl}
-                  onChange={(e) => {
-                    setAdminVideoUrl(e.target.value);
-                    setIframeError(false);
-                  }}
-                />
-              </Card>
-
-              {/* Criteria Controls */}
-              <Group gap="xs" mb="md">
-                <ThemeIcon size="lg" radius="xl" color="green" variant="light">
-                  <IconAward size={22} />
-                </ThemeIcon>
-                <Text fw={800} size="lg" c="green.7">
-                  Evaluation Criteria
-                </Text>
-              </Group>
-
-              <Stack gap="md" mb="xl">
-                {criteriaList.map((criterion, idx) => {
-                  const key = criterion.key || criterion.code || (typeof criterion === 'string' ? criterion : `criterion_${idx}`);
-                  const label = criterion.title || criterion.criterion || (typeof criterion === 'string' ? criterion : `Criteria ${idx + 1}`);
-
-                  return (
-                    <ColorScoreSlider
-                      key={key}
-                      label={label}
-                      value={scores[key] !== undefined ? scores[key] : 1}
-                      onChange={(val) => handleScoreChange(key, val)}
-                    />
-                  );
-                })}
-              </Stack>
-
-              {/* Feedback Field */}
-              <Card
-                padding="lg"
-                radius="md"
-                withBorder
-                mb="xl"
-                bg="cyan.0"
-                style={{ borderColor: 'var(--mantine-color-cyan-3)' }}
-              >
-                <Group gap="xs" mb="xs">
-                  <ThemeIcon size="md" radius="xl" color="cyan" variant="filled">
-                    <IconMessageDots size={18} />
-                  </ThemeIcon>
-                  <Text
-                    fw={800}
-                    size="md"
-                    c="cyan.9"
-                    style={{
-                      backgroundColor: 'var(--mantine-color-cyan-1)',
-                      padding: '4px 10px',
-                      borderRadius: 'var(--mantine-radius-xs)'
-                    }}
-                  >
-                    Instructor Feedback & Comments (Visible to Student)
-                  </Text>
-                </Group>
-
-                <Textarea
-                  minRows={4}
-                  placeholder="Enter comprehensive assessment feedback..."
-                  value={feedback}
-                  onChange={(e) => setFeedback(e.target.value)}
-                />
-              </Card>
-
-              <Button
-                size="lg"
-                color="blue"
-                fullWidth
-                leftSection={<IconDeviceFloppy size={20} />}
-                onClick={openSaveConfirmationModal}
-                radius="md"
-              >
-                Save Video & Submit Assessment Record
-              </Button>
-            </Card>
-          ) : (
-            <Text ta="center" c="dimmed" py="xl">
-              {assignedUsers.length === 0 ? 'No students are assigned to you for this session.' : 'Select a user from the left sidebar to begin assessment.'}
-            </Text>
-          )}
+          <WlsAssessmentWorkspace
+            selectedUser={selectedUser}
+            banner={banner}
+            onCloseBanner={() => setBanner({ show: false, type: '', message: '' })}
+            activeVideoToRender={activeVideoToRender}
+            videoUrl={videoUrl}
+            adminVideoUrl={adminVideoUrl}
+            onAdminVideoUrlChange={(e) => {
+              setAdminVideoUrl(e.target.value);
+              setIframeError(false);
+            }}
+            urlCheckError={urlCheckError}
+            iframeError={iframeError}
+            onIframeError={() => setIframeError(true)}
+            embedUrl={embedUrl}
+            criteriaList={criteriaList}
+            scores={scores}
+            onScoreChange={handleScoreChange}
+            feedback={feedback}
+            onFeedbackChange={setFeedback}
+            messages={selectedUser?.messages || []}
+            newMessageText={newMessageText}
+            onNewMessageTextChange={setNewMessageText}
+            onSendMessage={handleSendMessage}
+            onOpenSaveModal={openSaveConfirmationModal}
+          />
         </Grid.Col>
       </Grid>
     </Box>

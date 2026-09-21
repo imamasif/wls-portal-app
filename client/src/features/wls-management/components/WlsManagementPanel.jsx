@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Card, TextInput, Button, Title, Stack, Group, Table, Badge, 
-  ActionIcon, Text, Tooltip, Modal, Divider, Paper, List, Textarea, Grid 
+  ActionIcon, Text, Tooltip, Modal, Divider, Paper, List, Textarea, Grid, Select 
 } from '@mantine/core';
 import { DateTimePicker } from '@mantine/dates';
+import { modals } from '@mantine/modals';
 import { 
   IconSchool, IconCalendarEvent, IconFileTypePdf, IconBook, 
   IconTrash, IconPlayerPause, IconRefresh, IconListCheck, IconEye,
-  IconPlus, IconMinus, IconBookmark, IconEdit, IconX, IconVideo
+  IconPlus, IconMinus, IconBookmark, IconEdit, IconX, IconVideo, IconCheck,
+  IconSparkles, IconActivity, IconClockPause, IconCircleCheckFilled
 } from '@tabler/icons-react';
 import { WlsGroupAssigner } from './WlsGroupAssigner';
-
+import { ConfirmDeleteModal } from '@/components/ConfirmDeleteModal';
 export function WlsManagementPanel() {
   const [editingSessionId, setEditingSessionId] = useState(null);
 
@@ -18,6 +20,7 @@ export function WlsManagementPanel() {
   const [sessionDate, setSessionDate] = useState(null);
   const [videoDeadline, setVideoDeadline] = useState(null);
   const [description, setDescription] = useState('');
+  const [status, setStatus] = useState('NEW');
   
   const [pdfUrls, setPdfUrls] = useState(['']);
   const [quranVideoUrls, setQuranVideoUrls] = useState(['']);
@@ -30,6 +33,11 @@ export function WlsManagementPanel() {
   const [wlsAdmins, setWlsAdmins] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [selectedSession, setSelectedSession] = useState(null);
+
+  // Delete Modal State
+  const [deleteModalOpened, setDeleteModalOpened] = useState(false);
+  const [sessionToDelete, setSessionToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetch('/api/users')
@@ -60,38 +68,40 @@ export function WlsManagementPanel() {
     setSessionDate(null);
     setVideoDeadline(null);
     setDescription('');
+    setStatus('NEW');
     setPdfUrls(['']);
     setQuranVideoUrls(['']);
     setGroupAssignments({ 1: { userIds: [], adminIds: [], selectedAyats: [], instructions: '' } });
   };
 
- const handleEditSelect = (session) => {
-  const sId = session.id || session._id;
-  setEditingSessionId(sId);
-  setTopicName(session.topicName || '');
-  setSessionDate(session.sessionDateTimeToronto ? new Date(session.sessionDateTimeToronto) : null);
-  setVideoDeadline(session.videoDeadline ? new Date(session.videoDeadline) : null);
-  setDescription(session.description || '');
+  const handleEditSelect = (session) => {
+    const sId = session.id || session._id;
+    setEditingSessionId(sId);
+    setTopicName(session.topicName || '');
+    setSessionDate(session.sessionDateTimeToronto ? new Date(session.sessionDateTimeToronto) : null);
+    setVideoDeadline(session.videoDeadline ? new Date(session.videoDeadline) : null);
+    setDescription(session.description || '');
+    setStatus(session.status || 'NEW');
 
-  const pdfs = Array.isArray(session.pdfBookletUrls) && session.pdfBookletUrls.length > 0
-    ? session.pdfBookletUrls 
-    : (session.pdfBookletUrl ? [session.pdfBookletUrl] : ['']);
-  setPdfUrls(pdfs);
+    const pdfs = Array.isArray(session.pdfBookletUrls) && session.pdfBookletUrls.length > 0
+      ? session.pdfBookletUrls 
+      : (session.pdfBookletUrl ? [session.pdfBookletUrl] : ['']);
+    setPdfUrls(pdfs);
 
-  const videos = Array.isArray(session.quranVideoUrls) && session.quranVideoUrls.length > 0
-    ? session.quranVideoUrls 
-    : (session.quranVideoUrl ? [session.quranVideoUrl] : ['']);
-  setQuranVideoUrls(videos);
+    const videos = Array.isArray(session.quranVideoUrls) && session.quranVideoUrls.length > 0
+      ? session.quranVideoUrls 
+      : (session.quranVideoUrl ? [session.quranVideoUrl] : ['']);
+    setQuranVideoUrls(videos);
 
-  // Set group assignments from saved session data
-  const loadedGroups = session.groupAssignments && Object.keys(session.groupAssignments).length > 0
-    ? session.groupAssignments
-    : { 1: { userIds: [], adminIds: [], selectedAyats: [], instructions: '' } };
+    const loadedGroups = session.groupAssignments && Object.keys(session.groupAssignments).length > 0
+      ? session.groupAssignments
+      : { 1: { userIds: [], adminIds: [], selectedAyats: [], instructions: '' } };
 
-  setGroupAssignments(loadedGroups);
+    setGroupAssignments(loadedGroups);
 
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-};
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handlePdfChange = (index, value) => {
     const updated = [...pdfUrls];
     updated[index] = value;
@@ -130,7 +140,7 @@ export function WlsManagementPanel() {
       pdfBookletUrls: cleanPdfUrls,
       quranVideoUrls: cleanVideoUrls,
       groupAssignments,
-      status: 'ACTIVE'
+      status
     };
 
     try {
@@ -162,76 +172,95 @@ export function WlsManagementPanel() {
     }
   };
 
-  const handleToggleStatus = async (e, session, index) => {
-    e.stopPropagation();
-    const sessionId = session.id || session._id;
+  const handleUpdateSingleStatus = async (sessionId, newStatus, customReason = '') => {
     if (!sessionId) return;
-
-    const nextStatus = session.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
 
     try {
       const res = await fetch(`/api/wls-sessions/${sessionId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: nextStatus })
+        body: JSON.stringify({ status: newStatus, cancelReason: customReason })
       });
 
       if (res.ok) {
         const updated = await res.json();
-        setSessions((prev) => prev.map((s, idx) => (idx === index ? updated : s)));
+        setSessions((prev) => prev.map((s) => ((s.id || s._id) === sessionId ? updated : s)));
       }
     } catch (err) {
-      console.error('Failed to toggle status:', err);
+      console.error('Failed to update session status:', err);
     }
   };
 
-  const handleCancelSession = async (e, session, index) => {
+  // Mantine Modal for Postponing Session
+  const handlePostpone = (e, session) => {
     e.stopPropagation();
     const sessionId = session.id || session._id;
-    if (!sessionId) return;
+    let cancelReasonInput = '';
 
-    const reason = window.prompt('Enter reason for postponing/cancelling this session:');
-    if (reason === null) return;
+    modals.openConfirmModal({
+      title: <Text fw={700} size="md">Postpone Session</Text>,
+      centered: true,
+      radius: 'md',
+      children: (
+        <Stack gap="sm">
+          <Text size="sm" c="dimmed">
+            Please enter a reason for postponing <strong>{session.topicName}</strong>:
+          </Text>
+          <TextInput
+            placeholder="Enter reason..."
+            data-autofocus
+            onChange={(event) => { cancelReasonInput = event.currentTarget.value; }}
+          />
+        </Stack>
+      ),
+      labels: { confirm: 'Confirm Postpone', cancel: 'Cancel' },
+      confirmProps: { color: 'orange' },
+      onConfirm: () => handleUpdateSingleStatus(sessionId, 'POSTPONED', cancelReasonInput)
+    });
+  };
+
+  // Trigger Custom Delete Modal
+  const openDeleteModal = (e, session) => {
+    e.stopPropagation();
+    setSessionToDelete(session);
+    setDeleteModalOpened(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!sessionToDelete) return;
+    const sessionId = sessionToDelete.id || sessionToDelete._id;
+    setDeleting(true);
 
     try {
-      const res = await fetch(`/api/wls-sessions/${sessionId}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'CANCELLED', cancelReason: reason })
-      });
-
+      const res = await fetch(`/api/wls-sessions/${sessionId}`, { method: 'DELETE' });
       if (res.ok) {
-        const updated = await res.json();
-        setSessions((prev) => prev.map((s, idx) => (idx === index ? updated : s)));
-      }
-    } catch (err) {
-      console.error('Failed to postpone session:', err);
-    }
-  };
-
-  const handleDeleteSession = async (e, session, index) => {
-    e.stopPropagation();
-    const sessionId = session.id || session._id;
-    if (!sessionId) return;
-
-    if (window.confirm(`Delete "${session.topicName}"?`)) {
-      try {
-        const res = await fetch(`/api/wls-sessions/${sessionId}`, { method: 'DELETE' });
-        if (res.ok) {
-          setSessions((prev) => prev.filter((_, idx) => idx !== index));
-          if (selectedSession && (selectedSession.id || selectedSession._id) === sessionId) {
-            setSelectedSession(null);
-          }
+        setSessions((prev) => prev.filter((s) => (s.id || s._id) !== sessionId));
+        if (selectedSession && (selectedSession.id || selectedSession._id) === sessionId) {
+          setSelectedSession(null);
         }
-      } catch (err) {
-        console.error('Delete failed:', err);
+        setDeleteModalOpened(false);
+        setSessionToDelete(null);
       }
+    } catch (err) {
+      console.error('Delete failed:', err);
+    } finally {
+      setDeleting(false);
     }
   };
 
-  const getUserName = (userId) => {
-    const found = users.find((u) => (u.id || u._id) === userId);
-    return found ? `${found.name} (${found.email || 'User'})` : userId;
+  const renderStatusBadge = (st) => {
+    switch (st) {
+      case 'ACTIVE':
+        return <Badge color="green" leftSection={<IconActivity size={12} />}>ACTIVE</Badge>;
+      case 'NEW':
+        return <Badge color="blue" leftSection={<IconSparkles size={12} />}>NEW</Badge>;
+      case 'POSTPONED':
+        return <Badge color="orange" leftSection={<IconClockPause size={12} />}>POSTPONED</Badge>;
+      case 'COMPLETED':
+        return <Badge color="grape" leftSection={<IconCircleCheckFilled size={12} />}>COMPLETED</Badge>;
+      default:
+        return <Badge color="gray">{st || 'NEW'}</Badge>;
+    }
   };
 
   return (
@@ -253,23 +282,50 @@ export function WlsManagementPanel() {
 
         <form onSubmit={handleSubmit}>
           <Stack gap="md">
-            <TextInput
-              label="Topic Name"
-              placeholder="e.g., Tafseer & Recitation Module - Week 1"
-              value={topicName}
-              onChange={(e) => setTopicName(e.target.value)}
-              required
-            />
+            <Grid gutter="md">
+              <Grid.Col span={{ base: 12, md: 8 }}>
+                <TextInput
+                  label="Topic Name"
+                  placeholder="e.g., Tafseer & Recitation Module - Week 1"
+                  value={topicName}
+                  onChange={(e) => setTopicName(e.target.value)}
+                  required
+                />
+              </Grid.Col>
+              <Grid.Col span={{ base: 12, md: 4 }}>
+                <Select
+                  label="Session Status"
+                  value={status}
+                  onChange={(val) => setStatus(val || 'NEW')}
+                  data={[
+                    { value: 'NEW', label: 'NEW' },
+                    { value: 'ACTIVE', label: 'ACTIVE' },
+                    { value: 'POSTPONED', label: 'POSTPONED' },
+                    { value: 'COMPLETED', label: 'COMPLETED' }
+                  ]}
+                  renderOption={({ option }) => {
+                    const icons = {
+                      NEW: <IconSparkles size={16} color="var(--mantine-color-blue-6)" style={{ marginRight: 8 }} />,
+                      ACTIVE: <IconActivity size={16} color="var(--mantine-color-green-6)" style={{ marginRight: 8 }} />,
+                      POSTPONED: <IconClockPause size={16} color="var(--mantine-color-orange-6)" style={{ marginRight: 8 }} />,
+                      COMPLETED: <IconCircleCheckFilled size={16} color="var(--mantine-color-grape-6)" style={{ marginRight: 8 }} />
+                    };
+                    return (
+                      <Group gap="xs">
+                        {icons[option.value]}
+                        <Text size="sm">{option.label}</Text>
+                      </Group>
+                    );
+                  }}
+                  required
+                />
+              </Grid.Col>
+            </Grid>
 
             <Grid gutter="md">
               <Grid.Col span={{ base: 12, md: 6 }}>
                 <DateTimePicker
-                  label={
-                    <Group gap={4} wrap="nowrap" style={{ display: 'inline-flex' }}>
-                      <IconCalendarEvent size={15} color="var(--mantine-color-blue-6)" />
-                      <span>Session Date & Time (Toronto ET)</span>
-                    </Group>
-                  }
+                  label="Session Date & Time (Toronto ET)"
                   placeholder="Pick date and time"
                   value={sessionDate}
                   onChange={setSessionDate}
@@ -278,12 +334,7 @@ export function WlsManagementPanel() {
               </Grid.Col>
               <Grid.Col span={{ base: 12, md: 6 }}>
                 <DateTimePicker
-                  label={
-                    <Group gap={4} wrap="nowrap" style={{ display: 'inline-flex' }}>
-                      <IconCalendarEvent size={15} color="var(--mantine-color-red-6)" />
-                      <span>Video Submission Deadline</span>
-                    </Group>
-                  }
+                  label="Video Submission Deadline"
                   placeholder="Select last date/time to submit video"
                   value={videoDeadline}
                   onChange={setVideoDeadline}
@@ -292,28 +343,18 @@ export function WlsManagementPanel() {
             </Grid>
 
             <Textarea
-              label={
-                <Group gap={4} wrap="nowrap" style={{ display: 'inline-flex', alignItems: 'center' }}>
-                  <IconVideo size={16} color="var(--mantine-color-blue-6)" />
-                  <span>Session Description & Zoom Meeting Details</span>
-                </Group>
-              }
-              placeholder="Assalam-u-Alaikum Brothers and Sisters... Paste full Zoom invite here"
-              description="Formatting line breaks and URLs will be preserved for student view."
-              minRows={4}
-              maxRows={8}
+              label="Session Description & Zoom Meeting Details"
+              placeholder="Paste full Zoom invite here..."
+              minRows={3}
               autosize
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
 
-            {/* Dynamic PDF Booklet URLs */}
+            {/* PDF Booklets */}
             <Stack gap="xs">
               <Group justify="space-between">
-                <Text size="sm" fw={500} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                  <IconFileTypePdf size={15} color="var(--mantine-color-red-6)" />
-                  <span>PDF Booklet URLs</span>
-                </Text>
+                <Text size="sm" fw={500}>PDF Booklet URLs</Text>
                 <Button size="xs" variant="light" color="red" leftSection={<IconPlus size={14} />} onClick={addPdfField}>
                   Add PDF
                 </Button>
@@ -335,13 +376,10 @@ export function WlsManagementPanel() {
               ))}
             </Stack>
 
-            {/* Dynamic Quran Stream URLs */}
+            {/* Quran Stream URLs */}
             <Stack gap="xs">
               <Group justify="space-between">
-                <Text size="sm" fw={500} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                  <IconBook size={15} color="var(--mantine-color-teal-6)" />
-                  <span>Quran Video / Stream URLs</span>
-                </Text>
+                <Text size="sm" fw={500}>Quran Video / Stream URLs</Text>
                 <Button size="xs" variant="light" color="teal" leftSection={<IconPlus size={14} />} onClick={addVideoField}>
                   Add Video
                 </Button>
@@ -371,13 +409,13 @@ export function WlsManagementPanel() {
             />
 
             <Button type="submit" size="md" color={editingSessionId ? 'blue' : 'teal'} fullWidth>
-              {editingSessionId ? 'Update Session Details' : 'Publish & Create Active Session'}
+              {editingSessionId ? 'Update Session Details' : 'Publish Session'}
             </Button>
           </Stack>
         </form>
       </Card>
 
-      {/* Streamlined Table Grid */}
+      {/* Managed Sessions Table */}
       <Card withBorder padding="lg" radius="md" shadow="sm">
         <Group gap="xs" mb="md">
           <IconListCheck size={20} color="var(--mantine-color-blue-6)" />
@@ -385,7 +423,7 @@ export function WlsManagementPanel() {
         </Group>
 
         {sessions.length === 0 ? (
-          <Text c="dimmed" size="sm">No historical or active sessions logged yet.</Text>
+          <Text c="dimmed" size="sm">No sessions logged yet.</Text>
         ) : (
           <Table highlightOnHover verticalSpacing="sm" style={{ cursor: 'pointer' }}>
             <Table.Thead>
@@ -393,59 +431,72 @@ export function WlsManagementPanel() {
                 <Table.Th>Topic</Table.Th>
                 <Table.Th>Date & Time (Toronto)</Table.Th>
                 <Table.Th>Status</Table.Th>
-                <Table.Th justify="flex-end">Actions</Table.Th>
+                <Table.Th style={{ textAlign: 'right' }}>Actions / Lifecycle Toggles</Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {sessions.map((s, idx) => (
-                <Table.Tr key={s.id || s._id || idx} onClick={() => setSelectedSession(s)}>
-                  <Table.Td style={{ width: '40%' }}>
-                    <Text fw={600} c="blue">{s.topicName}</Text>
-                    {s.cancelReason && (
-                      <Text size="xs" c="red">Reason: {s.cancelReason}</Text>
-                    )}
-                  </Table.Td>
-                  <Table.Td>
-                    {s.sessionDateTimeToronto ? new Date(s.sessionDateTimeToronto).toLocaleString() : 'N/A'}
-                  </Table.Td>
-                  <Table.Td>
-                    <Badge color={s.status === 'ACTIVE' ? 'green' : s.status === 'CANCELLED' ? 'red' : 'gray'}>
-                      {s.status || 'ACTIVE'}
-                    </Badge>
-                  </Table.Td>
-                  <Table.Td>
-                    <Group gap="xs" justify="flex-end">
-                      <Tooltip label="Edit Session">
-                        <ActionIcon variant="light" color="teal" onClick={(e) => { e.stopPropagation(); handleEditSelect(s); }}>
-                          <IconEdit size={16} />
-                        </ActionIcon>
-                      </Tooltip>
-                      <Tooltip label="View Full Details">
-                        <ActionIcon variant="light" color="indigo" onClick={(e) => { e.stopPropagation(); setSelectedSession(s); }}>
-                          <IconEye size={16} />
-                        </ActionIcon>
-                      </Tooltip>
-                      <Tooltip label="Toggle Active/Inactive">
-                        <ActionIcon variant="light" color="blue" onClick={(e) => handleToggleStatus(e, s, idx)}>
-                          <IconRefresh size={16} />
-                        </ActionIcon>
-                      </Tooltip>
-                      {s.status !== 'CANCELLED' && (
-                        <Tooltip label="Postpone / Cancel">
-                          <ActionIcon variant="light" color="orange" onClick={(e) => handleCancelSession(e, s, idx)}>
-                            <IconPlayerPause size={16} />
+              {sessions.map((s) => {
+                const sId = s.id || s._id;
+                const currentStatus = s.status || 'NEW';
+
+                return (
+                  <Table.Tr key={sId} onClick={() => setSelectedSession(s)}>
+                    <Table.Td style={{ width: '35%' }}>
+                      <Text fw={600} c="blue">{s.topicName}</Text>
+                      {s.cancelReason && (
+                        <Text size="xs" c="orange">Note: {s.cancelReason}</Text>
+                      )}
+                    </Table.Td>
+                    <Table.Td>
+                      {s.sessionDateTimeToronto ? new Date(s.sessionDateTimeToronto).toLocaleString() : 'N/A'}
+                    </Table.Td>
+                    <Table.Td>
+                      {renderStatusBadge(currentStatus)}
+                    </Table.Td>
+                    <Table.Td>
+                      <Group gap="xs" justify="flex-end" onClick={(e) => e.stopPropagation()}>
+                        {currentStatus !== 'ACTIVE' && (
+                          <Tooltip label="Make Active">
+                            <ActionIcon variant="light" color="green" onClick={() => handleUpdateSingleStatus(sId, 'ACTIVE')}>
+                              <IconRefresh size={16} />
+                            </ActionIcon>
+                          </Tooltip>
+                        )}
+                        {currentStatus === 'ACTIVE' && (
+                          <Tooltip label="Postpone Session">
+                            <ActionIcon variant="light" color="orange" onClick={(e) => handlePostpone(e, s)}>
+                              <IconPlayerPause size={16} />
+                            </ActionIcon>
+                          </Tooltip>
+                        )}
+                        {currentStatus !== 'COMPLETED' && (
+                          <Tooltip label="Mark Completed">
+                            <ActionIcon variant="light" color="grape" onClick={() => handleUpdateSingleStatus(sId, 'COMPLETED')}>
+                              <IconCheck size={16} />
+                            </ActionIcon>
+                          </Tooltip>
+                        )}
+
+                        <Tooltip label="Edit Session">
+                          <ActionIcon variant="light" color="teal" onClick={() => handleEditSelect(s)}>
+                            <IconEdit size={16} />
                           </ActionIcon>
                         </Tooltip>
-                      )}
-                      <Tooltip label="Delete Session">
-                        <ActionIcon variant="light" color="red" onClick={(e) => handleDeleteSession(e, s, idx)}>
-                          <IconTrash size={16} />
-                        </ActionIcon>
-                      </Tooltip>
-                    </Group>
-                  </Table.Td>
-                </Table.Tr>
-              ))}
+                        <Tooltip label="View Full Details">
+                          <ActionIcon variant="light" color="indigo" onClick={() => setSelectedSession(s)}>
+                            <IconEye size={16} />
+                          </ActionIcon>
+                        </Tooltip>
+                        <Tooltip label="Delete Session">
+                          <ActionIcon variant="light" color="red" onClick={(e) => openDeleteModal(e, s)}>
+                            <IconTrash size={16} />
+                          </ActionIcon>
+                        </Tooltip>
+                      </Group>
+                    </Table.Td>
+                  </Table.Tr>
+                );
+              })}
             </Table.Tbody>
           </Table>
         )}
@@ -455,7 +506,7 @@ export function WlsManagementPanel() {
       <Modal 
         opened={!!selectedSession} 
         onClose={() => setSelectedSession(null)} 
-        title={<Title order={3}>{selectedSession?.topicName}</Title>} 
+        title={<Text fw={700} size="lg">{selectedSession?.topicName}</Text>} 
         size="lg"
         radius="md"
       >
@@ -463,125 +514,44 @@ export function WlsManagementPanel() {
           <Stack gap="md">
             <Group justify="space-between">
               <Text size="sm">
-                <strong>Date & Time (Toronto):</strong> {selectedSession.sessionDateTimeToronto ? new Date(selectedSession.sessionDateTimeToronto).toLocaleString() : 'N/A'}
+                <strong>Date & Time:</strong> {selectedSession.sessionDateTimeToronto ? new Date(selectedSession.sessionDateTimeToronto).toLocaleString() : 'N/A'}
               </Text>
-              <Badge color={selectedSession.status === 'ACTIVE' ? 'green' : selectedSession.status === 'CANCELLED' ? 'red' : 'gray'}>
-                {selectedSession.status}
-              </Badge>
+              {renderStatusBadge(selectedSession.status)}
             </Group>
-
-            {selectedSession.videoDeadline && (
-              <Text size="sm" component="div">
-                <strong>Video Deadline:</strong>{' '}
-                <Badge color="red" variant="light" size="xs">
-                  {new Date(selectedSession.videoDeadline).toLocaleString()}
-                </Badge>
-              </Text>
-            )}
 
             {selectedSession.description && (
               <div>
-                <Text size="sm" fw={700} mb={4}>📹 Zoom Meeting Details / Description:</Text>
+                <Text size="sm" fw={700} mb={4}>Description / Zoom Details:</Text>
                 <Paper withBorder p="xs" bg="gray.0" radius="sm">
-                  <Text size="xs" style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
-                    {selectedSession.description}
-                  </Text>
+                  <Text size="xs" style={{ whiteSpace: 'pre-wrap' }}>{selectedSession.description}</Text>
                 </Paper>
               </div>
             )}
 
-            {(selectedSession.pdfBookletUrls?.length > 0 || selectedSession.pdfBookletUrl) && (
-              <div>
-                <Text size="sm" fw={700}>📄 PDF Booklets:</Text>
-                <List size="sm" spacing={4}>
-                  {(selectedSession.pdfBookletUrls || [selectedSession.pdfBookletUrl]).filter(Boolean).map((url, i) => (
-                    <List.Item key={i}>
-                      <a href={url} target="_blank" rel="noreferrer">{url}</a>
-                    </List.Item>
-                  ))}
-                </List>
-              </div>
-            )}
-
-            {(selectedSession.quranVideoUrls?.length > 0 || selectedSession.quranVideoUrl) && (
-              <div>
-                <Text size="sm" fw={700}>📖 Quran Streams:</Text>
-                <List size="sm" spacing={4}>
-                  {(selectedSession.quranVideoUrls || [selectedSession.quranVideoUrl]).filter(Boolean).map((url, i) => (
-                    <List.Item key={i}>
-                      <a href={url} target="_blank" rel="noreferrer">{url}</a>
-                    </List.Item>
-                  ))}
-                </List>
-              </div>
-            )}
-
-            <Divider my="xs" label="Group Configurations" labelPosition="center" />
-
-            {Object.entries(selectedSession.groupAssignments || {}).map(([gNum, gData]) => (
-              <Paper key={gNum} withBorder p="md" radius="sm" bg="var(--mantine-color-gray-0)">
-                <Group justify="space-between" mb="xs">
-                  <Text fw={700} c="indigo">Group {gNum}</Text>
-                  <Group gap="xs">
-                    <Badge variant="light" color="blue">{gData.userIds?.length || 0} Students</Badge>
-                    <Badge variant="light" color="grape">{gData.adminIds?.length || 0} Admins</Badge>
-                  </Group>
-                </Group>
-
-                <Stack gap="xs">
-                  <div>
-                    <Text size="xs" fw={700}>Assigned Admins:</Text>
-                    {gData.adminIds?.length > 0 ? (
-                      <List size="xs" spacing={2}>{gData.adminIds.map((id) => <List.Item key={id}>{getUserName(id)}</List.Item>)}</List>
-                    ) : <Text size="xs" c="dimmed">None</Text>}
-                  </div>
-
-                  <div>
-                    <Text size="xs" fw={700}>Assigned Students:</Text>
-                    {gData.userIds?.length > 0 ? (
-                      <List size="xs" spacing={2}>{gData.userIds.map((id) => <List.Item key={id}>{getUserName(id)}</List.Item>)}</List>
-                    ) : <Text size="xs" c="dimmed">None</Text>}
-                  </div>
-
-                  {gData.selectedAyats?.length > 0 && (
-                    <div>
-                      <Group gap={4} align="center" mb={2}>
-                        <IconBookmark size={14} color="var(--mantine-color-teal-6)" />
-                        <Text size="xs" fw={700}>Selected Verses:</Text>
-                      </Group>
-                      <Group gap={4}>{gData.selectedAyats.map((ayat, i) => <Badge key={i} size="xs" color="teal">{ayat}</Badge>)}</Group>
-                    </div>
-                  )}
-
-                  {gData.instructions && (
-                    <div>
-                      <Text size="xs" fw={700}>Instructions:</Text>
-                      <Text size="xs" style={{ whiteSpace: 'pre-line' }}>{gData.instructions}</Text>
-                    </div>
-                  )}
-                </Stack>
-              </Paper>
-            ))}
-
-            <Group justify="space-between" mt="md">
-              <Text size="xs" c="dimmed">
-                {editingSessionId === (selectedSession.id || selectedSession._id) ? (
-                  <Badge color="blue" variant="light">Loaded in top panel for editing</Badge>
-                ) : null}
-              </Text>
-
-              <Group gap="xs">
-                <Button variant="default" onClick={() => setSelectedSession(null)}>
-                  Close
-                </Button>
-                <Button color="teal" leftSection={<IconEdit size={16} />} onClick={() => handleEditSelect(selectedSession)}>
-                  Load into Form & Edit
-                </Button>
-              </Group>
+            <Group justify="flex-end" mt="md">
+              <Button variant="default" onClick={() => setSelectedSession(null)}>Close</Button>
+              <Button color="teal" leftSection={<IconEdit size={16} />} onClick={() => { handleEditSelect(selectedSession); setSelectedSession(null); }}>
+                Load into Form & Edit
+              </Button>
             </Group>
           </Stack>
         )}
       </Modal>
+
+      {/* Proper Confirm Delete Modal */}
+      <ConfirmDeleteModal
+        opened={deleteModalOpened}
+        onClose={() => {
+          if (!deleting) {
+            setDeleteModalOpened(false);
+            setSessionToDelete(null);
+          }
+        }}
+        onConfirm={confirmDelete}
+        title="Delete WLS Session"
+        message={`Are you sure you want to delete "${sessionToDelete?.topicName}"? This action cannot be undone.`}
+        loading={deleting}
+      />
     </Stack>
   );
 }

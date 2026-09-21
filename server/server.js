@@ -85,7 +85,7 @@ app.post('/api/seed', async (req, res) => {
         name: `Student ${i + 1}`,
         email: `student${i + 1}@iipc.org`,
         password: hashedPassword,
-        role: 'STUDENT',
+        role: 'USER',
         city: 'Dallas',
         country: 'USA',
         drive: `https://drive.google.com/drive/folders/student-${i + 1}`

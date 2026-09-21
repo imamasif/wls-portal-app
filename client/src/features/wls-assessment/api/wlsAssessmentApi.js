@@ -96,3 +96,25 @@ export const submitVideoUrl = async (sessionId, payload) => {
   );
 };
 
+
+/**
+ * Sends a message within a specific assessment discussion thread.
+ * Matches backend POST /api/assessments/:id/messages endpoint.
+ */
+export async function sendAssessmentMessage(assessmentId, messageData) {
+  if (!assessmentId || !/^[0-9a-fA-F]{24}$/.test(assessmentId)) {
+    throw new Error(`Invalid Assessment Record ID (${assessmentId}). Unable to send message.`);
+  }
+
+  const response = await fetch(`/api/assessments/${assessmentId}/messages`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(messageData)
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || data.message || 'Failed to send message');
+  }
+  return data;
+}

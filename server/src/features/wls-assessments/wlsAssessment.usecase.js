@@ -35,7 +35,6 @@ export class AssessmentUseCase {
     const assessment = await AssessmentModel.findById(assessmentId);
     if (!assessment) return null;
 
-    // Remove existing evaluation by the same evaluator if updating
     assessment.evaluations = assessment.evaluations.filter(
       e => e.evaluatorId && e.evaluatorId.toString() !== dto.evaluatorId.toString()
     );
@@ -52,10 +51,9 @@ export class AssessmentUseCase {
 
     assessment.evaluations.forEach(ev => {
       const scores = ev.scores instanceof Map ? Object.fromEntries(ev.scores) : (ev.scores || {});
-      
       Object.values(scores).forEach(val => {
         totalObtained += Number(val) || 0;
-        totalPossible += 10; // Assumes 10 points per scored criterion
+        totalPossible += 10;
       });
     });
 
@@ -63,21 +61,34 @@ export class AssessmentUseCase {
 
     assessment.finalScore = percentage;
     assessment.conclusionStatus = assessment.finalScore >= 70 ? 'PASSED' : 'FAILED';
-
-    // FIX: Only mark as COMPLETED if explicitly finalized, otherwise use REVIEWED for partial saves
-    // You can also check if dto.isDraft or similar flag is passed from the frontend
     assessment.status = dto.isDraft ? 'REVIEWED' : 'COMPLETED';
 
     return await assessment.save();
   }
 
-static async markAsCompleted(assessmentId) {
-  return await AssessmentModel.findByIdAndUpdate(
-    assessmentId,
-    { status: 'SUBMITTED', completedAt: new Date() },
-    { new: true }
-  );
-}
+  static async markAsCompleted(assessmentId) {
+    return await AssessmentModel.findByIdAndUpdate(
+      assessmentId,
+      { status: 'SUBMITTED', completedAt: new Date() },
+      { new: true }
+    );
+  }
+
+  // 4. Add assessment-specific message handler
+  static async addMessage(assessmentId, dto) {
+    const assessment = await AssessmentModel.findById(assessmentId);
+    if (!assessment) return null;
+
+    assessment.messages.push({
+      senderId: dto.senderId,
+      senderName: dto.senderName,
+      senderRole: dto.senderRole,
+      text: dto.text,
+      timestamp: new Date()
+    });
+
+    return await assessment.save();
+  }
 }
 
 export const assessmentUseCase = AssessmentUseCase;

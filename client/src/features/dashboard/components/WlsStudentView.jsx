@@ -6,10 +6,11 @@ import {
   Stack, Title, Text, Tabs, Card, Group, Badge, List, ThemeIcon, Paper, Divider, 
   Anchor, TextInput, Button, Tooltip, ActionIcon, Textarea, Avatar, Alert 
 } from '@mantine/core';
+import { modals } from '@mantine/modals';
 import { 
   IconBook, IconUsers, IconFileText, IconVideo, IconClock, IconUserCheck, 
   IconAlertCircle, IconCheck, IconAlertTriangle, IconSend, IconLink,
-  IconVideoPlus, IconMessageDots, IconBrandGoogleDrive 
+  IconVideoPlus, IconMessageDots, IconBrandGoogleDrive, IconUserX 
 } from '@tabler/icons-react';
 
 const getUserGroup = (groupAssignments, currentUserId) => {
@@ -31,7 +32,6 @@ const getUserGroup = (groupAssignments, currentUserId) => {
   return null;
 };
 
-// Validates Google Drive URL permissions and structure
 const validateGoogleDriveUrl = (url) => {
   if (!url || !url.trim()) {
     return { isValid: false, error: 'Video URL cannot be empty. Please enter a valid Google Drive link.' };
@@ -52,7 +52,6 @@ export function WlsStudentView({ user: propUser }) {
   const currentUser = propUser || authUser;
   const [sessions, setSessions] = useState([]);
   
-  // State management
   const [videoUrls, setVideoUrls] = useState({});
   const [urlErrors, setUrlErrors] = useState({});
   const [saveSuccess, setSaveSuccess] = useState({});
@@ -60,6 +59,7 @@ export function WlsStudentView({ user: propUser }) {
   const [commentErrors, setCommentErrors] = useState({});
   const [sessionComments, setSessionComments] = useState({});
   const [apiErrors, setApiErrors] = useState({});
+  const [completedTasks, setCompletedTasks] = useState({});
 
   useEffect(() => {
     fetch(`${API_BASE}/wls-sessions`)
@@ -67,20 +67,13 @@ export function WlsStudentView({ user: propUser }) {
       .then((data) => {
         setSessions(data);
         
-        const initialUrls = {};
         const initialComments = {};
-        const userId = currentUser?._id || currentUser?.id;
-
         data.forEach((session) => {
           const sId = session.id || session._id;
-          if (session.userSubmissions && session.userSubmissions[userId]) {
-            initialUrls[sId] = session.userSubmissions[userId].videoUrl || '';
-          }
           if (session.comments) {
             initialComments[sId] = session.comments;
           }
         });
-        setVideoUrls(initialUrls);
         setSessionComments(initialComments);
       })
       .catch((err) => console.error('Error fetching WLS sessions:', err));
@@ -139,16 +132,83 @@ export function WlsStudentView({ user: propUser }) {
       });
   };
 
-  const handleAddReaction = (sessionId, emoji) => {
+  const handleMarkCompleted = (sessionId) => {
+    const url = videoUrls[sessionId];
+    const validation = validateGoogleDriveUrl(url);
+    if (!validation.isValid) {
+      modals.open({
+        title: <Text fw={700} c="red">Missing Video Submission</Text>,
+        centered: true,
+        children: (
+          <Text size="sm" c="dimmed">
+            Please submit a valid video URL before marking the task as completed.
+          </Text>
+        ),
+      });
+      return;
+    }
+
+    modals.openConfirmModal({
+      title: <Text fw={700} size="md">Confirm Task Completion</Text>,
+      centered: true,
+      children: (
+        <Text size="sm" c="dimmed">
+          Are you sure you want to mark this task as completed? Once finalized, your submission will lock in.
+        </Text>
+      ),
+      labels: { confirm: 'Yes, Complete', cancel: 'Cancel' },
+      confirmProps: { color: 'green' },
+      onConfirm: () => {
+        setCompletedTasks((prev) => ({ ...prev, [sessionId]: true }));
+      }
+    });
+  };
+
+  const handleRequestAbsence = (sessionId) => {
+    let reasonText = '';
+    modals.openConfirmModal({
+      title: <Text fw={700} size="md">Request Absence</Text>,
+      centered: true,
+      children: (
+        <Stack gap="sm">
+          <Text size="sm" c="dimmed">
+            Please provide a reason for requesting absence for this session:
+          </Text>
+          <Textarea
+            placeholder="Enter reason for absence..."
+            data-autofocus
+            minRows={3}
+            onChange={(e) => { reasonText = e.currentTarget.value; }}
+          />
+        </Stack>
+      ),
+      labels: { confirm: 'Submit Absence Request', cancel: 'Cancel' },
+      confirmProps: { color: 'red' },
+      onConfirm: () => {
+        if (!reasonText.trim()) return;
+        const absenceComment = {
+          id: Date.now(),
+          userName: currentUser?.name || currentUser?.email || 'User',
+          userId: currentUser?._id || currentUser?.id,
+          text: `[ABSENCE REQUEST]: ${reasonText}`,
+          timestamp: new Date().toISOString(),
+          role: currentUser?.role || 'USER',
+        };
+        const updated = [...(sessionComments[sessionId] || []), absenceComment];
+        setSessionComments((prev) => ({ ...prev, [sessionId]: updated }));
+      }
+    });
+  };
+
+  const handleAddEmoji = (sessionId, emoji) => {
     setCommentInputs((prev) => ({
       ...prev,
-      [sessionId]: (prev[sessionId] || '') + ' ' + emoji
+      [sessionId]: (prev[sessionId] || '') + emoji
     }));
   };
 
   const handleAddComment = (sessionId) => {
     const text = commentInputs[sessionId]?.trim();
-    
     if (!text) {
       setCommentErrors((prev) => ({ ...prev, [sessionId]: 'Comment cannot be empty.' }));
       return;
@@ -156,38 +216,32 @@ export function WlsStudentView({ user: propUser }) {
 
     setCommentErrors((prev) => ({ ...prev, [sessionId]: null }));
 
+    const userRole = currentUser?.role || 'USER';
+
     const newComment = {
       id: Date.now(),
-      userName: currentUser?.name || currentUser?.email || 'User',
+      userName: currentUser?.name || currentUser?.fullName || currentUser?.email || 'User',
       userId: currentUser?._id || currentUser?.id,
       text,
       timestamp: new Date().toISOString(),
-      role: currentUser?.role || 'STUDENT',
+      role: userRole, 
     };
 
     const updated = [...(sessionComments[sessionId] || []), newComment];
     setSessionComments((prev) => ({ ...prev, [sessionId]: updated }));
     setCommentInputs((prev) => ({ ...prev, [sessionId]: '' }));
 
-    // Adjusted endpoint route matching standard API conventions to prevent 404 errors
     fetch(`${API_BASE}/wls-sessions/${sessionId}/comments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newComment),
-    })
-      .then((res) => {
-        if (!res.ok) {
-          // Fallback notice if endpoint isn't fully set up on server yet
-          console.warn(`Comment synced locally, server responded with status ${res.status}`);
-        }
-      })
-      .catch((err) => {
-        console.error('Network error syncing comment:', err);
-      });
+    }).catch((err) => {
+      console.error('Failed to sync comment to backend:', err);
+    });
   };
 
-  const upcomingSessions = sessions.filter((s) => s.status === 'ACTIVE');
-  const pastSessions = sessions.filter((s) => s.status !== 'ACTIVE');
+  const upcomingSessions = sessions.filter((s) => s.status === 'ACTIVE' && !completedTasks[s.id || s._id]);
+  const pastSessions = sessions.filter((s) => s.status !== 'ACTIVE' || completedTasks[s.id || s._id]);
 
   const renderAdminNames = (userGroup) => {
     if (Array.isArray(userGroup.admins) && userGroup.admins.length > 0) {
@@ -210,12 +264,12 @@ export function WlsStudentView({ user: propUser }) {
     const currentCommentError = commentErrors[sessionId];
     const currentApiError = apiErrors[sessionId];
     const commentsList = sessionComments[sessionId] || [];
+    const isCompleted = completedTasks[sessionId] || session.status === 'COMPLETED';
 
     return (
       <Card key={sessionId} withBorder shadow="sm" radius="md" p="lg" mb="md">
-        <ZoomInviteCard session={session} isUpcoming={isUpcoming} />
+        <ZoomInviteCard session={session} isUpcoming={isUpcoming && !isCompleted} />
 
-        {/* Global Resources */}
         {(hasPdfs || hasVideos) && (
           <Paper withBorder p="sm" mt="md" radius="sm" bg="gray.0">
             <Text size="xs" fw={700} c="dimmed" tt="uppercase" mb="xs">
@@ -251,19 +305,27 @@ export function WlsStudentView({ user: propUser }) {
           </Paper>
         )}
 
-        {/* Student Assigned Group Section */}
         {userGroup ? (
-          <Paper withBorder p="md" mt="md" radius="sm" bg="blue.0">
+          <Paper withBorder p="md" mt="md" radius="sm" bg={isCompleted ? 'gray.1' : 'blue.0'}>
             <Group justify="space-between" mb="xs">
               <Group gap="xs">
-                <ThemeIcon color="indigo" size="sm" variant="light">
+                <ThemeIcon color={isCompleted ? 'gray' : 'indigo'} size="sm" variant="light">
                   <IconUsers size={16} />
                 </ThemeIcon>
-                <Text fw={600} size="sm" c="indigo.9">
-                  Your Assignment: Group {userGroup.groupNumber}
+                <Text fw={600} size="sm" c={isCompleted ? 'gray.8' : 'indigo.9'}>
+                  Your Assignment: Group {userGroup.groupNumber} {isCompleted && '(Completed)'}
                 </Text>
               </Group>
-              <Badge color="indigo">Assigned</Badge>
+              <Group gap="xs">
+                <Badge color={isCompleted ? 'grape' : 'indigo'}>
+                  {isCompleted ? 'COMPLETED' : 'Assigned'}
+                </Badge>
+                {!isCompleted && (
+                  <Button size="xs" variant="outline" color="red" leftSection={<IconUserX size={12} />} onClick={() => handleRequestAbsence(sessionId)}>
+                    Request Absence
+                  </Button>
+                )}
+              </Group>
             </Group>
 
             <Divider my="xs" />
@@ -273,14 +335,11 @@ export function WlsStudentView({ user: propUser }) {
                 <IconUserCheck size={14} />
               </ThemeIcon>
               <Text size="xs" fw={600}>
-                Group Admin(s):{' '}
-                <Text span size="xs" c="dimmed">
-                  {renderAdminNames(userGroup)}
-                </Text>
+                Group Admin(s): <Text span size="xs" c="dimmed">{renderAdminNames(userGroup)}</Text>
               </Text>
             </Group>
 
-            {session.videoDeadline ? (
+            {session.videoDeadline && (
               <Group gap="xs" mb="xs">
                 <ThemeIcon color="red" size="xs" variant="light">
                   <IconClock size={14} />
@@ -291,72 +350,31 @@ export function WlsStudentView({ user: propUser }) {
                     timeZone: 'America/Toronto',
                     dateStyle: 'medium',
                     timeStyle: 'short',
-                  })}{' '}
-                  (Toronto)
-                </Text>
-              </Group>
-            ) : (
-              <Group gap="xs" mb="xs">
-                <ThemeIcon color="gray" size="xs" variant="light">
-                  <IconClock size={14} />
-                </ThemeIcon>
-                <Text size="xs" c="dimmed">
-                  Submission Deadline: Not specified
+                  })} (Toronto)
                 </Text>
               </Group>
             )}
 
             {Array.isArray(userGroup.selectedAyats) && userGroup.selectedAyats.length > 0 && (
               <Stack gap="xs" mt="xs">
-                <Text size="xs" fw={700} c="dimmed" tt="uppercase">
-                  Assigned Ayats / Verses
-                </Text>
-                <List
-                  spacing="xs"
-                  size="sm"
-                  center
-                  icon={
-                    <ThemeIcon color="blue" size={18} radius="xl">
-                      <IconBook size={12} />
-                    </ThemeIcon>
-                  }
-                >
+                <Text size="xs" fw={700} c="dimmed" tt="uppercase">Assigned Ayats / Verses</Text>
+                <List spacing="xs" size="sm" center icon={<ThemeIcon color="blue" size={18} radius="xl"><IconBook size={12} /></ThemeIcon>}>
                   {userGroup.selectedAyats.map((ayat, idx) => (
                     <List.Item key={idx}>
-                      <strong>
-                        {typeof ayat === 'string'
-                          ? ayat
-                          : `${ayat.surahName || 'Surah'}:${ayat.verseNumber}`}
-                      </strong>
+                      <strong>{typeof ayat === 'string' ? ayat : `${ayat.surahName || 'Surah'}:${ayat.verseNumber}`}</strong>
                     </List.Item>
                   ))}
                 </List>
               </Stack>
             )}
 
-            {userGroup.instructions ? (
-              <Paper withBorder p="xs" mt="xs" bg="white" radius="xs">
-                <Group gap="xs">
-                  <IconAlertCircle size={16} color="gray" />
-                  <Text size="xs" c="gray.8">
-                    <strong>Special Instructions:</strong> {userGroup.instructions}
-                  </Text>
-                </Group>
-              </Paper>
-            ) : (
-              <Text size="xs" c="dimmed" mt="xs">
-                <strong>Special Instructions:</strong> None provided for this group.
-              </Text>
-            )}
-
-            {/* Server Error Warning Banner */}
             {currentApiError && (
               <Alert icon={<IconAlertCircle size={16} />} title="API Notice" color="yellow" mt="md" radius="sm">
                 {currentApiError}
               </Alert>
             )}
 
-            {/* SECTION 1: Video Submission */}
+            {/* Video Submission Section */}
             <Paper withBorder p="sm" mt="md" radius="sm" bg="white">
               <Group gap="xs" mb="xs">
                 <ThemeIcon color="indigo" size="md" variant="light">
@@ -368,30 +386,39 @@ export function WlsStudentView({ user: propUser }) {
               </Group>
 
               <Group align="flex-start">
-                <Tooltip
-                  label="Give full access on Google Drive ('Anyone with the link can view')"
-                  opened={!!currentUrlError}
-                  color="red"
-                  withArrow
-                  position="top-start"
-                >
+                <Tooltip label="Give full access on Google Drive ('Anyone with the link can view')" opened={!!currentUrlError} color="red" withArrow position="top-start">
                   <TextInput
                     style={{ flex: 1 }}
                     placeholder="https://drive.google.com/file/d/..."
                     value={videoUrls[sessionId] || ''}
+                    readOnly={isCompleted}
                     onChange={(e) => handleUrlChange(sessionId, e.target.value)}
                     error={!!currentUrlError}
                     leftSection={<IconBrandGoogleDrive size={18} color="#1f1f1f" />}
                   />
                 </Tooltip>
-                <Button
-                  color={saveSuccess[sessionId] ? 'teal' : 'indigo'}
-                  onClick={() => handleSaveVideoUrl(sessionId)}
-                  leftSection={saveSuccess[sessionId] ? <IconCheck size={16} /> : <IconLink size={16} />}
-                >
-                  {saveSuccess[sessionId] ? 'Saved' : 'Save Video URL'}
-                </Button>
+                {!isCompleted && (
+                  <Button
+                    color={saveSuccess[sessionId] ? 'teal' : 'indigo'}
+                    onClick={() => handleSaveVideoUrl(sessionId)}
+                    leftSection={saveSuccess[sessionId] ? <IconCheck size={16} /> : <IconLink size={16} />}
+                  >
+                    {saveSuccess[sessionId] ? 'Saved' : 'Save Video URL'}
+                  </Button>
+                )}
               </Group>
+
+              {!isCompleted && (
+                <Button 
+                  fullWidth 
+                  color="green" 
+                  mt="sm" 
+                  leftSection={<IconCheck size={16} />} 
+                  onClick={() => handleMarkCompleted(sessionId)}
+                >
+                  Mark Task as Completed
+                </Button>
+              )}
 
               {currentUrlError && (
                 <Alert icon={<IconAlertTriangle size={16} />} color="red" variant="light" mt="xs" p="xs">
@@ -400,59 +427,54 @@ export function WlsStudentView({ user: propUser }) {
               )}
             </Paper>
 
-            {/* SECTION 2: Assignment Comments & Communication Thread */}
+            {/* Comments & Chat Thread Section */}
             <Paper withBorder p="sm" mt="md" radius="sm" bg="white">
-              <Group gap="xs" mb="xs">
+              <Group gap="xs" mb="md">
                 <ThemeIcon color="teal" size="md" variant="light">
                   <IconMessageDots size={20} />
                 </ThemeIcon>
                 <Text size="xs" fw={700} c="gray.8" tt="uppercase">
-                  Assignment Comments & Communication
+                  Comments & Chat Discussion
                 </Text>
               </Group>
 
-              {/* Full Communication Thread History */}
-              <Stack gap="xs" mb="sm">
+              {/* Chat Message Bubbles */}
+              <Stack gap="xs" mb="md" style={{ maxHeight: '300px', overflowY: 'auto' }}>
                 {commentsList.length === 0 ? (
                   <Text size="xs" c="dimmed" fs="italic">
                     No conversation history yet. Send a message or question to your admin below.
                   </Text>
                 ) : (
                   commentsList.map((c) => {
-                    const isAdmin = c.role === 'ADMIN' || c.isAdmin;
+                    const isAdmin = c.role === 'WLS_ADMIN' || c.role === 'SUPER_USER';
                     return (
                       <Paper 
                         key={c.id} 
                         p="xs" 
                         withBorder 
-                        radius="xs" 
-                        bg={isAdmin ? 'green.0' : 'gray.0'}
+                        radius="md" 
+                        bg={isAdmin ? 'green.0' : 'indigo.0'}
                         style={{
-                          borderColor: isAdmin ? 'var(--mantine-color-green-3)' : 'var(--mantine-color-gray-3)',
-                          marginLeft: isAdmin ? '16px' : '0px',
-                          marginRight: isAdmin ? '0px' : '16px',
+                          borderColor: isAdmin ? 'var(--mantine-color-green-3)' : 'var(--mantine-color-indigo-3)',
+                          maxWidth: '85%',
+                          marginLeft: isAdmin ? 'auto' : '0',
+                          marginRight: isAdmin ? '0' : 'auto',
                         }}
                       >
                         <Group justify="space-between" mb={4}>
-                          <Group gap="xs">
-                            <Avatar size="24" radius="xl" color={isAdmin ? 'green' : 'indigo'}>
+                          <Group gap={6}>
+                            <Avatar size="20" radius="xl" color={isAdmin ? 'green' : 'indigo'}>
                               {c.userName?.charAt(0) || 'U'}
                             </Avatar>
                             <Text size="xs" fw={700} c={isAdmin ? 'green.9' : 'indigo.9'}>
-                              {isAdmin ? `🛡️ Admin (${c.userName})` : `👤 You (${c.userName})`}
+                              {isAdmin ? `🛡️ Admin (${c.userName})` : `👤 ${c.userName}`}
                             </Text>
-                            <Badge size="xs" variant="light" color={isAdmin ? 'green' : 'blue'}>
-                              {c.role || 'STUDENT'}
-                            </Badge>
                           </Group>
-                          <Text size="10px" c="dimmed">
-                            {c.timestamp ? new Date(c.timestamp).toLocaleString('en-US', {
-                              dateStyle: 'short',
-                              timeStyle: 'short',
-                            }) : 'Just now'}
+                          <Text size="9px" c="dimmed">
+                            {c.timestamp ? new Date(c.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}
                           </Text>
                         </Group>
-                        <Text size="xs" c="gray.8" style={{ whiteSpace: 'pre-wrap' }}>
+                        <Text size="xs" c="gray.8" style={{ whiteSpace: 'pre-wrap', paddingLeft: '26px' }}>
                           {c.text}
                         </Text>
                       </Paper>
@@ -461,51 +483,49 @@ export function WlsStudentView({ user: propUser }) {
                 )}
               </Stack>
 
-              {/* Quick Emojis & Reaction Toolbar */}
-              <Group gap={6} mb="xs">
-                <Text size="11px" fw={700} c="dimmed">Quick Emojis:</Text>
-                <ActionIcon variant="light" color="blue" radius="xl" size="xs" onClick={() => handleAddReaction(sessionId, '👍')} title="Thumbs Up">
-                  <span style={{ fontSize: '12px' }}>👍</span>
-                </ActionIcon>
-                <ActionIcon variant="light" color="red" radius="xl" size="xs" onClick={() => handleAddReaction(sessionId, '❤️')} title="Heart">
-                  <span style={{ fontSize: '12px' }}>❤️</span>
-                </ActionIcon>
-                <ActionIcon variant="light" color="yellow" radius="xl" size="xs" onClick={() => handleAddReaction(sessionId, '😊')} title="Smile">
-                  <span style={{ fontSize: '12px' }}>😊</span>
-                </ActionIcon>
-                <ActionIcon variant="light" color="orange" radius="xl" size="xs" onClick={() => handleAddReaction(sessionId, '👏')} title="Clap">
-                  <span style={{ fontSize: '12px' }}>👏</span>
-                </ActionIcon>
-                <ActionIcon variant="light" color="grape" radius="xl" size="xs" onClick={() => handleAddReaction(sessionId, '🔥')} title="Fire">
-                  <span style={{ fontSize: '12px' }}>🔥</span>
-                </ActionIcon>
-              </Group>
+              {!isCompleted && (
+                <Stack gap={6}>
+                  {/* Quick-select Emoji Bar */}
+                  <Group gap={4}>
+                    {['😊', '👍', '❤️', '👏', '🔥', '🤲', '💡', '✨'].map((emoji) => (
+                      <Button
+                        key={emoji}
+                        variant="subtle"
+                        size="compact-xs"
+                        onClick={() => handleAddEmoji(sessionId, emoji)}
+                      >
+                        {emoji}
+                      </Button>
+                    ))}
+                  </Group>
 
-              <Group align="flex-end" gap="xs">
-                <Textarea
-                  style={{ flex: 1 }}
-                  placeholder="Respond back to admin comments or ask a question..."
-                  autosize
-                  minRows={2}
-                  maxRows={4}
-                  value={commentInputs[sessionId] || ''}
-                  error={!!currentCommentError}
-                  onChange={(e) => {
-                    setCommentInputs((prev) => ({ ...prev, [sessionId]: e.target.value }));
-                    if (commentErrors[sessionId]) {
-                      setCommentErrors((prev) => ({ ...prev, [sessionId]: null }));
-                    }
-                  }}
-                />
-                <ActionIcon
-                  size="lg"
-                  color="teal"
-                  variant="filled"
-                  onClick={() => handleAddComment(sessionId)}
-                >
-                  <IconSend size={18} />
-                </ActionIcon>
-              </Group>
+                  <Group align="flex-end" gap="xs">
+                    <Textarea
+                      style={{ flex: 1 }}
+                      placeholder="Type a message or question..."
+                      autosize
+                      minRows={2}
+                      maxRows={4}
+                      value={commentInputs[sessionId] || ''}
+                      error={!!currentCommentError}
+                      onChange={(e) => {
+                        setCommentInputs((prev) => ({ ...prev, [sessionId]: e.target.value }));
+                        if (commentErrors[sessionId]) {
+                          setCommentErrors((prev) => ({ ...prev, [sessionId]: null }));
+                        }
+                      }}
+                    />
+                    <ActionIcon
+                      size="lg"
+                      color="teal"
+                      variant="filled"
+                      onClick={() => handleAddComment(sessionId)}
+                    >
+                      <IconSend size={18} />
+                    </ActionIcon>
+                  </Group>
+                </Stack>
+              )}
 
               {currentCommentError && (
                 <Text size="xs" c="red.7" mt={4} fw={500}>

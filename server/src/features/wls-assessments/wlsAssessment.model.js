@@ -12,6 +12,15 @@ const evaluationSchema = new mongoose.Schema({
   evaluatedAt: { type: Date, default: Date.now }
 }, { _id: false });
 
+// 1. Define the message schema for assessment-specific discussion
+const assessmentMessageSchema = new mongoose.Schema({
+  senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  senderName: { type: String, required: true },
+  senderRole: { type: String, enum: ['USER', 'ADMIN'], default: 'USER' },
+  text: { type: String, required: true },
+  timestamp: { type: Date, default: Date.now }
+}, { _id: true });
+
 const AssessmentSchema = new mongoose.Schema(
   {
     sessionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Session', required: true },
@@ -22,6 +31,7 @@ const AssessmentSchema = new mongoose.Schema(
     missedReason: { type: String, default: '' },
     status: { type: String, enum: ['PENDING', 'COMPLETED', 'REVIEWED', 'MISSED'], default: 'PENDING' },
     evaluations: [evaluationSchema],
+    messages: [assessmentMessageSchema], // 2. Attached directly to the assessment
     finalScore: { type: Number, default: 0 },
     conclusionStatus: { type: String, enum: ['PENDING', 'PASSED', 'FAILED'], default: 'PENDING' }
   },

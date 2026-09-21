@@ -11,5 +11,6 @@ router.post('/', controller.create);
 router.put('/:id', controller.update); 
 router.patch('/:id/status', controller.updateStatus);
 router.delete('/:id', controller.delete);
+router.post('/:id/comments', controller.addComment);
 
 export default router;

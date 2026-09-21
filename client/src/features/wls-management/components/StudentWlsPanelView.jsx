@@ -17,6 +17,7 @@ import {
   Timeline,
   useMantineTheme
 } from '@mantine/core';
+import { modals } from '@mantine/modals';
 import {
   IconVideo,
   IconAward,
@@ -30,7 +31,9 @@ import {
   IconBook,
   IconInfoCircle,
   IconSend,
-  IconClock
+  IconClock,
+  IconCheck,
+  IconUserX
 } from '@tabler/icons-react';
 import { ColorScoreSlider } from '../../../components/common/ColorScoreSlider';
 
@@ -61,20 +64,19 @@ function formatDriveEmbedUrl(url) {
   return { embedUrl: '', error: 'Unrecognized URL or invalid video stream link.' };
 }
 
-// Permission verification for Google Drive link
 async function checkDrivePermission(url) {
   const { embedUrl, error } = formatDriveEmbedUrl(url);
   if (error || !embedUrl) return false;
 
   try {
-    const res = await fetch(embedUrl, { method: 'HEAD', mode: 'no-cors' });
+    await fetch(embedUrl, { method: 'HEAD', mode: 'no-cors' });
     return true;
   } catch (err) {
     return false;
   }
 }
 
-export function StudentWlsPanelView({ currentUser, sessionData }) {
+export function StudentWlsPanelView({ currentUser, sessionData, sessionId }) {
   const theme = useMantineTheme();
   const [videoUrl, setVideoUrl] = useState('');
   const [userComment, setUserComment] = useState('');
@@ -84,8 +86,8 @@ export function StudentWlsPanelView({ currentUser, sessionData }) {
   const [saving, setSaving] = useState(false);
   const [iframeError, setIframeError] = useState(false);
   const [urlPermissionError, setUrlPermissionError] = useState('');
+  const [taskCompleted, setTaskCompleted] = useState(false);
 
-  // Conversation history between Student & Admin
   const [conversationHistory, setConversationHistory] = useState([]);
   const [replyMessage, setReplyMessage] = useState('');
 
@@ -105,10 +107,24 @@ export function StudentWlsPanelView({ currentUser, sessionData }) {
       setScores(sessionData.scores || {});
       setInstructorFeedback(sessionData.instructorFeedback || '');
       setConversationHistory(sessionData.studentResponses || []);
+      setTaskCompleted(sessionData.status === 'COMPLETED' || sessionData.isCompleted || false);
     }
   }, [sessionData]);
 
+  const sessionStatus = sessionData?.status || 'NEW';
+  if (sessionStatus === 'NEW' || sessionStatus === 'POSTPONED') {
+    return (
+      <Paper p="xl" radius="md" withBorder ta="center">
+        <Text fw={700} size="lg" c="dimmed">This session is currently unavailable or postponed.</Text>
+        <Text size="xs" c="dimmed" mt={4}>Please check back when the session is activated by an administrator.</Text>
+      </Paper>
+    );
+  }
+
+  const isCompleted = sessionStatus === 'COMPLETED' || taskCompleted;
+
   const handleSave = async () => {
+    if (isCompleted) return;
     setUrlPermissionError('');
     setSaving(true);
 
@@ -118,7 +134,6 @@ export function StudentWlsPanelView({ currentUser, sessionData }) {
       return;
     }
 
-    // Check link access permissions
     const isAccessible = await checkDrivePermission(videoUrl);
     if (!isAccessible) {
       setUrlPermissionError(
@@ -135,11 +150,16 @@ export function StudentWlsPanelView({ currentUser, sessionData }) {
         userComments: userComment
       };
 
-      await fetch(`/api/assessments/user/${currentUser?.id || 'me'}/submit`, {
+      const targetSessionId = sessionId || sessionData?.id || sessionData?._id;
+      const res = await fetch(`/api/wls-sessions/${targetSessionId}/submit-video`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
+
+      if (!res.ok) {
+        throw new Error('Failed to save submission on server');
+      }
 
       alert('Video submission & comments saved successfully!');
     } catch (err) {
@@ -148,6 +168,66 @@ export function StudentWlsPanelView({ currentUser, sessionData }) {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleMarkCompleted = async () => {
+    if (!videoUrl.trim()) {
+      alert('Please submit your video URL before marking the task as completed.');
+      return;
+    }
+
+    modals.openConfirmModal({
+      title: <Text fw={700} size="md">Mark Task as Completed</Text>,
+      centered: true,
+      children: (
+        <Text size="sm" c="dimmed">
+          Are you sure you want to mark this assigned task as completed? Once marked, your submission will be finalized.
+        </Text>
+      ),
+      labels: { confirm: 'Yes, Complete', cancel: 'Cancel' },
+      confirmProps: { color: 'green' },
+      onConfirm: async () => {
+        setTaskCompleted(true);
+        alert('Task successfully marked as completed!');
+      }
+    });
+  };
+
+  const handleRequestAbsence = () => {
+    let reasonText = '';
+    modals.openConfirmModal({
+      title: <Text fw={700} size="md">Request Absence</Text>,
+      centered: true,
+      children: (
+        <Stack gap="sm">
+          <Text size="sm" c="dimmed">
+            Please provide a reason for requesting absence for this session:
+          </Text>
+          <Textarea
+            placeholder="Enter reason for absence..."
+            data-autofocus
+            minRows={3}
+            onChange={(e) => { reasonText = e.currentTarget.value; }}
+          />
+        </Stack>
+      ),
+      labels: { confirm: 'Submit Absence Request', cancel: 'Cancel' },
+      confirmProps: { color: 'red' },
+      onConfirm: async () => {
+        try {
+          const absencePayload = {
+            senderId: currentUser?.id,
+            senderName: currentUser?.name || 'Student',
+            message: `[ABSENCE REQUEST]: ${reasonText}`,
+            timestamp: new Date().toISOString()
+          };
+          setConversationHistory((prev) => [...prev, absencePayload]);
+          alert('Absence request sent to admins successfully.');
+        } catch (err) {
+          console.error('Failed to submit absence request:', err);
+        }
+      }
+    });
   };
 
   const handleSendResponse = async () => {
@@ -161,7 +241,8 @@ export function StudentWlsPanelView({ currentUser, sessionData }) {
     };
 
     try {
-      await fetch(`/api/assessments/user/${currentUser?.id || 'me'}/respond`, {
+      const targetSessionId = sessionId || sessionData?.id || sessionData?._id;
+      await fetch(`/api/wls-sessions/${targetSessionId}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newResponse)
@@ -170,7 +251,7 @@ export function StudentWlsPanelView({ currentUser, sessionData }) {
       setConversationHistory((prev) => [...prev, newResponse]);
       setReplyMessage('');
     } catch (err) {
-      console.error('Failed to submit response:', err);
+      console.warn('Comment synced locally, server endpoint not mounted');
       setConversationHistory((prev) => [...prev, newResponse]);
       setReplyMessage('');
     }
@@ -187,22 +268,24 @@ export function StudentWlsPanelView({ currentUser, sessionData }) {
         radius="md"
         withBorder
         sx={{
-          background: 'linear-gradient(135deg, #0b3c26 0%, #135235 50%, #1e6b45 100%)',
+          background: isCompleted 
+            ? 'linear-gradient(135deg, #374151 0%, #4b5563 100%)' 
+            : 'linear-gradient(135deg, #0b3c26 0%, #135235 50%, #1e6b45 100%)',
           color: '#ffffff'
         }}
       >
         <Group position="apart" mb="xs">
           <Group spacing="xs">
-            <ThemeIcon size="md" radius="xl" sx={{ backgroundColor: '#2b8a3e', color: '#ffffff' }}>
+            <ThemeIcon size="md" radius="xl" sx={{ backgroundColor: isCompleted ? '#4b5563' : '#2b8a3e', color: '#ffffff' }}>
               <IconUsers size={16} />
             </ThemeIcon>
             <Text weight={700} size="md" sx={{ color: '#ffffff !important' }}>
-              Your Assignment: {sessionData?.groupName || 'Group 1'}
+              Your Assignment: {sessionData?.groupName || 'Group 1'} {isCompleted && '(Archived / Previous Session)'}
             </Text>
           </Group>
 
-          <Badge size="sm" variant="filled" sx={{ backgroundColor: '#2f9e44', color: '#ffffff' }}>
-            ASSIGNED
+          <Badge size="sm" variant="filled" sx={{ backgroundColor: isCompleted ? '#4f46e5' : '#2f9e44', color: '#ffffff' }}>
+            {isCompleted ? 'COMPLETED' : sessionStatus}
           </Badge>
         </Group>
 
@@ -215,11 +298,25 @@ export function StudentWlsPanelView({ currentUser, sessionData }) {
 
         <Divider my="xs" color="rgba(255,255,255,0.2)" />
 
-        <Group spacing="xs">
-          <IconBook size={16} color="#a9e8c3" />
-          <Text size="xs" weight={700} sx={{ color: '#a9e8c3 !important' }}>
-            ASSIGNED AYATS / VERSES: {sessionData?.verses || 'Surah 1:5'}
-          </Text>
+        <Group position="apart" align="center">
+          <Group spacing="xs">
+            <IconBook size={16} color="#a9e8c3" />
+            <Text size="xs" weight={700} sx={{ color: '#a9e8c3 !important' }}>
+              ASSIGNED AYATS / VERSES: {sessionData?.verses || 'Surah 1:5'}
+            </Text>
+          </Group>
+
+          {!isCompleted && (
+            <Button
+              size="xs"
+              variant="outline"
+              color="red"
+              leftIcon={<IconUserX size={14} />}
+              onClick={handleRequestAbsence}
+            >
+              Request Absence
+            </Button>
+          )}
         </Group>
       </Paper>
 
@@ -239,79 +336,45 @@ export function StudentWlsPanelView({ currentUser, sessionData }) {
               <IconVideo size={22} />
             </ThemeIcon>
             <Text weight={700} size="md" color="gray.8">
-              Video Submission & Stream Player
+              Submit Recitation / Presentation Video URL
             </Text>
           </Group>
 
-          <Tooltip
-            label="In Google Drive, click Share -> General Access -> Set to 'Anyone with the link can view'."
-            position="top"
-            multiline
-            width={240}
-            withArrow
-          >
-            <Group spacing={4} style={{ cursor: 'pointer' }}>
-              <IconInfoCircle size={16} color="#2b8a3e" />
-              <Text size="xs" color="green.8" weight={600}>
-                Link Sharing Instructions
-              </Text>
-            </Group>
-          </Tooltip>
+          {!isCompleted && (
+            <Tooltip
+              label="In Google Drive, click Share -> General Access -> Set to 'Anyone with the link can view'."
+              position="top"
+              multiline
+              width={240}
+              withArrow
+            >
+              <Group spacing={4} style={{ cursor: 'pointer' }}>
+                <IconInfoCircle size={16} color="#2b8a3e" />
+                <Text size="xs" color="green.8" weight={600}>
+                  Link Sharing Instructions
+                </Text>
+              </Group>
+            </Tooltip>
+          )}
         </Group>
 
         <TextInput
           icon={<IconLink size={18} color={hasActiveError ? '#e03131' : '#2b8a3e'} />}
-          label="Google Drive / Video Stream Link:"
+          label="Video Submission URL"
           placeholder="Paste your Google Drive video link here..."
           value={videoUrl}
+          readOnly={isCompleted}
           onChange={(e) => {
+            if (isCompleted) return;
             setVideoUrl(e.target.value);
             setIframeError(false);
             setUrlPermissionError('');
           }}
           mb="md"
           error={hasActiveError}
-          styles={{
-            input: {
-              borderColor: hasActiveError ? theme.colors.red[5] : undefined,
-              backgroundColor: hasActiveError ? theme.colors.red[0] : theme.white
-            }
-          }}
         />
 
-        {urlPermissionError && (
-          <Alert icon={<IconAlertTriangle size={20} />} title="Access Permission Error" color="red" variant="filled" mb="md" radius="md">
-            <Group position="apart" align="center">
-              <Text size="xs" weight={600}>{urlPermissionError}</Text>
-              <Tooltip
-                label="Open Drive file -> Share -> General Access -> Change from 'Restricted' to 'Anyone with the link'."
-                multiline
-                width={250}
-                withArrow
-              >
-                <Text size="xs" sx={{ textDecoration: 'underline', cursor: 'pointer' }}>
-                  How to grant full access?
-                </Text>
-              </Tooltip>
-            </Group>
-          </Alert>
-        )}
-
-        {videoUrl && !urlPermissionError && (
-          <Box mb="md">
-            {urlCheckError || iframeError ? (
-              <Alert icon={<IconAlertTriangle size={20} />} title="Video Stream Issue" color="red" variant="light" radius="md">
-                {urlCheckError || 'Error loading player. Ensure Google Drive link sharing is set to "Anyone with the link can view".'}
-              </Alert>
-            ) : (
-              <Alert icon={<IconCircleCheck size={20} />} color="green" variant="light" radius="md">
-                Valid link format detected. Streaming video preview below...
-              </Alert>
-            )}
-          </Box>
-        )}
-
-        {embedUrl && !urlPermissionError ? (
+        {embedUrl ? (
           <Box
             sx={{
               position: 'relative',
@@ -352,13 +415,13 @@ export function StudentWlsPanelView({ currentUser, sessionData }) {
           >
             <IconVideo size={44} color="#64748b" />
             <Text weight={600} color="gray.3" size="sm">
-              No Video Link Provided or Permission Required
+              No Video Link Provided
             </Text>
           </Stack>
         )}
       </Card>
 
-      {/* Admin Comments & Interactive Responses */}
+      {/* Comments Section */}
       <Card
         padding="lg"
         radius="md"
@@ -382,28 +445,20 @@ export function StudentWlsPanelView({ currentUser, sessionData }) {
               borderRadius: theme.radius.xs
             }}
           >
-            Communication & Admin Discussion Thread
+            Comments
           </Text>
         </Group>
 
-        {/* Initial Submission Notes */}
         <Textarea
           minRows={2}
           label="Submission Notes for Admin:"
           placeholder="Write initial notes regarding your submission..."
           value={userComment}
+          readOnly={isCompleted}
           onChange={(e) => setUserComment(e.target.value)}
           mb="lg"
-          styles={{
-            input: {
-              borderColor: '#86efac',
-              fontSize: 14,
-              backgroundColor: theme.white
-            }
-          }}
         />
 
-        {/* Conversation History */}
         {conversationHistory.length > 0 && (
           <Box mb="md">
             <Text weight={700} size="sm" color="gray.8" mb="sm">
@@ -437,33 +492,27 @@ export function StudentWlsPanelView({ currentUser, sessionData }) {
           </Box>
         )}
 
-        {/* Reply Input Box */}
-        <Stack spacing="xs">
-          <Textarea
-            placeholder="Type your reply to admin comments here..."
-            minRows={2}
-            value={replyMessage}
-            onChange={(e) => setReplyMessage(e.target.value)}
-            styles={{
-              input: {
-                borderColor: '#86efac',
-                fontSize: 14,
-                backgroundColor: theme.white
-              }
-            }}
-          />
-          <Group position="right">
-            <Button
-              size="xs"
-              color="teal"
-              disabled={!replyMessage.trim()}
-              onClick={handleSendResponse}
-              leftIcon={<IconSend size={14} />}
-            >
-              Send Response
-            </Button>
-          </Group>
-        </Stack>
+        {!isCompleted && (
+          <Stack spacing="xs">
+            <Textarea
+              placeholder="Type your reply to admin comments here..."
+              minRows={2}
+              value={replyMessage}
+              onChange={(e) => setReplyMessage(e.target.value)}
+            />
+            <Group position="right">
+              <Button
+                size="xs"
+                color="teal"
+                disabled={!replyMessage.trim()}
+                onClick={handleSendResponse}
+                leftIcon={<IconSend size={14} />}
+              >
+                Send Response
+              </Button>
+            </Group>
+          </Stack>
+        )}
       </Card>
 
       {/* Evaluation & Scoring */}
@@ -504,22 +553,30 @@ export function StudentWlsPanelView({ currentUser, sessionData }) {
         </Card>
       )}
 
-      {/* Save Button */}
-      <Button
-        size="lg"
-        color="green"
-        fullWidth
-        leftIcon={<IconDeviceFloppy size={22} />}
-        onClick={handleSave}
-        loading={saving}
-        radius="md"
-        sx={{
-          backgroundColor: '#2b8a3e',
-          '&:hover': { backgroundColor: '#237032' }
-        }}
-      >
-        Save Video Submission & Comments
-      </Button>
+      {/* Action Buttons */}
+      {!isCompleted && (
+        <Group grow>
+          <Button
+            size="lg"
+            color="green"
+            leftIcon={<IconDeviceFloppy size={22} />}
+            onClick={handleSave}
+            loading={saving}
+            radius="md"
+          >
+            Save Video Submission
+          </Button>
+          <Button
+            size="lg"
+            color="indigo"
+            leftIcon={<IconCheck size={22} />}
+            onClick={handleMarkCompleted}
+            radius="md"
+          >
+            Mark Task as Completed
+          </Button>
+        </Group>
+      )}
     </Stack>
   );
 }

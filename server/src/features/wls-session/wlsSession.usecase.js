@@ -1,5 +1,6 @@
 import { WlsSessionModel } from './wlsSession.model.js';
 import { WlsSessionMapper } from './wlsSession.mapper.js';
+import { WLS_SESSION_STATUSES } from '../../common/constants/enums.js';
 import mongoose from 'mongoose';
 
 export class WlsSessionUseCase {
@@ -45,10 +46,10 @@ export class WlsSessionUseCase {
   }
 
   async updateStatus(id, status, cancelReason = '') {
-    const allowedStatuses = ['NEW', 'ACTIVE', 'POSTPONED', 'COMPLETED', 'CANCELLED'];
-    if (!allowedStatuses.includes(status)) {
-      throw new Error('Invalid session status value.');
-    }
+    const allowedStatuses = Object.values(WLS_SESSION_STATUSES);
+if (!allowedStatuses.includes(status)) {
+  throw new Error('Invalid session status value.');
+}
 
     const updated = await WlsSessionModel.findByIdAndUpdate(
       id,
@@ -66,6 +67,16 @@ export class WlsSessionUseCase {
   async deleteSession(id) {
     await WlsSessionModel.findByIdAndDelete(id);
     return { success: true };
+  }
+
+  async addComment(sessionId, comment) {
+    const updated = await WlsSessionModel.findByIdAndUpdate(
+      sessionId,
+      { $push: { comments: comment } },
+      { new: true, runValidators: true }
+    );
+    if (!updated) throw new Error('WLS Session not found.');
+    return WlsSessionMapper.toResponse(updated);
   }
 
   async updateSession(id, dto) {

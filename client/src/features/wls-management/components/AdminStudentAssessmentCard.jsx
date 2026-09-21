@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { 
   Paper, Group, Stack, Text, Badge, Slider, Textarea, Button, 
-  Collapse, ActionIcon, Anchor, Modal, Alert, Box, Avatar, Title 
+  Collapse, ActionIcon, Anchor, Modal, Alert, Box, Avatar, Title, Timeline, ThemeIcon 
 } from '@mantine/core';
 import { 
   IconChevronDown, IconChevronUp, IconVideo, IconCheck, 
-  IconX, IconAlertCircle, IconMaximize, IconUser, IconCalendar 
+  IconX, IconAlertCircle, IconMaximize, IconUser, IconCalendar, 
+  IconMessages, IconClock, IconSend 
 } from '@tabler/icons-react';
 import { getSliderColor } from './utils';
 
@@ -31,11 +32,15 @@ export function AdminStudentAssessmentCard({
   const [selectedVideoUrl, setSelectedVideoUrl] = useState('');
   
   const [ratings, setRatings] = useState(student?.assessment?.scores || {});
-  const [comments, setComments] = useState(student?.assessment?.comments || '');
+  const [comments, setComments] = useState(student?.assessment?.comments || student?.instructorFeedback || '');
   const [saving, setSaving] = useState(false);
 
   const hasSubmitted = Array.isArray(student?.submissionUrls) && student.submissionUrls.length > 0;
   const isMissedWithReason = !hasSubmitted && Boolean(student?.missedReason);
+  
+  // Retrieve student submission comments and history
+  const conversationHistory = student?.studentResponses || student?.comments || [];
+  const userSubmissionNote = student?.userComments || student?.submissionNote || '';
 
   const getEmbedUrl = (url) => {
     if (!url) return '';
@@ -237,14 +242,42 @@ export function AdminStudentAssessmentCard({
               })}
             </Stack>
 
-            <Textarea
-              label="Admin Feedback & Comments"
-              placeholder="Provide comments or guidance visible to the student..."
-              value={comments}
-              onChange={(e) => setComments(e.currentTarget.value)}
-              rows={3}
-              size="xs"
-            />
+            {/* Admin Comments / Feedbacks section with User Response Review */}
+            <Paper withBorder p="md" radius="md" bg="cyan.0" style={{ borderColor: 'var(--mantine-color-cyan-3)' }}>
+              <Group gap="xs" mb="sm">
+                <ThemeIcon size="md" radius="xl" color="cyan" variant="filled">
+                  <IconMessages size={18} />
+                </ThemeIcon>
+                <Text fw={800} size="sm" c="cyan.9">
+                  Admin Comments / Feedbacks
+                </Text>
+              </Group>
+
+              {/* Review User's Initial Note & Conversation History */}
+              {(userSubmissionNote || conversationHistory.length > 0) && (
+                <Paper withBorder p="xs" radius="sm" mb="md" bg="white">
+                  <Text size="xs" fw={700} c="dark" mb={4}>User Response / Comments:</Text>
+                  {userSubmissionNote && (
+                    <Text size="xs" c="gray.7" mb={4}>
+                      • <strong>Initial Note:</strong> {userSubmissionNote}
+                    </Text>
+                  )}
+                  {conversationHistory.map((item, idx) => (
+                    <Text key={idx} size="xs" c="gray.7" mb={2}>
+                      • <strong>{item.senderName || 'Student'}:</strong> {item.message || item.text}
+                    </Text>
+                  ))}
+                </Paper>
+              )}
+
+              <Textarea
+                placeholder="Enter comprehensive assessment feedback and respond to the student..."
+                value={comments}
+                onChange={(e) => setComments(e.currentTarget.value)}
+                rows={4}
+                size="xs"
+              />
+            </Paper>
 
             <Group justify="flex-end">
               <Button color="indigo" size="xs" loading={saving} onClick={handleSave}>

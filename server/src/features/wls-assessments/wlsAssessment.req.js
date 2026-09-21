@@ -8,14 +8,22 @@ export class SubmitAssessmentReqDTO {
 }
 
 export class GradeAssessmentReqDTO {
-  constructor({ evaluatorId, evaluatorName, scores, feedback }) {
+  constructor({ evaluatorId, evaluatorName, scores, feedback, adminSubmissionUrl, isDraft }) {
     this.evaluatorId = evaluatorId;
     this.evaluatorName = evaluatorName || 'Evaluator';
-    this.scores = {
-      presentation: scores?.presentation || 0,
-      recitation: scores?.recitation || 0,
-      reflection: scores?.reflection || 0
-    };
+    this.scores = scores || {};
     this.feedback = feedback || '';
+    this.adminSubmissionUrl = adminSubmissionUrl || '';
+    this.isDraft = isDraft || false; // Fixed undefined variable error
+  }
+}
+
+// 3. Add message request DTO
+export class AssessmentMessageReqDTO {
+  constructor({ senderId, senderName, senderRole, text }) {
+    this.senderId = senderId;
+    this.senderName = senderName || 'User';
+    this.senderRole = senderRole || 'USER';
+    this.text = text;
   }
 }

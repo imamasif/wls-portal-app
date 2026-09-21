@@ -66,6 +66,30 @@ router.put('/:id/complete', async (req, res) => {
   }
 });
 
+// Add this route to your express router in wlsAssessment.controller.js:
+
+router.post('/:id/messages', async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid Assessment ObjectId' });
+    }
+    
+    const dto = AssessmentMapper.toMessageReqDTO(req.body);
+    if (!dto.text || !dto.senderId) {
+      return res.status(400).json({ error: 'Sender ID and text are required.' });
+    }
+
+    const updatedAssessment = await assessmentUseCase.addMessage(req.params.id, dto);
+    if (!updatedAssessment) {
+      return res.status(404).json({ message: 'Assessment record not found' });
+    }
+
+    res.json(AssessmentMapper.toResDTO(updatedAssessment));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.post('/:sessionId/submit-video', async (req, res) => {
   try {
     const { sessionId } = req.params;

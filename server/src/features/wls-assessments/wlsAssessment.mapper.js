@@ -1,4 +1,4 @@
-import { SubmitAssessmentReqDTO, GradeAssessmentReqDTO } from './wlsAssessment.req.js';
+import { SubmitAssessmentReqDTO, GradeAssessmentReqDTO, AssessmentMessageReqDTO } from './wlsAssessment.req.js';
 import { AssessmentResDTO } from './wlsAssessment.res.js';
 
 export class AssessmentMapper {
@@ -8,6 +8,10 @@ export class AssessmentMapper {
 
   static toGradeReqDTO(body) {
     return new GradeAssessmentReqDTO(body);
+  }
+
+  static toMessageReqDTO(body) {
+    return new AssessmentMessageReqDTO(body);
   }
 
   static toResDTO(doc) {
