@@ -1,5 +1,5 @@
 import Ajv from 'ajv';
-const ajv = new Ajv({ allErrors: true });
+const ajv = new Ajv({ allErrors: true, allowUnionTypes: true });
 
 const createWlsSessionSchema = {
   type: 'object',

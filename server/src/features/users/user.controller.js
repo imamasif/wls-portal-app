@@ -39,7 +39,7 @@ router.post('/', async (req, res) => {
   try {
     const { 
       email, password, name, groupNumbers, groupNumber, phones, profession, education, 
-      country, countryCode, state, stateCode, city, drive, 
+      country, countryCode, state, stateCode, city, drive, gender,
       driveFolderPath, causeContribution, profilePictureUrl, socialMedia 
     } = req.body;
 
@@ -68,6 +68,7 @@ router.post('/', async (req, res) => {
       password: password,
       name: name || cleanEmail.split('@')[0],
       role: 'USER',
+      gender: gender || '',
       groupNumbers: assignedGroups,
       phones: Array.isArray(phones) ? phones : [],
       phone: phones && phones[0] ? phones[0].number : '',
@@ -255,6 +256,7 @@ router.put('/:id', async (req, res) => {
     user.name = body.name ?? user.name;
     user.email = body.email ? body.email.toLowerCase().trim() : user.email;
     user.role = body.role ?? user.role;
+    user.gender = body.gender ?? user.gender;
     
     if (Array.isArray(body.groupNumbers)) {
       user.groupNumbers = body.groupNumbers;

@@ -5,7 +5,6 @@ export function ProfilePictureUploader({ value, onChange, name }) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
 
-  // Helper to compress images on upload/snap to avoid 413 Payload Too Large
   const compressImage = (dataUrl, maxWidth = 300, maxHeight = 300, quality = 0.7) => {
     return new Promise((resolve) => {
       const img = new Image();
@@ -80,35 +79,40 @@ export function ProfilePictureUploader({ value, onChange, name }) {
   };
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', background: '#f8fafc', padding: '12px 16px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-      {value ? (
-        <img src={value} alt="Profile Preview" style={{ width: '64px', height: '64px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #0284c7' }} />
-      ) : (
-        <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#0284c7', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: '700' }}>
-          {name ? name.charAt(0).toUpperCase() : 'U'}
-        </div>
-      )}
-      <div style={{ display: 'flex', gap: '10px' }}>
-        <label style={{ background: '#ffffff', border: '1px solid #cbd5e1', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '13px', color: '#334155' }}>
-          📁 Upload File
-          <input type="file" accept="image/*" onChange={handleFileUpload} style={{ display: 'none' }} />
-        </label>
-        <button type="button" onClick={startCamera} style={{ background: '#0284c7', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '8px', fontWeight: '600', fontSize: '13px', cursor: 'pointer' }}>
-          📷 Use Camera
-        </button>
-      </div>
-
-      {showCameraModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
-          <div style={{ background: '#fff', padding: '20px', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
-            <video ref={videoRef} autoPlay playsInline style={{ width: '300px', height: '225px', borderRadius: '8px', background: '#000' }} />
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button type="button" onClick={capturePhoto} style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px', fontWeight: '700', cursor: 'pointer' }}>Take Photo</button>
-              <button type="button" onClick={stopCamera} style={{ background: '#cbd5e1', color: '#334155', border: 'none', padding: '8px 16px', borderRadius: '6px', fontWeight: '700', cursor: 'pointer' }}>Cancel</button>
-            </div>
+    <div style={{ fontFamily: 'inherit' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', background: '#f8fafc', padding: '12px 16px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+        {value ? (
+          <img src={value} alt="Profile Preview" style={{ width: '64px', height: '64px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #0f766e' }} />
+        ) : (
+          <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#0f766e', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: '700', fontFamily: 'inherit' }}>
+            {name ? name.charAt(0).toUpperCase() : 'U'}
+          </div>
+        )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <span style={{ fontSize: '12px', color: '#64748b', fontFamily: 'inherit' }}>Upload a professional portrait or snap one via camera.</span>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <label style={{ background: '#ffffff', border: '1px solid #cbd5e1', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '13px', color: '#334155', fontFamily: 'inherit' }}>
+              📁 Upload File
+              <input type="file" accept="image/*" onChange={handleFileUpload} style={{ display: 'none' }} />
+            </label>
+            <button type="button" onClick={startCamera} style={{ background: '#0f766e', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '6px', fontWeight: '600', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>
+              📷 Use Camera
+            </button>
           </div>
         </div>
-      )}
+
+        {showCameraModal && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
+            <div style={{ background: '#fff', padding: '20px', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+              <video ref={videoRef} autoPlay playsInline style={{ width: '300px', height: '225px', borderRadius: '8px', background: '#000' }} />
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button type="button" onClick={capturePhoto} style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px', fontWeight: '700', cursor: 'pointer' }}>Take Photo</button>
+                <button type="button" onClick={stopCamera} style={{ background: '#cbd5e1', color: '#334155', border: 'none', padding: '8px 16px', borderRadius: '6px', fontWeight: '700', cursor: 'pointer' }}>Cancel</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -46,3 +46,12 @@ export const isSuperUserRole = (role?: UserRole | string): boolean => {
   const upper = role.toUpperCase();
   return upper === UserRole.SUPER_USER || upper === UserRole.WLS_ADMIN;
 };
+
+/**
+ * User Gender Enum restricting options to Male and Female
+ */
+export enum UserGender {
+  MALE = "Male",
+  FEMALE = "Female",
+  NONE = "",
+}

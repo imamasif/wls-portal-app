@@ -1,9 +1,23 @@
+// src/components/common/PhoneListInput.jsx
 import React from 'react';
-import PhoneInput from 'react-phone-number-input';
-import 'react-phone-number-input/style.css';
-import styles from './PhoneListInput.module.css';
+import { Group, Select, Button, Radio, Text, Box, Stack, TextInput } from '@mantine/core';
+import { 
+  IconPlus, 
+  IconTrash, 
+  IconDeviceMobile, 
+  IconBriefcase, 
+  IconHome, 
+  IconDots,
+  IconPhone
+} from '@tabler/icons-react';
 
 export function PhoneListInput({ phones = [], onChange }) {
+  const sanitizeE164 = (val) => {
+    if (!val) return '';
+    const clean = val.replace(/[^\d+]/g, '');
+    return clean.startsWith('+') ? clean : `+${clean}`;
+  };
+
   const handleAddPhone = () => {
     onChange([
       ...phones,
@@ -21,7 +35,12 @@ export function PhoneListInput({ phones = [], onChange }) {
 
   const handleChange = (index, key, value) => {
     const updated = [...phones];
-    updated[index][key] = value;
+    if (key === 'number') {
+      updated[index][key] = sanitizeE164(value);
+    } else {
+      updated[index][key] = value;
+    }
+
     if (key === 'isPrimary' && value === true) {
       updated.forEach((p, i) => {
         p.isPrimary = i === index;
@@ -30,67 +49,101 @@ export function PhoneListInput({ phones = [], onChange }) {
     onChange(updated);
   };
 
-  return (
-    <div className={styles.phoneContainer}>
-      <div className={styles.header}>
-        <label className={styles.label}>Phone / Mobile Numbers</label>
-        <button
-          type="button"
-          onClick={handleAddPhone}
-          className={styles.addBtn}
-        >
-          + Add Phone
-        </button>
-      </div>
+  const getTypeIcon = (type) => {
+    switch (type) {
+      case 'Mobile': return <IconDeviceMobile size={16} />;
+      case 'Work': return <IconBriefcase size={16} />;
+      case 'Home': return <IconHome size={16} />;
+      default: return <IconDots size={16} />;
+    }
+  };
 
-      <div className={styles.phoneList}>
+  const renderSelectOption = ({ option }) => (
+    <Group gap="xs" wrap="nowrap">
+      {getTypeIcon(option.value)}
+      <Text size="sm">{option.label}</Text>
+    </Group>
+  );
+
+  return (
+    <Box w="100%">
+      <Group justify="space-between" mb={6}>
+        <Text size="sm" fw={600} c="#212529">Phone / Mobile Numbers</Text>
+        <Button
+          type="button"
+          size="xs"
+          color="teal"
+          onClick={handleAddPhone}
+          p={6}
+          title="Add Phone Number"
+        >
+          <IconPlus size={18} />
+        </Button>
+      </Group>
+
+      <Stack gap="sm" w="100%">
         {phones.length === 0 ? (
-          <p className={styles.emptyText}>No phone numbers added yet.</p>
+          <Text size="sm" c="dimmed" fs="italic">No phone numbers added yet.</Text>
         ) : (
           phones.map((phone, index) => (
-            <div key={index} className={styles.phoneRow}>
-              <select
-                value={phone.type}
-                onChange={(e) => handleChange(index, 'type', e.target.value)}
-                className={styles.typeSelect}
-              >
-                <option value="Mobile">Mobile</option>
-                <option value="Work">Work</option>
-                <option value="Home">Home</option>
-                <option value="Other">Other</option>
-              </select>
+            <Box 
+              key={index} 
+              p="sm"
+              bg="gray.0"
+              w="100%"
+              style={{
+                borderRadius: '8px',
+                border: '1px solid var(--mantine-color-gray-3)'
+              }}
+            >
+              <Group wrap="wrap" align="center" gap="md" w="100%">
+                <Select
+                  data={[
+                    { value: 'Mobile', label: 'Mobile' },
+                    { value: 'Work', label: 'Work' },
+                    { value: 'Home', label: 'Home' },
+                    { value: 'Other', label: 'Other' }
+                  ]}
+                  value={phone.type}
+                  onChange={(val) => handleChange(index, 'type', val || 'Mobile')}
+                  leftSection={getTypeIcon(phone.type)}
+                  renderOption={renderSelectOption}
+                  comboboxProps={{ shadow: 'md', width: 180 }}
+                  style={{ flex: '1 1 140px', minWidth: '130px' }}
+                />
 
-              <div className={styles.phoneInputWrapper}>
-                <PhoneInput
-                  international
-                  defaultCountry="CA"
+                <TextInput
+                  placeholder="+1 (555) 000-0000"
                   value={phone.number}
-                  onChange={(val) => handleChange(index, 'number', val || '')}
-                  className={styles.customPhoneInput}
+                  onChange={(e) => handleChange(index, 'number', e.target.value)}
+                  leftSection={<IconPhone size={16} />}
+                  style={{ flex: '2 1 220px', minWidth: '200px' }}
                 />
-              </div>
 
-              <label className={styles.primaryRadio}>
-                <input
-                  type="radio"
-                  name="primaryPhone"
-                  checked={phone.isPrimary || false}
-                  onChange={() => handleChange(index, 'isPrimary', true)}
-                />
-                Primary
-              </label>
+                <Group gap="sm" style={{ marginLeft: 'auto' }}>
+                  <Radio
+                    label="Primary"
+                    checked={phone.isPrimary || false}
+                    onChange={() => handleChange(index, 'isPrimary', true)}
+                    size="sm"
+                  />
 
-              <button
-                type="button"
-                onClick={() => handleRemovePhone(index)}
-                className={styles.removeBtn}
-              >
-                ✕
-              </button>
-            </div>
+                  <Button
+                    color="red"
+                    variant="light"
+                    size="xs"
+                    p={8}
+                    onClick={() => handleRemovePhone(index)}
+                    title="Delete Phone"
+                  >
+                    <IconTrash size={16} />
+                  </Button>
+                </Group>
+              </Group>
+            </Box>
           ))
         )}
-      </div>
-    </div>
+      </Stack>
+    </Box>
   );
 }

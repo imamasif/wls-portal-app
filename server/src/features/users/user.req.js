@@ -4,6 +4,7 @@ export class CreateUserReqDTO {
     this.email = email;
     this.password = password;
     this.role = role || 'USER';
+    this.gender = gender || '';
     this.phones = phones || [];
     this.phone = phone || '';
     this.profession = profession || '';

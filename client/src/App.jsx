@@ -1,10 +1,8 @@
 // src/App.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MantineProvider, Container, Paper, Text } from '@mantine/core';
 import { useAuth } from './context/AuthContext';
 import { MainLayout } from './components/layout/MainLayout';
-import { AuthModal } from './features/auth/components/AuthModal';
-import { UserProfileDetail } from './features/user-management/components/UserProfileDetail';
 import { UserGridView } from './features/user-management/components/UserGridView';
 import { UserRole } from './types/user';
 
@@ -13,29 +11,55 @@ import { DashboardView } from './components/dashboard/DashboardView';
 import { WlsStudentView } from './features/dashboard/components/WlsStudentView';
 import { WlsManagementPanel } from './features/wls-management/components/WlsManagementPanel';
 import { WlsAssessmentPanel } from './features/wls-assessment/components/WlsAssessmentPanel';
-import { ReportingDashboard } from './features/reporting/components/WlsReportingDashboard'; // <-- Live DB Reporting Dashboard
+import { ReportingDashboard } from './features/reporting/components/WlsReportingDashboard';
 import { NotificationPanel } from './features/notifications/components/NotificationPanel';
 
 // Group Management Imports
 import { WhatsAppGroupManager } from './features/group-management/WhatsAppGroupManager';
 import { MSTeamGroupManager } from './features/group-management/MSTeamGroupManager';
 
+// Full-Page Profile & Authentication Imports
+import { EditProfileCard } from './components/profile/EditProfileCard';
+import { LoginPage } from './features/auth/components/LoginPage';
+
 export default function App() {
   const { user } = useAuth();
   
-  // Set initial active tab to 'dashboard'
-  const [activeTab, setActiveTab] = useState('dashboard');
+  // Default to 'login' tab if user is not authenticated, otherwise default to 'dashboard'
+  const [activeTab, setActiveTab] = useState(user ? 'dashboard' : 'login');
+
+  // Keep tab synced if auth status changes externally
+  useEffect(() => {
+    if (!user && activeTab !== 'register') {
+      setActiveTab('login');
+    } else if (user && activeTab === 'login') {
+      setActiveTab('dashboard');
+    }
+  }, [user]);
 
   const activeRole = (user?.role || '').toUpperCase();
   const isSuperAdmin = activeRole === UserRole.SUPER_USER;
   const isWlsAdmin = isSuperAdmin || activeRole === UserRole.WLS_ADMIN;
 
+  // If the user is not logged in, enforce showing only the professional Login / Auth screens
+  if (!user) {
+    return (
+      <MantineProvider defaultColorScheme="light">
+        <Container size="lg" py={80}>
+          <LoginPage 
+            onSuccess={() => setActiveTab('dashboard')} 
+            onSwitchToRegister={() => setActiveTab('register')}
+          />
+        </Container>
+      </MantineProvider>
+    );
+  }
+
   return (
     <MantineProvider defaultColorScheme="light">
       <MainLayout activeTab={activeTab} setActiveTab={setActiveTab}>
-        <AuthModal />
-        
-<Container size="xl" py="lg" mt="md">          {/* 1. Dashboard View */}
+        <Container size="xl" py="lg" mt="md">
+          {/* 1. Dashboard View */}
           {activeTab === 'dashboard' && (
             <DashboardView setActiveTab={setActiveTab} />
           )}
@@ -105,11 +129,13 @@ export default function App() {
             </Paper>
           )}
 
-          {/* Fallback for profile editing triggered from header profile dropdown */}
-          {activeTab === 'profile' && user && (
-            <Paper p="lg" radius="md" withBorder shadow="xs">
-              <UserProfileDetail />
-            </Paper>
+          {/* 6. Full-Page Profile Editing */}
+          {activeTab === 'edit-profile' && user && (
+            <EditProfileCard 
+              targetUser={user} 
+              onCancel={() => setActiveTab('dashboard')} 
+              onSaveSuccess={() => setActiveTab('dashboard')} 
+            />
           )}
         </Container>
       </MainLayout>

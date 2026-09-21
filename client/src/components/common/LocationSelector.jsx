@@ -1,3 +1,4 @@
+// src/components/common/LocationSelector.jsx
 import React, { useEffect, useState } from 'react';
 import { Country, State, City } from 'country-state-city';
 
@@ -17,13 +18,11 @@ export function LocationSelector({
     setCountries(Country.getAllCountries());
   }, []);
 
-  // Update states whenever country changes
   useEffect(() => {
     if (selectedCountryCode) {
       const fetchedStates = State.getStatesOfCountry(selectedCountryCode);
       setStates(fetchedStates);
       
-      // Auto-fallback if state is invalid for country
       if (fetchedStates.length > 0 && !fetchedStates.some((s) => s.isoCode === selectedStateCode)) {
         setSelectedStateCode(fetchedStates[0].isoCode);
       }
@@ -32,10 +31,8 @@ export function LocationSelector({
     }
   }, [selectedCountryCode]);
 
-  // Update cities whenever country or state changes
   useEffect(() => {
     if (selectedCountryCode && selectedStateCode) {
-      // Handle lookup if state string is full name instead of ISO code
       let effectiveStateCode = selectedStateCode;
       const matchingState = states.find(
         (s) => s.isoCode === selectedStateCode || s.name.toLowerCase() === selectedStateCode.toLowerCase()
@@ -51,19 +48,42 @@ export function LocationSelector({
     }
   }, [selectedCountryCode, selectedStateCode, states]);
 
+  const controlStyle = {
+    width: '100%',
+    padding: '8px 12px', // Matches Mantine input padding sizing
+    borderRadius: '4px',
+    border: '1px solid #ced4da', // Matches Mantine default border
+    fontSize: '14px',
+    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
+    fontWeight: '500', // Bolder font weight matching other inputs
+    backgroundColor: '#ffffff',
+    color: '#212529', // Crisp dark text color
+    boxSizing: 'border-box',
+    outline: 'none',
+    boxShadow: 'none',
+    height: '36px' // Matches Mantine size="sm" control height
+  };
+
+  const labelStyle = {
+    display: 'block',
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: '6px',
+    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif'
+  };
+
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', width: '100%' }}>
       <div>
-        <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>
-          Country
-        </label>
+        <label style={labelStyle}>Country</label>
         <select
           value={selectedCountryCode}
           onChange={(e) => setSelectedCountryCode(e.target.value)}
-          style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px' }}
+          style={controlStyle}
         >
           {countries.map((c) => (
-            <option key={c.isoCode} value={c.isoCode}>
+            <option key={c.isoCode} value={c.isoCode} style={{ fontFamily: 'inherit', fontWeight: '500' }}>
               {c.name}
             </option>
           ))}
@@ -71,16 +91,14 @@ export function LocationSelector({
       </div>
 
       <div>
-        <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>
-          State / Province
-        </label>
+        <label style={labelStyle}>State / Province</label>
         <select
           value={selectedStateCode}
           onChange={(e) => setSelectedStateCode(e.target.value)}
-          style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px' }}
+          style={controlStyle}
         >
           {states.map((s) => (
-            <option key={s.isoCode} value={s.isoCode}>
+            <option key={s.isoCode} value={s.isoCode} style={{ fontFamily: 'inherit', fontWeight: '500' }}>
               {s.name}
             </option>
           ))}
@@ -88,18 +106,16 @@ export function LocationSelector({
       </div>
 
       <div>
-        <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>
-          City
-        </label>
+        <label style={labelStyle}>City</label>
         {cities.length > 0 ? (
           <select
             value={selectedCity}
             onChange={(e) => setSelectedCity(e.target.value)}
-            style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px' }}
+            style={controlStyle}
           >
-            <option value="">Select City</option>
+            <option value="" style={{ fontFamily: 'inherit', fontWeight: '500' }}>Select City</option>
             {cities.map((city, idx) => (
-              <option key={`${city.name}-${idx}`} value={city.name}>
+              <option key={`${city.name}-${idx}`} value={city.name} style={{ fontFamily: 'inherit', fontWeight: '500' }}>
                 {city.name}
               </option>
             ))}
@@ -110,7 +126,7 @@ export function LocationSelector({
             placeholder="Enter City"
             value={selectedCity}
             onChange={(e) => setSelectedCity(e.target.value)}
-            style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px' }}
+            style={controlStyle}
           />
         )}
       </div>

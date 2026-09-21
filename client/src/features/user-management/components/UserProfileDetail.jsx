@@ -25,7 +25,7 @@ import {
   IconPencil,
   IconExternalLink
 } from '@tabler/icons-react';
-import { EditProfileCard } from './EditProfileCard';
+import { EditProfileCard } from '../../../components/profile/EditProfileCard';
 import { AdminUserControls } from './AdminUserControls';
 import { UserGroupMemberships } from './UserGroupMemberships';
 
@@ -56,7 +56,14 @@ export function UserProfileDetail({ overrideUser, onUserUpdated }) {
         onCancel={() => setIsEditing(false)}
         onSaveSuccess={(updatedData) => {
           setIsEditing(false);
-          saveUserData(updatedData);
+          
+          // Only update auth context if editing self
+          const targetId = user._id || user.id;
+          const authId = authUser?._id || authUser?.id;
+          if (targetId === authId) {
+            saveUserData(updatedData);
+          }
+          
           if (onUserUpdated) onUserUpdated(updatedData);
         }}
       />

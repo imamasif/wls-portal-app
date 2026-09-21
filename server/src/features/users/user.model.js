@@ -38,6 +38,11 @@ const UserSchema = new mongoose.Schema({
   radarReason: { type: String, default: '' },
   country: { type: String, default: 'Canada' },
   city: { type: String, default: 'Toronto' },
+  gender: { 
+    type: String, 
+    enum: ['Male', 'Female',''], 
+    default: '' 
+  },
   profession: { type: String, default: '' },
   education: { type: String, default: '' },
   countryCode: { type: String, default: 'CA' },

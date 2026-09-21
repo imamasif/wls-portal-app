@@ -26,7 +26,11 @@ const wlsSessionSchema = new mongoose.Schema({
     of: groupAssignmentSchema,
     default: {}
   },
-  status: { type: String, enum: ['ACTIVE', 'INACTIVE', 'CANCELLED'], default: 'ACTIVE' },
+  status: { 
+    type: String, 
+    enum: ['NEW', 'ACTIVE', 'POSTPONED', 'COMPLETED', 'INACTIVE', 'CANCELLED'], 
+    default: 'NEW' 
+  },
   cancelReason: { type: String, default: '' }
 }, { timestamps: true });
 

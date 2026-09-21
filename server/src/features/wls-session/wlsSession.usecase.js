@@ -45,11 +45,21 @@ export class WlsSessionUseCase {
   }
 
   async updateStatus(id, status, cancelReason = '') {
+    const allowedStatuses = ['NEW', 'ACTIVE', 'POSTPONED', 'COMPLETED', 'CANCELLED'];
+    if (!allowedStatuses.includes(status)) {
+      throw new Error('Invalid session status value.');
+    }
+
     const updated = await WlsSessionModel.findByIdAndUpdate(
       id,
       { status, cancelReason },
-      { new: true }
+      { new: true, runValidators: true }
     );
+    
+    if (!updated) {
+      throw new Error('WLS Session not found.');
+    }
+
     return WlsSessionMapper.toResponse(updated);
   }
 
