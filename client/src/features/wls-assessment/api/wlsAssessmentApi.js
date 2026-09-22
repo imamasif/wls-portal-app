@@ -25,6 +25,7 @@ export async function fetchAssessmentPanelData(currentAdminId) {
 }
 
 // Initialize a new assessment record when missing an existing target ID
+// Change this function in wlsAssessmentApi.js
 export async function createAssessmentRecord({ sessionId, userId, videoUrl, groupNumber = 1 }) {
   const response = await fetch('/api/assessments/submit', {
     method: 'POST',
@@ -32,7 +33,7 @@ export async function createAssessmentRecord({ sessionId, userId, videoUrl, grou
     body: JSON.stringify({
       sessionId,
       userId,
-      videoUrl: videoUrl || 'https://placeholder-url.com',
+      videoUrl: videoUrl || '', // <-- Change from 'https://placeholder-url.com' to ''
       groupNumber
     })
   });
@@ -43,7 +44,6 @@ export async function createAssessmentRecord({ sessionId, userId, videoUrl, grou
   }
   return data;
 }
-
 // Update grades, scores, feedback, and admin overridden video stream URL
 export async function gradeAssessmentRecord(assessmentId, payload) {
   if (!assessmentId || !/^[0-9a-fA-F]{24}$/.test(assessmentId)) {

@@ -1,3 +1,4 @@
+import mongoose from 'mongoose'; // Make sure mongoose is imported at the top
 import { AssessmentModel } from './wlsAssessment.model.js';
 
 export class AssessmentUseCase {
@@ -13,19 +14,38 @@ export class AssessmentUseCase {
       .populate('sessionId', 'weekNumber title');
   }
 
+  // UNIFIED GET OR CREATE: Guarantees Student & Admin always point to the same doc
+  static async getOrCreateAssessment(sessionId, userId) {
+    const sessionObjId = new mongoose.Types.ObjectId(sessionId);
+    const userObjId = new mongoose.Types.ObjectId(userId);
+
+    return await AssessmentModel.findOneAndUpdate(
+      { sessionId: sessionObjId, userId: userObjId },
+      { 
+        $setOnInsert: { 
+          status: 'PENDING', 
+          submissionUrl: '', 
+          messages: [], 
+          evaluations: [],
+          groupNumber: 1
+        } 
+      },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    )
+    .populate('userId', 'name email profilePictureUrl city country')
+    .populate('sessionId', 'weekNumber title');
+  }
+
   static async getUserSubmissions(userId) {
     return await AssessmentModel.find({ userId }).populate('sessionId', 'weekNumber title');
   }
 
-  static async getEvaluatorQueue(evaluatorId) {
-    return await AssessmentModel.find({ "evaluations.evaluatorId": evaluatorId })
-      .populate('userId', 'name email profilePictureUrl city country')
-      .populate('sessionId', 'weekNumber title');
-  }
-
   static async submitVideoLink(dto) {
+    const sessionIdObj = new mongoose.Types.ObjectId(dto.sessionId);
+    const userIdObj = new mongoose.Types.ObjectId(dto.userId);
+
     return await AssessmentModel.findOneAndUpdate(
-      { sessionId: dto.sessionId, userId: dto.userId },
+      { sessionId: sessionIdObj, userId: userIdObj },
       { submissionUrl: dto.videoUrl, groupNumber: dto.groupNumber, status: 'PENDING' },
       { new: true, upsert: true, runValidators: true }
     );
@@ -74,7 +94,6 @@ export class AssessmentUseCase {
     );
   }
 
-  // 4. Add assessment-specific message handler
   static async addMessage(assessmentId, dto) {
     const assessment = await AssessmentModel.findById(assessmentId);
     if (!assessment) return null;

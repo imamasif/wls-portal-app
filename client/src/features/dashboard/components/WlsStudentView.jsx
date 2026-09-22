@@ -57,26 +57,61 @@ export function WlsStudentView({ user: propUser }) {
   const [saveSuccess, setSaveSuccess] = useState({});
   const [commentInputs, setCommentInputs] = useState({});
   const [commentErrors, setCommentErrors] = useState({});
-  const [sessionComments, setSessionComments] = useState({});
+  const [assessmentsMap, setAssessmentsMap] = useState({}); // sessionId -> assessment object
   const [apiErrors, setApiErrors] = useState({});
   const [completedTasks, setCompletedTasks] = useState({});
 
   useEffect(() => {
-    fetch(`${API_BASE}/wls-sessions`)
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => {
-        setSessions(data);
+    if (!currentUser) return;
+    const userId = currentUser._id || currentUser.id;
+
+    Promise.all([
+      fetch(`${API_BASE}/wls-sessions`).then((res) => (res.ok ? res.json() : [])),
+      fetch(`${API_BASE}/assessments/user/${userId}`).then((res) => (res.ok ? res.json() : []))
+    ])
+      .then(([sessionsData, assessmentsData]) => {
+        setSessions(sessionsData);
+
+        const map = {};
+        const initialUrls = {};
         
-        const initialComments = {};
-        data.forEach((session) => {
-          const sId = session.id || session._id;
-          if (session.comments) {
-            initialComments[sId] = session.comments;
-          }
-        });
-        setSessionComments(initialComments);
+        if (Array.isArray(assessmentsData)) {
+          assessmentsData.forEach((assessment) => {
+            if (!assessment) return;
+            
+            // Extract session ID safely if it's an object or string
+            const sId = assessment.sessionId 
+              ? (typeof assessment.sessionId === 'object' ? assessment.sessionId?._id || assessment.sessionId?.id : assessment.sessionId)
+              : null;
+
+            const normalizedAssessment = {
+              ...assessment,
+              id: assessment.id || assessment._id,
+              _id: assessment._id || assessment.id,
+              messages: assessment.messages || []
+            };
+
+            // Map by sessionId if available
+            if (sId) {
+              map[sId] = normalizedAssessment;
+              if (assessment.submissionUrl) {
+                initialUrls[sId] = assessment.submissionUrl;
+              }
+            }
+
+            // ALSO map by userId or a fallback key since sessionId is null in your DB record
+            if (assessment.userId) {
+              map[assessment.userId] = normalizedAssessment;
+            }
+            // Generic fallback key matching user ID
+            map[userId] = normalizedAssessment;
+          });
+        }
+        
+        setAssessmentsMap(map);
+        setVideoUrls((prev) => ({ ...prev, ...initialUrls }));
       })
-      .catch((err) => console.error('Error fetching WLS sessions:', err));
+      .catch((err) => console.error('Error fetching data:', err));
   }, [currentUser]);
 
   const handleUrlChange = (sessionId, url) => {
@@ -164,6 +199,30 @@ export function WlsStudentView({ user: propUser }) {
     });
   };
 
+  const postAssessmentMessage = async (sessionId, messageDto) => {
+    const userId = currentUser?._id || currentUser?.id;
+    let assessment = assessmentsMap[sessionId];
+
+    // Lazy load or create assessment if it doesn't exist yet in state
+    if (!assessment || !assessment.id) {
+      const res = await fetch(`${API_BASE}/assessments/session/${sessionId}/user/${userId}`);
+      if (!res.ok) throw new Error('Failed to initialize assessment record');
+      assessment = await res.json();
+    }
+
+    const assessmentId = assessment.id || assessment._id;
+    const res = await fetch(`${API_BASE}/assessments/${assessmentId}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(messageDto),
+    });
+
+    if (!res.ok) throw new Error('Failed to send message');
+    const updatedAssessment = await res.json();
+
+    setAssessmentsMap((prev) => ({ ...prev, [sessionId]: updatedAssessment }));
+  };
+
   const handleRequestAbsence = (sessionId) => {
     let reasonText = '';
     modals.openConfirmModal({
@@ -184,18 +243,22 @@ export function WlsStudentView({ user: propUser }) {
       ),
       labels: { confirm: 'Submit Absence Request', cancel: 'Cancel' },
       confirmProps: { color: 'red' },
-      onConfirm: () => {
+      onConfirm: async () => {
         if (!reasonText.trim()) return;
-        const absenceComment = {
-          id: Date.now(),
-          userName: currentUser?.name || currentUser?.email || 'User',
-          userId: currentUser?._id || currentUser?.id,
-          text: `[ABSENCE REQUEST]: ${reasonText}`,
-          timestamp: new Date().toISOString(),
-          role: currentUser?.role || 'USER',
-        };
-        const updated = [...(sessionComments[sessionId] || []), absenceComment];
-        setSessionComments((prev) => ({ ...prev, [sessionId]: updated }));
+        const userId = currentUser?._id || currentUser?.id;
+        const userName = currentUser?.name || currentUser?.fullName || currentUser?.email || 'User';
+        const senderRole = currentUser?.role || 'USER';
+
+        try {
+          await postAssessmentMessage(sessionId, {
+            senderId: userId,
+            senderName: userName,
+            senderRole: senderRole,
+            text: `[ABSENCE REQUEST]: ${reasonText}`
+          });
+        } catch (err) {
+          console.error('Failed to submit absence request:', err);
+        }
       }
     });
   };
@@ -207,7 +270,7 @@ export function WlsStudentView({ user: propUser }) {
     }));
   };
 
-  const handleAddComment = (sessionId) => {
+  const handleAddComment = async (sessionId) => {
     const text = commentInputs[sessionId]?.trim();
     if (!text) {
       setCommentErrors((prev) => ({ ...prev, [sessionId]: 'Comment cannot be empty.' }));
@@ -216,28 +279,22 @@ export function WlsStudentView({ user: propUser }) {
 
     setCommentErrors((prev) => ({ ...prev, [sessionId]: null }));
 
-    const userRole = currentUser?.role || 'USER';
+    const userId = currentUser?._id || currentUser?.id;
+    const userName = currentUser?.name || currentUser?.fullName || currentUser?.email || 'User';
+    const senderRole = currentUser?.role || 'USER';
 
-    const newComment = {
-      id: Date.now(),
-      userName: currentUser?.name || currentUser?.fullName || currentUser?.email || 'User',
-      userId: currentUser?._id || currentUser?.id,
-      text,
-      timestamp: new Date().toISOString(),
-      role: userRole, 
-    };
-
-    const updated = [...(sessionComments[sessionId] || []), newComment];
-    setSessionComments((prev) => ({ ...prev, [sessionId]: updated }));
-    setCommentInputs((prev) => ({ ...prev, [sessionId]: '' }));
-
-    fetch(`${API_BASE}/wls-sessions/${sessionId}/comments`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newComment),
-    }).catch((err) => {
-      console.error('Failed to sync comment to backend:', err);
-    });
+    try {
+      await postAssessmentMessage(sessionId, {
+        senderId: userId,
+        senderName: userName,
+        senderRole: senderRole,
+        text: text
+      });
+      setCommentInputs((prev) => ({ ...prev, [sessionId]: '' }));
+    } catch (err) {
+      console.error('Failed to sync message to assessment API:', err);
+      setCommentErrors((prev) => ({ ...prev, [sessionId]: 'Failed to send message. Please try again.' }));
+    }
   };
 
   const upcomingSessions = sessions.filter((s) => s.status === 'ACTIVE' && !completedTasks[s.id || s._id]);
@@ -263,7 +320,9 @@ export function WlsStudentView({ user: propUser }) {
     const currentUrlError = urlErrors[sessionId];
     const currentCommentError = commentErrors[sessionId];
     const currentApiError = apiErrors[sessionId];
-    const commentsList = sessionComments[sessionId] || [];
+    
+    // Read messages directly from the assessment document mapping
+    const commentsList = assessmentsMap[sessionId]?.messages || [];
     const isCompleted = completedTasks[sessionId] || session.status === 'COMPLETED';
 
     return (
@@ -446,10 +505,10 @@ export function WlsStudentView({ user: propUser }) {
                   </Text>
                 ) : (
                   commentsList.map((c) => {
-                    const isAdmin = c.role === 'WLS_ADMIN' || c.role === 'SUPER_USER';
+                    const isAdmin = c.senderRole === 'WLS_ADMIN' || c.senderRole === 'SUPER_USER';
                     return (
                       <Paper 
-                        key={c.id} 
+                        key={c._id || c.id} 
                         p="xs" 
                         withBorder 
                         radius="md" 
@@ -464,10 +523,10 @@ export function WlsStudentView({ user: propUser }) {
                         <Group justify="space-between" mb={4}>
                           <Group gap={6}>
                             <Avatar size="20" radius="xl" color={isAdmin ? 'green' : 'indigo'}>
-                              {c.userName?.charAt(0) || 'U'}
+                              {c.senderName?.charAt(0) || 'U'}
                             </Avatar>
                             <Text size="xs" fw={700} c={isAdmin ? 'green.9' : 'indigo.9'}>
-                              {isAdmin ? `🛡️ Admin (${c.userName})` : `👤 ${c.userName}`}
+                              {isAdmin ? `🛡️ Admin (${c.senderName})` : `👤 ${c.senderName}`}
                             </Text>
                           </Group>
                           <Text size="9px" c="dimmed">

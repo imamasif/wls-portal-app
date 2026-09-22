@@ -5,6 +5,7 @@ import { AssessmentMapper } from './wlsAssessment.mapper.js';
 import { submitAssessmentSchema, gradeAssessmentSchema } from './index.js';
 import { validateSchema } from '../../common/middleware/validateSchema.js';
 import { AssessmentModel } from './wlsAssessment.model.js';
+import { WlsSessionModel } from '../wls-session/wlsSession.model.js'; // <-- Added missing model import
 
 const router = express.Router();
 
@@ -29,11 +30,63 @@ router.get('/user/:userId', async (req, res) => {
   }
 });
 
+// Add this route near your other GET endpoints in wlsAssessment.controller_3.js
+router.get('/session/:sessionId/user/:userId', async (req, res) => {
+  try {
+    const { sessionId, userId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(sessionId) || !mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ error: 'Invalid Session or User ObjectId' });
+    }
+    const assessment = await assessmentUseCase.getOrCreateAssessment(sessionId, userId);
+    res.json(AssessmentMapper.toResDTO(assessment));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// STATIC ROUTES MUST COME BEFORE DYNAMIC /:id ROUTES
 router.post('/submit', validateSchema(submitAssessmentSchema), async (req, res) => {
   try {
     const dto = AssessmentMapper.toSubmitReqDTO(req.body);
     const submission = await assessmentUseCase.submitVideoLink(dto);
     res.status(201).json(AssessmentMapper.toResDTO(submission));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/:sessionId/submit-video', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { userId, videoUrl, userComments } = req.body;
+
+    if (!videoUrl) {
+      return res.status(400).json({ error: 'Video URL is required.' });
+    }
+
+    const session = await WlsSessionModel.findById(sessionId);
+    if (!session) {
+      return res.status(404).json({ error: 'WLS Session not found.' });
+    }
+
+    if (!session.studentSubmissions) {
+      session.studentSubmissions = new Map();
+    }
+
+    session.studentSubmissions.set(userId || 'anonymous', {
+      userId,
+      submissionUrl: videoUrl,
+      userComments: userComments || '',
+      submittedAt: new Date()
+    });
+
+    await session.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Video submission recorded successfully.',
+      data: session
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -66,8 +119,6 @@ router.put('/:id/complete', async (req, res) => {
   }
 });
 
-// Add this route to your express router in wlsAssessment.controller.js:
-
 router.post('/:id/messages', async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
@@ -85,44 +136,6 @@ router.post('/:id/messages', async (req, res) => {
     }
 
     res.json(AssessmentMapper.toResDTO(updatedAssessment));
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.post('/:sessionId/submit-video', async (req, res) => {
-  try {
-    const { sessionId } = req.params;
-    const { userId, videoUrl, userComments } = req.body;
-
-    if (!videoUrl) {
-      return res.status(400).json({ error: 'Video URL is required.' });
-    }
-
-    const session = await WlsSessionModel.findById(sessionId);
-    if (!session) {
-      return res.status(404).json({ error: 'WLS Session not found.' });
-    }
-
-    // If your session model handles submissions or if you want to store it:
-    if (!session.studentSubmissions) {
-      session.studentSubmissions = new Map();
-    }
-
-    session.studentSubmissions.set(userId || 'anonymous', {
-      userId,
-      submissionUrl: videoUrl,
-      userComments: userComments || '',
-      submittedAt: new Date()
-    });
-
-    await session.save();
-
-    res.status(200).json({
-      success: true,
-      message: 'Video submission recorded successfully.',
-      data: session
-    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

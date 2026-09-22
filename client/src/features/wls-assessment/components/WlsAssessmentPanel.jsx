@@ -75,7 +75,7 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'Syed Im
     try {
       setLoading(true);
 
-      const { sessions, assessments, allUsers, rulesData } = await fetchAssessmentPanelData(currentAdminId);
+      const { sessions, allUsers, rulesData } = await fetchAssessmentPanelData(currentAdminId);
 
       if (Array.isArray(sessions)) {
         setAllSessions(sessions);
@@ -98,8 +98,10 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'Syed Im
         ? sessions.find((s) => (s.id || s._id) === targetSessionId)
         : (Array.isArray(sessions) ? sessions[0] : null);
 
+      const resolvedSessionId = activeSession?.id || activeSession?._id;
+
       if (activeSession) {
-        setSelectedSessionId(activeSession.id || activeSession._id);
+        setSelectedSessionId(resolvedSessionId);
         setSessionInfo({
           topic:
             activeSession.topic ||
@@ -131,14 +133,25 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'Syed Im
       }
 
       const userMap = new Map((Array.isArray(allUsers) ? allUsers : []).map((u) => [u.id || u._id, u]));
-      const assessmentMap = new Map((Array.isArray(assessments) ? assessments : []).map((a) => [a.userId?.id || a.userId, a]));
-
       const sessionSubmissions = activeSession?.studentSubmissions || {};
 
-      const memberList = Array.from(assignedStudentIds).map((studentId) => {
+      // FETCH OR INITIALIZE ASSESSMENT RECORDS FOR EACH STUDENT VIA THE UNIFIED ENDPOINT
+      const memberList = [];
+      for (const studentId of assignedStudentIds) {
         const userObj = userMap.get(studentId) || {};
-        const assessment = assessmentMap.get(studentId) || {};
-        
+        let assessment = {};
+
+        if (resolvedSessionId) {
+          try {
+            const res = await fetch(`/api/assessments/session/${resolvedSessionId}/user/${studentId}`);
+            if (res.ok) {
+              assessment = await res.json();
+            }
+          } catch (e) {
+            console.error(`Could not fetch assessment for student ${studentId}:`, e);
+          }
+        }
+
         const sessionSubRecord = sessionSubmissions instanceof Map 
           ? sessionSubmissions.get(studentId) 
           : sessionSubmissions[studentId];
@@ -157,12 +170,12 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'Syed Im
           userObj.userComments ||
           '';
 
-        return {
+        memberList.push({
           id: studentId,
-          sessionId: activeSession?.id || activeSession?._id,
+          sessionId: resolvedSessionId,
           name: userObj.name || userObj.fullName || `Student (${studentId.slice(-4)})`,
           email: userObj.email || '',
-          assessmentId: assessment.id || assessment._id,
+          assessmentId: assessment.id || assessment._id, // <-- Guarantees valid MongoDB ID!
           submissionUrl: studentUrl,
           adminSubmissionUrl: adminUrl,
           status: assessment.status || (assessment.isCompleted ? 'COMPLETED' : studentUrl || adminUrl ? 'SUBMITTED' : 'MISSING'),
@@ -172,8 +185,8 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'Syed Im
           feedback: assessment.feedback || assessment.adminComments || '',
           userComments: extractedUserComments,
           messages: assessment.messages || []
-        };
-      });
+        });
+      }
 
       setAssignedUsers(memberList);
 
@@ -328,13 +341,16 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'Syed Im
       ? currentAdminId 
       : (selectedUser.id || selectedUser._id);
 
+    // Explicitly declare senderRole using your app's strict role definitions
+    const senderRole = currentAdminId === 'super-user' ? 'SUPER_USER' : 'WLS_ADMIN';
+
     try {
       let targetAssessmentId = selectedUser.assessmentId;
 
       // If assessment record doesn't exist yet, create it first
       if (!targetAssessmentId) {
         const resolvedSessionId = selectedSessionId || selectedUser.sessionId;
-        const activeStreamUrl = adminVideoUrl || selectedUser.submissionUrl || 'https://placeholder-url.com';
+        const activeStreamUrl = adminVideoUrl || selectedUser.submissionUrl || '';
 
         const submitData = await createAssessmentRecord({
           sessionId: resolvedSessionId,
@@ -346,16 +362,21 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'Syed Im
         targetAssessmentId = submitData.id || submitData._id;
       }
 
-      // Send the message via API
+      // Send the message via API with the defined senderRole
       const response = await sendAssessmentMessage(targetAssessmentId, {
         senderId: validSenderId,
         senderName: currentAdminName || 'Syed Imam',
-        senderRole: 'ADMIN',
+        senderRole: senderRole,
         text: newMessageText.trim()
       });
 
       // Safely extract messages from whatever format the backend response uses
-      const updatedMessages = response.messages || response.assessment?.messages || response.data?.messages || [];
+      const updatedMessages = 
+        response?.messages || 
+        response?.assessment?.messages || 
+        response?.data?.messages || 
+        (Array.isArray(response) ? response : null) || 
+        [...(selectedUser.messages || []), { senderName: currentAdminName, text: newMessageText.trim(), timestamp: new Date() }];
 
       const updatedUserObj = {
         ...selectedUser,

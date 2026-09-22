@@ -88,6 +88,7 @@ export function StudentWlsPanelView({ currentUser, sessionData, sessionId }) {
   const [urlPermissionError, setUrlPermissionError] = useState('');
   const [taskCompleted, setTaskCompleted] = useState(false);
 
+  const [assessmentId, setAssessmentId] = useState(null);
   const [conversationHistory, setConversationHistory] = useState([]);
   const [replyMessage, setReplyMessage] = useState('');
 
@@ -106,10 +107,100 @@ export function StudentWlsPanelView({ currentUser, sessionData, sessionId }) {
       setUserComment(sessionData.userComments || '');
       setScores(sessionData.scores || {});
       setInstructorFeedback(sessionData.instructorFeedback || '');
-      setConversationHistory(sessionData.studentResponses || []);
       setTaskCompleted(sessionData.status === 'COMPLETED' || sessionData.isCompleted || false);
     }
   }, [sessionData]);
+
+// Two-way live sync: Poll for updates (chat messages, grades, status changes) every 5 seconds
+  useEffect(() => {
+    if (!currentUser?.id) return;
+
+    const targetSessionId = sessionId || sessionData?.id || sessionData?._id;
+    if (!targetSessionId) return;
+
+    const intervalId = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/assessments/user/${currentUser.id}`);
+        if (res.ok) {
+          const assessments = await res.json();
+          const currentAssessment = assessments.find(
+            (a) => (a.sessionId?.id || a.sessionId) === targetSessionId
+          );
+
+          if (currentAssessment) {
+            // Update conversation history if new messages arrived
+            if (currentAssessment.messages) {
+              setConversationHistory(currentAssessment.messages);
+            }
+            // Update scores/feedback if admin graded it
+            if (currentAssessment.scores) {
+              setScores(currentAssessment.scores);
+            }
+            if (currentAssessment.instructorFeedback) {
+              setInstructorFeedback(currentAssessment.instructorFeedback);
+            }
+            if (currentAssessment.status) {
+              setTaskCompleted(currentAssessment.status === 'COMPLETED');
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Background sync failed:', err);
+      }
+    }, 5000); // Poll every 5 seconds
+
+    return () => clearInterval(intervalId); // Cleanup interval on unmount
+  }, [currentUser, sessionId, sessionData]);
+
+
+
+  // Automatically fetch or initialize the Assessment document on load so chat works instantly
+  useEffect(() => {
+    async function loadOrCreateAssessment() {
+      if (!currentUser?.id) return;
+      try {
+        const targetSessionId = sessionId || sessionData?.id || sessionData?._id;
+        const res = await fetch(`/api/assessments/user/${currentUser.id}`);
+        if (res.ok) {
+          const assessments = await res.json();
+          
+          // FIX: Safely extract and compare IDs as strings whether populated or raw
+          let currentAssessment = assessments.find((a) => {
+            const sId = a.sessionId?._id || a.sessionId?.id || a.sessionId;
+            return sId?.toString() === targetSessionId?.toString();
+          });
+
+          // If no assessment exists yet for this session, create/upsert it automatically
+          if (!currentAssessment && targetSessionId) {
+            const initRes = await fetch(`/api/assessments/submit`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                sessionId: targetSessionId,
+                userId: currentUser.id,
+                videoUrl: sessionData?.submissionUrl || '',
+                groupNumber: sessionData?.groupNumber || 1
+              })
+            });
+            if (initRes.ok) {
+              currentAssessment = await initRes.json();
+            }
+          }
+
+          if (currentAssessment) {
+            setAssessmentId(currentAssessment.id || currentAssessment._id);
+            setConversationHistory(currentAssessment.messages || []);
+            if (currentAssessment.submissionUrl && !videoUrl) {
+              setVideoUrl(currentAssessment.submissionUrl);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load/initialize student assessment record:', err);
+      }
+    }
+    loadOrCreateAssessment();
+  }, [currentUser, sessionId, sessionData]);
 
   const sessionStatus = sessionData?.status || 'NEW';
   if (sessionStatus === 'NEW' || sessionStatus === 'POSTPONED') {
@@ -215,16 +306,32 @@ export function StudentWlsPanelView({ currentUser, sessionData, sessionId }) {
       confirmProps: { color: 'red' },
       onConfirm: async () => {
         try {
-          const absencePayload = {
+          if (!assessmentId) {
+            alert('Assessment record not found. Please save your submission first.');
+            return;
+          }
+
+          const messagePayload = {
             senderId: currentUser?.id,
             senderName: currentUser?.name || 'Student',
-            message: `[ABSENCE REQUEST]: ${reasonText}`,
-            timestamp: new Date().toISOString()
+            senderRole: 'USER',
+            text: `[ABSENCE REQUEST]: ${reasonText}`
           };
-          setConversationHistory((prev) => [...prev, absencePayload]);
+
+          const response = await fetch(`/api/assessments/${assessmentId}/messages`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(messagePayload)
+          });
+
+          if (!response.ok) throw new Error('Failed to send absence request');
+
+          const updatedAssessment = await response.json();
+          setConversationHistory(updatedAssessment.messages || []);
           alert('Absence request sent to admins successfully.');
         } catch (err) {
           console.error('Failed to submit absence request:', err);
+          alert('Failed to send absence request.');
         }
       }
     });
@@ -233,27 +340,33 @@ export function StudentWlsPanelView({ currentUser, sessionData, sessionId }) {
   const handleSendResponse = async () => {
     if (!replyMessage.trim()) return;
 
-    const newResponse = {
-      senderId: currentUser?.id,
-      senderName: currentUser?.name || 'Student',
-      message: replyMessage.trim(),
-      timestamp: new Date().toISOString()
-    };
+    if (!assessmentId) {
+      alert('Assessment record not initialized yet. Please save your video submission first.');
+      return;
+    }
 
     try {
-      const targetSessionId = sessionId || sessionData?.id || sessionData?._id;
-      await fetch(`/api/wls-sessions/${targetSessionId}/comments`, {
+      const messagePayload = {
+        senderId: currentUser?.id,
+        senderName: currentUser?.name || 'Student',
+        senderRole: 'USER',
+        text: replyMessage.trim()
+      };
+
+      const response = await fetch(`/api/assessments/${assessmentId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newResponse)
+        body: JSON.stringify(messagePayload)
       });
 
-      setConversationHistory((prev) => [...prev, newResponse]);
+      if (!response.ok) throw new Error('Failed to send message');
+
+      const updatedAssessment = await response.json();
+      setConversationHistory(updatedAssessment.messages || []);
       setReplyMessage('');
     } catch (err) {
-      console.warn('Comment synced locally, server endpoint not mounted');
-      setConversationHistory((prev) => [...prev, newResponse]);
-      setReplyMessage('');
+      console.error('Failed to send message to assessment thread:', err);
+      alert('Failed to send message.');
     }
   };
 
@@ -421,7 +534,7 @@ export function StudentWlsPanelView({ currentUser, sessionData, sessionId }) {
         )}
       </Card>
 
-      {/* Comments Section */}
+      {/* Comments & Discussion Section */}
       <Card
         padding="lg"
         radius="md"
@@ -445,7 +558,7 @@ export function StudentWlsPanelView({ currentUser, sessionData, sessionId }) {
               borderRadius: theme.radius.xs
             }}
           >
-            Comments
+            Comments & Discussion
           </Text>
         </Group>
 
@@ -462,7 +575,7 @@ export function StudentWlsPanelView({ currentUser, sessionData, sessionId }) {
         {conversationHistory.length > 0 && (
           <Box mb="md">
             <Text weight={700} size="sm" color="gray.8" mb="sm">
-              Discussion History:
+              Assessment Discussion Thread:
             </Text>
             <Timeline active={conversationHistory.length - 1} bulletSize={22} lineWidth={2}>
               {conversationHistory.map((item, idx) => (
@@ -472,19 +585,19 @@ export function StudentWlsPanelView({ currentUser, sessionData, sessionId }) {
                   title={
                     <Group position="apart">
                       <Text size="xs" weight={700} color="teal.8">
-                        {item.senderName || 'Student'}
+                        {item.senderName || 'User'} {item.senderRole === 'ADMIN' ? '(ADMIN)' : ''}
                       </Text>
                       <Group spacing={4}>
                         <IconClock size={12} color="gray" />
                         <Text size="xs" color="dimmed">
-                          {new Date(item.timestamp).toLocaleString()}
+                          {item.timestamp ? new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                         </Text>
                       </Group>
                     </Group>
                   }
                 >
                   <Paper p="xs" radius="sm" withBorder mt={4} sx={{ backgroundColor: theme.white }}>
-                    <Text size="xs" color="gray.8">{item.message}</Text>
+                    <Text size="xs" color="gray.8">{item.text || item.message}</Text>
                   </Paper>
                 </Timeline.Item>
               ))}
@@ -495,7 +608,7 @@ export function StudentWlsPanelView({ currentUser, sessionData, sessionId }) {
         {!isCompleted && (
           <Stack spacing="xs">
             <Textarea
-              placeholder="Type your reply to admin comments here..."
+              placeholder="Type a message to the admin..."
               minRows={2}
               value={replyMessage}
               onChange={(e) => setReplyMessage(e.target.value)}
@@ -508,7 +621,7 @@ export function StudentWlsPanelView({ currentUser, sessionData, sessionId }) {
                 onClick={handleSendResponse}
                 leftIcon={<IconSend size={14} />}
               >
-                Send Response
+                Send
               </Button>
             </Group>
           </Stack>

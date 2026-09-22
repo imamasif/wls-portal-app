@@ -39,8 +39,8 @@ app.use('/api/rules', ruleRoutes);
 app.use('/api/notifications', notificationController);
 app.use('/api/reports', reportController);
 app.use('/api/social-groups', socialController);
-app.use('/api/assessments', assessmentController);
-app.use('/api/reports', reportController);
+
+
 app.use('/api/menu-permissions', menuPermissionController);
 
 
