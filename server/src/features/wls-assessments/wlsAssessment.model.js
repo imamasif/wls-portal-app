@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 const evaluationSchema = new mongoose.Schema({
-  evaluatorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  evaluatorId: { type: mongoose.Schema.Types.Mixed, required: true },
   evaluatorName: { type: String, required: true },
   scores: { 
     type: Map, 

@@ -1,8 +1,7 @@
 import React from 'react';
-import { Card, Group, Stack, Text, Badge, TextInput, Button, ThemeIcon, Alert, Box } from '@mantine/core';
+import { Card, Group, Stack, Text, Badge, TextInput, Button, ThemeIcon, Alert } from '@mantine/core';
 import {
   IconClipboardCheck,
-  IconVideo,
   IconAward,
   IconAlertTriangle,
   IconCircleCheck,
@@ -17,13 +16,8 @@ export function WlsAssessmentWorkspace({
   banner,
   onCloseBanner,
   activeVideoToRender,
-  videoUrl,
   adminVideoUrl,
   onAdminVideoUrlChange,
-  urlCheckError,
-  iframeError,
-  onIframeError,
-  embedUrl,
   criteriaList,
   scores,
   onScoreChange,
@@ -48,8 +42,6 @@ export function WlsAssessmentWorkspace({
         return <Badge size="xs" color="red" variant="light">MISSING</Badge>;
     }
   };
-
-  const hasActiveError = Boolean(urlCheckError || iframeError);
 
   if (!selectedUser) {
     return (
@@ -112,107 +104,6 @@ export function WlsAssessmentWorkspace({
           Student video submission detected for evaluation.
         </Alert>
       )}
-
-      {/* Video Player Box */}
-      <Card
-        withBorder
-        padding="lg"
-        radius="md"
-        mb="xl"
-        bg={hasActiveError ? 'red.0' : 'gray.0'}
-        style={{ borderColor: hasActiveError ? 'var(--mantine-color-red-3)' : 'var(--mantine-color-gray-3)' }}
-      >
-        <Group justify="space-between" mb="md">
-          <Group gap="xs">
-            <ThemeIcon size="lg" radius="xl" color={hasActiveError ? 'red' : 'indigo'} variant="light">
-              <IconVideo size={22} />
-            </ThemeIcon>
-            <Text fw={700} size="md" c="gray.8">
-              Student Video Stream
-            </Text>
-          </Group>
-          {selectedUser.submissionUrl && (
-            <Badge color="blue" variant="light">
-              User Submitted Link
-            </Badge>
-          )}
-        </Group>
-
-        <TextInput
-          label="Student Provided Video Link:"
-          placeholder="No link submitted by student..."
-          value={videoUrl}
-          readOnly
-          mb="md"
-          error={hasActiveError}
-        />
-
-        {activeVideoToRender && (
-          <Box mb="md">
-            {urlCheckError || iframeError ? (
-              <Alert
-                icon={<IconAlertTriangle size={20} />}
-                title="Video Stream Issue Detected"
-                color="red"
-                variant="light"
-                radius="md"
-              >
-                {urlCheckError || 'The player encountered an error streaming this video. Ensure Google Drive link sharing is set to "Anyone with the link can view".'}
-              </Alert>
-            ) : (
-              <Alert icon={<IconCircleCheck size={20} />} color="green" variant="light" radius="md">
-                Valid link format detected. Streaming video below...
-              </Alert>
-            )}
-          </Box>
-        )}
-
-        {embedUrl ? (
-          <Box
-            style={{
-              position: 'relative',
-              width: '100%',
-              paddingTop: '56.25%',
-              backgroundColor: '#000000',
-              borderRadius: 8,
-              overflow: 'hidden',
-              boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)'
-            }}
-          >
-            <iframe
-              src={embedUrl}
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                border: 'none'
-              }}
-              allow="autoplay; encrypted-media; picture-in-picture"
-              allowFullScreen
-              onError={onIframeError}
-              title="Google Drive Video Player"
-            />
-          </Box>
-        ) : (
-          <Stack
-            align="center"
-            justify="center"
-            style={{
-              height: 320,
-              backgroundColor: '#0f172a',
-              borderRadius: 8,
-              border: '1px dashed #334155'
-            }}
-          >
-            <IconVideo size={42} color="#64748b" />
-            <Text fw={600} c="gray.3" size="sm">
-              No Video Link Provided
-            </Text>
-          </Stack>
-        )}
-      </Card>
 
       {/* Admin Override Input */}
       <Card

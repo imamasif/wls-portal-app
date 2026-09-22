@@ -48,6 +48,86 @@ function formatDriveEmbedUrl(url) {
   return { embedUrl: '', error: 'Unrecognized URL or invalid video stream link.' };
 }
 
+function extractNormalizedScores(rawAssessment, currentAdminId) {
+  const existingScores = {};
+  if (!rawAssessment) return existingScores;
+
+  const adminIdStr = currentAdminId ? String(currentAdminId).trim() : '';
+
+  // 1. Check evaluations array first
+  if (Array.isArray(rawAssessment.evaluations) && rawAssessment.evaluations.length > 0) {
+    const adminEval = rawAssessment.evaluations.find((e) => {
+      const eId = e.evaluatorId ? String(e.evaluatorId).trim() : '';
+      return adminIdStr && eId === adminIdStr;
+    });
+
+    const targetEval = adminEval || rawAssessment.evaluations[rawAssessment.evaluations.length - 1];
+
+    if (targetEval && targetEval.scores) {
+      let scoresObj = targetEval.scores;
+      
+      if (scoresObj instanceof Map) {
+        scoresObj = Object.fromEntries(scoresObj);
+      } else if (typeof scoresObj.get === 'function') {
+        const resolved = {};
+        for (const [k, v] of scoresObj.entries()) {
+          resolved[k] = v;
+        }
+        scoresObj = resolved;
+      } else if (typeof scoresObj === 'object' && scoresObj !== null) {
+        scoresObj = Object.fromEntries(
+          Object.entries(scoresObj).map(([k, v]) => [
+            k, 
+            typeof v === 'object' && v !== null ? (v.score ?? v.value ?? v.points ?? 0) : v
+          ])
+        );
+      }
+
+      Object.entries(scoresObj || {}).forEach(([key, val]) => {
+        const numVal = Number(val);
+        if (key && !isNaN(numVal)) {
+          existingScores[String(key)] = numVal;
+        }
+      });
+
+      if (Object.keys(existingScores).length > 0) {
+        return existingScores;
+      }
+    }
+  }
+
+  // 2. Check direct property bags
+  const rawEvals = 
+    rawAssessment.scores || 
+    rawAssessment.grades || 
+    rawAssessment.criteriaScores ||
+    rawAssessment.points ||
+    rawAssessment;
+
+  if (Array.isArray(rawEvals)) {
+    rawEvals.forEach((item) => {
+      const key = item.criterionKey || item.key || item.criterion || item.id;
+      const scoreVal = item.score !== undefined ? item.score : (item.points !== undefined ? item.points : item.value);
+      const numVal = Number(scoreVal);
+      if (key && !isNaN(numVal)) {
+        existingScores[String(key)] = numVal;
+      }
+    });
+  } else if (typeof rawEvals === 'object' && rawEvals !== null) {
+    Object.entries(rawEvals).forEach(([key, val]) => {
+      const scoreVal = (typeof val === 'object' && val !== null) 
+        ? (val.score ?? val.points ?? val.value ?? val.grade ?? 0) 
+        : val;
+      const numVal = Number(scoreVal);
+      if (key && !isNaN(numVal)) {
+        existingScores[String(key)] = numVal;
+      }
+    });
+  }
+  
+  return existingScores;
+}
+
 export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'Syed Imam', onSubmitAssessment }) {
   const [allSessions, setAllSessions] = useState([]);
   const [selectedSessionId, setSelectedSessionId] = useState('');
@@ -55,7 +135,8 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'Syed Im
   const [assignedUsers, setAssignedUsers] = useState([]);
   const [criteriaList, setCriteriaList] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
-  const [scores, setScores] = useState({});
+  
+  const [userScoresMap, setUserScoresMap] = useState({});
   const [feedback, setFeedback] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
   const [adminVideoUrl, setAdminVideoUrl] = useState('');
@@ -121,6 +202,18 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'Syed Im
         });
       }
 
+      let localDrafts = {};
+      if (resolvedSessionId) {
+        try {
+          const saved = localStorage.getItem(`wls_draft_scores_${resolvedSessionId}_${currentAdminId}`);
+          if (saved) {
+            localDrafts = JSON.parse(saved);
+          }
+        } catch (e) {
+          console.error('Failed to load local drafts:', e);
+        }
+      }
+
       const assignedStudentIds = new Set();
 
       if (activeSession?.groupAssignments) {
@@ -136,6 +229,8 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'Syed Im
       const sessionSubmissions = activeSession?.studentSubmissions || {};
 
       const memberList = [];
+      const computedMap = { ...localDrafts };
+
       for (const studentId of assignedStudentIds) {
         const userObj = userMap.get(studentId) || {};
         let assessment = {};
@@ -169,6 +264,10 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'Syed Im
           userObj.userComments ||
           '';
 
+        if (!computedMap[studentId] || Object.keys(computedMap[studentId]).length === 0) {
+          computedMap[studentId] = extractNormalizedScores(assessment, currentAdminId);
+        }
+
         memberList.push({
           id: studentId,
           sessionId: resolvedSessionId,
@@ -180,22 +279,29 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'Syed Im
           status: assessment.status || (assessment.isCompleted ? 'COMPLETED' : studentUrl || adminUrl ? 'SUBMITTED' : 'MISSING'),
           missedReason: assessment.missedReason || '',
           groupNumber: assessment.groupNumber || 1,
-          evaluations: assessment.evaluations || assessment.scores || {},
+          evaluations: assessment.evaluations || [],
           feedback: assessment.feedback || assessment.adminComments || '',
           userComments: extractedUserComments,
           messages: assessment.messages || []
         });
       }
 
+      setUserScoresMap(computedMap);
       setAssignedUsers(memberList);
 
       if (memberList.length > 0) {
-        handleUserSelect(memberList[0]);
+        const prevSelectedId = selectedUser?.id;
+        const matchingMember = prevSelectedId ? memberList.find(m => m.id === prevSelectedId) : null;
+        const targetUser = matchingMember || memberList[0];
+        
+        setSelectedUser(targetUser);
+        setFeedback(targetUser.feedback || '');
+        setVideoUrl(targetUser.adminSubmissionUrl || targetUser.submissionUrl || '');
+        setAdminVideoUrl(targetUser.adminSubmissionUrl || '');
       } else {
         setSelectedUser(null);
         setVideoUrl('');
         setAdminVideoUrl('');
-        setScores({});
         setFeedback('');
       }
     } catch (err) {
@@ -209,12 +315,24 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'Syed Im
     loadPanelData();
   }, [currentAdminId]);
 
+  useEffect(() => {
+    if (selectedSessionId && Object.keys(userScoresMap).length > 0) {
+      try {
+        localStorage.setItem(
+          `wls_draft_scores_${selectedSessionId}_${currentAdminId}`,
+          JSON.stringify(userScoresMap)
+        );
+      } catch (e) {
+        console.error('Failed to persist draft scores to localStorage:', e);
+      }
+    }
+  }, [userScoresMap, selectedSessionId, currentAdminId]);
+
   const handleSessionSwitch = (newSessionId) => {
     if (!newSessionId) return;
     loadPanelData(newSessionId);
   };
 
-  // Dedicated targeted refresh for the selected student's assessment/messages
   const handleRefreshCurrentStudent = async () => {
     if (!selectedSessionId || !selectedUser?.id) return;
 
@@ -223,24 +341,31 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'Syed Im
       if (res.ok) {
         const assessment = await res.json();
         const updatedMessages = assessment.messages || [];
+        const updatedEvalsArray = assessment.evaluations || [];
+        const normalizedScores = extractNormalizedScores(assessment, currentAdminId);
 
-        // Update selectedUser messages without losing focus or resetting panel state
-        setSelectedUser((prev) => prev ? { ...prev, messages: updatedMessages, assessmentId: assessment.id || assessment._id } : null);
-        
-        // Also update the member in assignedUsers list
+        setUserScoresMap((prev) => ({ ...prev, [selectedUser.id]: normalizedScores }));
+        setSelectedUser((prev) => prev ? { 
+          ...prev, 
+          messages: updatedMessages, 
+          evaluations: updatedEvalsArray,
+          assessmentId: assessment.id || assessment._id 
+        } : null);
+
         setAssignedUsers((prev) =>
-          prev.map((u) => u.id === selectedUser.id ? { ...u, messages: updatedMessages } : u)
+          prev.map((u) => u.id === selectedUser.id ? { ...u, messages: updatedMessages, evaluations: updatedEvalsArray } : u)
         );
 
-        showBanner('success', 'Chat thread refreshed successfully!');
+        showBanner('success', 'Student record refreshed successfully!');
       }
     } catch (err) {
-      console.error('Failed to refresh student thread:', err);
-      showBanner('error', 'Failed to refresh chat thread.');
+      console.error('Failed to refresh student record:', err);
+      showBanner('error', 'Failed to refresh student record.');
     }
   };
 
   const handleUserSelect = (user) => {
+    if (!user) return;
     setSelectedUser(user);
     setFeedback(user.feedback || '');
 
@@ -249,43 +374,53 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'Syed Im
     setAdminVideoUrl(user.adminSubmissionUrl || '');
     setIframeError(false);
 
-    const existingScores = {};
-    const evals = user.evaluations || {};
-
-    if (Array.isArray(evals)) {
-      evals.forEach((item) => {
-        const key = item.criterionKey || item.key || item.criterion;
-        if (key && item.score !== undefined && item.score !== null) {
-          existingScores[key] = Number(item.score);
-        }
-      });
-    } else if (typeof evals === 'object' && evals !== null) {
-      Object.entries(evals).forEach(([key, val]) => {
-        if (val !== undefined && val !== null) {
-          existingScores[key] = Number(val);
-        }
-      });
+    if (!userScoresMap[user.id]) {
+      const evaluationsList = Array.isArray(user.evaluations) ? user.evaluations : [];
+      const existingEval = evaluationsList.find(
+        (e) => String(e?.evaluatorId) === String(currentAdminId)
+      );
+      const initialScores = existingEval ? extractNormalizedScores({ evaluations: [existingEval] }, currentAdminId) : {};
+      
+      setUserScoresMap((prev) => ({ ...prev, [user.id]: initialScores }));
     }
-
-    setScores(existingScores);
   };
 
   const handleScoreChange = (criterionKey, score) => {
-    const updatedScores = { ...scores, [criterionKey]: Number(score) };
-    setScores(updatedScores);
+    if (!selectedUser) return;
 
-    if (selectedUser) {
-      setSelectedUser((prev) => ({
-        ...prev,
-        evaluations: updatedScores
-      }));
-    }
+    const currentStudentScores = userScoresMap[selectedUser.id] || {};
+    const updatedScores = { ...currentStudentScores, [criterionKey]: Number(score) };
+
+    setUserScoresMap((prev) => ({
+      ...prev,
+      [selectedUser.id]: updatedScores
+    }));
+
+    const validEvaluatorId = currentAdminId || localStorage.getItem('adminId') || 'admin-default';
+    const existingEvals = Array.isArray(selectedUser.evaluations) ? selectedUser.evaluations : [];
+    const filteredEvals = existingEvals.filter(e => String(e?.evaluatorId) !== String(validEvaluatorId));
+    
+    const updatedEvaluationsList = [
+      ...filteredEvals,
+      { evaluatorId: validEvaluatorId, evaluatorName: currentAdminName, scores: updatedScores }
+    ];
+
+    const updatedUserObj = {
+      ...selectedUser,
+      evaluations: updatedEvaluationsList
+    };
+
+    setSelectedUser(updatedUserObj);
+    setAssignedUsers((prev) =>
+      prev.map((u) => (u.id === selectedUser.id ? updatedUserObj : u))
+    );
   };
 
   const handleSaveAssessment = async (saveType) => {
     if (!selectedUser) return;
     setBanner({ show: false, type: '', message: '' });
 
+    const validEvaluatorId = currentAdminId || localStorage.getItem('adminId') || 'admin-default';
     const activeStreamUrl = adminVideoUrl || videoUrl;
 
     if (saveType === 'complete' && (!activeStreamUrl || activeStreamUrl.trim() === '')) {
@@ -296,6 +431,21 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'Syed Im
       return;
     }
 
+    // Capture the exact active scores state right before saving so we can lock them in
+    const currentScoresToSave = { ...(userScoresMap[selectedUser.id] || {}) };
+    const sanitizedScores = {};
+    const nonCriterionKeys = [
+      'id', 'userId', 'groupNumber', 'submissionUrl', 'submissionUrls', 
+      'missedReason', 'status', 'evaluations', 'messages', 'finalScore', 
+      'conclusionStatus', 'createdAt', 'updatedAt', 'user', 'evaluatorId', 'evaluatorName'
+    ];
+
+    Object.entries(currentScoresToSave).forEach(([key, val]) => {
+      if (!nonCriterionKeys.includes(key) && val !== undefined && val !== null && !isNaN(Number(val))) {
+        sanitizedScores[key] = Number(val);
+      }
+    });
+
     let targetId = selectedUser.assessmentId;
 
     try {
@@ -305,7 +455,7 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'Syed Im
         const submitData = await createAssessmentRecord({
           sessionId: resolvedSessionId,
           userId: selectedUser.id || selectedUser._id,
-          videoUrl: activeStreamUrl || 'https://placeholder-url.com',
+          videoUrl: activeStreamUrl || '',
           groupNumber: selectedUser.groupNumber || 1
         });
 
@@ -313,14 +463,30 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'Syed Im
       }
 
       const payload = {
-        evaluatorId: currentAdminId || selectedUser.id,
+        evaluatorId: validEvaluatorId,
         evaluatorName: currentAdminName,
-        scores,
+        scores: sanitizedScores,
         feedback: feedback || '',
         adminSubmissionUrl: adminVideoUrl || ''
       };
 
       await gradeAssessmentRecord(targetId, payload);
+
+      // Force-retain the exact scores just saved instead of wiping them out
+      setUserScoresMap((prev) => ({
+        ...prev,
+        [selectedUser.id]: currentScoresToSave
+      }));
+
+      const newAdminEval = {
+        evaluatorId: validEvaluatorId,
+        evaluatorName: currentAdminName,
+        scores: { ...sanitizedScores }
+      };
+
+      const existingEvals = Array.isArray(selectedUser.evaluations) ? selectedUser.evaluations : [];
+      const filteredEvals = existingEvals.filter(e => String(e.evaluatorId) !== String(validEvaluatorId));
+      const updatedEvaluationsList = [...filteredEvals, newAdminEval];
 
       const updatedUserObj = {
         ...selectedUser,
@@ -328,7 +494,7 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'Syed Im
         submissionUrl: videoUrl,
         adminSubmissionUrl: adminVideoUrl,
         feedback,
-        evaluations: payload.scores,
+        evaluations: updatedEvaluationsList,
         status: saveType === 'complete' ? 'COMPLETED' : 'PARTIAL_SAVED'
       };
 
@@ -366,8 +532,9 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'Syed Im
       ? currentAdminId 
       : (selectedUser.id || selectedUser._id);
 
-    const senderRole = currentAdminId === 'super-user' ? 'SUPER_USER' : 'WLS_ADMIN';
-
+    const rawRole = currentAdminId === 'super-user' ? 'SUPER_USER' : 'WLS_ADMIN';
+    const senderRole = rawRole.toUpperCase();
+    
     try {
       let targetAssessmentId = selectedUser.assessmentId;
 
@@ -442,6 +609,7 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'Syed Im
     return <Text ta="center" py="xl" c="dimmed">Loading assigned members...</Text>;
   }
 
+  const activeScores = (selectedUser && userScoresMap[selectedUser.id]) ? userScoresMap[selectedUser.id] : {};
   const activeVideoToRender = adminVideoUrl || videoUrl;
   const { embedUrl, error: urlCheckError } = formatDriveEmbedUrl(activeVideoToRender);
 
@@ -486,7 +654,8 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'Syed Im
             onIframeError={() => setIframeError(true)}
             embedUrl={embedUrl}
             criteriaList={criteriaList}
-            scores={scores}
+            scores={activeScores}
+            onScoreCheck={handleScoreChange}
             onScoreChange={handleScoreChange}
             feedback={feedback}
             onFeedbackChange={setFeedback}
