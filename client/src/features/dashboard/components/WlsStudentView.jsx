@@ -10,7 +10,7 @@ import { modals } from '@mantine/modals';
 import { 
   IconBook, IconUsers, IconFileText, IconVideo, IconClock, IconUserCheck, 
   IconAlertCircle, IconCheck, IconAlertTriangle, IconSend, IconLink,
-  IconVideoPlus, IconMessageDots, IconBrandGoogleDrive, IconUserX 
+  IconVideoPlus, IconMessageDots, IconBrandGoogleDrive, IconUserX, IconRefresh 
 } from '@tabler/icons-react';
 
 const getUserGroup = (groupAssignments, currentUserId) => {
@@ -57,7 +57,7 @@ export function WlsStudentView({ user: propUser }) {
   const [saveSuccess, setSaveSuccess] = useState({});
   const [commentInputs, setCommentInputs] = useState({});
   const [commentErrors, setCommentErrors] = useState({});
-  const [assessmentsMap, setAssessmentsMap] = useState({}); // sessionId -> assessment object
+  const [assessmentsMap, setAssessmentsMap] = useState({}); 
   const [apiErrors, setApiErrors] = useState({});
   const [completedTasks, setCompletedTasks] = useState({});
 
@@ -79,7 +79,6 @@ export function WlsStudentView({ user: propUser }) {
           assessmentsData.forEach((assessment) => {
             if (!assessment) return;
             
-            // Extract session ID safely if it's an object or string
             const sId = assessment.sessionId 
               ? (typeof assessment.sessionId === 'object' ? assessment.sessionId?._id || assessment.sessionId?.id : assessment.sessionId)
               : null;
@@ -91,20 +90,23 @@ export function WlsStudentView({ user: propUser }) {
               messages: assessment.messages || []
             };
 
-            // Map by sessionId if available
             if (sId) {
               map[sId] = normalizedAssessment;
               if (assessment.submissionUrl) {
                 initialUrls[sId] = assessment.submissionUrl;
               }
+            } else {
+              sessionsData.forEach((session) => {
+                const sessId = session.id || session._id;
+                const userGroup = getUserGroup(session.groupAssignments, userId);
+                if (userGroup) {
+                  map[sessId] = normalizedAssessment;
+                  if (assessment.submissionUrl) {
+                    initialUrls[sessId] = assessment.submissionUrl;
+                  }
+                }
+              });
             }
-
-            // ALSO map by userId or a fallback key since sessionId is null in your DB record
-            if (assessment.userId) {
-              map[assessment.userId] = normalizedAssessment;
-            }
-            // Generic fallback key matching user ID
-            map[userId] = normalizedAssessment;
           });
         }
         
@@ -203,7 +205,6 @@ export function WlsStudentView({ user: propUser }) {
     const userId = currentUser?._id || currentUser?.id;
     let assessment = assessmentsMap[sessionId];
 
-    // Lazy load or create assessment if it doesn't exist yet in state
     if (!assessment || !assessment.id) {
       const res = await fetch(`${API_BASE}/assessments/session/${sessionId}/user/${userId}`);
       if (!res.ok) throw new Error('Failed to initialize assessment record');
@@ -321,7 +322,6 @@ export function WlsStudentView({ user: propUser }) {
     const currentCommentError = commentErrors[sessionId];
     const currentApiError = apiErrors[sessionId];
     
-    // Read messages directly from the assessment document mapping
     const commentsList = assessmentsMap[sessionId]?.messages || [];
     const isCompleted = completedTasks[sessionId] || session.status === 'COMPLETED';
 
@@ -488,13 +488,62 @@ export function WlsStudentView({ user: propUser }) {
 
             {/* Comments & Chat Thread Section */}
             <Paper withBorder p="sm" mt="md" radius="sm" bg="white">
-              <Group gap="xs" mb="md">
-                <ThemeIcon color="teal" size="md" variant="light">
-                  <IconMessageDots size={20} />
-                </ThemeIcon>
-                <Text size="xs" fw={700} c="gray.8" tt="uppercase">
-                  Comments & Chat Discussion
-                </Text>
+              <Group justify="space-between" mb="md">
+                <Group gap="xs">
+                  <ThemeIcon color="teal" size="md" variant="light">
+                    <IconMessageDots size={20} />
+                  </ThemeIcon>
+                  <Text size="xs" fw={700} c="gray.8" tt="uppercase">
+                    Comments & Chat Discussion
+                  </Text>
+                </Group>
+
+                <Tooltip label="Refresh chat messages" withArrow position="top">
+                  <ActionIcon
+                    variant="subtle"
+                    color="teal"
+                    size="sm"
+                    onClick={async () => {
+                      const userId = currentUser?._id || currentUser?.id;
+                      try {
+                        const res = await fetch(`${API_BASE}/assessments/user/${userId}`);
+                        if (res.ok) {
+                          const assessmentsData = await res.json();
+                          const map = { ...assessmentsMap };
+                          if (Array.isArray(assessmentsData)) {
+                            assessmentsData.forEach((assessment) => {
+                              if (!assessment) return;
+                              const sId = assessment.sessionId 
+                                ? (typeof assessment.sessionId === 'object' ? assessment.sessionId?._id || assessment.sessionId?.id : assessment.sessionId)
+                                : null;
+
+                              const normalizedAssessment = {
+                                ...assessment,
+                                id: assessment.id || assessment._id,
+                                _id: assessment._id || assessment.id,
+                                messages: assessment.messages || []
+                              };
+
+                              if (sId) {
+                                map[sId] = normalizedAssessment;
+                              } else {
+                                sessions.forEach((session) => {
+                                  const sessId = session.id || session._id;
+                                  map[sessId] = normalizedAssessment;
+                                });
+                              }
+                            });
+                          }
+                          setAssessmentsMap(map);
+                        }
+                      } catch (err) {
+                        console.error('Failed to refresh chat:', err);
+                      }
+                    }}
+                  >
+                    <IconRefresh size={16} />
+                  </ActionIcon>
+                </Tooltip>
               </Group>
 
               {/* Chat Message Bubbles */}
@@ -544,7 +593,6 @@ export function WlsStudentView({ user: propUser }) {
 
               {!isCompleted && (
                 <Stack gap={6}>
-                  {/* Quick-select Emoji Bar */}
                   <Group gap={4}>
                     {['😊', '👍', '❤️', '👏', '🔥', '🤲', '💡', '✨'].map((emoji) => (
                       <Button

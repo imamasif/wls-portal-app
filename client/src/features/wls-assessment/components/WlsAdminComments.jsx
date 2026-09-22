@@ -1,8 +1,17 @@
 import React from 'react';
-import { Card, Group, Stack, Text, Textarea, ThemeIcon, Paper, TextInput, Button, Box } from '@mantine/core';
-import { IconMessageDots } from '@tabler/icons-react';
+import { Card, Group, Stack, Text, Textarea, ThemeIcon, Paper, TextInput, Button, Box, ActionIcon, Tooltip } from '@mantine/core';
+import { IconMessageDots, IconRefresh } from '@tabler/icons-react';
 
-export function WlsAdminComments({ selectedUser, feedback, onFeedbackChange, messages, newMessageText, onNewMessageTextChange, onSendMessage }) {
+export function WlsAdminComments({ 
+  selectedUser, 
+  feedback, 
+  onFeedbackChange, 
+  messages, 
+  newMessageText, 
+  onNewMessageTextChange, 
+  onSendMessage,
+  onRefresh 
+}) {
   return (
     <Card
       padding="lg"
@@ -66,7 +75,21 @@ export function WlsAdminComments({ selectedUser, feedback, onFeedbackChange, mes
       />
 
       <Box mt="md" pt="md" style={{ borderTop: '1px dashed var(--mantine-color-gray-3)' }}>
-        <Text size="xs" fw={700} c="dark" mb="xs">Assessment Discussion Thread:</Text>
+        <Group justify="space-between" mb="xs">
+          <Text size="xs" fw={700} c="dark">Assessment Discussion Thread:</Text>
+          {onRefresh && (
+            <Tooltip label="Refresh chat thread" withArrow position="top">
+              <ActionIcon
+                variant="subtle"
+                color="blue"
+                size="sm"
+                onClick={onRefresh}
+              >
+                <IconRefresh size={16} />
+              </ActionIcon>
+            </Tooltip>
+          )}
+        </Group>
         
         <Stack gap="xs" mb="md">
           {Array.isArray(messages) && messages.length > 0 ? (

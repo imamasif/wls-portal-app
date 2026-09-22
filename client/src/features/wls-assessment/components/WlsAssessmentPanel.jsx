@@ -135,7 +135,6 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'Syed Im
       const userMap = new Map((Array.isArray(allUsers) ? allUsers : []).map((u) => [u.id || u._id, u]));
       const sessionSubmissions = activeSession?.studentSubmissions || {};
 
-      // FETCH OR INITIALIZE ASSESSMENT RECORDS FOR EACH STUDENT VIA THE UNIFIED ENDPOINT
       const memberList = [];
       for (const studentId of assignedStudentIds) {
         const userObj = userMap.get(studentId) || {};
@@ -175,7 +174,7 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'Syed Im
           sessionId: resolvedSessionId,
           name: userObj.name || userObj.fullName || `Student (${studentId.slice(-4)})`,
           email: userObj.email || '',
-          assessmentId: assessment.id || assessment._id, // <-- Guarantees valid MongoDB ID!
+          assessmentId: assessment.id || assessment._id, 
           submissionUrl: studentUrl,
           adminSubmissionUrl: adminUrl,
           status: assessment.status || (assessment.isCompleted ? 'COMPLETED' : studentUrl || adminUrl ? 'SUBMITTED' : 'MISSING'),
@@ -213,6 +212,32 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'Syed Im
   const handleSessionSwitch = (newSessionId) => {
     if (!newSessionId) return;
     loadPanelData(newSessionId);
+  };
+
+  // Dedicated targeted refresh for the selected student's assessment/messages
+  const handleRefreshCurrentStudent = async () => {
+    if (!selectedSessionId || !selectedUser?.id) return;
+
+    try {
+      const res = await fetch(`/api/assessments/session/${selectedSessionId}/user/${selectedUser.id}`);
+      if (res.ok) {
+        const assessment = await res.json();
+        const updatedMessages = assessment.messages || [];
+
+        // Update selectedUser messages without losing focus or resetting panel state
+        setSelectedUser((prev) => prev ? { ...prev, messages: updatedMessages, assessmentId: assessment.id || assessment._id } : null);
+        
+        // Also update the member in assignedUsers list
+        setAssignedUsers((prev) =>
+          prev.map((u) => u.id === selectedUser.id ? { ...u, messages: updatedMessages } : u)
+        );
+
+        showBanner('success', 'Chat thread refreshed successfully!');
+      }
+    } catch (err) {
+      console.error('Failed to refresh student thread:', err);
+      showBanner('error', 'Failed to refresh chat thread.');
+    }
   };
 
   const handleUserSelect = (user) => {
@@ -341,13 +366,11 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'Syed Im
       ? currentAdminId 
       : (selectedUser.id || selectedUser._id);
 
-    // Explicitly declare senderRole using your app's strict role definitions
     const senderRole = currentAdminId === 'super-user' ? 'SUPER_USER' : 'WLS_ADMIN';
 
     try {
       let targetAssessmentId = selectedUser.assessmentId;
 
-      // If assessment record doesn't exist yet, create it first
       if (!targetAssessmentId) {
         const resolvedSessionId = selectedSessionId || selectedUser.sessionId;
         const activeStreamUrl = adminVideoUrl || selectedUser.submissionUrl || '';
@@ -362,7 +385,6 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'Syed Im
         targetAssessmentId = submitData.id || submitData._id;
       }
 
-      // Send the message via API with the defined senderRole
       const response = await sendAssessmentMessage(targetAssessmentId, {
         senderId: validSenderId,
         senderName: currentAdminName || 'Syed Imam',
@@ -370,7 +392,6 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'Syed Im
         text: newMessageText.trim()
       });
 
-      // Safely extract messages from whatever format the backend response uses
       const updatedMessages = 
         response?.messages || 
         response?.assessment?.messages || 
@@ -444,7 +465,6 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'Syed Im
         </Grid.Col>
 
         <Grid.Col span={{ base: 12, md: 9, lg: 9 }}>
-          {/* Integrated Student Video Stream Component */}
           <WlsStudentVideoStream 
             selectedUser={selectedUser} 
             adminVideoUrl={adminVideoUrl} 
@@ -475,6 +495,7 @@ export function WlsAssessmentPanel({ currentAdminId, currentAdminName = 'Syed Im
             onNewMessageTextChange={setNewMessageText}
             onSendMessage={handleSendMessage}
             onOpenSaveModal={openSaveConfirmationModal}
+            onRefresh={handleRefreshCurrentStudent}
           />
         </Grid.Col>
       </Grid>

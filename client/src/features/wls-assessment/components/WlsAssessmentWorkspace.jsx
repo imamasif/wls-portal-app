@@ -33,7 +33,8 @@ export function WlsAssessmentWorkspace({
   newMessageText,
   onNewMessageTextChange,
   onSendMessage,
-  onOpenSaveModal
+  onOpenSaveModal,
+  onRefresh
 }) {
   const getStatusBadge = (status) => {
     switch (status) {
@@ -273,10 +274,11 @@ export function WlsAssessmentWorkspace({
         selectedUser={selectedUser}
         feedback={feedback}
         onFeedbackChange={onFeedbackChange}
-        messages={selectedUser.messages}
+        messages={messages}
         newMessageText={newMessageText}
         onNewMessageTextChange={onNewMessageTextChange}
         onSendMessage={onSendMessage}
+        onRefresh={onRefresh}
       />
 
       {/* Submit Assessment Button */}
