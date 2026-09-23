@@ -69,7 +69,7 @@ export default function App() {
         <Container size="xl" py="lg" mt="md">
           {/* 1. Dashboard View */}
           {activeTab === "dashboard" && (
-            <DashboardView setActiveTab={setActiveTab} />
+            <DashboardView setActiveTab={setActiveTab} user={user} />
           )}
 
           {/* 2. User Management Views */}
