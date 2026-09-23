@@ -10,8 +10,6 @@ import { NotificationModel } from '../../features/notifications/notification.mod
 import { AssessmentModel } from '../../features/wls-assessments/wlsAssessment.model.js';
 import { WlsReportingModel } from '../../features/wls-reporting/wlsReporting.model.js';
 import { MenuPermissionModel } from '../../features/menu-permissions/menuPermission.model.js';
-import { QuizModel } from '../../features/quizzes/quiz.model.js';
-import { QuizSubmissionModel } from '../../features/quiz-submissions/quizSubmission.model.js';
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/wls-portal-db';
 
@@ -76,11 +74,12 @@ const seedMasterData = async () => {
 
     const createdUsers = [];
     for (const userData of userDocs) {
-      const user = new UserModel(userData); 
+      // REMOVE bcrypt.hash here because the model pre-save hook handles it!
+      const user = new UserModel(userData); // Pass raw userData directly
       await user.save();
       createdUsers.push(user);
     }
-    console.log(`✅ Successfully seeded and hashed ${createdUsers.length} users[cite: 20].`);
+    console.log(`✅ Successfully seeded and hashed ${createdUsers.length} users.`);
 
     // 2. SEED SOCIAL GROUPS & TEAMS
     console.log('💬 Seeding WhatsApp Groups & Microsoft Teams Channels...');
@@ -178,50 +177,7 @@ const seedMasterData = async () => {
 
     await WlsReportingModel.insertMany(reportingDocs);
 
-    // 7. SEED QUIZZES & QUIZ SUBMISSIONS (NEW COLLECTIONS)
-    console.log('❓ Seeding Quizzes and Student Submissions...');
-    const sampleQuiz = await QuizModel.create({
-      title: 'Weekly Leadership & Tajweed Mastery Quiz #1',
-      description: 'Assessment covering fundamental recitation rules and leadership principles.',
-      createdBy: adminUser._id,
-      isPublished: true,
-      questions: [
-        {
-          questionText: 'What is the primary objective of applying Qalqalah rules?',
-          questionType: 'SINGLE_SELECT',
-          options: ['Echo or bouncing sound on specific letters', 'Softening nasal sounds', 'Extending vowel duration', 'Pausing between verses'],
-          correctAnswers: ['Echo or bouncing sound on specific letters'],
-          points: 5
-        },
-        {
-          questionText: 'Select all letters associated with Throat (Halqi) articulation points.',
-          questionType: 'MULTIPLE_SELECT',
-          options: ['Hamhaa (ح)', 'Baa (ب)', 'Haa (ه)', 'Meem (م)'],
-          correctAnswers: ['Hamhaa (ح)', 'Haa (ه)'],
-          points: 5
-        }
-      ]
-    });
-
-    // Seed mock quiz submissions for regular users matching quizSubmission.model.js
-    const quizSubmissionDocs = regularUsers.slice(0, 5).map((user, idx) => ({
-      quizId: sampleQuiz._id,
-      userId: user._id.toString(),
-      userName: user.name,
-      answers: [
-        { questionIndex: 0, selectedAnswer: 'Echo or bouncing sound on specific letters' },
-        { questionIndex: 1, selectedAnswer: ['Hamhaa (ح)', 'Haa (ه)'] }
-      ],
-      totalScore: 10,
-      maxScore: 10,
-      percentage: 100,
-      submittedAt: new Date('2026-09-20T12:00:00Z')
-    }));
-
-    await QuizSubmissionModel.insertMany(quizSubmissionDocs);
-    console.log('✅ Quizzes and Quiz Submissions seeded successfully.');
-
-    // 8. SEED UNIFIED MULTI-LEVEL MENU HIERARCHY
+    // 7. SEED UNIFIED MULTI-LEVEL MENU HIERARCHY
     console.log('🧭 Seeding Unified Multi-Level Menu & Permissions...');
     await MenuPermissionModel.deleteMany({});
 
@@ -244,23 +200,24 @@ const seedMasterData = async () => {
     });
 
     const groupMgmt = await MenuPermissionModel.create({
-      menuKey: 'group_management',
-      label: 'Group Management',
-      path: '/groups',
-      order: 3,
-      allowedRoles: ['SUPER_USER'],
-      scopeRestriction: 'ALL'
-    });
+  menuKey: 'group_management',
+  label: 'Group Management',
+  path: '/groups', // or your groups route/tab
+  order: 3,
+  allowedRoles: ['SUPER_USER'],
+  scopeRestriction: 'ALL'
+});
 
-    await MenuPermissionModel.create({
-      menuKey: 'menu_permissions_matrix',
-      label: 'Menu Items & Permissions',
-      path: 'menu-permissions',
-      parentId: groupMgmt._id,
-      order: 1,
-      allowedRoles: ['SUPER_USER'],
-      scopeRestriction: 'ALL'
-    });
+// Add this sub-item right beneath Group Management
+await MenuPermissionModel.create({
+  menuKey: 'menu_permissions_matrix',
+  label: 'Menu Items & Permissions',
+  path: 'menu-permissions', // Matches your activeTab string
+  parentId: groupMgmt._id,
+  order: 1,
+  allowedRoles: ['SUPER_USER'], // Strictly hidden from everyone else
+  scopeRestriction: 'ALL'
+});
 
     const wlsManagement = await MenuPermissionModel.create({
       menuKey: 'wls_management',
@@ -291,20 +248,11 @@ const seedMasterData = async () => {
         scopeRestriction: 'SELF_ONLY'
       },
       {
-        menuKey: 'quiz_student',
-        label: 'My Assigned Quizzes',
-        path: '/quiz-student',
-        parentId: wlsManagement._id,
-        order: 3,
-        allowedRoles: ['SUPER_USER', 'WLS_ADMIN', 'USER'],
-        scopeRestriction: 'ALL'
-      },
-      {
         menuKey: 'wls_session_builder',
         label: 'Session Builder',
         path: '/wls/builder',
         parentId: wlsManagement._id,
-        order: 4,
+        order: 3,
         allowedRoles: ['SUPER_USER', 'WLS_ADMIN'],
         scopeRestriction: 'ALL'
       },
@@ -313,30 +261,12 @@ const seedMasterData = async () => {
         label: 'Assessments & Grading',
         path: '/wls/assessments',
         parentId: wlsManagement._id,
-        order: 5,
-        allowedRoles: ['SUPER_USER', 'WLS_ADMIN'],
-        scopeRestriction: 'ALL'
-      },
-      {
-        menuKey: 'quiz_studio',
-        label: 'Quiz Creator Studio',
-        path: '/quiz-studio',
-        parentId: wlsManagement._id,
-        order: 6,
-        allowedRoles: ['SUPER_USER', 'WLS_ADMIN'],
-        scopeRestriction: 'ALL'
-      },
-      {
-        menuKey: 'quiz_reports',
-        label: 'Quiz Reports & Analytics',
-        path: '/quiz-reports',
-        parentId: wlsManagement._id,
-        order: 7,
+        order: 4,
         allowedRoles: ['SUPER_USER', 'WLS_ADMIN'],
         scopeRestriction: 'ALL'
       }
     ]);
-    console.log('✅ Multi-level menu hierarchy seeded successfully[cite: 20].');
+    console.log('✅ Multi-level menu hierarchy seeded successfully.');
 
     console.log('\n✅ Master Seeding Completed Successfully with Full End-to-End Test Data!');
     console.log('👉 Super User Login: syedimam@iipccanada.com / DefaultPassword123!');

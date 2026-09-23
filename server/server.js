@@ -15,6 +15,8 @@ import { notificationController } from './src/features/notifications/index.js';
 import socialController from './src/features/social-groups/social.controller.js'; 
 import reportController from './src/features/wls-reporting/index.js';
 import { menuPermissionController } from './src/features/menu-permissions/index.js';
+import quizRoutes from './src/features/quizzes/index.js';
+import quizSubmissionRoutes from './src/features/quiz-submissions/index.js';
 
 // Explicitly import models for the seed endpoint
 import { UserModel } from './src/features/users/index.js';
@@ -42,6 +44,8 @@ app.use('/api/social-groups', socialController);
 
 
 app.use('/api/menu-permissions', menuPermissionController);
+app.use('/api/quizzes', quizRoutes);
+app.use('/api/quiz-submissions', quizSubmissionRoutes);
 
 
 // 3. Seed Route

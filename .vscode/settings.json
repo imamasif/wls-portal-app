@@ -1,3 +1,5 @@
 {
-  "compilets.autoStart": true
+  "compilets.autoStart": true,
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode"
 }
