@@ -28,6 +28,7 @@ import {
   QuizReportDashboard,
   QuizListScreen,
 } from "./features/quiz-management";
+import { UniversityPortalDashboard } from "./features/university/components/UniversityPortalDashboard";
 
 export default function App() {
   const { user } = useAuth();
@@ -103,21 +104,15 @@ export default function App() {
 
           {/* 3. Group Management Views */}
           {activeTab === "whatsapp-groups" && isWlsAdmin && (
-            <WhatsAppGroupManager />
+            <WhatsAppGroupManager user={user} />
           )}
 
-          {activeTab === "teams-groups" && isWlsAdmin && <MSTeamGroupManager />}
+          {activeTab === "teams-groups" && isWlsAdmin && (
+            <MSTeamGroupManager user={user} />
+          )}
 
           {activeTab === "university-portal" && isWlsAdmin && (
-            <Paper p="lg" radius="md" withBorder shadow="xs">
-              <Text size="lg" fw={600} mb="xs">
-                Online University Portals
-              </Text>
-              <Text size="sm" c="dimmed">
-                Manage affiliated university links, partner resources, and
-                external integration APIs.
-              </Text>
-            </Paper>
+            <UniversityPortalDashboard user={user} />
           )}
 
           {/* 4. WLS Management Views */}
@@ -129,7 +124,7 @@ export default function App() {
 
           {activeTab === "wls-mgmt" && isWlsAdmin && (
             <Paper p="lg" radius="md" withBorder shadow="xs">
-              <WlsManagementPanel />
+              <WlsManagementPanel user={user} />
             </Paper>
           )}
 
@@ -144,7 +139,7 @@ export default function App() {
 
           {activeTab === "notifications" && (
             <Paper p="lg" radius="md" withBorder shadow="xs">
-              <NotificationPanel />
+              <NotificationPanel user={user} />
             </Paper>
           )}
 
@@ -203,7 +198,7 @@ export default function App() {
           )}
 
           {activeTab === "quiz-reports" && isWlsAdmin && (
-            <QuizReportDashboard />
+            <QuizReportDashboard user={user} />
           )}
 
           {activeTab === "quiz-student" && <QuizStudentView user={user} />}

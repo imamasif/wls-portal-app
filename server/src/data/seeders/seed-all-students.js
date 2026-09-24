@@ -1,4 +1,6 @@
 import mongoose from "mongoose";
+import path from "path";
+import { fileURLToPath } from "url";
 import process from "process";
 import bcrypt from "bcrypt";
 import fs from "fs";
@@ -21,11 +23,14 @@ import { MenuPermissionModel } from "../../features/menu-permissions/menuPermiss
 import { QuizModel } from "../../features/quizzes/quiz.model.js";
 import { QuizSubmissionModel } from "../../features/quiz-submissions/quizSubmission.model.js";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const MONGO_URI =
   process.env.MONGO_URI || "mongodb://localhost:27017/wls-portal-db";
 
 // Helper to parse CSV students
-const loadStudentsFromCSV = () => {
+const loadStudentsFromCSV1 = () => {
   return new Promise((resolve, reject) => {
     const results = [];
     if (!fs.existsSync("students.csv")) {
@@ -33,6 +38,23 @@ const loadStudentsFromCSV = () => {
       return resolve([]);
     }
     fs.createReadStream("students.csv")
+      .pipe(csv())
+      .on("data", (data) => results.push(data))
+      .on("end", () => resolve(results))
+      .on("error", (err) => reject(err));
+  });
+};
+
+const loadStudentsFromCSV = () => {
+  return new Promise((resolve, reject) => {
+    const results = [];
+    const csvPath = path.join(__dirname, "students.csv"); // <-- Resolves correctly relative to the script file
+
+    if (!fs.existsSync(csvPath)) {
+      console.warn("⚠️ students.csv not found at:", csvPath);
+      return resolve([]);
+    }
+    fs.createReadStream(csvPath)
       .pipe(csv())
       .on("data", (data) => results.push(data))
       .on("end", () => resolve(results))

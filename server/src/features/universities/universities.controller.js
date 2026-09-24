@@ -1,23 +1,73 @@
-import { UniversityUseCase } from "./university.usecase.js";
-import { CreateUniversityRequest } from "./university.req.js";
-
-const useCase = new UniversityUseCase();
+import { UniversityModel } from "./universities.model.js";
+import { BatchModel } from "../batches/batches.model.js";
+import { EnrollmentModel } from "../enrollments/enrollments.model.js";
+import { CourseModel } from "../courses/courses.model.js";
+// Import SemesterModel so Mongoose recognizes it during populate
+import { SemesterModel } from "../semesters/semesters.model.js"; // Adjust path if your semesters model is located elsewhere
 
 export class UniversityController {
-  static async create(req, res, next) {
+  static async getUniversitySummary(req, res, next) {
     try {
-      const payload = new CreateUniversityRequest(req.body);
-      const result = await useCase.create(payload);
-      res.status(201).json({ success: true, data: result });
-    } catch (err) {
-      next(err);
-    }
-  }
+      const university = await UniversityModel.findOne({ active: true });
+      if (!university) {
+        return res.status(404).json({
+          success: false,
+          message: "University configuration not found",
+        });
+      }
 
-  static async getAll(req, res, next) {
-    try {
-      const result = await useCase.getAll();
-      res.status(200).json({ success: true, data: result });
+      const batches = await BatchModel.find({ universityId: university._id });
+      const courses = await CourseModel.find({ active: true });
+
+      const enrollments = await EnrollmentModel.find({
+        universityId: university._id,
+      })
+        .populate("userId", "name email role")
+        .populate("enrolledCourseId", "title")
+        .populate("assignedSemesterId", "title semesterNumber");
+
+      const courseStats = courses.map((course) => {
+        const enrolledStudents = enrollments.filter((e) =>
+          e.enrolledCourseId?._id.equals(course._id),
+        );
+        return {
+          courseId: course._id,
+          title: course.title,
+          totalRegistered: enrolledStudents.length,
+          activeCount: enrolledStudents.filter((e) => e.status === "ACTIVE")
+            .length,
+          students: enrolledStudents.map((e) => ({
+            enrollmentId: e._id,
+            name: e.userId?.name || "Unknown",
+            email: e.userId?.email || "N/A",
+            rollNumber: e.rollNumber,
+            courseProgress: e.courseProgress,
+            lessonProgress: e.lessonProgress,
+            status: e.status,
+          })),
+        };
+      });
+
+      res.status(200).json({
+        success: true,
+        data: {
+          university,
+          batches,
+          totalBatches: batches.length,
+          totalEnrollments: enrollments.length,
+          courseBreakdown: courseStats,
+          allEnrollments: enrollments.map((e) => ({
+            id: e._id,
+            name: e.userId?.name,
+            email: e.userId?.email,
+            rollNumber: e.rollNumber,
+            course: e.enrolledCourseId?.title,
+            courseProgress: e.courseProgress,
+            lessonProgress: e.lessonProgress,
+            status: e.status,
+          })),
+        },
+      });
     } catch (err) {
       next(err);
     }
