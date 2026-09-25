@@ -30,10 +30,25 @@ const MONGO_URI =
   process.env.MONGO_URI || "mongodb://localhost:27017/wls-portal-db";
 
 // Helper to parse CSV students
+const loadStudentsFromCSV1 = () => {
+  return new Promise((resolve, reject) => {
+    const results = [];
+    if (!fs.existsSync("students.csv")) {
+      console.warn("⚠️ students.csv not found. Skipping CSV import.");
+      return resolve([]);
+    }
+    fs.createReadStream("students.csv")
+      .pipe(csv())
+      .on("data", (data) => results.push(data))
+      .on("end", () => resolve(results))
+      .on("error", (err) => reject(err));
+  });
+};
+
 const loadStudentsFromCSV = () => {
   return new Promise((resolve, reject) => {
     const results = [];
-    const csvPath = path.join(__dirname, "students.csv"); // Resolves correctly relative to the script file
+    const csvPath = path.join(__dirname, "students.csv"); // <-- Resolves correctly relative to the script file
 
     if (!fs.existsSync(csvPath)) {
       console.warn("⚠️ students.csv not found at:", csvPath);
@@ -74,34 +89,18 @@ const seedMasterData = async () => {
       currentSequenceNumber: 1,
     });
 
-    // 2. SEED SEMESTER FIRST (so courses can reference it)
-    console.log("📖 Seeding Semesters...");
-    const semester = await SemesterModel.create({
-      semesterNumber: 1,
-      title: "Semester 1: Core Tajweed & Recitation",
-      courses: [], // Will populate after courses are created
-      active: true,
-    });
-
-    // 3. SEED COURSES (with required universityId, code, and semester)
+    // 2. SEED COURSES
     console.log("📚 Seeding Courses...");
     const coursesData = [
       {
         title: "Color Coded Quran by Muhammad Shaikh (Urdu Language)",
-        code: "CCQ-URDU-101",
-        universityId: university._id,
-        semester: semester._id,
         active: true,
       },
       {
         title: "Color Coded Quran by Muhammad Shaikh (English Language)",
-        code: "CCQ-ENG-101",
-        universityId: university._id,
-        semester: semester._id,
         active: true,
       },
     ];
-
     const createdCourses = await CourseModel.insertMany(coursesData);
     const courseMap = {};
     createdCourses.forEach((c) => {
@@ -109,9 +108,14 @@ const seedMasterData = async () => {
     });
     console.log(`✅ Seeded ${createdCourses.length} courses.`);
 
-    // Update the semester document with the created course IDs
-    semester.courses = createdCourses.map((c) => c._id);
-    await semester.save();
+    // 3. SEED SEMESTER
+    console.log("📖 Seeding Semesters...");
+    const semester = await SemesterModel.create({
+      semesterNumber: 1,
+      title: "Semester 1: Core Tajweed & Recitation",
+      courses: createdCourses.map((c) => c._id),
+      active: true,
+    });
 
     // 4. SEED USERS (Privileged Users + CSV Unique Students)
     const superUserNames = [

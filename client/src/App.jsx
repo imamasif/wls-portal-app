@@ -30,6 +30,9 @@ import {
 } from "./features/quiz-management";
 import { UniversityPortalDashboard } from "./features/university/components/UniversityPortalDashboard";
 
+import { StudentCourseView } from "./features/university/components/StudentCourseView";
+import { SuperUserCourseAudit } from "./features/university/components/SuperUserCourseAudit";
+
 export default function App() {
   const { user } = useAuth();
 
@@ -46,9 +49,23 @@ export default function App() {
     }
   }, [user]);
 
+  useEffect(() => {
+    // Automatically fetch the seeded courses to grab a valid ObjectId
+    fetch("http://localhost:5000/api/universities/university-summary")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.data?.courseBreakdown?.length > 0) {
+          // Pick the first course (e.g., Urdu course) as default
+          setDefaultCourseId(data.data.courseBreakdown[0].courseId);
+        }
+      })
+      .catch((err) => console.error("Failed to load default course:", err));
+  }, []);
+
   const activeRole = (user?.role || "").toUpperCase();
   const isSuperAdmin = activeRole === UserRole.SUPER_USER;
   const isWlsAdmin = isSuperAdmin || activeRole === UserRole.WLS_ADMIN;
+  const [defaultCourseId, setDefaultCourseId] = useState(null);
 
   // If the user is not logged in, enforce showing only the professional Login / Auth screens
   if (!user) {
@@ -113,6 +130,19 @@ export default function App() {
 
           {activeTab === "university-portal" && isWlsAdmin && (
             <UniversityPortalDashboard user={user} />
+          )}
+
+          {activeTab === "wls_admin" && isWlsAdmin && (
+            /* Provide your specific default or selected courseId here */
+            <SuperUserCourseAudit courseId={defaultCourseId} />
+          )}
+
+          {activeTab === "student_course" && (
+            /* Provide studentId and courseId matching the logged-in user or active context */
+            <StudentCourseView
+              studentId={user?._id || user?.id}
+              courseId={defaultCourseId}
+            />
           )}
 
           {/* 4. WLS Management Views */}

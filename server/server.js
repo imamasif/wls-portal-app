@@ -23,6 +23,7 @@ import { UserModel } from "./src/features/users/index.js";
 import { SessionModel } from "./src/features/sessions/index.js";
 import { WlsSessionModel } from "./src/features/wls-session/wlsSession.model.js";
 import universityRoutes from "./src/features/universities/index.js";
+import courseProgressRoutes from "./src/features/universities/course-progress/index.js";
 
 const app = express();
 
@@ -48,6 +49,7 @@ app.use("/api/quizzes", quizRoutes);
 app.use("/api/quiz-submissions", quizSubmissionRoutes);
 
 app.use("/api/universities", universityRoutes);
+app.use("/api/universities/course-progress", courseProgressRoutes);
 
 // 3. Seed Route
 app.post("/api/seed", async (req, res) => {

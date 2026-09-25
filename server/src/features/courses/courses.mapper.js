@@ -1,4 +1,4 @@
-import { CourseResponse } from "./course.res.js";
+import { CourseResponse } from "./courses.req.js";
 
 export class CourseMapper {
   static toResponse(course) {

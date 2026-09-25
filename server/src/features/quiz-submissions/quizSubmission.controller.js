@@ -49,48 +49,7 @@ export class QuizSubmissionController {
   // Add inside QuizSubmissionController
   getQuizAnalyticsReport = async (req, res) => {
     try {
-      const submissions = await QuizSubmissionModel.find({})
-        .populate("quizId", "title isPublished")
-        .lean();
-
-      const quizMap = {};
-
-      submissions.forEach((sub) => {
-        const quiz = sub.quizId;
-        if (!quiz) return;
-        const quizTitle = quiz.title || "Untitled Quiz";
-
-        if (!quizMap[quizTitle]) {
-          quizMap[quizTitle] = {
-            title: quizTitle,
-            totalSubmissions: 0,
-            scoreSum: 0,
-            passedCount: 0,
-            failedCount: 0,
-          };
-        }
-
-        quizMap[quizTitle].totalSubmissions += 1;
-        quizMap[quizTitle].scoreSum += sub.totalScore || 0;
-
-        if (sub.percentage >= 60) {
-          quizMap[quizTitle].passedCount += 1;
-        } else {
-          quizMap[quizTitle].failedCount += 1;
-        }
-      });
-
-      const quizAnalytics = Object.values(quizMap).map((q) => ({
-        title: q.title,
-        totalSubmissions: q.totalSubmissions,
-        averageScore:
-          q.totalSubmissions > 0
-            ? Math.round(q.scoreSum / q.totalSubmissions)
-            : 0,
-        passedCount: q.passedCount,
-        failedCount: q.failedCount,
-      }));
-
+      const quizAnalytics = await this.useCase.getQuizAnalyticsReport();
       res.json({ success: true, quizAnalytics });
     } catch (err) {
       res.status(500).json({ success: false, error: err.message });

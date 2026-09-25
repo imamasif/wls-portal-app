@@ -56,6 +56,9 @@ export function MainLayout({ children, activeTab, setActiveTab }) {
     "quiz-reports",
     "quiz-list",
     "quiz-student",
+    "university-portal",
+    "wls_admin",
+    "student_course",
   ].includes(activeTab);
   const isUserMgmtActive = ["users", "roles-control", "user-activity"].includes(
     activeTab,
@@ -402,6 +405,25 @@ export function MainLayout({ children, activeTab, setActiveTab }) {
                   onClick={() => setActiveTab("university-portal")}
                 >
                   Online University Portals
+                </Menu.Item>
+                <Menu.Item
+                  leftSection={
+                    <IconShieldCheck
+                      size={16}
+                      color="var(--mantine-color-indigo-6)"
+                    />
+                  }
+                  onClick={() => setActiveTab("wls_admin")}
+                >
+                  Course Audit (WLS Admin)
+                </Menu.Item>
+                <Menu.Item
+                  leftSection={
+                    <IconSchool size={16} color="var(--mantine-color-teal-6)" />
+                  }
+                  onClick={() => setActiveTab("student_course")}
+                >
+                  Student Course Portal
                 </Menu.Item>
               </Menu.Dropdown>
             </Menu>

@@ -1,3 +1,3 @@
-export { CourseModel } from "./course.model.js";
-export { createCourseAjvSchema } from "./course.schema.js";
-export { CourseController } from "./course.controller.js";
+export { CourseModel } from "./courses.model.js";
+export { createCourseAjvSchema } from "./courses.schema.js";
+export { CourseController } from "./courses.controller.js";
