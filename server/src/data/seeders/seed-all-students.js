@@ -78,7 +78,7 @@ const seedMasterData = async () => {
     console.log("📖 Seeding Semesters...");
     const semester = await SemesterModel.create({
       semesterNumber: 1,
-      title: "Semester 1: Core Tajweed & Recitation",
+      title: "Semester 1: Color Coded Quran : Beginner",
       courses: [], // Will populate after courses are created
       active: true,
     });
@@ -277,27 +277,51 @@ const seedMasterData = async () => {
 
     // 7. SEED RULES
     console.log("⚖️ Seeding Assessment Rules...");
-    const rules = await RuleModel.create([
+    await RuleModel.deleteMany({});
+    await RuleModel.insertMany([
       {
         key: "presentation",
-        criterion: "Presentation Quality & Fluency",
+        criterion: "1. Presentation Quality & Fluency",
         maxScore: 10,
         isActive: true,
       },
       {
-        key: "tajweed",
-        criterion: "Tajweed Pronunciation & Rules",
+        key: "attire",
+        criterion: "2. Attire / Dress Code",
         maxScore: 10,
         isActive: true,
       },
       {
-        key: "memorization",
-        criterion: "Memorization Accuracy / Hifz",
+        key: "arabicReading",
+        criterion: "3. Arabic Reading / Tajweed",
+        maxScore: 10,
+        isActive: true,
+      },
+      {
+        key: "hifz",
+        criterion: "4. Memorization Accuracy / Hifz",
+        maxScore: 10,
+        isActive: true,
+      },
+      {
+        key: "onTimeDelivery",
+        criterion: "5. On Time Delivery",
+        maxScore: 10,
+        isActive: true,
+      },
+      {
+        key: "transferenceOfSpirit",
+        criterion: "6. Transference of Spirit",
+        maxScore: 10,
+        isActive: true,
+      },
+      {
+        key: "bodyLanguage",
+        criterion: "7. Body Language",
         maxScore: 10,
         isActive: true,
       },
     ]);
-
     // 8. SEED WLS SESSIONS
     console.log("📅 Seeding WLS Sessions...");
     const pastSession = await WlsSessionModel.create({

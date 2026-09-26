@@ -32,18 +32,61 @@ async function seedCoursesAndProgress() {
     await mongoose.connect(MONGO_URI);
     console.log("✅ MongoDB Connected.");
 
-    let university = await UniversityModel.findOne({});
-    if (!university) {
-      console.log(
-        "🏛️ No university found. Creating default university structure...",
-      );
-      university = await UniversityModel.create({
-        name: "IIPC CANADA Quranic Educational University",
-        code: "IIPC-CAN-QEU",
-        foundedYear: 2026,
+    // 1. SEED UNIVERSITY HIERARCHY
+    console.log("🏛️ Seeding University and Academic Structure...");
+    const university = await UniversityModel.create({
+      name: "IIPC CANADA Quranic Educational University",
+      code: "IIPC-CAN-QEU",
+      foundedYear: 2026,
+      active: true,
+    });
+
+    const batch = await BatchModel.create({
+      universityId: university._id,
+      admissionYear: 2026,
+      departmentCode: "2026-QEU-1B",
+      batchName: "1st Batch of 2026 - Quranic Studies",
+      currentSequenceNumber: 1,
+    });
+
+    // 2. SEED SEMESTER FIRST (so courses can reference it)
+    console.log("📖 Seeding Semesters...");
+    const semester = await SemesterModel.create({
+      semesterNumber: 1,
+      title: "Semester 1: Color Coded Quran : Beginner",
+      courses: [], // Will populate after courses are created
+      active: true,
+    });
+
+    // 3. SEED COURSES (with required universityId, code, and semester)
+    console.log("📚 Seeding Courses...");
+    const coursesData = [
+      {
+        title: "Color Coded Quran by Muhammad Shaikh (Urdu Language)",
+        code: "CCQ-URDU-101",
+        universityId: university._id,
+        semester: semester._id,
         active: true,
-      });
-    }
+      },
+      {
+        title: "Color Coded Quran by Muhammad Shaikh (English Language)",
+        code: "CCQ-ENG-101",
+        universityId: university._id,
+        semester: semester._id,
+        active: true,
+      },
+    ];
+
+    const createdCourses = await CourseModel.insertMany(coursesData);
+    const courseMap = {};
+    createdCourses.forEach((c) => {
+      courseMap[c.title] = c._id;
+    });
+    console.log(`✅ Seeded ${createdCourses.length} courses.`);
+
+    // Update the semester document with the created course IDs
+    semester.courses = createdCourses.map((c) => c._id);
+    await semester.save();
 
     const urduCourseData = {
       title: "Learn Direct Translation in Urdu From The Book of God",
