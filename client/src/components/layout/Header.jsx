@@ -215,7 +215,7 @@ export function Header({ user, setActiveTab, logout, notificationCount = 3 }) {
                   {user?.role || "SUPER USER"}
                 </Badge>
                 <Avatar
-                  src={user?.avatarUrl}
+                  src={user?.profilePictureUrl || user?.avatarUrl}
                   alt="User Avatar"
                   size="sm"
                   radius="xl"

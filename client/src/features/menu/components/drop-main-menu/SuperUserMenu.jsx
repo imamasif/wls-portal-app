@@ -1,3 +1,4 @@
+// src/features/menu/components/drop-main-menu/SuperUserMenu.jsx
 import React from "react";
 import { Group, Button, Menu } from "@mantine/core";
 import {
@@ -28,47 +29,6 @@ export function SuperUserMenu({ activeTab, setActiveTab }) {
       >
         Dashboard
       </Button>
-
-      {/* User Controls Dropdown */}
-      <Menu shadow="md" width={220} trigger="hover">
-        <Menu.Target>
-          <Button
-            variant="subtle"
-            color="cyan"
-            leftSection={<IconUsers size={18} />}
-            rightSection={<IconChevronDown size={14} />}
-            size="xs"
-          >
-            User Controls
-          </Button>
-        </Menu.Target>
-        <Menu.Dropdown>
-          <Menu.Item
-            onClick={() => setActiveTab("users")}
-            leftSection={
-              <IconUsers size={16} color="var(--mantine-color-cyan-6)" />
-            }
-          >
-            User Directory
-          </Menu.Item>
-          <Menu.Item
-            onClick={() => setActiveTab("roles-control")}
-            leftSection={
-              <IconShieldCheck size={16} color="var(--mantine-color-grape-6)" />
-            }
-          >
-            Role & Access Control
-          </Menu.Item>
-          <Menu.Item
-            onClick={() => setActiveTab("user-activity")}
-            leftSection={
-              <IconChartBar size={16} color="var(--mantine-color-orange-6)" />
-            }
-          >
-            Activity Logs
-          </Menu.Item>
-        </Menu.Dropdown>
-      </Menu>
 
       {/* WLS Management Dropdown */}
       <Menu shadow="md" width={220} trigger="hover">
@@ -114,7 +74,7 @@ export function SuperUserMenu({ activeTab, setActiveTab }) {
         </Menu.Dropdown>
       </Menu>
 
-      {/* Administration Dropdown (Includes Quiz Studio & Management with split lines & colored icons) */}
+      {/* Administration Dropdown */}
       <Menu shadow="md" width={240} trigger="hover">
         <Menu.Target>
           <Button
@@ -163,16 +123,29 @@ export function SuperUserMenu({ activeTab, setActiveTab }) {
           >
             University Portal
           </Menu.Item>
+
+          <Menu.Divider />
+
+          {/* User Management (Roles & Access / Activity Logs removed) */}
           <Menu.Item
-            onClick={() => setActiveTab("wls-mgmt")}
+            onClick={() => setActiveTab("users")}
             leftSection={
-              <IconSchool size={16} color="var(--mantine-color-violet-6)" />
+              <IconUsers size={16} color="var(--mantine-color-cyan-6)" />
             }
           >
-            Course Audit
+            User Management
           </Menu.Item>
 
-          {/* Split Line */}
+          {/* Reports moved into Administration */}
+          <Menu.Item
+            onClick={() => setActiveTab("reports")}
+            leftSection={
+              <IconChartBar size={16} color="var(--mantine-color-grape-6)" />
+            }
+          >
+            Reports
+          </Menu.Item>
+
           <Menu.Divider />
 
           <Menu.Item
@@ -201,16 +174,6 @@ export function SuperUserMenu({ activeTab, setActiveTab }) {
           </Menu.Item>
         </Menu.Dropdown>
       </Menu>
-
-      <Button
-        variant={activeTab === "reports" ? "filled" : "subtle"}
-        color="grape"
-        leftSection={<IconChartBar size={18} />}
-        onClick={() => setActiveTab("reports")}
-        size="xs"
-      >
-        Reports
-      </Button>
     </Group>
   );
 }

@@ -21,7 +21,7 @@ export function MainLayout({ children, activeTab, setActiveTab }) {
   }
 
   return (
-    <AppShell header={{ height: 96 }} footer={{ height: 38 }} padding="md">
+    <AppShell header={{ height: 96 }} footer={{ height: 38 }} padding="xs">
       {/* AppShell Header */}
       <AppShell.Header
         style={{
@@ -38,7 +38,7 @@ export function MainLayout({ children, activeTab, setActiveTab }) {
           notificationCount={3}
         />
 
-        {/* Bottom Row: Navigation Menus without duplicate border */}
+        {/* Bottom Row: Navigation Menus */}
         <Box
           style={{
             paddingLeft: "16px",
@@ -60,7 +60,18 @@ export function MainLayout({ children, activeTab, setActiveTab }) {
         </Box>
       </AppShell.Header>
 
-      <AppShell.Main>{children}</AppShell.Main>
+      {/* Main Content Area styled for vertical equilibrium */}
+      <AppShell.Main
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          minHeight: "calc(100vh - 134px)", // Subtracts header (96) and footer (38) heights
+          boxSizing: "border-box",
+        }}
+      >
+        {children}
+      </AppShell.Main>
 
       {/* Modular Footer Component */}
       <AppShell.Footer p={0}>

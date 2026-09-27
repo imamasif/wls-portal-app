@@ -63,7 +63,7 @@ export default function App() {
   return (
     <MantineProvider defaultColorScheme="light">
       <MainLayout activeTab={activeTab} setActiveTab={setActiveTab}>
-        <Container size="xl" py="lg" mt="md">
+        <Container size="xl" py="md">
           {activeTab === "dashboard" && renderDashboard()}
 
           {activeTab === "users" && isSuperAdmin && (

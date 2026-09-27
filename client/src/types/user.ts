@@ -7,6 +7,8 @@ export enum UserRole {
   USER = "USER",
 }
 
+export type SessionStatus = "NEW" | "ACTIVE" | "POSTPONED" | "COMPLETED";
+
 /**
  * Social Media Link Interface
  */

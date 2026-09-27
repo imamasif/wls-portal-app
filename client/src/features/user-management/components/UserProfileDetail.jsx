@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useAuth } from '../../../context/AuthContext';
+import React, { useState } from "react";
+import { useAuth } from "../../../context/AuthContext";
 import {
   Paper,
   Stack,
@@ -11,8 +11,9 @@ import {
   Button,
   Grid,
   Badge,
-  Anchor
-} from '@mantine/core';
+  Anchor,
+  Box,
+} from "@mantine/core";
 import {
   IconBrandLinkedin,
   IconBrandYoutube,
@@ -23,20 +24,25 @@ import {
   IconPhone,
   IconMapPin,
   IconPencil,
-  IconExternalLink
-} from '@tabler/icons-react';
-import { EditProfileCard } from '../../../components/profile/EditProfileCard';
-import { AdminUserControls } from './AdminUserControls';
-import { UserGroupMemberships } from './UserGroupMemberships';
+  IconExternalLink,
+} from "@tabler/icons-react";
+import { EditProfileCard } from "../../../components/profile/EditProfileCard";
+import { AdminUserControls } from "./AdminUserControls";
+import { UserGroupMemberships } from "./UserGroupMemberships";
 
 const SocialIcon = ({ platform }) => {
-  const normalized = (platform || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const normalized = (platform || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
-  if (normalized.includes('linkedin')) return <IconBrandLinkedin size={16} color="#0a66c2" />;
-  if (normalized.includes('youtube')) return <IconBrandYoutube size={16} color="#ff0000" />;
-  if (normalized.includes('facebook')) return <IconBrandFacebook size={16} color="#1877f2" />;
-  if (normalized.includes('twitter') || normalized.includes('x')) return <IconBrandTwitter size={16} color="#1da1f2" />;
-  if (normalized.includes('github')) return <IconBrandGithub size={16} color="#333" />;
+  if (normalized.includes("linkedin"))
+    return <IconBrandLinkedin size={16} color="#0a66c2" />;
+  if (normalized.includes("youtube"))
+    return <IconBrandYoutube size={16} color="#ff0000" />;
+  if (normalized.includes("facebook"))
+    return <IconBrandFacebook size={16} color="#1877f2" />;
+  if (normalized.includes("twitter") || normalized.includes("x"))
+    return <IconBrandTwitter size={16} color="#1da1f2" />;
+  if (normalized.includes("github"))
+    return <IconBrandGithub size={16} color="#333" />;
 
   return <IconLink size={16} />;
 };
@@ -44,8 +50,10 @@ const SocialIcon = ({ platform }) => {
 export function UserProfileDetail({ overrideUser, onUserUpdated }) {
   const { user: authUser, saveUserData } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
+  const [localUser, setLocalUser] = useState(null);
 
-  const user = overrideUser || authUser;
+  const baseUser = overrideUser || authUser;
+  const user = localUser || baseUser;
 
   if (!user) return null;
 
@@ -56,15 +64,17 @@ export function UserProfileDetail({ overrideUser, onUserUpdated }) {
         onCancel={() => setIsEditing(false)}
         onSaveSuccess={(updatedData) => {
           setIsEditing(false);
-          
-          // Only update auth context if editing self
+
+          const mergedUser = { ...user, ...updatedData };
+          setLocalUser(mergedUser);
+
           const targetId = user._id || user.id;
           const authId = authUser?._id || authUser?.id;
           if (targetId === authId) {
-            saveUserData(updatedData);
+            saveUserData(mergedUser);
           }
-          
-          if (onUserUpdated) onUserUpdated(updatedData);
+
+          if (onUserUpdated) onUserUpdated(mergedUser);
         }}
       />
     );
@@ -74,22 +84,25 @@ export function UserProfileDetail({ overrideUser, onUserUpdated }) {
 
   const displayRole = user.profession
     ? user.profession
-    : user.role === 'SUPER_USER' || user.role === 'SUPER_USER'
-      ? 'Super User'
-      : 'User';
+    : user.role === "SUPER_USER" || user.role === "SUPER_USER"
+      ? "Super User"
+      : "User";
 
   const userInitials = user.name
-    ? user.name.split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase()
-    : 'US';
+    ? user.name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .substring(0, 2)
+        .toUpperCase()
+    : "US";
 
   const userId = user._id || user.id;
 
   return (
     <Stack gap="lg">
-      {/* Primary Profile Details Card */}
       <Card withBorder padding="lg" radius="md" shadow="xs">
         <Stack gap="lg">
-          {/* Header Row */}
           <Group justify="space-between" align="flex-start" wrap="nowrap">
             <Group gap="md">
               <Avatar
@@ -104,17 +117,20 @@ export function UserProfileDetail({ overrideUser, onUserUpdated }) {
 
               <Stack gap={2}>
                 <Title order={2} fw={700}>
-                  {user.name || user.email?.split('@')[0]}
+                  {user.name || user.email?.split("@")[0]}
                 </Title>
                 <Text size="sm" c="dimmed" fw={500}>
                   {displayRole}
                 </Text>
                 <Group gap={4} mt={4}>
-                  <IconMapPin size={14} style={{ color: 'var(--mantine-color-gray-6)' }} />
+                  <IconMapPin
+                    size={14}
+                    style={{ color: "var(--mantine-color-gray-6)" }}
+                  />
                   <Text size="xs" c="dimmed">
-                    {user.city ? `${user.city}, ` : ''}
-                    {user.state ? `${user.state}, ` : ''}
-                    {user.country || 'Canada'}
+                    {user.city ? `${user.city}, ` : ""}
+                    {user.state ? `${user.state}, ` : ""}
+                    {user.country || "Canada"}
                   </Text>
                 </Group>
               </Stack>
@@ -138,16 +154,16 @@ export function UserProfileDetail({ overrideUser, onUserUpdated }) {
                 onUserUpdated={(updatedUser, meta) => {
                   if (meta?.deletedId) {
                     if (onUserUpdated) onUserUpdated(null);
-                  } else if (onUserUpdated) {
-                    onUserUpdated(updatedUser);
+                  } else {
+                    if (updatedUser) setLocalUser(updatedUser);
+                    if (onUserUpdated) onUserUpdated(updatedUser);
                   }
                 }}
               />
             </Stack>
           </Group>
 
-          {/* Details Grid */}
-          <Grid gutter="md">
+          <Grid gutter="md" align="flex-start">
             <Grid.Col span={{ base: 12, sm: 6, md: 4 }}>
               <Text size="xs" c="dimmed" fw={700} tt="uppercase">
                 Timezone Difference
@@ -162,7 +178,7 @@ export function UserProfileDetail({ overrideUser, onUserUpdated }) {
                 Highest Education
               </Text>
               <Text size="sm" fw={500} mt={2}>
-                {user.education || 'Not provided'}
+                {user.education || "Not provided"}
               </Text>
             </Grid.Col>
 
@@ -183,9 +199,15 @@ export function UserProfileDetail({ overrideUser, onUserUpdated }) {
                 <Stack gap={4} mt={4}>
                   {user.phones.map((p, idx) => (
                     <Group key={idx} gap={6}>
-                      <IconPhone size={14} style={{ color: 'var(--mantine-color-blue-6)' }} />
+                      <IconPhone
+                        size={14}
+                        style={{ color: "var(--mantine-color-blue-6)" }}
+                      />
                       <Text size="sm" fw={500}>
-                        <Text component="span" fw={700}>{p.type || 'Phone'}:</Text> {p.number}
+                        <Text component="span" fw={700}>
+                          {p.type || "Phone"}:
+                        </Text>{" "}
+                        {p.number}
                       </Text>
                       {p.isPrimary && (
                         <Badge size="xs" color="blue" variant="light">
@@ -197,7 +219,7 @@ export function UserProfileDetail({ overrideUser, onUserUpdated }) {
                 </Stack>
               ) : (
                 <Text size="sm" fw={500} mt={2}>
-                  {user.phone || 'N/A'}
+                  {user.phone || "N/A"}
                 </Text>
               )}
             </Grid.Col>
@@ -209,7 +231,11 @@ export function UserProfileDetail({ overrideUser, onUserUpdated }) {
               <Text size="sm" fw={500} mt={2}>
                 {driveUrl ? (
                   <Anchor
-                    href={driveUrl.startsWith('http') ? driveUrl : `https://${driveUrl}`}
+                    href={
+                      driveUrl.startsWith("http")
+                        ? driveUrl
+                        : `https://${driveUrl}`
+                    }
                     target="_blank"
                     rel="noreferrer"
                     size="sm"
@@ -221,13 +247,77 @@ export function UserProfileDetail({ overrideUser, onUserUpdated }) {
                     </Group>
                   </Anchor>
                 ) : (
-                  'Not connected'
+                  "Not connected"
                 )}
               </Text>
             </Grid.Col>
+
+            <Grid.Col span={{ base: 12, sm: 6, md: 4 }}>
+              <Group justify="flex-end" align="center" h="100%">
+                <Stack gap={4} align="flex-end" w="100%" maw="180px">
+                  <Box
+                    style={{
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      padding: "6px",
+                      background: "linear-gradient(145deg, #f0f4f8, #d9e2ec)",
+                      borderRadius: "14px",
+                      boxShadow:
+                        "5px 5px 10px rgba(163, 177, 198, 0.4), -5px -5px 10px rgba(255, 255, 255, 0.8)",
+                      cursor: "pointer",
+                      transition: "all 0.15s ease-in-out",
+                      userSelect: "none",
+                      width: "100%",
+                    }}
+                    sx={{
+                      "&:hover": {
+                        transform: "scale(0.96)",
+                        boxShadow:
+                          "inset 3px 3px 6px rgba(163, 177, 198, 0.5), inset -3px -3px 6px rgba(255, 255, 255, 0.8)",
+                      },
+                      "&:active": {
+                        transform: "scale(0.94)",
+                        boxShadow:
+                          "inset 4px 4px 8px rgba(163, 177, 198, 0.6), inset -4px -4px 8px rgba(255, 255, 255, 0.8)",
+                      },
+                    }}
+                  >
+                    <Avatar
+                      src={user.profilePictureUrl || user.avatarUrl}
+                      alt={user.name}
+                      size={130}
+                      radius="md"
+                      color="blue"
+                      style={{
+                        width: "100%",
+                        height: "auto",
+                        aspectRatio: "1 / 1",
+                        border: "2px solid #ffffff",
+                        boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                      }}
+                      styles={{
+                        image: {
+                          objectFit: "cover",
+                        },
+                      }}
+                    >
+                      {userInitials}
+                    </Avatar>
+                  </Box>
+                  <Group gap={4} justify="flex-end" w="100%">
+                    <Text size="xs" c="dimmed" fw={700} tt="uppercase">
+                      Gender:
+                    </Text>
+                    <Text size="xs" fw={600} c="dark.7">
+                      {user.gender || "Not specified"}
+                    </Text>
+                  </Group>
+                </Stack>
+              </Group>
+            </Grid.Col>
           </Grid>
 
-          {/* Cause Support Section */}
           {user.causeContribution && (
             <Paper p="sm" withBorder radius="sm" bg="gray.0">
               <Text size="xs" c="dimmed" fw={700} tt="uppercase" mb={4}>
@@ -237,7 +327,6 @@ export function UserProfileDetail({ overrideUser, onUserUpdated }) {
             </Paper>
           )}
 
-          {/* Social Handles Section */}
           {user.socialMedia && user.socialMedia.length > 0 && (
             <Stack gap={6}>
               <Text size="xs" c="dimmed" fw={700} tt="uppercase">
@@ -247,7 +336,7 @@ export function UserProfileDetail({ overrideUser, onUserUpdated }) {
                 {user.socialMedia.map((sm, i) => {
                   if (!sm.handleUrl) return null;
 
-                  const href = sm.handleUrl.startsWith('http')
+                  const href = sm.handleUrl.startsWith("http")
                     ? sm.handleUrl
                     : `https://${sm.handleUrl}`;
 
@@ -259,11 +348,16 @@ export function UserProfileDetail({ overrideUser, onUserUpdated }) {
                       rel="noreferrer"
                       underline="none"
                     >
-                      <Paper p="xs" withBorder radius="sm" style={{ cursor: 'pointer' }}>
+                      <Paper
+                        p="xs"
+                        withBorder
+                        radius="sm"
+                        style={{ cursor: "pointer" }}
+                      >
                         <Group gap={6}>
                           <SocialIcon platform={sm.platform} />
                           <Text size="xs" fw={600}>
-                            {sm.platform || 'Link'}:
+                            {sm.platform || "Link"}:
                           </Text>
                           <Text size="xs" c="dimmed">
                             {sm.handleUrl}
@@ -279,7 +373,6 @@ export function UserProfileDetail({ overrideUser, onUserUpdated }) {
         </Stack>
       </Card>
 
-      {/* Interactive Group Assignment & Membership Management Component */}
       <Paper p="lg" radius="md" bg="white" shadow="xs" withBorder>
         <UserGroupMemberships userId={userId} />
       </Paper>
