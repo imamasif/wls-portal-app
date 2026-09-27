@@ -1,26 +1,13 @@
 import React from "react";
-import {
-  AppShell,
-  Group,
-  Title,
-  Text,
-  Menu,
-  Avatar,
-  Badge,
-  ActionIcon,
-  UnstyledButton,
-  Indicator,
-  Divider,
-  Box,
-} from "@mantine/core";
-import { IconBell, IconPencil, IconLogout } from "@tabler/icons-react";
+import { AppShell, Box } from "@mantine/core";
 import { useAuth } from "../context/AuthContext";
 import { UserRole } from "../types/user";
 
-// Corrected import paths using single "../" from src/components/
 import { SuperUserMenu } from "../features/menu/components/drop-main-menu/SuperUserMenu";
 import { WlsAdminMenu } from "../features/menu/components/drop-main-menu/WlsAdminMenu";
 import { UserMenu } from "../features/menu/components/drop-main-menu/UserMenu";
+import { Header } from "@/components/layout/Header";
+import { Footer } from "@/components/layout/Footer";
 
 export function MainLayout({ children, activeTab, setActiveTab }) {
   const { user, logout } = useAuth();
@@ -34,95 +21,33 @@ export function MainLayout({ children, activeTab, setActiveTab }) {
   }
 
   return (
-    <AppShell header={{ height: 110 }} footer={{ height: 60 }} padding="md">
+    <AppShell header={{ height: 96 }} footer={{ height: 38 }} padding="md">
+      {/* AppShell Header */}
       <AppShell.Header
-        p="xs"
         style={{
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
+          overflow: "hidden",
         }}
       >
-        <Group justify="space-between" align="center" px="md">
-          <Group gap="sm">
-            <img src="/iipc-logo.png" alt="IIPC Logo" style={{ height: 40 }} />
-            <Box>
-              <Title order={4} lh={1.2}>
-                IIPC Learning Portal
-              </Title>
-              <Text size="xs" c="dimmed">
-                Weekly Learning Sessions
-              </Text>
-            </Box>
-          </Group>
+        <Header
+          user={user}
+          setActiveTab={setActiveTab}
+          logout={logout}
+          notificationCount={3}
+        />
 
-          <Group gap="md">
-            <Indicator label="3" size={16} color="red">
-              <ActionIcon
-                variant="subtle"
-                color="gray"
-                size="lg"
-                onClick={() => setActiveTab("notifications")}
-              >
-                <IconBell size={20} />
-              </ActionIcon>
-            </Indicator>
-
-            <Menu shadow="md" width={220} position="bottom-end">
-              <Menu.Target>
-                <UnstyledButton
-                  style={{ display: "flex", alignItems: "center", gap: "8px" }}
-                >
-                  <Badge
-                    color={
-                      isSuperAdmin ? "violet" : isWlsAdmin ? "indigo" : "blue"
-                    }
-                    variant="light"
-                  >
-                    {user?.role || UserRole.USER}
-                  </Badge>
-                  <Avatar
-                    src={user?.profilePictureUrl}
-                    radius="xl"
-                    color="teal"
-                  >
-                    {user?.name ? user.name.charAt(0).toUpperCase() : "U"}
-                  </Avatar>
-                </UnstyledButton>
-              </Menu.Target>
-
-              <Menu.Dropdown>
-                <Box p="xs">
-                  <Text size="sm" fw={500}>
-                    {user.name}
-                  </Text>
-                  <Text size="xs" c="dimmed">
-                    {user.email}
-                  </Text>
-                </Box>
-                <Divider my="xs" />
-                <Menu.Item
-                  leftSection={<IconPencil size={16} />}
-                  onClick={() => setActiveTab("edit-profile")}
-                >
-                  Edit Profile
-                </Menu.Item>
-                <Menu.Item
-                  color="red"
-                  leftSection={<IconLogout size={16} />}
-                  onClick={logout}
-                >
-                  Sign Out
-                </Menu.Item>
-              </Menu.Dropdown>
-            </Menu>
-          </Group>
-        </Group>
-
+        {/* Bottom Row: Navigation Menus without duplicate border */}
         <Box
           style={{
-            borderTop: "1px solid var(--mantine-color-gray-2)",
-            paddingTop: "6px",
+            paddingLeft: "16px",
+            paddingRight: "16px",
+            paddingTop: "3px",
+            paddingBottom: "3px",
+            overflowX: "auto",
+            whiteSpace: "nowrap",
+            backgroundColor: "white",
           }}
         >
           {isSuperAdmin ? (
@@ -137,11 +62,9 @@ export function MainLayout({ children, activeTab, setActiveTab }) {
 
       <AppShell.Main>{children}</AppShell.Main>
 
-      <AppShell.Footer p="sm" style={{ textAlign: "center" }}>
-        <Text size="xs" c="dimmed">
-          &copy; {new Date().getFullYear()} IIPC Learning Portal. All rights
-          reserved.
-        </Text>
+      {/* Modular Footer Component */}
+      <AppShell.Footer p={0}>
+        <Footer />
       </AppShell.Footer>
     </AppShell>
   );

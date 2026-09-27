@@ -12,11 +12,13 @@ import {
   IconBuildingBank,
   IconTools,
   IconClipboardCheck,
+  IconPencilPlus,
+  IconListDetails,
 } from "@tabler/icons-react";
 
 export function SuperUserMenu({ activeTab, setActiveTab }) {
   return (
-    <Group gap="xs" px="md">
+    <Group gap="xs" px="md" style={{ flexWrap: "nowrap" }}>
       <Button
         variant={activeTab === "dashboard" ? "filled" : "subtle"}
         color="teal"
@@ -27,6 +29,7 @@ export function SuperUserMenu({ activeTab, setActiveTab }) {
         Dashboard
       </Button>
 
+      {/* User Controls Dropdown */}
       <Menu shadow="md" width={220} trigger="hover">
         <Menu.Target>
           <Button
@@ -40,19 +43,34 @@ export function SuperUserMenu({ activeTab, setActiveTab }) {
           </Button>
         </Menu.Target>
         <Menu.Dropdown>
-          <Menu.Item onClick={() => setActiveTab("users")}>
+          <Menu.Item
+            onClick={() => setActiveTab("users")}
+            leftSection={
+              <IconUsers size={16} color="var(--mantine-color-cyan-6)" />
+            }
+          >
             User Directory
           </Menu.Item>
-          <Menu.Item onClick={() => setActiveTab("roles-control")}>
+          <Menu.Item
+            onClick={() => setActiveTab("roles-control")}
+            leftSection={
+              <IconShieldCheck size={16} color="var(--mantine-color-grape-6)" />
+            }
+          >
             Role & Access Control
           </Menu.Item>
-          <Menu.Item onClick={() => setActiveTab("user-activity")}>
+          <Menu.Item
+            onClick={() => setActiveTab("user-activity")}
+            leftSection={
+              <IconChartBar size={16} color="var(--mantine-color-orange-6)" />
+            }
+          >
             Activity Logs
           </Menu.Item>
         </Menu.Dropdown>
       </Menu>
 
-      {/* Added WLS Management Dropdown for Super Users */}
+      {/* WLS Management Dropdown */}
       <Menu shadow="md" width={220} trigger="hover">
         <Menu.Target>
           <Button
@@ -68,26 +86,36 @@ export function SuperUserMenu({ activeTab, setActiveTab }) {
         <Menu.Dropdown>
           <Menu.Item
             onClick={() => setActiveTab("wls-session")}
-            leftSection={<IconSchool size={16} />}
+            leftSection={
+              <IconSchool size={16} color="var(--mantine-color-teal-6)" />
+            }
           >
             Active Sessions
           </Menu.Item>
           <Menu.Item
             onClick={() => setActiveTab("wls-mgmt")}
-            leftSection={<IconTools size={16} />}
+            leftSection={
+              <IconTools size={16} color="var(--mantine-color-blue-6)" />
+            }
           >
             Session Builder
           </Menu.Item>
           <Menu.Item
             onClick={() => setActiveTab("assessment")}
-            leftSection={<IconClipboardCheck size={16} />}
+            leftSection={
+              <IconClipboardCheck
+                size={16}
+                color="var(--mantine-color-orange-6)"
+              />
+            }
           >
             Assessments & Grading
           </Menu.Item>
         </Menu.Dropdown>
       </Menu>
 
-      <Menu shadow="md" width={220} trigger="hover">
+      {/* Administration Dropdown (Includes Quiz Studio & Management with split lines & colored icons) */}
+      <Menu shadow="md" width={240} trigger="hover">
         <Menu.Target>
           <Button
             variant="subtle"
@@ -102,33 +130,74 @@ export function SuperUserMenu({ activeTab, setActiveTab }) {
         <Menu.Dropdown>
           <Menu.Item
             onClick={() => setActiveTab("menu-permissions")}
-            leftSection={<IconShieldCheck size={16} />}
+            leftSection={
+              <IconShieldCheck size={16} color="var(--mantine-color-green-6)" />
+            }
           >
             Menu Permissions
           </Menu.Item>
           <Menu.Item
             onClick={() => setActiveTab("whatsapp-groups")}
-            leftSection={<IconBrandWhatsapp size={16} />}
+            leftSection={
+              <IconBrandWhatsapp
+                size={16}
+                color="var(--mantine-color-teal-6)"
+              />
+            }
           >
             WhatsApp Groups
           </Menu.Item>
           <Menu.Item
             onClick={() => setActiveTab("teams-groups")}
-            leftSection={<IconBrandTeams size={16} />}
+            leftSection={
+              <IconBrandTeams size={16} color="var(--mantine-color-indigo-6)" />
+            }
           >
             Teams Groups
           </Menu.Item>
           <Menu.Item
             onClick={() => setActiveTab("university-portal")}
-            leftSection={<IconBuildingBank size={16} />}
+            leftSection={
+              <IconBuildingBank size={16} color="var(--mantine-color-blue-6)" />
+            }
           >
             University Portal
           </Menu.Item>
           <Menu.Item
             onClick={() => setActiveTab("wls-mgmt")}
-            leftSection={<IconSchool size={16} />}
+            leftSection={
+              <IconSchool size={16} color="var(--mantine-color-violet-6)" />
+            }
           >
             Course Audit
+          </Menu.Item>
+
+          {/* Split Line */}
+          <Menu.Divider />
+
+          <Menu.Item
+            onClick={() => setActiveTab("quiz-list")}
+            leftSection={
+              <IconListDetails size={16} color="var(--mantine-color-cyan-6)" />
+            }
+          >
+            Quiz Management (List)
+          </Menu.Item>
+          <Menu.Item
+            onClick={() => setActiveTab("quiz-studio")}
+            leftSection={
+              <IconPencilPlus size={16} color="var(--mantine-color-pink-6)" />
+            }
+          >
+            Quiz Studio (Create)
+          </Menu.Item>
+          <Menu.Item
+            onClick={() => setActiveTab("quiz-reports")}
+            leftSection={
+              <IconChartBar size={16} color="var(--mantine-color-grape-6)" />
+            }
+          >
+            Quiz Reports
           </Menu.Item>
         </Menu.Dropdown>
       </Menu>

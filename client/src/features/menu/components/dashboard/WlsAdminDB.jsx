@@ -53,6 +53,14 @@ export function WlsAdminDB({ setActiveTab }) {
       tab: "reports",
     },
     {
+      title: "Quiz Management",
+      description: "Create, edit, and review student quiz assessments.",
+      icon: IconClipboardCheck,
+      color: "cyan",
+      badge: "Quizzes",
+      tab: "quiz-list",
+    },
+    {
       title: "WhatsApp Groups",
       description: "Manage university student social communication groups.",
       icon: IconBrandWhatsapp,

@@ -18,6 +18,7 @@ import {
   IconBrandTeams,
   IconBuildingBank,
   IconSchool,
+  IconClipboardCheck,
 } from "@tabler/icons-react";
 
 export function SuperUserDB({ setActiveTab }) {
@@ -69,6 +70,14 @@ export function SuperUserDB({ setActiveTab }) {
       color: "indigo",
       badge: "Teams",
       tab: "teams-groups",
+    },
+    {
+      title: "Quiz Management",
+      description: "Create, edit, and review student quiz assessments.",
+      icon: IconClipboardCheck,
+      color: "cyan",
+      badge: "Quizzes",
+      tab: "quiz-list",
     },
     {
       title: "University Portal",
