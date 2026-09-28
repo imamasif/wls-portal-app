@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../../context/AuthContext";
-import { API_BASE } from "../../../config/constants";
 import { ZoomInviteCard } from "../../wls-management/components/ZoomInviteCard";
+import {
+  fetchWlsSessions,
+  fetchUserAssessments,
+  submitAssessment,
+  postAssessmentMessage,
+} from "../api/wlsManagementApi"; //[cite: 18]
 import {
   Stack,
   Title,
@@ -110,12 +115,8 @@ export function WlsStudentView({ user: propUser }) {
     const userId = currentUser._id || currentUser.id;
 
     Promise.all([
-      fetch(`${API_BASE}/wls-sessions`).then((res) =>
-        res.ok ? res.json() : [],
-      ),
-      fetch(`${API_BASE}/assessments/user/${userId}`).then((res) =>
-        res.ok ? res.json() : [],
-      ),
+      fetchWlsSessions().catch(() => []), //[cite: 18]
+      fetchUserAssessments(userId).catch(() => []), //[cite: 18]
     ])
       .then(([sessionsData, assessmentsData]) => {
         setSessions(sessionsData);
@@ -191,39 +192,24 @@ export function WlsStudentView({ user: propUser }) {
     setUrlErrors((prev) => ({ ...prev, [sessionId]: null }));
     const userId = currentUser?._id || currentUser?.id;
 
-    fetch(`${API_BASE}/assessments/submit`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sessionId,
-        userId,
-        videoUrl: url,
-        groupNumber: 1,
-      }),
+    submitAssessment({
+      sessionId,
+      userId,
+      videoUrl: url,
+      groupNumber: 1,
     })
-      .then(async (res) => {
-        const data = await res.json();
-        if (res.ok) {
-          setSaveSuccess((prev) => ({ ...prev, [sessionId]: true }));
-          setApiErrors((prev) => ({ ...prev, [sessionId]: null }));
-          setTimeout(
-            () => setSaveSuccess((prev) => ({ ...prev, [sessionId]: false })),
-            3000,
-          );
-        } else {
-          setApiErrors((prev) => ({
-            ...prev,
-            [sessionId]:
-              data.error ||
-              data.message ||
-              `Server returned ${res.status}: Failed to submit video URL.`,
-          }));
-        }
+      .then(() => {
+        setSaveSuccess((prev) => ({ ...prev, [sessionId]: true }));
+        setApiErrors((prev) => ({ ...prev, [sessionId]: null }));
+        setTimeout(
+          () => setSaveSuccess((prev) => ({ ...prev, [sessionId]: false })),
+          3000,
+        );
       })
-      .catch(() => {
+      .catch((err) => {
         setApiErrors((prev) => ({
           ...prev,
-          [sessionId]: "Network error: Could not reach backend server.",
+          [sessionId]: err.message || "Failed to submit video URL.",
         }));
       });
   };
@@ -270,30 +256,25 @@ export function WlsStudentView({ user: propUser }) {
     });
   };
 
-  const postAssessmentMessage = async (sessionId, messageDto) => {
+  const postMessageHelper = async (sessionId, messageDto) => {
     const userId = currentUser?._id || currentUser?.id;
     let assessment = assessmentsMap[sessionId];
 
     if (!assessment || !assessment.id) {
-      const res = await fetch(
-        `${API_BASE}/assessments/session/${sessionId}/user/${userId}`,
+      const assessmentList = await fetchUserAssessments(userId);
+      assessment = assessmentList.find(
+        (a) =>
+          (a.sessionId?._id || a.sessionId?.id || a.sessionId) === sessionId,
       );
-      if (!res.ok) throw new Error("Failed to initialize assessment record");
-      assessment = await res.json();
+      if (!assessment)
+        throw new Error("Failed to initialize assessment record");
     }
 
     const assessmentId = assessment.id || assessment._id;
-    const res = await fetch(
-      `${API_BASE}/assessments/${assessmentId}/messages`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(messageDto),
-      },
-    );
-
-    if (!res.ok) throw new Error("Failed to send message");
-    const updatedAssessment = await res.json();
+    const updatedAssessment = await postAssessmentMessage(
+      assessmentId,
+      messageDto,
+    ); //[cite: 18]
 
     setAssessmentsMap((prev) => ({ ...prev, [sessionId]: updatedAssessment }));
   };
@@ -335,7 +316,7 @@ export function WlsStudentView({ user: propUser }) {
         const senderRole = currentUser?.role || "USER";
 
         try {
-          await postAssessmentMessage(sessionId, {
+          await postMessageHelper(sessionId, {
             senderId: userId,
             senderName: userName,
             senderRole: senderRole,
@@ -376,7 +357,7 @@ export function WlsStudentView({ user: propUser }) {
     const senderRole = currentUser?.role || "USER";
 
     try {
-      await postAssessmentMessage(sessionId, {
+      await postMessageHelper(sessionId, {
         senderId: userId,
         senderName: userName,
         senderRole: senderRole,
@@ -392,45 +373,12 @@ export function WlsStudentView({ user: propUser }) {
     }
   };
 
-  // Live system date/time anchor (No hardcoding)
-  const today = new Date();
-
-  const upcomingSessions = sessions.filter((s) => {
-    const status = (s.status || "").toUpperCase();
-
-    // Hide NEW sessions from student view completely until active
-    if (status === "NEW") return false;
-    if (completedTasks[s.id || s._id]) return false;
-
-    // Explicitly handle completed/archived status
-    if (status === "COMPLETED" || status === "ARCHIVED") return false;
-
-    // Check date condition using system date
-    const targetDate = s.videoDeadline || s.sessionDate || s.date;
-    if (targetDate) {
-      const sessionDate = new Date(targetDate);
-      return sessionDate >= today;
-    }
-    return status === "ACTIVE"; // Default rule if no date is present
-  });
-
-  const pastSessions = sessions.filter((s) => {
-    const status = (s.status || "").toUpperCase();
-    if (status === "NEW") return false; // Hide NEW sessions entirely from student view
-
-    const isCompleted = completedTasks[s.id || s._id];
-    if (isCompleted) return true;
-    if (status === "COMPLETED" || status === "ARCHIVED" || status === "PAST")
-      return true;
-
-    const targetDate = s.videoDeadline || s.sessionDate || s.date;
-    if (targetDate) {
-      const sessionDate = new Date(targetDate);
-      return sessionDate < today;
-    }
-
-    return false;
-  });
+  const upcomingSessions = sessions.filter(
+    (s) => s.status === "ACTIVE" && !completedTasks[s.id || s._id],
+  );
+  const pastSessions = sessions.filter(
+    (s) => s.status !== "ACTIVE" || completedTasks[s.id || s._id],
+  );
 
   const renderAdminNames = (userGroup) => {
     if (Array.isArray(userGroup.admins) && userGroup.admins.length > 0) {
@@ -467,23 +415,6 @@ export function WlsStudentView({ user: propUser }) {
           session={session}
           isUpcoming={isUpcoming && !isCompleted}
         />
-
-        {/* Special Instructions & PDF Comments */}
-        {session.specialInstructions && (
-          <Paper withBorder p="sm" mt="md" radius="sm" bg="yellow.0">
-            <Group gap="xs" mb={4}>
-              <ThemeIcon color="yellow" size="sm" variant="light">
-                <IconAlertCircle size={16} />
-              </ThemeIcon>
-              <Text size="xs" fw={700} c="yellow.9" tt="uppercase">
-                Special Instructions & PDF Comments
-              </Text>
-            </Group>
-            <Text size="sm" c="gray.8" style={{ whiteSpace: "pre-wrap" }}>
-              {session.specialInstructions}
-            </Text>
-          </Paper>
-        )}
 
         {(hasPdfs || hasVideos) && (
           <Paper withBorder p="sm" mt="md" radius="sm" bg="gray.0">
@@ -638,6 +569,35 @@ export function WlsStudentView({ user: propUser }) {
                 </Stack>
               )}
 
+            <Divider my="xs" />
+
+            {/* Special Instructions Block */}
+            {userGroup.instructions && (
+              <Paper
+                withBorder
+                p="sm"
+                mb="md"
+                radius="sm"
+                bg="white"
+                shadow="xs"
+                style={{ borderColor: "var(--mantine-color-gray-3)" }}
+              >
+                <Group gap="xs" mb={4}>
+                  <ThemeIcon color="blue" size="sm" variant="light">
+                    <IconAlertCircle size={16} />
+                  </ThemeIcon>
+                  <Text size="sm" fw={700} c="dark.7" tt="uppercase">
+                    Special Instructions & Group Guidelines
+                  </Text>
+                </Group>
+                <Text size="sm" c="gray.8" style={{ whiteSpace: "pre-wrap" }}>
+                  {userGroup.instructions}
+                </Text>
+              </Paper>
+            )}
+
+            <Divider my="xs" />
+
             {currentApiError && (
               <Alert
                 icon={<IconAlertCircle size={16} />}
@@ -745,41 +705,37 @@ export function WlsStudentView({ user: propUser }) {
                     onClick={async () => {
                       const userId = currentUser?._id || currentUser?.id;
                       try {
-                        const res = await fetch(
-                          `${API_BASE}/assessments/user/${userId}`,
-                        );
-                        if (res.ok) {
-                          const assessmentsData = await res.json();
-                          const map = { ...assessmentsMap };
-                          if (Array.isArray(assessmentsData)) {
-                            assessmentsData.forEach((assessment) => {
-                              if (!assessment) return;
-                              const sId = assessment.sessionId
-                                ? typeof assessment.sessionId === "object"
-                                  ? assessment.sessionId?._id ||
-                                    assessment.sessionId?.id
-                                  : assessment.sessionId
-                                : null;
+                        const assessmentsData =
+                          await fetchUserAssessments(userId); //[cite: 18]
+                        const map = { ...assessmentsMap };
+                        if (Array.isArray(assessmentsData)) {
+                          assessmentsData.forEach((assessment) => {
+                            if (!assessment) return;
+                            const sId = assessment.sessionId
+                              ? typeof assessment.sessionId === "object"
+                                ? assessment.sessionId?._id ||
+                                  assessment.sessionId?.id
+                                : assessment.sessionId
+                              : null;
 
-                              const normalizedAssessment = {
-                                ...assessment,
-                                id: assessment.id || assessment._id,
-                                _id: assessment._id || assessment.id,
-                                messages: assessment.messages || [],
-                              };
+                            const normalizedAssessment = {
+                              ...assessment,
+                              id: assessment.id || assessment._id,
+                              _id: assessment._id || assessment.id,
+                              messages: assessment.messages || [],
+                            };
 
-                              if (sId) {
-                                map[sId] = normalizedAssessment;
-                              } else {
-                                sessions.forEach((session) => {
-                                  const sessId = session.id || session._id;
-                                  map[sessId] = normalizedAssessment;
-                                });
-                              }
-                            });
-                          }
-                          setAssessmentsMap(map);
+                            if (sId) {
+                              map[sId] = normalizedAssessment;
+                            } else {
+                              sessions.forEach((session) => {
+                                const sessId = session.id || session._id;
+                                map[sessId] = normalizedAssessment;
+                              });
+                            }
+                          });
                         }
+                        setAssessmentsMap(map);
                       } catch (err) {
                         console.error("Failed to refresh chat:", err);
                       }

@@ -13,7 +13,7 @@ import { UserGridView } from "./features/user-management/components/UserGridView
 import { WhatsAppGroupManager } from "./features/group-management/WhatsAppGroupManager";
 import { MSTeamGroupManager } from "./features/group-management/MSTeamGroupManager";
 import { UniversityPortalDashboard } from "./features/university/components/UniversityPortalDashboard";
-import { WlsStudentView } from "./features/dashboard/components/WlsStudentView";
+import { WlsStudentView } from "./features/wls-management/components/WlsStudentView";
 import { WlsManagementPanel } from "./features/wls-management/components/WlsManagementPanel";
 import { WlsAssessmentPanel } from "./features/wls-assessment/components/WlsAssessmentPanel";
 import { ReportingDashboard } from "./features/reporting/components/WlsReportingDashboard";

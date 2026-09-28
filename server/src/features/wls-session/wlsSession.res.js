@@ -3,7 +3,9 @@ export class WlsSessionResDto {
     this.id = doc._id;
     this.topicName = doc.topicName;
     this.sessionDateTimeToronto = doc.sessionDateTimeToronto;
-    this.description = doc.description || '';
+    this.sessionDate = doc.sessionDateTimeToronto;
+    this.description = doc.description || "";
+    this.instructions = doc.instructions || doc.description || "";
     this.videoDeadline = doc.videoDeadline || null;
     this.pdfBookletUrls = doc.pdfBookletUrls || [];
     this.quranVideoUrls = doc.quranVideoUrls || [];
