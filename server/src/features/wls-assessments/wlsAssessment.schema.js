@@ -1,27 +1,28 @@
 // src/features/wls-assessments/wlsAssessment.schema.js
 
 export const submitAssessmentSchema = {
-  type: 'object',
+  type: "object",
   properties: {
-    sessionId: { type: 'string' },
-    userId: { type: 'string' },
-    videoUrl: { type: 'string' },
-    groupNumber: { type: 'number' }
+    sessionId: { type: "string" },
+    userId: { type: "string" },
+    videoUrl: { type: "string" },
+    groupNumber: { type: "number" },
   },
-  required: ['sessionId', 'userId', 'videoUrl'],
-  additionalProperties: true
+  required: ["sessionId", "userId", "videoUrl"],
+  additionalProperties: true,
 };
 
 export const gradeAssessmentSchema = {
-  type: 'object',
-  required: ['evaluatorId', 'scores'],
+  type: "object",
+  required: ["evaluatorId", "scores"],
   properties: {
-    evaluatorId: { type: 'string' },
-    evaluatorName: { type: 'string' },
-    feedback: { type: 'string' },
+    evaluatorId: { type: "string" },
+    evaluatorName: { type: "string" },
+    feedback: { type: "string" },
+    status: { type: "string" },
     scores: {
-      type: 'object',
-      additionalProperties: { type: 'number' } // Allows any numeric score keys
-    }
-  }
+      type: "object",
+      additionalProperties: { type: "number" }, // Allows any numeric score keys
+    },
+  },
 };

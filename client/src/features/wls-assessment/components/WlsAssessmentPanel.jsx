@@ -204,7 +204,6 @@ export function WlsAssessmentPanel({
 
         setCriteriaList(activeRules);
       } else {
-        // Fallback default criteria list
         setCriteriaList([
           {
             key: "presentation",
@@ -342,6 +341,18 @@ export function WlsAssessmentPanel({
           );
         }
 
+        // Determine status cleanly:
+        // 1. Always trust the saved database status first if it exists!
+        let resolvedStatus = assessment.status;
+
+        // 2. Otherwise fall back based on your lifecycle rules:
+        if (!resolvedStatus) {
+          if (studentUrl || adminUrl) {
+            resolvedStatus = "SUBMITTED";
+          } else {
+            resolvedStatus = "PENDING";
+          }
+        }
         memberList.push({
           id: studentId,
           sessionId: resolvedSessionId,
@@ -353,13 +364,7 @@ export function WlsAssessmentPanel({
           assessmentId: assessment.id || assessment._id,
           submissionUrl: studentUrl,
           adminSubmissionUrl: adminUrl,
-          status:
-            assessment.status ||
-            (assessment.isCompleted
-              ? "COMPLETED"
-              : studentUrl || adminUrl
-                ? "SUBMITTED"
-                : "MISSING"),
+          status: resolvedStatus,
           missedReason: assessment.missedReason || "",
           groupNumber: assessment.groupNumber || 1,
           evaluations: assessment.evaluations || [],
@@ -546,6 +551,8 @@ export function WlsAssessmentPanel({
     if (!selectedUser) return;
     setBanner({ show: false, type: "", message: "" });
 
+    const payloadStatus =
+      saveType === "complete" ? "COMPLETED" : "PARTIAL_SAVED";
     const validEvaluatorId =
       currentAdminId || localStorage.getItem("adminId") || "admin-default";
     const activeStreamUrl = adminVideoUrl || videoUrl;
@@ -561,7 +568,6 @@ export function WlsAssessmentPanel({
       return;
     }
 
-    // Capture the exact active scores state right before saving so we can lock them in
     const currentScoresToSave = { ...(userScoresMap[selectedUser.id] || {}) };
     const sanitizedScores = {};
     const nonCriterionKeys = [
@@ -616,11 +622,11 @@ export function WlsAssessmentPanel({
         scores: sanitizedScores,
         feedback: feedback || "",
         adminSubmissionUrl: adminVideoUrl || "",
+        status: payloadStatus, // explicitly pass status to server payload
       };
 
       await gradeAssessmentRecord(targetId, payload);
 
-      // Force-retain the exact scores just saved instead of wiping them out
       setUserScoresMap((prev) => ({
         ...prev,
         [selectedUser.id]: currentScoresToSave,
@@ -647,7 +653,7 @@ export function WlsAssessmentPanel({
         adminSubmissionUrl: adminVideoUrl,
         feedback,
         evaluations: updatedEvaluationsList,
-        status: saveType === "complete" ? "COMPLETED" : "PARTIAL_SAVED",
+        status: payloadStatus,
       };
 
       setAssignedUsers((prev) =>

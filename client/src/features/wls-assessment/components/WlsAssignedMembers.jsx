@@ -1,18 +1,49 @@
-import React from 'react';
-import { Card, Group, Stack, Text, Badge, ThemeIcon, UnstyledButton, Paper, Box } from '@mantine/core';
-import { IconUsers, IconUser } from '@tabler/icons-react';
+import React from "react";
+import {
+  Card,
+  Group,
+  Stack,
+  Text,
+  Badge,
+  ThemeIcon,
+  UnstyledButton,
+  Paper,
+  Box,
+} from "@mantine/core";
+import { IconUsers, IconUser } from "@tabler/icons-react";
 
-export function WlsAssignedMembers({ assignedUsers, selectedUserId, onUserSelect }) {
+export function WlsAssignedMembers({
+  assignedUsers,
+  selectedUserId,
+  onUserSelect,
+}) {
   const getStatusBadge = (status) => {
     switch (status) {
-      case 'COMPLETED':
-        return <Badge size="xs" color="green" variant="filled">COMPLETED</Badge>;
-      case 'PARTIAL_SAVED':
-        return <Badge size="xs" color="blue" variant="filled">PARTIAL SAVED</Badge>;
-      case 'SUBMITTED':
-        return <Badge size="xs" color="cyan" variant="light">SUBMITTED</Badge>;
+      case "COMPLETED":
+        return (
+          <Badge size="xs" color="green" variant="filled">
+            COMPLETED
+          </Badge>
+        );
+      case "PARTIAL_SAVED":
+        return (
+          <Badge size="xs" color="orange" variant="filled">
+            PARTIAL SAVED
+          </Badge>
+        );
+      case "SUBMITTED":
+        return (
+          <Badge size="xs" color="blue" variant="filled">
+            SUBMITTED
+          </Badge>
+        );
+      case "PENDING":
       default:
-        return <Badge size="xs" color="red" variant="light">MISSING</Badge>;
+        return (
+          <Badge size="xs" color="red" variant="filled">
+            PENDING
+          </Badge>
+        );
     }
   };
 
@@ -50,14 +81,20 @@ export function WlsAssignedMembers({ assignedUsers, selectedUserId, onUserSelect
                 radius="md"
                 withBorder
                 style={{
-                  display: 'block',
-                  width: '100%',
-                  cursor: 'pointer',
-                  backgroundColor: isSelected ? 'var(--mantine-color-blue-0)' : '#ffffff',
-                  borderColor: isSelected ? 'var(--mantine-color-blue-5)' : 'var(--mantine-color-gray-3)',
+                  display: "block",
+                  width: "100%",
+                  cursor: "pointer",
+                  backgroundColor: isSelected
+                    ? "var(--mantine-color-blue-0)"
+                    : "#ffffff",
+                  borderColor: isSelected
+                    ? "var(--mantine-color-blue-5)"
+                    : "var(--mantine-color-gray-3)",
                   borderWidth: isSelected ? 2 : 1,
-                  boxShadow: isSelected ? '0 2px 8px rgba(28, 126, 214, 0.15)' : 'none',
-                  transition: 'all 0.15s ease'
+                  boxShadow: isSelected
+                    ? "0 2px 8px rgba(28, 126, 214, 0.15)"
+                    : "none",
+                  transition: "all 0.15s ease",
                 }}
               >
                 <Group justify="space-between" wrap="nowrap" align="center">
@@ -65,8 +102,8 @@ export function WlsAssignedMembers({ assignedUsers, selectedUserId, onUserSelect
                     <ThemeIcon
                       size="md"
                       radius="xl"
-                      color={isSelected ? 'blue' : 'gray'}
-                      variant={isSelected ? 'filled' : 'light'}
+                      color={isSelected ? "blue" : "gray"}
+                      variant={isSelected ? "filled" : "light"}
                     >
                       <IconUser size={16} />
                     </ThemeIcon>

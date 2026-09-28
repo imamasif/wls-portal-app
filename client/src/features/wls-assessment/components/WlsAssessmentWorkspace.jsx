@@ -1,15 +1,25 @@
-import React from 'react';
-import { Card, Group, Stack, Text, Badge, TextInput, Button, ThemeIcon, Alert } from '@mantine/core';
+import React from "react";
+import {
+  Card,
+  Group,
+  Stack,
+  Text,
+  Badge,
+  TextInput,
+  Button,
+  ThemeIcon,
+  Alert,
+} from "@mantine/core";
 import {
   IconClipboardCheck,
   IconAward,
   IconAlertTriangle,
   IconCircleCheck,
   IconShieldCheck,
-  IconDeviceFloppy
-} from '@tabler/icons-react';
-import { ColorScoreSlider } from '../../../components/common/ColorScoreSlider';
-import { WlsAdminComments } from './WlsAdminComments';
+  IconDeviceFloppy,
+} from "@tabler/icons-react";
+import { ColorScoreSlider } from "../../../components/common/ColorScoreSlider";
+import { WlsAdminComments } from "./WlsAdminComments";
 
 export function WlsAssessmentWorkspace({
   selectedUser,
@@ -28,18 +38,35 @@ export function WlsAssessmentWorkspace({
   onNewMessageTextChange,
   onSendMessage,
   onOpenSaveModal,
-  onRefresh
+  onRefresh,
 }) {
   const getStatusBadge = (status) => {
     switch (status) {
-      case 'COMPLETED':
-        return <Badge size="xs" color="green" variant="filled">COMPLETED</Badge>;
-      case 'PARTIAL_SAVED':
-        return <Badge size="xs" color="blue" variant="filled">PARTIAL SAVED</Badge>;
-      case 'SUBMITTED':
-        return <Badge size="xs" color="cyan" variant="light">SUBMITTED</Badge>;
+      case "COMPLETED":
+        return (
+          <Badge size="xs" color="green" variant="filled">
+            COMPLETED
+          </Badge>
+        );
+      case "PARTIAL_SAVED":
+        return (
+          <Badge size="xs" color="orange" variant="filled">
+            PARTIAL SAVED
+          </Badge>
+        );
+      case "SUBMITTED":
+        return (
+          <Badge size="xs" color="blue" variant="filled">
+            SUBMITTED
+          </Badge>
+        );
+      case "PENDING":
       default:
-        return <Badge size="xs" color="red" variant="light">MISSING</Badge>;
+        return (
+          <Badge size="xs" color="red" variant="filled">
+            PENDING
+          </Badge>
+        );
     }
   };
 
@@ -52,14 +79,20 @@ export function WlsAssessmentWorkspace({
   }
 
   return (
-    <Card shadow="xs" padding="xl" radius="lg" withBorder style={{ width: '100%' }}>
+    <Card
+      shadow="xs"
+      padding="xl"
+      radius="lg"
+      withBorder
+      style={{ width: "100%" }}
+    >
       <Group justify="space-between" mb="xl">
         <Group gap="sm">
           <ThemeIcon size="xl" radius="xl" color="blue" variant="light">
             <IconClipboardCheck size={28} />
           </ThemeIcon>
           <Text size="xl" fw={800}>
-            Assessment for:{' '}
+            Assessment for:{" "}
             <Text component="span" c="blue">
               {selectedUser.name}
             </Text>
@@ -70,8 +103,8 @@ export function WlsAssessmentWorkspace({
 
       {banner.show && (
         <Alert
-          color={banner.type === 'success' ? 'green' : 'red'}
-          title={banner.type === 'success' ? 'Success' : 'Error'}
+          color={banner.type === "success" ? "green" : "red"}
+          title={banner.type === "success" ? "Success" : "Error"}
           withCloseButton
           onClose={onCloseBanner}
           mb="md"
@@ -90,7 +123,10 @@ export function WlsAssessmentWorkspace({
           radius="md"
           mb="md"
         >
-          This student has <strong>not submitted a video link</strong>. You cannot mark this assessment as <strong>COMPLETED</strong> until a valid video URL is provided by the student or entered in the Admin Override section.
+          This student has <strong>not submitted a video link</strong>. You
+          cannot mark this assessment as <strong>COMPLETED</strong> until a
+          valid video URL is provided by the student or entered in the Admin
+          Override section.
         </Alert>
       ) : (
         <Alert
@@ -112,7 +148,7 @@ export function WlsAssessmentWorkspace({
         withBorder
         mb="xl"
         bg="indigo.0"
-        style={{ borderColor: 'var(--mantine-color-indigo-2)' }}
+        style={{ borderColor: "var(--mantine-color-indigo-2)" }}
       >
         <Group gap="xs" mb="xs">
           <ThemeIcon size="md" radius="xl" color="indigo" variant="filled">
@@ -123,7 +159,8 @@ export function WlsAssessmentWorkspace({
           </Text>
         </Group>
         <Text size="xs" c="dimmed" mb="md">
-          Paste or overwrite a verified video link here if the user submitted an invalid link or sent it via external channels.
+          Paste or overwrite a verified video link here if the user submitted an
+          invalid link or sent it via external channels.
         </Text>
 
         <TextInput
@@ -146,8 +183,14 @@ export function WlsAssessmentWorkspace({
 
       <Stack gap="md" mb="xl">
         {criteriaList.map((criterion, idx) => {
-          const key = criterion.key || criterion.code || (typeof criterion === 'string' ? criterion : `criterion_${idx}`);
-          const label = criterion.title || criterion.criterion || (typeof criterion === 'string' ? criterion : `Criteria ${idx + 1}`);
+          const key =
+            criterion.key ||
+            criterion.code ||
+            (typeof criterion === "string" ? criterion : `criterion_${idx}`);
+          const label =
+            criterion.title ||
+            criterion.criterion ||
+            (typeof criterion === "string" ? criterion : `Criteria ${idx + 1}`);
 
           return (
             <ColorScoreSlider
