@@ -10,6 +10,7 @@ import {
   IconBook,
   IconChecklist,
 } from "@tabler/icons-react";
+import { IconNotes } from "@tabler/icons-react";
 
 export function UserMenu({ activeTab, setActiveTab }) {
   return (
@@ -70,6 +71,14 @@ export function UserMenu({ activeTab, setActiveTab }) {
             }
           >
             WLS Attendance
+          </Menu.Item>
+
+          <Menu.Divider />
+          <Menu.Item
+            leftSection={<IconNotes size={16} />}
+            onClick={() => setActiveTab(AppTab.STICKY_NOTES)}
+          >
+            Sticky Notes
           </Menu.Item>
         </Menu.Dropdown>
       </Menu>

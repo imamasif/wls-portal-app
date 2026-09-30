@@ -13,13 +13,13 @@ import {
   Badge,
   Box,
   Tooltip,
-  useMantineColorScheme, // Add hook here
+  useMantineColorScheme,
 } from "@mantine/core";
 import {
   IconBook,
   IconSearch,
   IconMoon,
-  IconSun, // Add IconSun here
+  IconSun,
   IconPrinter,
   IconShare2,
   IconUsers,
@@ -29,13 +29,15 @@ import {
   IconBellRinging,
   IconCopy,
   IconX,
-} from "@tabler/icons-react"; // Remove the second @tabler/icons-react import statement below
+  IconCalendar,
+} from "@tabler/icons-react";
 
 import { SocialMediaSection } from "./sections/SocialMediaSection";
 import { VolunteerRulesSection } from "./sections/VolunteerRulesSection";
 import { ImportantLinksSection } from "./sections/ImportantLinksSection";
 import { DonationLinksSection } from "./sections/DonationLinksSection";
 import { DonationReminderSection } from "./sections/DonationReminderSection";
+import { LectureLibrarySection } from "./sections/LectureLibrarySection"; // Import new section
 import { NotebookSpine } from "./NotebookSpine";
 import { SideRibbons } from "./SideRibbons";
 import { fetchStickyNotesData } from "../api/stickyNotesApi";
@@ -74,6 +76,7 @@ export function StickyNotesPanel() {
     { title: "03. Important Links", icon: <IconLink size={16} /> },
     { title: "04. Donation Links", icon: <IconHeartHandshake size={16} /> },
     { title: "05. Donation Reminder", icon: <IconBellRinging size={16} /> },
+    { title: "06. Lecture Library", icon: <IconCalendar size={16} /> },
   ];
 
   return (
@@ -213,7 +216,7 @@ export function StickyNotesPanel() {
             <Text size="xs" c="dimmed" fs="italic">
               Page{" "}
               <Text span fw={800} c="indigo.7" size="sm">
-                0{activeTab + 1} / 05
+                0{activeTab + 1} / 06
               </Text>
             </Text>
           </Group>
@@ -258,6 +261,7 @@ export function StickyNotesPanel() {
                     {activeTab === 2 && "3. Important Easy Access Links"}
                     {activeTab === 3 && "4. Donation & Banking Details"}
                     {activeTab === 4 && "5. Monthly Donation & Sadqa Reminder"}
+                    {activeTab === 5 && "6. Lecture Library Year-Wise"}
                   </Title>
                 </Group>
                 <Tooltip label={copied ? "Copied!" : "Copy Page Link"}>
@@ -290,6 +294,9 @@ export function StickyNotesPanel() {
               )}
               {activeTab === 4 && (
                 <DonationReminderSection searchQuery={searchQuery} />
+              )}
+              {activeTab === 5 && (
+                <LectureLibrarySection searchQuery={searchQuery} />
               )}
 
               <Box
@@ -349,7 +356,7 @@ export function StickyNotesPanel() {
               </Text>
             </Group>
             <Text size="xs" c="dimmed" fw={500}>
-              Interactive Mantine Note UI
+              Instructions & Quick Notes Notebook
             </Text>
           </Group>
         </Box>

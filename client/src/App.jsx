@@ -127,7 +127,7 @@ export default function App() {
           {activeTab === AppTab.WLS_CLASS_ATTENDANCE && (
             <WlsClassAttendancePanel user={user} />
           )}
-          {activeTab === AppTab.STICKY_NOTES && isWlsAdmin && (
+          {activeTab === AppTab.STICKY_NOTES && (
             <StickyNotesPanel user={user} />
           )}
         </Container>

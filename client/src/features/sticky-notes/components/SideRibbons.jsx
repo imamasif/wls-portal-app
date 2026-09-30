@@ -1,3 +1,5 @@
+// src/features/sticky-notes/components/SideRibbons.jsx
+
 import React from "react";
 import { Box, Text } from "@mantine/core";
 import { IconChevronRight } from "@tabler/icons-react";
@@ -9,6 +11,7 @@ export function SideRibbons({ activeTab, onTabChange }) {
     { label: "Important Links", bg: "#6366f1", activeBg: "#4338ca" },
     { label: "Donation Links", bg: "#f59e0b", activeBg: "#b45309" },
     { label: "Donation Reminder", bg: "#ef4444", activeBg: "#b91c1c" },
+    { label: "Lecture Library", bg: "#8b5cf6", activeBg: "#6d28d9" },
   ];
 
   return (
