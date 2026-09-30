@@ -20,7 +20,9 @@ import { ReportingDashboard } from "./features/reporting/components/WlsReporting
 import { NotificationPanel } from "./features/notifications/components/NotificationPanel";
 import { EditProfileCard } from "./components/profile/EditProfileCard";
 import { LoginPage } from "./features/auth/components/LoginPage";
-import { WlsAttendancePanel } from "./features/wls-attendance-monitoring/components/WlsAttendancePanel";
+import { WlsAttendanceMonitoringPanel } from "./features/wls-attendance-monitoring/components/WlsAttendanceMonitoringPanel";
+import { WlsClassAttendancePanel } from "./features/wls-attendance-monitoring/components/WlsClassAttendancePanel";
+
 import {
   QuizListScreen,
   QuizAdminWorkspace,
@@ -118,8 +120,11 @@ export default function App() {
             <QuizReportDashboard user={user} />
           )}
           {activeTab === AppTab.QUIZ_STUDENT && <QuizStudentView user={user} />}
-          {activeTab === AppTab.WLS_ATTENDANCE && (
-            <WlsAttendancePanel user={user} />
+          {activeTab === AppTab.WLS_ATTENDANCE_MONITORING && isWlsAdmin && (
+            <WlsAttendanceMonitoringPanel user={user} />
+          )}
+          {activeTab === AppTab.WLS_CLASS_ATTENDANCE && (
+            <WlsClassAttendancePanel user={user} />
           )}
         </Container>
       </MainLayout>

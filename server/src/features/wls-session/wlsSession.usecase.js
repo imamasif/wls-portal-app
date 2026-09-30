@@ -69,6 +69,14 @@ export class WlsSessionUseCase {
       throw new Error("Invalid session status value.");
     }
 
+    // If making this session ACTIVE, automatically set any other active session to COMPLETED
+    if (status === WLS_SESSION_STATUSES.ACTIVE) {
+      await WlsSessionModel.updateMany(
+        { status: WLS_SESSION_STATUSES.ACTIVE, _id: { $ne: id } },
+        { $set: { status: WLS_SESSION_STATUSES.COMPLETED } },
+      );
+    }
+
     const updated = await WlsSessionModel.findByIdAndUpdate(
       id,
       { status, cancelReason },
