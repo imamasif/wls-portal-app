@@ -56,7 +56,7 @@ export function WlsAdminMenu({ activeTab, setActiveTab }) {
           </Menu.Item>
 
           <Menu.Item
-            onClick={() => setActiveTab(AppTab.WLS_ATTENDANCE)}
+            onClick={() => setActiveTab(AppTab.WLS_ATTENDANCE_MONITORING)}
             leftSection={
               <IconUsers size={16} color="var(--mantine-color-teal-6)" />
             }
@@ -66,7 +66,7 @@ export function WlsAdminMenu({ activeTab, setActiveTab }) {
 
           {/* Added Class Attendance for Admins */}
           <Menu.Item
-            onClick={() => setActiveTab(AppTab.WLS_ATTENDANCE)}
+            onClick={() => setActiveTab(AppTab.WLS_CLASS_ATTENDANCE)}
             leftSection={
               <IconFingerprint size={16} color="var(--mantine-color-red-6)" />
             }

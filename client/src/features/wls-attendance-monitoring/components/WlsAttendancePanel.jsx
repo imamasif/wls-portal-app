@@ -61,9 +61,8 @@ export function WlsAttendancePanel({ user }) {
   const fetchActiveSessionAndAttendance = async () => {
     try {
       setLoading(true);
-      const sessionRes = await axios.get(
-        "http://localhost:5000/api/wls-sessions",
-      );
+      // Cleaned hardcoded localhost:5000 to relative path
+      const sessionRes = await axios.get("/api/wls-sessions");
       const sessions = sessionRes.data;
       const currentActive =
         sessions.find((s) => s.status === "ACTIVE") || sessions[0];

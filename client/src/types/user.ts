@@ -84,4 +84,6 @@ export enum AppTab {
   MENU_PERMISSIONS = "menu-permissions",
   ROLES_CONTROL = "roles-control",
   USER_ACTIVITY = "user-activity",
+  WLS_ATTENDANCE_MONITORING = "WLS_ATTENDANCE_MONITORING",
+  WLS_CLASS_ATTENDANCE = "WLS_CLASS_ATTENDANCE",
 }

@@ -64,7 +64,7 @@ export function UserMenu({ activeTab, setActiveTab }) {
           <Menu.Divider />
 
           <Menu.Item
-            onClick={() => setActiveTab(AppTab.WLS_ATTENDANCE)}
+            onClick={() => setActiveTab(AppTab.WLS_CLASS_ATTENDANCE)}
             leftSection={
               <IconFingerprint size={16} color="var(--mantine-color-red-6)" />
             }
