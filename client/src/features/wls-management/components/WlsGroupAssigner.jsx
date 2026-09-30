@@ -127,9 +127,7 @@ export function WlsGroupAssigner({
     <Card withBorder padding="lg" radius="md">
       <Group gap="xs" mb="md">
         <IconUsersGroup size={20} color="var(--mantine-color-indigo-6)" />
-        <Title order={4}>
-          Group Configuration & Member Assignment (1,000+ Users)
-        </Title>
+        <Title order={4}>Group Configuration & Member Assignment</Title>
       </Group>
 
       <SliderCountSelector
