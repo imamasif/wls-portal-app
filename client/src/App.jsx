@@ -22,6 +22,7 @@ import { EditProfileCard } from "./components/profile/EditProfileCard";
 import { LoginPage } from "./features/auth/components/LoginPage";
 import { WlsAttendanceMonitoringPanel } from "./features/wls-attendance-monitoring/components/WlsAttendanceMonitoringPanel";
 import { WlsClassAttendancePanel } from "./features/wls-attendance-monitoring/components/WlsClassAttendancePanel";
+import { StickyNotesPanel } from "./features/sticky-notes/components/StickyNotesPanel";
 
 import {
   QuizListScreen,
@@ -125,6 +126,9 @@ export default function App() {
           )}
           {activeTab === AppTab.WLS_CLASS_ATTENDANCE && (
             <WlsClassAttendancePanel user={user} />
+          )}
+          {activeTab === AppTab.STICKY_NOTES && isWlsAdmin && (
+            <StickyNotesPanel user={user} />
           )}
         </Container>
       </MainLayout>

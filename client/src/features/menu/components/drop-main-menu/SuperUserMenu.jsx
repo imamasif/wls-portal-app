@@ -15,6 +15,7 @@ import {
   IconClipboardCheck,
   IconPencilPlus,
   IconListDetails,
+  IconNotes,
   IconFingerprint,
 } from "@tabler/icons-react";
 
@@ -193,6 +194,17 @@ export function SuperUserMenu({ activeTab, setActiveTab }) {
             }
           >
             Quiz Reports
+          </Menu.Item>
+
+          <Menu.Divider />
+
+          <Menu.Item
+            onClick={() => setActiveTab(AppTab.STICKY_NOTES)}
+            leftSection={
+              <IconNotes size={16} color="var(--mantine-color-yellow-6)" />
+            }
+          >
+            Sticky Notes
           </Menu.Item>
         </Menu.Dropdown>
       </Menu>
