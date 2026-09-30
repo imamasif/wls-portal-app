@@ -1,6 +1,7 @@
+// client/src/features/attendance/api/wlsAttendanceApi.js
 import axios from "axios";
 
-const API_BASE = "http://localhost:5000/api/wls-attendance";
+const API_BASE = "/api/wls-attendance";
 
 export const wlsAttendanceApi = {
   getSessionStatus: async (sessionId) => {

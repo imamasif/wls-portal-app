@@ -18,7 +18,6 @@ import {
   Center,
   Alert,
   Container,
-  Tabs,
 } from "@mantine/core";
 import {
   IconChartBar,
@@ -41,6 +40,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import { reportingApi } from "../api/reportingApi"; // <-- Import reporting API
 
 export function ReportingDashboard() {
   const [data, setData] = useState(null);
@@ -56,17 +56,16 @@ export function ReportingDashboard() {
   const fetchAnalytics = async () => {
     try {
       setLoading(true);
-      const [wlsRes, quizRes] = await Promise.all([
-        fetch("http://localhost:5000/api/reports/analytics-report"),
-        fetch("http://localhost:5000/api/quiz-submissions/analytics"), // Adjust route if mounted separately
+      // Fetch cleanly using the API module with relative paths
+      const [wlsResult, quizResult] = await Promise.all([
+        reportingApi.getAnalyticsReport(),
+        reportingApi.getQuizAnalytics(),
       ]);
-      const wlsResult = await wlsRes.json();
-      const quizResult = await quizRes.json();
 
       if (wlsResult.success) {
         setData(wlsResult);
       }
-      if (quizResult.success) {
+      if (quizResult && quizResult.success) {
         setQuizData(quizResult.quizAnalytics);
       }
     } catch (err) {
@@ -103,6 +102,7 @@ export function ReportingDashboard() {
     frequencyReportData,
     assessments,
   } = data;
+
   const filteredAssessments =
     selectedGroup === "ALL"
       ? assessments

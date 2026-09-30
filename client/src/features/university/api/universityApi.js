@@ -1,7 +1,7 @@
 // client/src/features/university/api/universityApi.js
 import axios from "axios";
 
-const API_BASE = "http://localhost:5000/api/universities";
+const API_BASE = "/api/universities";
 
 export const universityApi = {
   getPortalSummary: async () => {
@@ -9,7 +9,7 @@ export const universityApi = {
     return res.data.data;
   },
 
-  // Added methods for Super User Course Builder
+  // Methods for Super User Course Builder
   getCourses: async () => {
     const res = await axios.get(`${API_BASE}/courses`);
     return res.data;
@@ -36,6 +36,7 @@ export const universityApi = {
     );
     return res.data;
   },
+
   updateLectureProgress: async (payload) => {
     const res = await axios.post(
       `${API_BASE}/course-progress/lecture-progress`,
@@ -43,6 +44,7 @@ export const universityApi = {
     );
     return res.data;
   },
+
   getCourseAudit: async (courseId) => {
     const res = await axios.get(
       `${API_BASE}/course-progress/audit/course/${courseId}`,
