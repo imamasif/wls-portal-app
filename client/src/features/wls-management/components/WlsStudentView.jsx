@@ -6,7 +6,7 @@ import {
   fetchUserAssessments,
   submitAssessment,
   postAssessmentMessage,
-} from "../api/wlsManagementApi"; //[cite: 18]
+} from "../api/wlsManagementApi";
 import {
   Stack,
   Title,
@@ -115,8 +115,8 @@ export function WlsStudentView({ user: propUser }) {
     const userId = currentUser._id || currentUser.id;
 
     Promise.all([
-      fetchWlsSessions().catch(() => []), //[cite: 18]
-      fetchUserAssessments(userId).catch(() => []), //[cite: 18]
+      fetchWlsSessions().catch(() => []),
+      fetchUserAssessments(userId).catch(() => []),
     ])
       .then(([sessionsData, assessmentsData]) => {
         setSessions(sessionsData);
@@ -274,7 +274,7 @@ export function WlsStudentView({ user: propUser }) {
     const updatedAssessment = await postAssessmentMessage(
       assessmentId,
       messageDto,
-    ); //[cite: 18]
+    );
 
     setAssessmentsMap((prev) => ({ ...prev, [sessionId]: updatedAssessment }));
   };
@@ -706,7 +706,7 @@ export function WlsStudentView({ user: propUser }) {
                       const userId = currentUser?._id || currentUser?.id;
                       try {
                         const assessmentsData =
-                          await fetchUserAssessments(userId); //[cite: 18]
+                          await fetchUserAssessments(userId);
                         const map = { ...assessmentsMap };
                         if (Array.isArray(assessmentsData)) {
                           assessmentsData.forEach((assessment) => {
@@ -825,7 +825,7 @@ export function WlsStudentView({ user: propUser }) {
               {!isCompleted && (
                 <Stack gap={6}>
                   <Group gap={4}>
-                    {["😊", "👍", "❤️", "👏", "🔥", "🤲", "💡", "✨"].map(
+                    {["😊", "👍", "❤️", "👏", "🔥", "🙏", "💡", "✨"].map(
                       (emoji) => (
                         <Button
                           key={emoji}

@@ -1,4 +1,5 @@
 import React from "react";
+import { AppTab } from "@/types/user";
 import {
   SimpleGrid,
   Text,
@@ -25,7 +26,7 @@ export function UserDB({ setActiveTab }) {
       icon: IconSchool,
       color: "teal",
       badge: "Enrolled",
-      tab: "wls-session",
+      tab: AppTab.WLS_SESSION,
     },
     {
       title: "My Quizzes",
@@ -33,7 +34,7 @@ export function UserDB({ setActiveTab }) {
       icon: IconClipboardCheck,
       color: "cyan",
       badge: "Interactive",
-      tab: "quiz-student",
+      tab: AppTab.QUIZ_STUDENT,
     },
     {
       title: "Notifications",
@@ -41,7 +42,7 @@ export function UserDB({ setActiveTab }) {
       icon: IconBellRinging,
       color: "red",
       badge: "Updates",
-      tab: "notifications",
+      tab: AppTab.NOTIFICATIONS,
     },
     {
       title: "Edit Profile",
@@ -49,7 +50,7 @@ export function UserDB({ setActiveTab }) {
       icon: IconUserCircle,
       color: "grape",
       badge: "Account",
-      tab: "edit-profile",
+      tab: AppTab.EDIT_PROFILE,
     },
   ];
 

@@ -1,4 +1,5 @@
 import React from "react";
+import { AppTab } from "@/types/user";
 import {
   SimpleGrid,
   Text,
@@ -26,7 +27,7 @@ export function WlsAdminDB({ setActiveTab }) {
       icon: IconSchool,
       color: "teal",
       badge: "Live",
-      tab: "wls-session",
+      tab: AppTab.WLS_SESSION,
     },
     {
       title: "Session Builder",
@@ -34,7 +35,7 @@ export function WlsAdminDB({ setActiveTab }) {
       icon: IconTools,
       color: "blue",
       badge: "Management",
-      tab: "wls-mgmt",
+      tab: AppTab.WLS_MGMT,
     },
     {
       title: "Grading & Tests",
@@ -42,7 +43,7 @@ export function WlsAdminDB({ setActiveTab }) {
       icon: IconClipboardCheck,
       color: "orange",
       badge: "Assessments",
-      tab: "assessment",
+      tab: AppTab.ASSESSMENTS,
     },
     {
       title: "Analytics Reports",
@@ -50,7 +51,7 @@ export function WlsAdminDB({ setActiveTab }) {
       icon: IconChartBar,
       color: "grape",
       badge: "Reports",
-      tab: "reports",
+      tab: AppTab.REPORTS,
     },
     {
       title: "Quiz Management",
@@ -58,7 +59,7 @@ export function WlsAdminDB({ setActiveTab }) {
       icon: IconClipboardCheck,
       color: "cyan",
       badge: "Quizzes",
-      tab: "quiz-list",
+      tab: AppTab.QUIZ_LIST,
     },
     {
       title: "WhatsApp Groups",
@@ -66,7 +67,7 @@ export function WlsAdminDB({ setActiveTab }) {
       icon: IconBrandWhatsapp,
       color: "green",
       badge: "Social",
-      tab: "whatsapp-groups",
+      tab: AppTab.WHATSAPP_GROUPS,
     },
     {
       title: "University Portal",
@@ -74,7 +75,7 @@ export function WlsAdminDB({ setActiveTab }) {
       icon: IconBriefcase,
       color: "indigo",
       badge: "Portal",
-      tab: "university-portal",
+      tab: AppTab.UNIVERSITY_PORTAL,
     },
   ];
 

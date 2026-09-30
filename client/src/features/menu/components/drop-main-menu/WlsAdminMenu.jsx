@@ -1,5 +1,5 @@
-// src/features/menu/components/drop-main-menu/WlsAdminMenu.jsx
 import React from "react";
+import { AppTab } from "@/types/user";
 import { Group, Button, Menu } from "@mantine/core";
 import {
   IconLayoutDashboard,
@@ -14,16 +14,18 @@ import {
   IconBrandWhatsapp,
   IconBrandTeams,
   IconBuildingBank,
+  IconUsers,
+  IconFingerprint,
 } from "@tabler/icons-react";
 
 export function WlsAdminMenu({ activeTab, setActiveTab }) {
   return (
     <Group gap="xs" px="md">
       <Button
-        variant={activeTab === "dashboard" ? "filled" : "subtle"}
+        variant={activeTab === AppTab.DASHBOARD ? "filled" : "subtle"}
         color="teal"
         leftSection={<IconLayoutDashboard size={18} />}
-        onClick={() => setActiveTab("dashboard")}
+        onClick={() => setActiveTab(AppTab.DASHBOARD)}
         size="xs"
       >
         Dashboard
@@ -43,24 +45,47 @@ export function WlsAdminMenu({ activeTab, setActiveTab }) {
           </Button>
         </Menu.Target>
         <Menu.Dropdown>
+          {/* Point Active Sessions to wls-mgmt */}
           <Menu.Item
-            onClick={() => setActiveTab("wls-session")}
+            onClick={() => setActiveTab(AppTab.WLS_SESSION)}
             leftSection={
               <IconSchool size={16} color="var(--mantine-color-teal-6)" />
             }
           >
             Active Sessions
           </Menu.Item>
+
           <Menu.Item
-            onClick={() => setActiveTab("wls-mgmt")}
+            onClick={() => setActiveTab(AppTab.WLS_ATTENDANCE)}
+            leftSection={
+              <IconUsers size={16} color="var(--mantine-color-teal-6)" />
+            }
+          >
+            Attendance Monitoring
+          </Menu.Item>
+
+          {/* Added Class Attendance for Admins */}
+          <Menu.Item
+            onClick={() => setActiveTab(AppTab.WLS_ATTENDANCE)}
+            leftSection={
+              <IconFingerprint size={16} color="var(--mantine-color-red-6)" />
+            }
+          >
+            Class Attendance
+          </Menu.Item>
+
+          <Menu.Divider />
+          <Menu.Item
+            onClick={() => setActiveTab(AppTab.WLS_MGMT)}
             leftSection={
               <IconTools size={16} color="var(--mantine-color-blue-6)" />
             }
           >
             Session Builder
           </Menu.Item>
+          <Menu.Divider />
           <Menu.Item
-            onClick={() => setActiveTab("assessment")}
+            onClick={() => setActiveTab(AppTab.ASSESSMENT)}
             leftSection={
               <IconClipboardCheck
                 size={16}
@@ -88,7 +113,7 @@ export function WlsAdminMenu({ activeTab, setActiveTab }) {
         </Menu.Target>
         <Menu.Dropdown>
           <Menu.Item
-            onClick={() => setActiveTab("whatsapp-groups")}
+            onClick={() => setActiveTab(AppTab.WHATSAPP_GROUPS)}
             leftSection={
               <IconBrandWhatsapp
                 size={16}
@@ -99,7 +124,7 @@ export function WlsAdminMenu({ activeTab, setActiveTab }) {
             WhatsApp Groups
           </Menu.Item>
           <Menu.Item
-            onClick={() => setActiveTab("teams-groups")}
+            onClick={() => setActiveTab(AppTab.TEAMS_GROUPS)}
             leftSection={
               <IconBrandTeams size={16} color="var(--mantine-color-indigo-6)" />
             }
@@ -107,7 +132,7 @@ export function WlsAdminMenu({ activeTab, setActiveTab }) {
             Teams Groups
           </Menu.Item>
           <Menu.Item
-            onClick={() => setActiveTab("university-portal")}
+            onClick={() => setActiveTab(AppTab.UNIVERSITY_PORTAL)}
             leftSection={
               <IconBuildingBank size={16} color="var(--mantine-color-blue-6)" />
             }
@@ -118,7 +143,7 @@ export function WlsAdminMenu({ activeTab, setActiveTab }) {
           <Menu.Divider />
 
           <Menu.Item
-            onClick={() => setActiveTab("reports")}
+            onClick={() => setActiveTab(AppTab.REPORTS)}
             leftSection={
               <IconChartBar size={16} color="var(--mantine-color-grape-6)" />
             }
@@ -129,7 +154,7 @@ export function WlsAdminMenu({ activeTab, setActiveTab }) {
           <Menu.Divider />
 
           <Menu.Item
-            onClick={() => setActiveTab("quiz-list")}
+            onClick={() => setActiveTab(AppTab.QUIZ_LIST)}
             leftSection={
               <IconListDetails size={16} color="var(--mantine-color-cyan-6)" />
             }
@@ -137,7 +162,7 @@ export function WlsAdminMenu({ activeTab, setActiveTab }) {
             Quiz Management (List)
           </Menu.Item>
           <Menu.Item
-            onClick={() => setActiveTab("quiz-studio")}
+            onClick={() => setActiveTab(AppTab.QUIZ_STUDIO)}
             leftSection={
               <IconPencilPlus size={16} color="var(--mantine-color-pink-6)" />
             }
@@ -145,7 +170,7 @@ export function WlsAdminMenu({ activeTab, setActiveTab }) {
             Quiz Studio (Create)
           </Menu.Item>
           <Menu.Item
-            onClick={() => setActiveTab("quiz-reports")}
+            onClick={() => setActiveTab(AppTab.QUIZ_REPORTS)}
             leftSection={
               <IconChartBar size={16} color="var(--mantine-color-grape-6)" />
             }

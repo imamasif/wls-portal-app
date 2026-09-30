@@ -24,6 +24,7 @@ import { SessionModel } from "./src/features/sessions/index.js";
 import { WlsSessionModel } from "./src/features/wls-session/wlsSession.model.js";
 import universityRoutes from "./src/features/universities/index.js";
 import courseProgressRoutes from "./src/features/universities/course-progress/index.js";
+import attendanceController from "./src/features/wls-attendance-monitoring/index.js";
 
 const app = express();
 
@@ -43,7 +44,7 @@ app.use("/api/rules", ruleRoutes);
 app.use("/api/notifications", notificationController);
 app.use("/api/reports", reportController);
 app.use("/api/social-groups", socialController);
-
+app.use("/api/wls-attendance", attendanceController);
 app.use("/api/menu-permissions", menuPermissionController);
 app.use("/api/quizzes", quizRoutes);
 app.use("/api/quiz-submissions", quizSubmissionRoutes);

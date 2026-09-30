@@ -57,3 +57,31 @@ export enum UserGender {
   FEMALE = "Female",
   NONE = "",
 }
+
+// In src/types/user.ts
+
+export enum AppTab {
+  DASHBOARD = "dashboard",
+  LOGIN = "login",
+  REGISTER = "register",
+  USERS = "users",
+  WHATSAPP_GROUPS = "whatsapp-groups",
+  TEAMS_GROUPS = "teams-groups",
+  UNIVERSITY_PORTAL = "university-portal",
+  WLS_SESSION = "wls-session",
+  WLS_ASSIGNMENT = "wls-assignment",
+  WLS_MGMT = "wls-mgmt",
+  WLS_ADMIN = "wls_admin",
+  ASSESSMENT = "assessment",
+  REPORTS = "reports",
+  NOTIFICATIONS = "notifications",
+  EDIT_PROFILE = "edit-profile",
+  QUIZ_LIST = "quiz-list",
+  QUIZ_STUDIO = "quiz-studio",
+  QUIZ_REPORTS = "quiz-reports",
+  QUIZ_STUDENT = "quiz-student",
+  WLS_ATTENDANCE = "wls-attendance",
+  MENU_PERMISSIONS = "menu-permissions",
+  ROLES_CONTROL = "roles-control",
+  USER_ACTIVITY = "user-activity",
+}

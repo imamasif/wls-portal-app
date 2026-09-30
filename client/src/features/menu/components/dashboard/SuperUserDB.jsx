@@ -1,4 +1,5 @@
 import React from "react";
+import { AppTab } from "@/types/user";
 import {
   SimpleGrid,
   Text,
@@ -29,7 +30,7 @@ export function SuperUserDB({ setActiveTab }) {
       icon: IconUsers,
       color: "cyan",
       badge: "Active",
-      tab: "users",
+      tab: AppTab.USERS,
     },
     {
       title: "Role & Access Control",
@@ -37,7 +38,7 @@ export function SuperUserDB({ setActiveTab }) {
       icon: IconShieldCheck,
       color: "grape",
       badge: "Secure",
-      tab: "roles-control",
+      tab: AppTab.ROLES_CONTROL,
     },
     {
       title: "Activity Logs",
@@ -45,7 +46,7 @@ export function SuperUserDB({ setActiveTab }) {
       icon: IconActivity,
       color: "orange",
       badge: "Live Feed",
-      tab: "user-activity",
+      tab: AppTab.USER_ACTIVITY,
     },
     {
       title: "Analytics Reports",
@@ -53,7 +54,7 @@ export function SuperUserDB({ setActiveTab }) {
       icon: IconChartBar,
       color: "blue",
       badge: "Metrics",
-      tab: "reports",
+      tab: AppTab.REPORTS,
     },
     {
       title: "WhatsApp Groups",
@@ -61,7 +62,7 @@ export function SuperUserDB({ setActiveTab }) {
       icon: IconBrandWhatsapp,
       color: "green",
       badge: "Groups",
-      tab: "whatsapp-groups",
+      tab: AppTab.WHATSAPP_GROUPS,
     },
     {
       title: "Teams Groups",
@@ -69,7 +70,7 @@ export function SuperUserDB({ setActiveTab }) {
       icon: IconBrandTeams,
       color: "indigo",
       badge: "Teams",
-      tab: "teams-groups",
+      tab: AppTab.TEAMS_GROUPS,
     },
     {
       title: "Quiz Management",
@@ -77,7 +78,7 @@ export function SuperUserDB({ setActiveTab }) {
       icon: IconClipboardCheck,
       color: "cyan",
       badge: "Quizzes",
-      tab: "quiz-list",
+      tab: AppTab.QUIZ_LIST,
     },
     {
       title: "University Portal",
@@ -85,7 +86,7 @@ export function SuperUserDB({ setActiveTab }) {
       icon: IconBuildingBank,
       color: "teal",
       badge: "Portal",
-      tab: "university-portal",
+      tab: AppTab.UNIVERSITY_PORTAL,
     },
     {
       title: "Course Audit",
@@ -93,7 +94,7 @@ export function SuperUserDB({ setActiveTab }) {
       icon: IconSchool,
       color: "violet",
       badge: "Audit",
-      tab: "wls_admin",
+      tab: AppTab.WLS_ADMIN,
     },
   ];
 
