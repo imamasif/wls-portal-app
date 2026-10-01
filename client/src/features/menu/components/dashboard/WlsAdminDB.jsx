@@ -17,6 +17,8 @@ import {
   IconChartBar,
   IconBrandWhatsapp,
   IconBriefcase,
+  IconNotes,
+  IconBook,
 } from "@tabler/icons-react";
 
 export function WlsAdminDB({ setActiveTab }) {
@@ -76,6 +78,23 @@ export function WlsAdminDB({ setActiveTab }) {
       color: "indigo",
       badge: "Portal",
       tab: AppTab.UNIVERSITY_PORTAL,
+    },
+    {
+      title: "Sticky Notes",
+      description: "Create quick reminders, session notes, and task lists.",
+      icon: IconNotes,
+      color: "yellow",
+      badge: "Quick Notes",
+      tab: AppTab.STICKY_NOTES,
+    },
+    {
+      title: "Quran Ayat Memorizer",
+      description:
+        "Practice and master Quran verse references and surah numbers.",
+      icon: IconBook,
+      color: "teal",
+      badge: "Memorizer",
+      tab: AppTab.QURAN_MEMORIZER,
     },
   ];
 

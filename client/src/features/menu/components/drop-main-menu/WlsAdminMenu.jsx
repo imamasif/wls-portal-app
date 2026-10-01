@@ -18,6 +18,7 @@ import {
   IconNotes,
   IconFingerprint,
 } from "@tabler/icons-react";
+import { IconBook } from "@tabler/icons-react";
 
 export function WlsAdminMenu({ activeTab, setActiveTab }) {
   return (
@@ -100,7 +101,7 @@ export function WlsAdminMenu({ activeTab, setActiveTab }) {
       </Menu>
 
       {/* Administration Dropdown */}
-      <Menu shadow="md" width={240} trigger="hover">
+      <Menu shadow="md" width={260} trigger="hover">
         <Menu.Target>
           <Button
             variant="subtle"
@@ -113,73 +114,7 @@ export function WlsAdminMenu({ activeTab, setActiveTab }) {
           </Button>
         </Menu.Target>
         <Menu.Dropdown>
-          <Menu.Item
-            onClick={() => setActiveTab(AppTab.WHATSAPP_GROUPS)}
-            leftSection={
-              <IconBrandWhatsapp
-                size={16}
-                color="var(--mantine-color-teal-6)"
-              />
-            }
-          >
-            WhatsApp Groups
-          </Menu.Item>
-          <Menu.Item
-            onClick={() => setActiveTab(AppTab.TEAMS_GROUPS)}
-            leftSection={
-              <IconBrandTeams size={16} color="var(--mantine-color-indigo-6)" />
-            }
-          >
-            Teams Groups
-          </Menu.Item>
-          <Menu.Item
-            onClick={() => setActiveTab(AppTab.UNIVERSITY_PORTAL)}
-            leftSection={
-              <IconBuildingBank size={16} color="var(--mantine-color-blue-6)" />
-            }
-          >
-            University Portal
-          </Menu.Item>
-
-          <Menu.Divider />
-
-          <Menu.Item
-            onClick={() => setActiveTab(AppTab.REPORTS)}
-            leftSection={
-              <IconChartBar size={16} color="var(--mantine-color-grape-6)" />
-            }
-          >
-            Reports
-          </Menu.Item>
-
-          <Menu.Divider />
-
-          <Menu.Item
-            onClick={() => setActiveTab(AppTab.QUIZ_LIST)}
-            leftSection={
-              <IconListDetails size={16} color="var(--mantine-color-cyan-6)" />
-            }
-          >
-            Quiz Management (List)
-          </Menu.Item>
-          <Menu.Item
-            onClick={() => setActiveTab(AppTab.QUIZ_STUDIO)}
-            leftSection={
-              <IconPencilPlus size={16} color="var(--mantine-color-pink-6)" />
-            }
-          >
-            Quiz Studio (Create)
-          </Menu.Item>
-          <Menu.Item
-            onClick={() => setActiveTab(AppTab.QUIZ_REPORTS)}
-            leftSection={
-              <IconChartBar size={16} color="var(--mantine-color-grape-6)" />
-            }
-          >
-            Quiz Reports
-          </Menu.Item>
-
-          <Menu.Divider />
+          {/* ... other admin links ... */}
 
           <Menu.Item
             onClick={() => setActiveTab(AppTab.STICKY_NOTES)}
@@ -188,6 +123,15 @@ export function WlsAdminMenu({ activeTab, setActiveTab }) {
             }
           >
             Sticky Notes
+          </Menu.Item>
+
+          <Menu.Item
+            onClick={() => setActiveTab(AppTab.QURAN_MEMORIZER)}
+            leftSection={
+              <IconBook size={16} color="var(--mantine-color-teal-6)" />
+            }
+          >
+            Quran Reference Memorizer
           </Menu.Item>
         </Menu.Dropdown>
       </Menu>

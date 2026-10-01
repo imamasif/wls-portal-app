@@ -17,11 +17,12 @@ import {
   IconListDetails,
   IconNotes,
   IconFingerprint,
+  IconBook,
 } from "@tabler/icons-react";
 
 export function SuperUserMenu({ activeTab, setActiveTab }) {
   return (
-    <Group gap="xs" px="md" style={{ flexWrap: "nowrap" }}>
+    <Group gap="xs" px="sm" style={{ flexWrap: "nowrap", width: "100%" }}>
       <Button
         variant={activeTab === AppTab.DASHBOARD ? "filled" : "subtle"}
         color="teal"
@@ -46,7 +47,6 @@ export function SuperUserMenu({ activeTab, setActiveTab }) {
           </Button>
         </Menu.Target>
         <Menu.Dropdown>
-          {/* Point Active Sessions to wls-session */}
           <Menu.Item
             onClick={() => setActiveTab(AppTab.WLS_SESSION)}
             leftSection={
@@ -65,7 +65,6 @@ export function SuperUserMenu({ activeTab, setActiveTab }) {
             Attendance Monitoring
           </Menu.Item>
 
-          {/* Added Class Attendance for Admins */}
           <Menu.Item
             onClick={() => setActiveTab(AppTab.WLS_CLASS_ATTENDANCE)}
             leftSection={
@@ -100,7 +99,7 @@ export function SuperUserMenu({ activeTab, setActiveTab }) {
       </Menu>
 
       {/* Administration Dropdown */}
-      <Menu shadow="md" width={240} trigger="hover">
+      <Menu shadow="md" width={260} trigger="hover">
         <Menu.Target>
           <Button
             variant="subtle"
@@ -198,6 +197,7 @@ export function SuperUserMenu({ activeTab, setActiveTab }) {
 
           <Menu.Divider />
 
+          {/* Sticky Notes */}
           <Menu.Item
             onClick={() => setActiveTab(AppTab.STICKY_NOTES)}
             leftSection={
@@ -205,6 +205,16 @@ export function SuperUserMenu({ activeTab, setActiveTab }) {
             }
           >
             Sticky Notes
+          </Menu.Item>
+
+          {/* Quran Reference Memorizer inside Dropdown directly after Sticky Notes */}
+          <Menu.Item
+            onClick={() => setActiveTab(AppTab.QURAN_MEMORIZER)}
+            leftSection={
+              <IconBook size={16} color="var(--mantine-color-teal-6)" />
+            }
+          >
+            Quran Reference Memorizer
           </Menu.Item>
         </Menu.Dropdown>
       </Menu>

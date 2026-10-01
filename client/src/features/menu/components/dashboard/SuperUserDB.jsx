@@ -20,6 +20,8 @@ import {
   IconBuildingBank,
   IconSchool,
   IconClipboardCheck,
+  IconNotes,
+  IconBook,
 } from "@tabler/icons-react";
 
 export function SuperUserDB({ setActiveTab }) {
@@ -95,6 +97,23 @@ export function SuperUserDB({ setActiveTab }) {
       color: "violet",
       badge: "Audit",
       tab: AppTab.WLS_ADMIN,
+    },
+    {
+      title: "Sticky Notes",
+      description: "Create quick reminders, personal notes, and pin ideas.",
+      icon: IconNotes,
+      color: "yellow",
+      badge: "Quick Notes",
+      tab: AppTab.STICKY_NOTES,
+    },
+    {
+      title: "Quran Ayat Memorizer",
+      description:
+        "Memorize, practice, and test Quranic surah & ayah references.",
+      icon: IconBook,
+      color: "teal",
+      badge: "Memorizer",
+      tab: AppTab.QURAN_MEMORIZER,
     },
   ];
 

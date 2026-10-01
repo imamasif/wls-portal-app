@@ -43,9 +43,9 @@ export function MainLayout({ children, activeTab, setActiveTab }) {
           style={{
             paddingLeft: "16px",
             paddingRight: "16px",
-            paddingTop: "3px",
-            paddingBottom: "3px",
-            overflowX: "auto",
+            paddingTop: "4px",
+            paddingBottom: "4px",
+            overflowX: "visible",
             whiteSpace: "nowrap",
             backgroundColor: "white",
           }}

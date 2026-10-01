@@ -1,16 +1,15 @@
 import React from "react";
+import { Menu, Button, Text } from "@mantine/core";
 import { AppTab } from "@/types/user";
-import { Group, Button, Menu } from "@mantine/core";
 import {
-  IconLayoutDashboard,
   IconSchool,
   IconClipboardCheck,
-  IconFingerprint,
+  IconBellRinging,
+  IconUserCircle,
   IconChevronDown,
+  IconNotes,
   IconBook,
-  IconChecklist,
 } from "@tabler/icons-react";
-import { IconNotes } from "@tabler/icons-react";
 
 export function UserMenu({ activeTab, setActiveTab }) {
   return (
@@ -79,6 +78,15 @@ export function UserMenu({ activeTab, setActiveTab }) {
             onClick={() => setActiveTab(AppTab.STICKY_NOTES)}
           >
             Sticky Notes
+          </Menu.Item>
+          <Menu.Divider />
+          <Menu.Item
+            onClick={() => setActiveTab(AppTab.QURAN_MEMORIZER)}
+            leftSection={
+              <IconBook size={16} color="var(--mantine-color-teal-6)" />
+            }
+          >
+            Quran Reference Memorizer
           </Menu.Item>
         </Menu.Dropdown>
       </Menu>

@@ -15,6 +15,8 @@ import {
   IconClipboardCheck,
   IconBellRinging,
   IconUserCircle,
+  IconNotes,
+  IconBook,
 } from "@tabler/icons-react";
 
 export function UserDB({ setActiveTab }) {
@@ -35,6 +37,22 @@ export function UserDB({ setActiveTab }) {
       color: "cyan",
       badge: "Interactive",
       tab: AppTab.QUIZ_STUDENT,
+    },
+    {
+      title: "Sticky Notes",
+      description: "Organize tasks, personal notes, and study reminders.",
+      icon: IconNotes,
+      color: "yellow",
+      badge: "Personal",
+      tab: AppTab.STICKY_NOTES,
+    },
+    {
+      title: "Quran Ayat Memorizer",
+      description: "Memorize and test your knowledge of Quranic references.",
+      icon: IconBook,
+      color: "teal",
+      badge: "Practice",
+      tab: AppTab.QURAN_MEMORIZER,
     },
     {
       title: "Notifications",
@@ -96,7 +114,7 @@ export function UserDB({ setActiveTab }) {
           </Box>
         </Group>
 
-        <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="xl">
+        <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="xl">
           {cards.map((item) => {
             const IconComponent = item.icon;
             return (

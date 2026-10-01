@@ -23,6 +23,7 @@ import { LoginPage } from "./features/auth/components/LoginPage";
 import { WlsAttendanceMonitoringPanel } from "./features/wls-attendance-monitoring/components/WlsAttendanceMonitoringPanel";
 import { WlsClassAttendancePanel } from "./features/wls-attendance-monitoring/components/WlsClassAttendancePanel";
 import { StickyNotesPanel } from "./features/sticky-notes/components/StickyNotesPanel";
+import QuranVerseMemorizerPanel from "./features/quran-reference-memorizer/components/QuranVerseMemorizerPanel";
 
 import {
   QuizListScreen,
@@ -129,6 +130,9 @@ export default function App() {
           )}
           {activeTab === AppTab.STICKY_NOTES && (
             <StickyNotesPanel user={user} />
+          )}
+          {activeTab === AppTab.QURAN_MEMORIZER && (
+            <QuranVerseMemorizerPanel user={user} />
           )}
         </Container>
       </MainLayout>
