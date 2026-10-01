@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import {
   Card,
   Group,
@@ -10,14 +10,11 @@ import {
   ThemeIcon,
   Box,
   UnstyledButton,
-  Button
-} from '@mantine/core';
-import {
-  IconUsers,
-  IconAward,
-  IconCheck
-} from '@tabler/icons-react';
-import { ColorScoreSlider } from '../../../components/common/ColorScoreSlider';
+  Button,
+  Container,
+} from "@mantine/core";
+import { IconUsers, IconAward, IconCheck } from "@tabler/icons-react";
+import { ColorScoreSlider } from "../../../components/common/ColorScoreSlider";
 
 export function AdminGroupAssessmentView({
   assignedUsers = [],
@@ -27,10 +24,16 @@ export function AdminGroupAssessmentView({
   scores = {},
   onScoreChange,
   onOpenSaveModal,
-  getStatusBadge
+  getStatusBadge,
 }) {
   return (
-    <Box w="100%" px="16px" py="12px" style={{ boxSizing: 'border-box' }}>
+    <Container
+      size="xl"
+      w="100%"
+      px="0"
+      py="12px"
+      style={{ boxSizing: "border-box" }}
+    >
       <Card
         shadow="xs"
         padding="md"
@@ -38,7 +41,7 @@ export function AdminGroupAssessmentView({
         withBorder
         mb="lg"
         bg="blue.0"
-        style={{ borderColor: 'var(--mantine-color-blue-2)' }}
+        style={{ borderColor: "var(--mantine-color-blue-2)" }}
       >
         <Group justify="space-between">
           <Group gap="sm">
@@ -50,7 +53,8 @@ export function AdminGroupAssessmentView({
                 Group Assessment Overview
               </Text>
               <Text size="xs" c="dimmed">
-                Select a student avatar below to review video submissions and record evaluation scores.
+                Select a student avatar below to review video submissions and
+                record evaluation scores.
               </Text>
             </Box>
           </Group>
@@ -65,12 +69,12 @@ export function AdminGroupAssessmentView({
           const isSelected = selectedUser?.id === user.id;
           const userInitials = user.name
             ? user.name
-                .split(' ')
+                .split(" ")
                 .map((n) => n[0])
-                .join('')
+                .join("")
                 .toUpperCase()
                 .slice(0, 2)
-            : 'ST';
+            : "ST";
 
           return (
             <Grid.Col key={user.id} span={{ base: 6, sm: 4, md: 3, lg: 2 }}>
@@ -80,23 +84,27 @@ export function AdminGroupAssessmentView({
                 padding="sm"
                 radius="md"
                 withBorder
-                bg={isSelected ? 'blue.0' : 'white'}
+                bg={isSelected ? "blue.0" : "white"}
                 style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  cursor: 'pointer',
-                  borderColor: isSelected ? 'var(--mantine-color-blue-5)' : 'var(--mantine-color-gray-3)',
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  cursor: "pointer",
+                  borderColor: isSelected
+                    ? "var(--mantine-color-blue-5)"
+                    : "var(--mantine-color-gray-3)",
                   borderWidth: isSelected ? 2 : 1,
-                  transition: 'all 0.15s ease'
+                  transition: "all 0.15s ease",
+                  width: "100%",
+                  boxSizing: "border-box",
                 }}
               >
                 <Avatar
                   size="xl"
                   radius="xl"
-                  color={isSelected ? 'blue' : 'gray'}
+                  color={isSelected ? "blue" : "gray"}
                   mb="xs"
-                  style={{ border: isSelected ? '2px solid #1c7ed6' : 'none' }}
+                  style={{ border: isSelected ? "2px solid #1c7ed6" : "none" }}
                 >
                   {userInitials}
                 </Avatar>
@@ -108,7 +116,11 @@ export function AdminGroupAssessmentView({
                   Group {user.groupNumber}
                 </Text>
 
-                {getStatusBadge ? getStatusBadge(user.status) : <Badge size="xs">{user.status}</Badge>}
+                {getStatusBadge ? (
+                  getStatusBadge(user.status)
+                ) : (
+                  <Badge size="xs">{user.status}</Badge>
+                )}
               </Card>
             </Grid.Col>
           );
@@ -116,7 +128,13 @@ export function AdminGroupAssessmentView({
       </Grid>
 
       {selectedUser && (
-        <Card shadow="xs" padding="xl" radius="lg" withBorder>
+        <Card
+          shadow="xs"
+          padding="xl"
+          radius="lg"
+          withBorder
+          style={{ width: "100%", boxSizing: "border-box" }}
+        >
           <Group justify="space-between" mb="lg">
             <Group gap="sm">
               <Avatar size="lg" radius="xl" color="blue">
@@ -148,11 +166,15 @@ export function AdminGroupAssessmentView({
               const key =
                 criterion.key ||
                 criterion.code ||
-                (typeof criterion === 'string' ? criterion : `criterion_${idx}`);
+                (typeof criterion === "string"
+                  ? criterion
+                  : `criterion_${idx}`);
               const label =
                 criterion.title ||
                 criterion.criterion ||
-                (typeof criterion === 'string' ? criterion : `Criteria ${idx + 1}`);
+                (typeof criterion === "string"
+                  ? criterion
+                  : `Criteria ${idx + 1}`);
 
               return (
                 <ColorScoreSlider
@@ -177,7 +199,7 @@ export function AdminGroupAssessmentView({
           </Button>
         </Card>
       )}
-    </Box>
+    </Container>
   );
 }
 

@@ -22,6 +22,7 @@ import {
 } from "@tabler/icons-react";
 import { wlsAttendanceApi } from "../api/wlsAttendanceMonitoringApi";
 import axios from "axios";
+import { DualDigitalClock } from "../../../components/DualDigitalClock";
 
 export function WlsClassAttendancePanel({ user }) {
   const [activeSession, setActiveSession] = useState(null);
@@ -31,6 +32,12 @@ export function WlsClassAttendancePanel({ user }) {
   const [isMarkedPresent, setIsMarkedPresent] = useState(false);
   const [message, setMessage] = useState(null);
   const [elapsedMinutes, setElapsedMinutes] = useState(0);
+
+  // Resolve user timezone
+  const userTimeZone =
+    user?.timezone || user?.timeZone || user?.profile?.timezone;
+  const sessionStartTime =
+    activeSession?.sessionDate || activeSession?.startTime;
 
   useEffect(() => {
     fetchActiveSession();
@@ -137,6 +144,12 @@ export function WlsClassAttendancePanel({ user }) {
             {isOpen ? "OPEN" : "CLOSED"}
           </Badge>
         </Group>
+
+        {/* Dual Beveled Digital Clock Display */}
+        <DualDigitalClock
+          userTimeZone={userTimeZone}
+          sessionDate={sessionStartTime}
+        />
 
         {message && (
           <Alert

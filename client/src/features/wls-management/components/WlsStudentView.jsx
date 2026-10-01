@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../../context/AuthContext";
 import { ZoomInviteCard } from "../../wls-management/components/ZoomInviteCard";
+import { DualDigitalClock } from "../../../components/DualDigitalClock";
 import {
   fetchWlsSessions,
   fetchUserAssessments,
@@ -9,9 +10,7 @@ import {
 } from "../api/wlsManagementApi";
 import {
   Stack,
-  Title,
   Text,
-  Tabs,
   Card,
   Group,
   Badge,
@@ -27,6 +26,7 @@ import {
   Textarea,
   Avatar,
   Alert,
+  Container,
 } from "@mantine/core";
 import { modals } from "@mantine/modals";
 import {
@@ -39,13 +39,13 @@ import {
   IconAlertCircle,
   IconCheck,
   IconAlertTriangle,
-  IconSend,
   IconLink,
   IconVideoPlus,
   IconMessageDots,
   IconBrandGoogleDrive,
   IconUserX,
   IconRefresh,
+  IconHelpCircle,
 } from "@tabler/icons-react";
 
 const getUserGroup = (groupAssignments, currentUserId) => {
@@ -109,6 +109,18 @@ export function WlsStudentView({ user: propUser }) {
   const [assessmentsMap, setAssessmentsMap] = useState({});
   const [apiErrors, setApiErrors] = useState({});
   const [completedTasks, setCompletedTasks] = useState({});
+
+  // Resolve user profile timezone
+  const userTimeZone =
+    currentUser?.timezone ||
+    currentUser?.timeZone ||
+    currentUser?.profile?.timezone;
+
+  // Find upcoming or active session start date
+  const activeSessionDate =
+    sessions[0]?.sessionDate ||
+    sessions[0]?.startTime ||
+    sessions[0]?.createdAt;
 
   useEffect(() => {
     if (!currentUser) return;
@@ -212,6 +224,101 @@ export function WlsStudentView({ user: propUser }) {
           [sessionId]: err.message || "Failed to submit video URL.",
         }));
       });
+  };
+
+  // Function to display the Google Drive upload & permission guide modal
+  const handleOpenDriveHelpModal = () => {
+    modals.open({
+      title: (
+        <Group gap="xs">
+          <ThemeIcon color="blue" size="md" radius="xl">
+            <IconBrandGoogleDrive size={18} />
+          </ThemeIcon>
+          <Text fw={700} size="md">
+            How to Upload & Share Google Drive Video
+          </Text>
+        </Group>
+      ),
+      centered: true,
+      size: "lg",
+      children: (
+        <Stack gap="md" py="xs">
+          <Text size="sm" c="gray.7">
+            Follow these steps to upload your assignment video to Google Drive
+            and share the link:
+          </Text>
+
+          <Paper withBorder p="sm" radius="md" bg="gray.0">
+            <Text fw={700} size="sm" c="indigo.8" mb="xs">
+              Step 1: Upload Video to Google Drive
+            </Text>
+            <List type="ordered" size="sm" spacing="xs">
+              <List.Item>
+                Go to <strong>drive.google.com</strong> in your browser.
+              </List.Item>
+              <List.Item>
+                Click the <strong>+ New</strong> button on the top left and
+                select <strong>File upload</strong>.
+              </List.Item>
+              <List.Item>
+                Select your video file and wait for it to upload completely.
+              </List.Item>
+            </List>
+          </Paper>
+
+          <Paper withBorder p="sm" radius="md" bg="blue.0">
+            <Text fw={700} size="sm" c="indigo.8" mb="xs">
+              Step 2: Grant Sharing Permissions
+            </Text>
+            <List type="ordered" size="sm" spacing="xs">
+              <List.Item>
+                Right-click the uploaded video file in Google Drive.
+              </List.Item>
+              <List.Item>
+                Select <strong>Share</strong> &gt; <strong>Share</strong> from
+                the menu.
+              </List.Item>
+              <List.Item>
+                Under <strong>General access</strong>, change{" "}
+                <strong>Restricted</strong> to{" "}
+                <Text span fw={700} c="blue.7">
+                  "Anyone with the link"
+                </Text>
+                .
+              </List.Item>
+              <List.Item>
+                Ensure the role is set to <strong>Viewer</strong>.
+              </List.Item>
+            </List>
+          </Paper>
+
+          <Paper withBorder p="sm" radius="md" bg="teal.0">
+            <Text fw={700} size="sm" c="teal.8" mb="xs">
+              Step 3: Copy and Paste Link Here
+            </Text>
+            <List type="ordered" size="sm" spacing="xs">
+              <List.Item>
+                Click the <strong>Copy link</strong> button in the sharing
+                modal.
+              </List.Item>
+              <List.Item>
+                Paste the copied URL into the submission input box below and
+                click <strong>Save Video URL</strong>.
+              </List.Item>
+            </List>
+          </Paper>
+
+          <Button
+            fullWidth
+            color="blue"
+            mt="xs"
+            onClick={() => modals.closeAll()}
+          >
+            Got It!
+          </Button>
+        </Stack>
+      ),
+    });
   };
 
   const handleMarkCompleted = (sessionId) => {
@@ -373,13 +480,6 @@ export function WlsStudentView({ user: propUser }) {
     }
   };
 
-  const upcomingSessions = sessions.filter(
-    (s) => s.status === "ACTIVE" && !completedTasks[s.id || s._id],
-  );
-  const pastSessions = sessions.filter(
-    (s) => s.status !== "ACTIVE" || completedTasks[s.id || s._id],
-  );
-
   const renderAdminNames = (userGroup) => {
     if (Array.isArray(userGroup.admins) && userGroup.admins.length > 0) {
       return userGroup.admins.map((a) => a.name || a.id).join(", ");
@@ -410,7 +510,15 @@ export function WlsStudentView({ user: propUser }) {
       completedTasks[sessionId] || session.status === "COMPLETED";
 
     return (
-      <Card key={sessionId} withBorder shadow="sm" radius="md" p="lg" mb="md">
+      <Card
+        key={sessionId}
+        withBorder
+        shadow="sm"
+        radius="md"
+        p="lg"
+        mb="md"
+        style={{ width: "100%", boxSizing: "border-box" }}
+      >
         <ZoomInviteCard
           session={session}
           isUpcoming={isUpcoming && !isCompleted}
@@ -571,7 +679,6 @@ export function WlsStudentView({ user: propUser }) {
 
             <Divider my="xs" />
 
-            {/* Special Instructions Block */}
             {userGroup.instructions && (
               <Paper
                 withBorder
@@ -610,15 +717,32 @@ export function WlsStudentView({ user: propUser }) {
               </Alert>
             )}
 
-            {/* Video Submission Section */}
             <Paper withBorder p="sm" mt="md" radius="sm" bg="white">
-              <Group gap="xs" mb="xs">
-                <ThemeIcon color="indigo" size="md" variant="light">
-                  <IconVideoPlus size={20} />
-                </ThemeIcon>
-                <Text size="xs" fw={700} c="gray.8" tt="uppercase">
-                  Submit Recitation / Presentation Video URL
-                </Text>
+              <Group justify="space-between" align="center" mb="xs">
+                <Group gap="xs">
+                  <ThemeIcon color="indigo" size="md" variant="light">
+                    <IconVideoPlus size={20} />
+                  </ThemeIcon>
+                  <Text size="xs" fw={700} c="gray.8" tt="uppercase">
+                    Submit Assignment Video URL
+                  </Text>
+                </Group>
+
+                <Tooltip
+                  label="How to upload and share video from Google Drive"
+                  withArrow
+                  position="top"
+                >
+                  <ActionIcon
+                    variant="light"
+                    color="blue"
+                    size="sm"
+                    radius="xl"
+                    onClick={handleOpenDriveHelpModal}
+                  >
+                    <IconHelpCircle size={18} />
+                  </ActionIcon>
+                </Tooltip>
               </Group>
 
               <Group align="flex-start">
@@ -685,7 +809,6 @@ export function WlsStudentView({ user: propUser }) {
               )}
             </Paper>
 
-            {/* Comments & Chat Thread Section */}
             <Paper withBorder p="sm" mt="md" radius="sm" bg="white">
               <Group justify="space-between" mb="md">
                 <Group gap="xs">
@@ -746,7 +869,6 @@ export function WlsStudentView({ user: propUser }) {
                 </Tooltip>
               </Group>
 
-              {/* Chat Message Bubbles */}
               <Stack
                 gap="xs"
                 mb="md"
@@ -853,36 +975,22 @@ export function WlsStudentView({ user: propUser }) {
                           ...prev,
                           [sessionId]: e.target.value,
                         }));
-                        if (commentErrors[sessionId]) {
-                          setCommentErrors((prev) => ({
-                            ...prev,
-                            [sessionId]: null,
-                          }));
-                        }
                       }}
                     />
-                    <ActionIcon
-                      size="lg"
+                    <Button
                       color="teal"
-                      variant="filled"
                       onClick={() => handleAddComment(sessionId)}
                     >
-                      <IconSend size={18} />
-                    </ActionIcon>
+                      Send
+                    </Button>
                   </Group>
                 </Stack>
-              )}
-
-              {currentCommentError && (
-                <Text size="xs" c="red.7" mt={4} fw={500}>
-                  {currentCommentError}
-                </Text>
               )}
             </Paper>
           </Paper>
         ) : (
-          <Text size="xs" c="dimmed" mt="sm">
-            You are not assigned to a group in this session yet.
+          <Text size="xs" c="dimmed">
+            No group assignment for this session yet.
           </Text>
         )}
       </Card>
@@ -890,47 +998,20 @@ export function WlsStudentView({ user: propUser }) {
   };
 
   return (
-    <Stack gap="md">
-      <Title order={3} c="indigo.8">
-        Weekly Learning Sessions (WLS)
-      </Title>
-
-      <Tabs defaultValue="upcoming" color="indigo">
-        <Tabs.List mb="md">
-          <Tabs.Tab value="upcoming">
-            Upcoming Sessions ({upcomingSessions.length})
-          </Tabs.Tab>
-          <Tabs.Tab value="past">
-            Past Sessions ({pastSessions.length})
-          </Tabs.Tab>
-        </Tabs.List>
-
-        <Tabs.Panel value="upcoming">
-          <Stack gap="md">
-            {upcomingSessions.length === 0 ? (
-              <Text c="dimmed" size="sm">
-                No active upcoming sessions found.
-              </Text>
-            ) : (
-              upcomingSessions.map((s) => renderSessionDetails(s, true))
-            )}
-          </Stack>
-        </Tabs.Panel>
-
-        <Tabs.Panel value="past">
-          <Stack gap="md">
-            {pastSessions.length === 0 ? (
-              <Text c="dimmed" size="sm">
-                No past sessions recorded.
-              </Text>
-            ) : (
-              pastSessions.map((s) => renderSessionDetails(s, false))
-            )}
-          </Stack>
-        </Tabs.Panel>
-      </Tabs>
-    </Stack>
+    <Container
+      size="fluid"
+      w="100%"
+      px={0}
+      style={{ boxSizing: "border-box", maxWidth: "100%" }}
+    >
+      {/* Dual Beveled Digital Clock */}
+      <DualDigitalClock
+        userTimeZone={userTimeZone}
+        sessionDate={activeSessionDate}
+      />
+      <Stack gap="md" w="100%">
+        {sessions.map((s) => renderSessionDetails(s, s.status === "ACTIVE"))}
+      </Stack>
+    </Container>
   );
 }
-
-export default WlsStudentView;

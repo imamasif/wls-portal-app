@@ -22,13 +22,10 @@ export default function StudentWlsPanelView({
   const [urlPermissionError, setUrlPermissionError] = useState("");
   const [replyMessage, setReplyMessage] = useState("");
 
-  // Helper check function preserved intact
   const checkDrivePermission = async (url) => {
-    // Simulated validation check or actual helper logic
     return url.includes("drive.google.com") || url.length > 5;
   };
 
-  // Polling sync
   useEffect(() => {
     if (!currentUser?.id) return;
     const targetSessionId = sessionId || sessionData?.id || sessionData?._id;
@@ -58,7 +55,6 @@ export default function StudentWlsPanelView({
     return () => clearInterval(intervalId);
   }, [currentUser, sessionId, sessionData]);
 
-  // Initial load or create assessment
   useEffect(() => {
     async function loadOrCreateAssessment() {
       if (!currentUser?.id) return;
@@ -159,10 +155,9 @@ export default function StudentWlsPanelView({
   };
 
   return (
-    <div className="student-wls-panel p-6 max-w-4xl mx-auto bg-white shadow rounded space-y-6">
+    <div className="student-wls-panel p-6 w-full max-w-4xl mx-auto bg-white shadow rounded space-y-6 box-border">
       <h2 className="text-xl font-bold">Student WLS Panel View</h2>
 
-      {/* Submission Form */}
       <div className="space-y-4 border-b pb-6">
         <div>
           <label className="block font-medium text-sm text-gray-700">
@@ -203,7 +198,6 @@ export default function StudentWlsPanelView({
         </button>
       </div>
 
-      {/* Instructor Feedback & Scores */}
       {(instructorFeedback || scores) && (
         <div className="bg-gray-50 p-4 rounded space-y-2">
           <h3 className="font-semibold text-gray-800">Instructor Feedback</h3>
@@ -218,7 +212,6 @@ export default function StudentWlsPanelView({
         </div>
       )}
 
-      {/* Chat / Conversation History */}
       <div className="space-y-4">
         <h3 className="font-semibold text-gray-800">
           Conversation & Discussion

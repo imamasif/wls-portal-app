@@ -124,7 +124,12 @@ export function WlsGroupAssigner({
   };
 
   return (
-    <Card withBorder padding="lg" radius="md">
+    <Card
+      withBorder
+      padding="lg"
+      radius="md"
+      style={{ width: "100%", boxSizing: "border-box" }}
+    >
       <Group gap="xs" mb="md">
         <IconUsersGroup size={20} color="var(--mantine-color-indigo-6)" />
         <Title order={4}>Group Configuration & Member Assignment</Title>
@@ -138,7 +143,12 @@ export function WlsGroupAssigner({
         onChange={(val) => setGroupCount(val)}
       />
 
-      <Accordion variant="separated" radius="md" mt="md">
+      <Accordion
+        variant="separated"
+        radius="md"
+        mt="md"
+        style={{ width: "100%" }}
+      >
         {Array.from({ length: groupCount }, (_, i) => {
           const groupIdx = i + 1;
           const assignedData = groupAssignments[groupIdx] || {
@@ -195,7 +205,6 @@ export function WlsGroupAssigner({
                     </Grid>
                   </div>
 
-                  {/* Scrollable Container for 1000+ Users */}
                   <div>
                     <Text fw={600} size="sm" mb="xs">
                       Assign Users & Students ({users.length} Total)

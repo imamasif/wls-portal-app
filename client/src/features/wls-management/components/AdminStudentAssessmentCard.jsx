@@ -1,51 +1,80 @@
-import React, { useState } from 'react';
-import { 
-  Paper, Group, Stack, Text, Badge, Slider, Textarea, Button, 
-  Collapse, ActionIcon, Anchor, Modal, Alert, Box, Avatar, Title, Timeline, ThemeIcon 
-} from '@mantine/core';
-import { 
-  IconChevronDown, IconChevronUp, IconVideo, IconCheck, 
-  IconX, IconAlertCircle, IconMaximize, IconUser, IconCalendar, 
-  IconMessages, IconClock, IconSend 
-} from '@tabler/icons-react';
-import { getSliderColor } from './utils';
+import React, { useState } from "react";
+import {
+  Paper,
+  Group,
+  Stack,
+  Text,
+  Badge,
+  Slider,
+  Textarea,
+  Button,
+  Collapse,
+  ActionIcon,
+  Anchor,
+  Modal,
+  Alert,
+  Box,
+  Avatar,
+  Title,
+  ThemeIcon,
+} from "@mantine/core";
+import {
+  IconChevronDown,
+  IconChevronUp,
+  IconVideo,
+  IconCheck,
+  IconX,
+  IconAlertCircle,
+  IconMaximize,
+  IconUser,
+  IconCalendar,
+  IconMessages,
+} from "@tabler/icons-react";
+import { getSliderColor } from "./utils";
 
 const DEFAULT_CRITERIA = [
-  { id: 'presentation', label: 'Presentation (Camera, Light, Sound & Video Quality)' },
-  { id: 'attire', label: 'Attire / Dress Code' },
-  { id: 'arabicReading', label: 'Arabic Reading / Recitation' },
-  { id: 'onTimeDelivery', label: 'On Time Delivery' },
-  { id: 'transferenceOfSpirit', label: 'Transference of Spirit' },
-  { id: 'bodyLanguage', label: 'Body Language' }
+  {
+    id: "presentation",
+    label: "Presentation (Camera, Light, Sound & Video Quality)",
+  },
+  { id: "attire", label: "Attire / Dress Code" },
+  { id: "arabicReading", label: "Arabic Reading / Recitation" },
+  { id: "onTimeDelivery", label: "On Time Delivery" },
+  { id: "transferenceOfSpirit", label: "Transference of Spirit" },
+  { id: "bodyLanguage", label: "Body Language" },
 ];
 
-export function AdminStudentAssessmentCard({ 
-  student, 
+export function AdminStudentAssessmentCard({
+  student,
   session,
-  assignedAyats = [], 
-  deadline, 
+  assignedAyats = [],
+  deadline,
   sessionConfigCriteria = DEFAULT_CRITERIA,
-  onSaveAssessment 
+  onSaveAssessment,
 }) {
   const [opened, setOpened] = useState(true);
   const [videoModalOpen, setVideoModalOpen] = useState(false);
-  const [selectedVideoUrl, setSelectedVideoUrl] = useState('');
-  
+  const [selectedVideoUrl, setSelectedVideoUrl] = useState("");
+
   const [ratings, setRatings] = useState(student?.assessment?.scores || {});
-  const [comments, setComments] = useState(student?.assessment?.comments || student?.instructorFeedback || '');
+  const [comments, setComments] = useState(
+    student?.assessment?.comments || student?.instructorFeedback || "",
+  );
   const [saving, setSaving] = useState(false);
 
-  const hasSubmitted = Array.isArray(student?.submissionUrls) && student.submissionUrls.length > 0;
+  const hasSubmitted =
+    Array.isArray(student?.submissionUrls) && student.submissionUrls.length > 0;
   const isMissedWithReason = !hasSubmitted && Boolean(student?.missedReason);
-  
-  // Retrieve student submission comments and history
-  const conversationHistory = student?.studentResponses || student?.comments || [];
-  const userSubmissionNote = student?.userComments || student?.submissionNote || '';
+
+  const conversationHistory =
+    student?.studentResponses || student?.comments || [];
+  const userSubmissionNote =
+    student?.userComments || student?.submissionNote || "";
 
   const getEmbedUrl = (url) => {
-    if (!url) return '';
-    if (url.includes('drive.google.com') && url.includes('/view')) {
-      return url.replace('/view', '/preview');
+    if (!url) return "";
+    if (url.includes("drive.google.com") && url.includes("/view")) {
+      return url.replace("/view", "/preview");
     }
     return url;
   };
@@ -67,20 +96,28 @@ export function AdminStudentAssessmentCard({
   };
 
   return (
-    <Stack gap="md">
-      <Paper withBorder p="md" radius="md" bg="blue.0">
+    <Stack gap="md" style={{ width: "100%", boxSizing: "border-box" }}>
+      <Paper
+        withBorder
+        p="md"
+        radius="md"
+        bg="blue.0"
+        style={{ width: "100%", boxSizing: "border-box" }}
+      >
         <Group justify="space-between" align="center">
           <div>
             <Group gap="xs" mb={4}>
-              <Badge color="indigo" variant="light">Session Under Assessment</Badge>
+              <Badge color="indigo" variant="light">
+                Session Under Assessment
+              </Badge>
               {session?.status && (
-                <Badge color={session.status === 'ACTIVE' ? 'green' : 'gray'}>
+                <Badge color={session.status === "ACTIVE" ? "green" : "gray"}>
                   {session.status}
                 </Badge>
               )}
             </Group>
             <Title order={3} c="indigo.9">
-              {session?.topicName || session?.title || 'WLS Session Assessment'}
+              {session?.topicName || session?.title || "WLS Session Assessment"}
             </Title>
           </div>
 
@@ -88,9 +125,11 @@ export function AdminStudentAssessmentCard({
             <Group gap="xs">
               <IconCalendar size={16} color="#4c6ef5" />
               <Text size="xs" c="indigo.9" fw={600}>
-                {new Date(session?.sessionDateTimeToronto || deadline).toLocaleDateString('en-US', {
-                  dateStyle: 'medium',
-                  timeZone: 'America/Toronto',
+                {new Date(
+                  session?.sessionDateTimeToronto || deadline,
+                ).toLocaleDateString("en-US", {
+                  dateStyle: "medium",
+                  timeZone: "America/Toronto",
                 })}
               </Text>
             </Group>
@@ -98,8 +137,18 @@ export function AdminStudentAssessmentCard({
         </Group>
       </Paper>
 
-      <Paper withBorder shadow="sm" radius="md" p="md">
-        <Group justify="space-between" style={{ cursor: 'pointer' }} onClick={() => setOpened((o) => !o)}>
+      <Paper
+        withBorder
+        shadow="sm"
+        radius="md"
+        p="md"
+        style={{ width: "100%", boxSizing: "border-box" }}
+      >
+        <Group
+          justify="space-between"
+          style={{ cursor: "pointer" }}
+          onClick={() => setOpened((o) => !o)}
+        >
           <Group gap="md">
             <Avatar
               src={student?.avatarUrl || student?.snapUrl || student?.drive}
@@ -107,7 +156,7 @@ export function AdminStudentAssessmentCard({
               size="lg"
               radius="100%"
               color="indigo"
-              style={{ border: '2px solid #4c6ef5' }}
+              style={{ border: "2px solid #4c6ef5" }}
             >
               {student?.fullName || student?.name ? (
                 (student.fullName || student.name).charAt(0).toUpperCase()
@@ -118,9 +167,12 @@ export function AdminStudentAssessmentCard({
 
             <div>
               <Text fw={700} size="md" c="gray.8">
-                Assessment for: {student?.fullName || student?.name || 'Student Name'}
+                Assessment for:{" "}
+                {student?.fullName || student?.name || "Student Name"}
               </Text>
-              <Text size="xs" c="dimmed">{student?.email}</Text>
+              <Text size="xs" c="dimmed">
+                {student?.email}
+              </Text>
             </div>
           </Group>
 
@@ -140,7 +192,11 @@ export function AdminStudentAssessmentCard({
             )}
 
             <ActionIcon variant="subtle" color="gray">
-              {opened ? <IconChevronUp size={18} /> : <IconChevronDown size={18} />}
+              {opened ? (
+                <IconChevronUp size={18} />
+              ) : (
+                <IconChevronDown size={18} />
+              )}
             </ActionIcon>
           </Group>
         </Group>
@@ -150,17 +206,26 @@ export function AdminStudentAssessmentCard({
             <Paper withBorder p="xs" bg="gray.0" radius="sm">
               <Group justify="space-between" align="flex-start">
                 <Box>
-                  <Text size="xs" fw={700} c="dimmed" tt="uppercase">Assigned Verses</Text>
+                  <Text size="xs" fw={700} c="dimmed" tt="uppercase">
+                    Assigned Verses
+                  </Text>
                   <Text size="xs" fw={600}>
-                    {assignedAyats.length > 0 ? assignedAyats.join(', ') : 'None assigned'}
+                    {assignedAyats.length > 0
+                      ? assignedAyats.join(", ")
+                      : "None assigned"}
                   </Text>
                 </Box>
 
                 {deadline && (
-                  <Box style={{ textAlign: 'right' }}>
-                    <Text size="xs" fw={700} c="dimmed" tt="uppercase">Deadline</Text>
+                  <Box style={{ textAlign: "right" }}>
+                    <Text size="xs" fw={700} c="dimmed" tt="uppercase">
+                      Deadline
+                    </Text>
                     <Text size="xs" fw={600} c="red.8">
-                      {new Date(deadline).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
+                      {new Date(deadline).toLocaleString("en-US", {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      })}
                     </Text>
                   </Box>
                 )}
@@ -168,26 +233,38 @@ export function AdminStudentAssessmentCard({
             </Paper>
 
             {isMissedWithReason && (
-              <Alert color="orange" icon={<IconAlertCircle size={16} />} title="Non-Submission Reason">
+              <Alert
+                color="orange"
+                icon={<IconAlertCircle size={16} />}
+                title="Non-Submission Reason"
+              >
                 <Text size="xs">{student.missedReason}</Text>
               </Alert>
             )}
 
             {hasSubmitted && (
               <Stack gap="xs">
-                <Text size="xs" fw={700} c="dimmed" tt="uppercase">Student Video Submissions</Text>
+                <Text size="xs" fw={700} c="dimmed" tt="uppercase">
+                  Student Video Submissions
+                </Text>
                 {student.submissionUrls.map((url, idx) => (
                   <Paper key={idx} withBorder p="xs" radius="xs" bg="blue.0">
                     <Group justify="space-between" mb="xs">
-                      <Anchor href={url} target="_blank" size="xs" fw={500} c="blue.8">
+                      <Anchor
+                        href={url}
+                        target="_blank"
+                        size="xs"
+                        fw={500}
+                        c="blue.8"
+                      >
                         <Group gap={4}>
                           <IconVideo size={14} />
                           <span>Video Link #{idx + 1}</span>
                         </Group>
                       </Anchor>
-                      <Button 
-                        size="xs" 
-                        variant="subtle" 
+                      <Button
+                        size="xs"
+                        variant="subtle"
                         leftSection={<IconMaximize size={12} />}
                         onClick={() => {
                           setSelectedVideoUrl(url);
@@ -198,12 +275,26 @@ export function AdminStudentAssessmentCard({
                       </Button>
                     </Group>
 
-                    <Box style={{ position: 'relative', paddingTop: '56.25%', width: '100%' }}>
+                    <Box
+                      style={{
+                        position: "relative",
+                        paddingTop: "56.25%",
+                        width: "100%",
+                      }}
+                    >
                       <iframe
                         src={getEmbedUrl(url)}
                         title={`Submission ${idx + 1}`}
                         allow="autoplay"
-                        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none', borderRadius: '4px' }}
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          width: "100%",
+                          height: "100%",
+                          border: "none",
+                          borderRadius: "4px",
+                        }}
                       />
                     </Box>
                   </Paper>
@@ -212,17 +303,25 @@ export function AdminStudentAssessmentCard({
             )}
 
             <Stack gap="sm" mt="xs">
-              <Text size="xs" fw={700} c="dimmed" tt="uppercase">Evaluation & Criteria Marking (1 - 10)</Text>
-              
+              <Text size="xs" fw={700} c="dimmed" tt="uppercase">
+                Evaluation & Criteria Marking (1 - 10)
+              </Text>
+
               {sessionConfigCriteria.map((criterion) => {
                 const currentValue = ratings[criterion.id] || 1;
-                const activeColor = getSliderColor ? getSliderColor(currentValue) : '#4c6ef5';
+                const activeColor = getSliderColor
+                  ? getSliderColor(currentValue)
+                  : "#4c6ef5";
 
                 return (
                   <Paper key={criterion.id} withBorder p="xs" radius="xs">
                     <Group justify="space-between" mb={6}>
-                      <Text size="xs" fw={600}>{criterion.label}</Text>
-                      <Badge style={{ backgroundColor: activeColor, color: '#fff' }}>
+                      <Text size="xs" fw={600}>
+                        {criterion.label}
+                      </Text>
+                      <Badge
+                        style={{ backgroundColor: activeColor, color: "#fff" }}
+                      >
                         {currentValue} / 10
                       </Badge>
                     </Group>
@@ -234,7 +333,7 @@ export function AdminStudentAssessmentCard({
                       onChange={(val) => handleSliderChange(criterion.id, val)}
                       styles={{
                         bar: { backgroundColor: activeColor },
-                        thumb: { borderColor: activeColor }
+                        thumb: { borderColor: activeColor },
                       }}
                     />
                   </Paper>
@@ -242,8 +341,13 @@ export function AdminStudentAssessmentCard({
               })}
             </Stack>
 
-            {/* Admin Comments / Feedbacks section with User Response Review */}
-            <Paper withBorder p="md" radius="md" bg="cyan.0" style={{ borderColor: 'var(--mantine-color-cyan-3)' }}>
+            <Paper
+              withBorder
+              p="md"
+              radius="md"
+              bg="cyan.0"
+              style={{ borderColor: "var(--mantine-color-cyan-3)" }}
+            >
               <Group gap="xs" mb="sm">
                 <ThemeIcon size="md" radius="xl" color="cyan" variant="filled">
                   <IconMessages size={18} />
@@ -253,10 +357,11 @@ export function AdminStudentAssessmentCard({
                 </Text>
               </Group>
 
-              {/* Review User's Initial Note & Conversation History */}
               {(userSubmissionNote || conversationHistory.length > 0) && (
                 <Paper withBorder p="xs" radius="sm" mb="md" bg="white">
-                  <Text size="xs" fw={700} c="dark" mb={4}>User Response / Comments:</Text>
+                  <Text size="xs" fw={700} c="dark" mb={4}>
+                    User Response / Comments:
+                  </Text>
                   {userSubmissionNote && (
                     <Text size="xs" c="gray.7" mb={4}>
                       • <strong>Initial Note:</strong> {userSubmissionNote}
@@ -264,7 +369,8 @@ export function AdminStudentAssessmentCard({
                   )}
                   {conversationHistory.map((item, idx) => (
                     <Text key={idx} size="xs" c="gray.7" mb={2}>
-                      • <strong>{item.senderName || 'Student'}:</strong> {item.message || item.text}
+                      • <strong>{item.senderName || "Student"}:</strong>{" "}
+                      {item.message || item.text}
                     </Text>
                   ))}
                 </Paper>
@@ -280,25 +386,43 @@ export function AdminStudentAssessmentCard({
             </Paper>
 
             <Group justify="flex-end">
-              <Button color="indigo" size="xs" loading={saving} onClick={handleSave}>
+              <Button
+                color="indigo"
+                size="xs"
+                loading={saving}
+                onClick={handleSave}
+              >
                 Save Assessment & Feedback
               </Button>
             </Group>
           </Stack>
         </Collapse>
 
-        <Modal 
-          opened={videoModalOpen} 
-          onClose={() => setVideoModalOpen(false)} 
-          size="xl" 
+        <Modal
+          opened={videoModalOpen}
+          onClose={() => setVideoModalOpen(false)}
+          size="xl"
           title="Student Submission Video"
         >
-          <Box style={{ position: 'relative', paddingTop: '56.25%', width: '100%' }}>
+          <Box
+            style={{
+              position: "relative",
+              paddingTop: "56.25%",
+              width: "100%",
+            }}
+          >
             <iframe
               src={getEmbedUrl(selectedVideoUrl)}
               title="Maximized Video Player"
               allow="autoplay"
-              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
+                border: "none",
+              }}
             />
           </Box>
         </Modal>
