@@ -2,6 +2,7 @@ import express from "express";
 import mongoose from "mongoose";
 import bcrypt from "bcrypt";
 import { userUseCase, UserMapper, UserModel } from "./index.js";
+import { UserRole } from "./types/user.ts";
 
 const router = express.Router();
 
@@ -148,11 +149,9 @@ router.post("/login", async (req, res) => {
     }
 
     if (user.isActive === false) {
-      return res
-        .status(403)
-        .json({
-          error: "Account is disabled. Please contact an administrator.",
-        });
+      return res.status(403).json({
+        error: "Account is disabled. Please contact an administrator.",
+      });
     }
 
     if (!user.password) {
@@ -169,7 +168,6 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ error: "Invalid email or password." });
     }
 
-    // Convert document to plain object safely before removing password
     const userObj = user.toObject();
     delete userObj.password;
 
@@ -211,7 +209,6 @@ router.put("/:id/change-password", async (req, res) => {
       }
     }
 
-    // Assign plain text password. The UserSchema pre-save hook will hash it once.
     user.password = newPassword;
 
     appendAuditLog(
@@ -309,7 +306,18 @@ router.put("/:id", async (req, res) => {
 
     user.name = body.name ?? user.name;
     user.email = body.email ? body.email.toLowerCase().trim() : user.email;
-    user.role = body.role ?? user.role;
+
+    // --- ROBUST ROLE VALIDATION GUARD ---
+    const allowedRoles = Object.values(UserRole); // ['SUPER_USER', 'WLS_ADMIN', 'USER']
+
+    if (body.role !== undefined) {
+      if (allowedRoles.includes(body.role)) {
+        user.role = body.role;
+      } else if (!body.role) {
+        user.role = UserRole.USER;
+      }
+    }
+
     user.gender = body.gender ?? user.gender;
 
     if (Array.isArray(body.groupNumbers)) {

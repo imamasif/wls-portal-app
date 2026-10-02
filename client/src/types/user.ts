@@ -88,4 +88,5 @@ export enum AppTab {
   WLS_CLASS_ATTENDANCE = "WLS_CLASS_ATTENDANCE",
   STICKY_NOTES = "sticky-notes",
   QURAN_MEMORIZER = "quran-memorizer",
+  QURAN_TREE = "quran-tree",
 }

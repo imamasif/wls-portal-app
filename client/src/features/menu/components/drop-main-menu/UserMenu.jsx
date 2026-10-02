@@ -9,6 +9,7 @@ import {
   IconChevronDown,
   IconNotes,
   IconBook,
+  IconSitemap,
 } from "@tabler/icons-react";
 
 export function UserMenu({ activeTab, setActiveTab }) {
@@ -87,6 +88,16 @@ export function UserMenu({ activeTab, setActiveTab }) {
             }
           >
             Quran Reference Memorizer
+          </Menu.Item>
+          <Menu.Divider />
+
+          <Menu.Item
+            onClick={() => setActiveTab(AppTab.QURAN_TREE)}
+            leftSection={
+              <IconSitemap size={16} color="var(--mantine-color-emerald-6)" />
+            }
+          >
+            Quran Morphology Tree
           </Menu.Item>
         </Menu.Dropdown>
       </Menu>

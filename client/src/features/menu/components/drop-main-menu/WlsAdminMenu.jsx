@@ -17,8 +17,9 @@ import {
   IconUsers,
   IconNotes,
   IconFingerprint,
+  IconBook,
+  IconSitemap,
 } from "@tabler/icons-react";
-import { IconBook } from "@tabler/icons-react";
 
 export function WlsAdminMenu({ activeTab, setActiveTab }) {
   return (
@@ -124,7 +125,7 @@ export function WlsAdminMenu({ activeTab, setActiveTab }) {
           >
             Sticky Notes
           </Menu.Item>
-
+          <Menu.Divider />
           <Menu.Item
             onClick={() => setActiveTab(AppTab.QURAN_MEMORIZER)}
             leftSection={
@@ -132,6 +133,15 @@ export function WlsAdminMenu({ activeTab, setActiveTab }) {
             }
           >
             Quran Reference Memorizer
+          </Menu.Item>
+          <Menu.Divider />
+          <Menu.Item
+            onClick={() => setActiveTab(AppTab.QURAN_TREE)}
+            leftSection={
+              <IconSitemap size={16} color="var(--mantine-color-emerald-6)" />
+            }
+          >
+            Quran Morphology Tree
           </Menu.Item>
         </Menu.Dropdown>
       </Menu>
