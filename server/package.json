@@ -3,15 +3,15 @@
   "version": "1.0.0",
   "type": "module",
   "main": "src/app.js",
-"scripts": {
-  "start": "tsx src/app.js",
-  "dev": "tsx watch src/app.js",
-  "seed": "tsx src/data/seeders/seedWlsData.js",
-  "seedmaster": "tsx src/data/seeders/seedMasterData.js",
-  "seeddata": "tsx src/data/seeders/seedData.js",
-  "seed-all-students": "tsx src/data/seeders/seed-all-students.js",
-  "seedCoursesAndProgress": "tsx src/data/seeders/seedCoursesAndProgress.js"
-}
+  "scripts": {
+    "start": "tsx src/app.js",
+    "dev": "tsx watch src/app.js",
+    "seed": "tsx src/data/seeders/seedWlsData.js",
+    "seedmaster": "tsx src/data/seeders/seedMasterData.js",
+    "seeddata": "tsx src/data/seeders/seedData.js",
+    "seed-all-students": "tsx src/data/seeders/seed-all-students.js",
+    "seedCoursesAndProgress": "tsx src/data/seeders/seedCoursesAndProgress.js"
+  },
   "dependencies": {
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
