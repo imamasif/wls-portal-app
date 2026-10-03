@@ -12,7 +12,7 @@ import assessmentController from "./src/features/wls-assessments/index.js";
 import ruleRoutes from "./src/features/rules/rule.routes.js";
 import { notificationController } from "./src/features/notifications/index.js";
 import socialController from "./src/features/social-groups/social.controller.js";
-import reportController from "./src/features/wls-reporting/index.js";
+import reportController from "./src/features/reports/index.js";
 import { menuPermissionController } from "./src/features/menu-permissions/index.js";
 import quizRoutes from "./src/features/quizzes/index.js";
 import quizSubmissionRoutes from "./src/features/quiz-submissions/index.js";

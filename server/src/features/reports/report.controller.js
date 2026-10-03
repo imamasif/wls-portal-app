@@ -1,38 +1,80 @@
-import express from 'express';
-import { reportUseCase } from './index.js';
-import { UserAnalyticsResDTO, AssessmentAnalyticsResDTO, GroupReportResDTO } from './report.res.js';
+import express from "express";
 
 const router = express.Router();
 
-// GET /api/reports/users - User stats for pie/bar charts
-router.get('/users', async (req, res) => {
-  try {
-    const analytics = await reportUseCase.getUserAnalytics();
-    res.status(200).json(new UserAnalyticsResDTO(analytics));
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// GET /api/reports/analytics-report - Direct self-contained payload test
+router.get("/analytics-report", async (req, res) => {
+  console.log(
+    "-> [ReportController DIRECT] GET /api/reports/analytics-report hit!",
+  );
 
-// GET /api/reports/assessments - Assessment scores analytics
-router.get('/assessments', async (req, res) => {
-  try {
-    const analytics = await reportUseCase.getAssessmentAnalytics();
-    res.status(200).json(new AssessmentAnalyticsResDTO(analytics));
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+  const mockData = {
+    success: true,
+    metrics: {
+      totalSubmissions: 3,
+      multiAdminCount: 2,
+      overallAverageScore: 91,
+      activeGroupsCount: 2,
+    },
+    statusData: [
+      { name: "Completed / Reviewed", value: 2, color: "#40c057" },
+      { name: "Pending Review", value: 1, color: "#fab005" },
+    ],
+    groupPerformanceData: [
+      { group: "Group 1", averageScore: 95 },
+      { group: "Group 2", averageScore: 88 },
+    ],
+    sessionReportData: [
+      { topic: "Tafseer & Recitation Module - Week 1", averageScore: 91 },
+    ],
+    frequencyReportData: [{ period: "Sep 2026", submissions: 3 }],
+    assessments: [
+      {
+        _id: "demo_1",
+        sessionId: "session_demo_1",
+        userId: { name: "Syed Imam", email: "syed@iipccanada.com" },
+        groupNumber: 1,
+        status: "COMPLETED",
+        finalScore: 95,
+        evaluations: [
+          {
+            evaluatorName: "Syed Imam",
+            score: 95,
+            feedback: "Outstanding recitation and analytical presentation.",
+          },
+        ],
+        createdAt: new Date(),
+      },
+      {
+        _id: "demo_2",
+        sessionId: "session_demo_1",
+        userId: { name: "Aisha Rahman", email: "aisha@iipc.org" },
+        groupNumber: 2,
+        status: "SUBMITTED",
+        finalScore: 88,
+        evaluations: [
+          {
+            evaluatorName: "Sheikh Ahmed Khan",
+            score: 88,
+            feedback: "Very good execution of assignment goals.",
+          },
+        ],
+        createdAt: new Date(),
+      },
+      {
+        _id: "demo_3",
+        sessionId: "session_demo_2",
+        userId: { name: "Bilal Khan", email: "bilal@iipc.org" },
+        groupNumber: 1,
+        status: "PENDING",
+        finalScore: 0,
+        evaluations: [],
+        createdAt: new Date(),
+      },
+    ],
+  };
 
-// GET /api/reports/groups - Reporting groups performance
-router.get('/groups', async (req, res) => {
-  try {
-    const groups = await reportUseCase.getGroupPerformanceReports();
-    const formattedGroups = groups.map((g) => new GroupReportResDTO(g));
-    res.status(200).json(formattedGroups);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  return res.status(200).json(mockData);
 });
 
 export default router;

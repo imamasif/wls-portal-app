@@ -1,3 +1,80 @@
-export { reportUseCase } from './report.usecase.js';
-export { UserAnalyticsResDTO, AssessmentAnalyticsResDTO, GroupReportResDTO } from './report.res.js';
-export { default as reportController } from './report.controller.js';
+import express from "express";
+
+const router = express.Router();
+
+// GET /api/reports/analytics-report - Analytics and Multi-Admin Reporting Suite
+router.get("/analytics-report", async (req, res) => {
+  console.log(
+    "-> [WLS-Reporting] GET /api/reports/analytics-report invoked successfully!",
+  );
+
+  const mockData = {
+    success: true,
+    metrics: {
+      totalSubmissions: 3,
+      multiAdminCount: 2,
+      overallAverageScore: 91,
+      activeGroupsCount: 2,
+    },
+    statusData: [
+      { name: "Completed / Reviewed", value: 2, color: "#40c057" },
+      { name: "Pending Review", value: 1, color: "#fab005" },
+    ],
+    groupPerformanceData: [
+      { group: "Group 1", averageScore: 95 },
+      { group: "Group 2", averageScore: 88 },
+    ],
+    sessionReportData: [
+      { topic: "Tafseer & Recitation Module - Week 1", averageScore: 91 },
+    ],
+    frequencyReportData: [{ period: "Sep 2026", submissions: 3 }],
+    assessments: [
+      {
+        _id: "demo_1",
+        sessionId: "session_demo_1",
+        userId: { name: "Syed Imam", email: "syedimam@iipccanada.com" },
+        groupNumber: 1,
+        status: "COMPLETED",
+        finalScore: 95,
+        evaluations: [
+          {
+            evaluatorName: "Syed Imam",
+            score: 95,
+            feedback: "Outstanding recitation and analytical presentation.",
+          },
+        ],
+        createdAt: new Date(),
+      },
+      {
+        _id: "demo_2",
+        sessionId: "session_demo_1",
+        userId: { name: "Aisha Rahman", email: "aisha@iipc.org" },
+        groupNumber: 2,
+        status: "SUBMITTED",
+        finalScore: 88,
+        evaluations: [
+          {
+            evaluatorName: "Sheikh Ahmed Khan",
+            score: 88,
+            feedback: "Very good execution of assignment goals.",
+          },
+        ],
+        createdAt: new Date(),
+      },
+      {
+        _id: "demo_3",
+        sessionId: "session_demo_2",
+        userId: { name: "Bilal Khan", email: "bilal@iipc.org" },
+        groupNumber: 1,
+        status: "PENDING",
+        finalScore: 0,
+        evaluations: [],
+        createdAt: new Date(),
+      },
+    ],
+  };
+
+  return res.status(200).json(mockData);
+});
+
+export default router;
