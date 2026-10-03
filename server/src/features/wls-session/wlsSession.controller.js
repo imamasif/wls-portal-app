@@ -1,5 +1,5 @@
-import { validateCreateWlsSession } from './wlsSession.schema.js';
-import { CreateWlsSessionReqDto } from './wlsSession.req.js';
+import { validateCreateWlsSession } from "./wlsSession.schema.js";
+import { CreateWlsSessionReqDto } from "./wlsSession.req.js";
 
 export class WlsSessionController {
   constructor(useCase) {
@@ -9,6 +9,15 @@ export class WlsSessionController {
   getAll = async (req, res) => {
     try {
       const data = await this.useCase.getAllSessions();
+      res.json(data);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  };
+
+  getActiveForUser = async (req, res) => {
+    try {
+      const data = await this.useCase.getActiveSessionsForUser();
       res.json(data);
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -31,7 +40,11 @@ export class WlsSessionController {
   updateStatus = async (req, res) => {
     try {
       const { status, cancelReason } = req.body;
-      const result = await this.useCase.updateStatus(req.params.id, status, cancelReason);
+      const result = await this.useCase.updateStatus(
+        req.params.id,
+        status,
+        cancelReason,
+      );
       res.json(result);
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -41,7 +54,7 @@ export class WlsSessionController {
   delete = async (req, res) => {
     try {
       await this.useCase.deleteSession(req.params.id);
-      res.json({ message: 'Session deleted' });
+      res.json({ message: "Session deleted" });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

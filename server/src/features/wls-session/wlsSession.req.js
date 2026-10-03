@@ -1,7 +1,7 @@
 import { WLS_SESSION_STATUSES } from "../../common/constants/enums.js";
 
 export class CreateWlsSessionReqDto {
-  constructor(body) {
+  constructor(body, isUpdate = false) {
     this.topicName = body.topicName;
     this.sessionDateTimeToronto = new Date(body.sessionDateTimeToronto);
     this.description = body.description || "";
@@ -15,6 +15,8 @@ export class CreateWlsSessionReqDto {
       ? body.quranVideoUrls
       : [];
     this.groupAssignments = body.groupAssignments || {}; // Ensure this maps correctly
-    this.status = body.status || WLS_SESSION_STATUSES.NEW;
+    if (body.status) {
+      this.status = body.status;
+    }
   }
 }

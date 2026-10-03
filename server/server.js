@@ -7,8 +7,7 @@ import cors from "cors";
 import bcrypt from "bcrypt";
 import { connectDB } from "./src/common/database/db.js";
 import userController from "./src/features/users/user.controller.js";
-import sessionController from "./src/features/sessions/session.controller.js";
-import wlsSessionRoutes from "./src/features/wls-session/index.js"; // <-- Import WLS Session router
+import wlsSessionRoutes from "./src/features/wls-session/index.js";
 import assessmentController from "./src/features/wls-assessments/index.js";
 import ruleRoutes from "./src/features/rules/rule.routes.js";
 import { notificationController } from "./src/features/notifications/index.js";
@@ -20,7 +19,6 @@ import quizSubmissionRoutes from "./src/features/quiz-submissions/index.js";
 
 // Explicitly import models for the seed endpoint
 import { UserModel } from "./src/features/users/index.js";
-import { SessionModel } from "./src/features/sessions/index.js";
 import { WlsSessionModel } from "./src/features/wls-session/wlsSession.model.js";
 import universityRoutes from "./src/features/universities/index.js";
 import courseProgressRoutes from "./src/features/universities/course-progress/index.js";
@@ -38,7 +36,7 @@ connectDB();
 
 app.use("/api/users", userController);
 app.use("/api/wls-sessions", wlsSessionRoutes); // <-- Mount WLS Session endpoints here
-app.use("/api/sessions", sessionController);
+// app.use("/api/sessions", sessionController);
 app.use("/api/assessments", assessmentController);
 app.use("/api/rules", ruleRoutes);
 app.use("/api/notifications", notificationController);
@@ -56,7 +54,6 @@ app.use("/api/universities/course-progress", courseProgressRoutes);
 app.post("/api/seed", async (req, res) => {
   try {
     await UserModel.deleteMany({});
-    await SessionModel.deleteMany({});
     await WlsSessionModel.deleteMany({}); // <-- Clear old WLS sessions
 
     const rawPassword = "DefaultPassword123!";

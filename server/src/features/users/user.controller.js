@@ -2,7 +2,7 @@ import express from "express";
 import mongoose from "mongoose";
 import bcrypt from "bcrypt";
 import { userUseCase, UserMapper, UserModel } from "./index.js";
-import { UserRole } from "../types/user.js";
+import { UserRole } from "../types/user.ts";
 
 const router = express.Router();
 

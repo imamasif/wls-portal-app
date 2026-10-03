@@ -31,7 +31,6 @@ import {
   IconCheck,
   IconSparkles,
   IconActivity,
-  IconClockPause,
   IconCircleCheckFilled,
   IconRefresh,
   IconPlayerPause,
@@ -177,10 +176,7 @@ export function WlsManagementPanel() {
     setGroupAssignments((prev) => ({ ...prev, [groupIdx]: updatedGroupData }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!topicName || !sessionDate) return;
-
+  const executeSubmit = async () => {
     const dateObj =
       sessionDate instanceof Date ? sessionDate : new Date(sessionDate);
     const deadlineObj =
@@ -241,6 +237,36 @@ export function WlsManagementPanel() {
     }
   };
 
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!topicName || !sessionDate) return;
+
+    const isEditing = Boolean(editingSessionId);
+
+    if (isEditing) {
+      modals.openConfirmModal({
+        title: (
+          <Text fw={700} size="md">
+            Confirm Session Update
+          </Text>
+        ),
+        centered: true,
+        radius: "md",
+        children: (
+          <Text size="sm" c="dimmed">
+            Are you sure you want to update the session{" "}
+            <strong>{topicName}</strong>?
+          </Text>
+        ),
+        labels: { confirm: "Update", cancel: "Cancel" },
+        confirmProps: { color: "blue" },
+        onConfirm: executeSubmit,
+      });
+    } else {
+      executeSubmit();
+    }
+  };
+
   const handleUpdateSingleStatus = async (
     sessionId,
     newStatus,
@@ -266,38 +292,25 @@ export function WlsManagementPanel() {
     }
   };
 
-  const handlePostpone = (e, session) => {
-    e.stopPropagation();
+  const confirmAndUpdateStatus = (session, newStatus, title, color) => {
     const sessionId = session.id || session._id;
-    let cancelReasonInput = "";
-
     modals.openConfirmModal({
       title: (
         <Text fw={700} size="md">
-          Postpone Session
+          {title}
         </Text>
       ),
       centered: true,
       radius: "md",
       children: (
-        <Stack gap="sm">
-          <Text size="sm" c="dimmed">
-            Please enter a reason for postponing{" "}
-            <strong>{session.topicName}</strong>:
-          </Text>
-          <TextInput
-            placeholder="Enter reason..."
-            data-autofocus
-            onChange={(event) => {
-              cancelReasonInput = event.currentTarget.value;
-            }}
-          />
-        </Stack>
+        <Text size="sm" c="dimmed">
+          Are you sure you want to change the status of{" "}
+          <strong>{session.topicName}</strong> to <strong>{newStatus}</strong>?
+        </Text>
       ),
-      labels: { confirm: "Confirm Postpone", cancel: "Cancel" },
-      confirmProps: { color: "orange" },
-      onConfirm: () =>
-        handleUpdateSingleStatus(sessionId, "POSTPONED", cancelReasonInput),
+      labels: { confirm: "Confirm", cancel: "Cancel" },
+      confirmProps: { color },
+      onConfirm: () => handleUpdateSingleStatus(sessionId, newStatus),
     });
   };
 
@@ -350,10 +363,10 @@ export function WlsManagementPanel() {
             NEW
           </Badge>
         );
-      case "POSTPONED":
+      case "INACTIVE":
         return (
-          <Badge color="orange" leftSection={<IconClockPause size={12} />}>
-            POSTPONED
+          <Badge color="gray" leftSection={<IconPlayerPause size={12} />}>
+            INACTIVE
           </Badge>
         );
       case "COMPLETED":
@@ -422,7 +435,7 @@ export function WlsManagementPanel() {
                     data={[
                       { value: "NEW", label: "NEW" },
                       { value: "ACTIVE", label: "ACTIVE" },
-                      { value: "POSTPONED", label: "POSTPONED" },
+                      { value: "INACTIVE", label: "INACTIVE" },
                       { value: "COMPLETED", label: "COMPLETED" },
                     ]}
                     required
@@ -620,20 +633,34 @@ export function WlsManagementPanel() {
                               <ActionIcon
                                 variant="light"
                                 color="green"
-                                onClick={() =>
-                                  handleUpdateSingleStatus(sId, "ACTIVE")
-                                }
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  confirmAndUpdateStatus(
+                                    s,
+                                    "ACTIVE",
+                                    "Make Session Active",
+                                    "green",
+                                  );
+                                }}
                               >
                                 <IconRefresh size={16} />
                               </ActionIcon>
                             </Tooltip>
                           )}
                           {currentStatus === "ACTIVE" && (
-                            <Tooltip label="Postpone Session">
+                            <Tooltip label="Make Inactive">
                               <ActionIcon
                                 variant="light"
-                                color="orange"
-                                onClick={(e) => handlePostpone(e, s)}
+                                color="gray"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  confirmAndUpdateStatus(
+                                    s,
+                                    "INACTIVE",
+                                    "Make Session Inactive",
+                                    "gray",
+                                  );
+                                }}
                               >
                                 <IconPlayerPause size={16} />
                               </ActionIcon>
@@ -644,9 +671,15 @@ export function WlsManagementPanel() {
                               <ActionIcon
                                 variant="light"
                                 color="grape"
-                                onClick={() =>
-                                  handleUpdateSingleStatus(sId, "COMPLETED")
-                                }
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  confirmAndUpdateStatus(
+                                    s,
+                                    "COMPLETED",
+                                    "Mark Session Completed",
+                                    "grape",
+                                  );
+                                }}
                               >
                                 <IconCheck size={16} />
                               </ActionIcon>

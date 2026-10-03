@@ -1,23 +1,31 @@
-import mongoose from "mongoose"; // Make sure mongoose is imported at the top
+import mongoose from "mongoose";
 import { AssessmentModel } from "./wlsAssessment.model.js";
+import { WlsSessionModel } from "../wls-session/wlsSession.model.js";
 
 export class AssessmentUseCase {
   static async getAllAssessments() {
     return await AssessmentModel.find({})
       .populate("userId", "name email profilePictureUrl city country")
-      .populate("sessionId", "weekNumber title");
+      .populate("sessionId", "weekNumber topicName status");
   }
 
   static async getAssessmentById(id) {
     return await AssessmentModel.findById(id)
       .populate("userId", "name email profilePictureUrl city country")
-      .populate("sessionId", "weekNumber title");
+      .populate("sessionId", "weekNumber topicName status");
   }
 
-  // UNIFIED GET OR CREATE: Guarantees Student & Admin always point to the same doc
+  // Ensures assessment is only created/accessed if session is ACTIVE
   static async getOrCreateAssessment(sessionId, userId) {
     const sessionObjId = new mongoose.Types.ObjectId(sessionId);
     const userObjId = new mongoose.Types.ObjectId(userId);
+
+    const session = await WlsSessionModel.findById(sessionObjId);
+    if (!session || session.status !== "ACTIVE") {
+      throw new Error(
+        "Cannot access assessments for a session that is not active.",
+      );
+    }
 
     return await AssessmentModel.findOneAndUpdate(
       { sessionId: sessionObjId, userId: userObjId },
@@ -33,29 +41,49 @@ export class AssessmentUseCase {
       { new: true, upsert: true, setDefaultsOnInsert: true },
     )
       .populate("userId", "name email profilePictureUrl city country")
-      .populate("sessionId", "weekNumber title");
+      .populate("sessionId", "weekNumber topicName status");
   }
 
   static async getUserSubmissions(userId) {
-    return await AssessmentModel.find({ userId }).populate(
+    const assessments = await AssessmentModel.find({ userId }).populate(
       "sessionId",
-      "weekNumber title",
+      "weekNumber topicName status",
+    );
+
+    // Filter out submissions belonging to non-active sessions so they don't show up prematurely
+    return assessments.filter(
+      (assessment) =>
+        assessment.sessionId && assessment.sessionId.status === "ACTIVE",
     );
   }
 
   static async submitVideoLink(dto) {
-    const sessionIdObj = new mongoose.Types.ObjectId(dto.sessionId);
-    const userIdObj = new mongoose.Types.ObjectId(dto.userId);
+    const { sessionId, userId, videoUrl, submissionUrl, groupNumber } = dto;
+    const urlToSave = submissionUrl || videoUrl;
 
-    return await AssessmentModel.findOneAndUpdate(
-      { sessionId: sessionIdObj, userId: userIdObj },
+    if (!urlToSave) {
+      throw new Error("A valid video or submission URL is required.");
+    }
+
+    const session = await WlsSessionModel.findById(sessionId);
+    if (!session || session.status !== "ACTIVE") {
+      throw new Error("Submissions are only allowed for active sessions.");
+    }
+
+    const updatedAssessment = await AssessmentModel.findOneAndUpdate(
+      { sessionId, userId },
       {
-        submissionUrl: dto.videoUrl,
-        groupNumber: dto.groupNumber,
-        status: "PENDING",
+        $set: {
+          submissionUrl: urlToSave,
+          submissionUrls: [urlToSave],
+          groupNumber: groupNumber || 1,
+          status: "SUBMITTED",
+        },
       },
-      { new: true, upsert: true, runValidators: true },
+      { new: true, upsert: true, setDefaultsOnInsert: true },
     );
+
+    return updatedAssessment;
   }
 
   static async gradeSubmission(assessmentId, dto) {
@@ -101,11 +129,14 @@ export class AssessmentUseCase {
   }
 
   static async markAsCompleted(assessmentId) {
-    return await AssessmentModel.findByIdAndUpdate(
-      assessmentId,
-      { status: "SUBMITTED", completedAt: new Date() },
-      { new: true },
-    );
+    const assessment = await AssessmentModel.findById(assessmentId);
+    if (!assessment || !assessment.submissionUrl) {
+      throw new Error("Cannot mark as completed without a video submission.");
+    }
+
+    assessment.status = "SUBMITTED";
+    assessment.completedAt = new Date();
+    return await assessment.save();
   }
 
   static async addMessage(assessmentId, dto) {

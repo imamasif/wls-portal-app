@@ -3,16 +3,28 @@ import { WlsSessionModel } from "./wlsSession.model.js";
 import { WlsSessionMapper } from "./wlsSession.mapper.js";
 import { WLS_SESSION_STATUSES } from "../../common/constants/enums.js";
 import mongoose from "mongoose";
+import "../users/user.model.js";
 
 export class WlsSessionUseCase {
   async getAllSessions() {
     const docs = await WlsSessionModel.find().lean().sort({ createdAt: -1 });
+    return this._populateAdminNames(docs);
+  }
 
-    // Collect all admin IDs across group assignments
+  // NEW: Dedicated method to fetch only active sessions for student/user portals
+  async getActiveSessionsForUser() {
+    const docs = await WlsSessionModel.find({
+      status: WLS_SESSION_STATUSES.ACTIVE,
+    })
+      .lean()
+      .sort({ createdAt: -1 });
+    return this._populateAdminNames(docs);
+  }
+
+  async _populateAdminNames(docs) {
     const adminIds = new Set();
     docs.forEach((doc) => {
       if (doc.groupAssignments) {
-        // Handle both Mongoose Map and plain JS object representations
         const assignments =
           doc.groupAssignments instanceof Map
             ? Object.fromEntries(doc.groupAssignments)
@@ -24,7 +36,6 @@ export class WlsSessionUseCase {
       }
     });
 
-    // Fetch user details for collected IDs
     const User = mongoose.model("User");
     const users = await User.find(
       { _id: { $in: Array.from(adminIds) } },
@@ -34,7 +45,6 @@ export class WlsSessionUseCase {
       users.map((u) => [u._id.toString(), u.fullName || u.name || u.email]),
     );
 
-    // Map admin ObjectIds to user object details
     docs.forEach((doc) => {
       if (doc.groupAssignments) {
         const assignments =
@@ -69,7 +79,6 @@ export class WlsSessionUseCase {
       throw new Error("Invalid session status value.");
     }
 
-    // If making this session ACTIVE, automatically set any other active session to COMPLETED
     if (status === WLS_SESSION_STATUSES.ACTIVE) {
       await WlsSessionModel.updateMany(
         { status: WLS_SESSION_STATUSES.ACTIVE, _id: { $ne: id } },
@@ -116,6 +125,7 @@ export class WlsSessionUseCase {
         pdfBookletUrls: dto.pdfBookletUrls,
         quranVideoUrls: dto.quranVideoUrls,
         groupAssignments: dto.groupAssignments,
+        status: dto.status, // <--- Add this line here
       },
       { new: true, runValidators: true },
     );

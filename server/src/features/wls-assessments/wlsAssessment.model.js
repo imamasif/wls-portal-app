@@ -1,4 +1,8 @@
 import mongoose from "mongoose";
+import {
+  ASSESSMENT_STATUSES,
+  CONCLUSION_STATUSES,
+} from "../../common/constants/enums.js";
 
 const evaluationSchema = new mongoose.Schema(
   {
@@ -15,10 +19,9 @@ const evaluationSchema = new mongoose.Schema(
   { _id: false },
 );
 
-// 1. Define the message schema for assessment-specific discussion
 const assessmentMessageSchema = new mongoose.Schema(
   {
-    senderId: { type: mongoose.Schema.Types.Mixed, required: true }, // Changed from ObjectId to Mixed
+    senderId: { type: mongoose.Schema.Types.Mixed, required: true },
     senderName: { type: String, required: true },
     senderRole: {
       type: String,
@@ -35,7 +38,7 @@ const AssessmentSchema = new mongoose.Schema(
   {
     sessionId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Session",
+      ref: "WlsSession",
       required: true,
     },
     userId: {
@@ -49,22 +52,21 @@ const AssessmentSchema = new mongoose.Schema(
     missedReason: { type: String, default: "" },
     status: {
       type: String,
-      enum: ["PENDING", "SUBMITTED", "PARTIAL_SAVED", "COMPLETED"],
-      default: "PENDING",
+      enum: Object.values(ASSESSMENT_STATUSES),
+      default: ASSESSMENT_STATUSES.PENDING,
     },
     evaluations: [evaluationSchema],
     messages: [assessmentMessageSchema],
     finalScore: { type: Number, default: 0 },
     conclusionStatus: {
       type: String,
-      enum: ["PENDING", "PASSED", "FAILED"],
-      default: "PENDING",
+      enum: Object.values(CONCLUSION_STATUSES),
+      default: CONCLUSION_STATUSES.PENDING,
     },
   },
   { timestamps: true },
 );
 
-// ENSURE ONLY ONE ASSESSMENT PER USER PER SESSION EXISTS
 AssessmentSchema.index({ sessionId: 1, userId: 1 }, { unique: true });
 
 export const AssessmentModel = mongoose.model("Assessment", AssessmentSchema);

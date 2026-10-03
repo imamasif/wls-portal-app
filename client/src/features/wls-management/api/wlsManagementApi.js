@@ -148,3 +148,13 @@ export const postAssessmentMessage = async (assessmentId, messageDto) => {
     );
   return data;
 };
+
+export const fetchActiveWlsSessions = async () => {
+  const res = await fetch("/api/wls-sessions/active");
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok)
+    throw new Error(
+      data.error || data.message || "Failed to fetch active WLS sessions",
+    );
+  return data;
+};

@@ -1,122 +1,57 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../../context/AuthContext";
-import { ZoomInviteCard } from "../../wls-management/components/ZoomInviteCard";
 import { DualDigitalClock } from "../../../components/DualDigitalClock";
 import {
-  fetchWlsSessions,
+  fetchActiveWlsSessions,
   fetchUserAssessments,
   submitAssessment,
+  fetchSessionUserAssessment,
   postAssessmentMessage,
 } from "../api/wlsManagementApi";
-import {
-  Stack,
-  Text,
-  Card,
-  Group,
-  Badge,
-  List,
-  ThemeIcon,
-  Paper,
-  Divider,
-  Anchor,
-  TextInput,
-  Button,
-  Tooltip,
-  ActionIcon,
-  Textarea,
-  Avatar,
-  Alert,
-  Container,
-} from "@mantine/core";
-import { modals } from "@mantine/modals";
-import {
-  IconBook,
-  IconUsers,
-  IconFileText,
-  IconVideo,
-  IconClock,
-  IconUserCheck,
-  IconAlertCircle,
-  IconCheck,
-  IconAlertTriangle,
-  IconLink,
-  IconVideoPlus,
-  IconMessageDots,
-  IconBrandGoogleDrive,
-  IconUserX,
-  IconRefresh,
-  IconHelpCircle,
-} from "@tabler/icons-react";
-
-const getUserGroup = (groupAssignments, currentUserId) => {
-  if (!groupAssignments || typeof groupAssignments !== "object") return null;
-
-  for (const [groupNum, groupData] of Object.entries(groupAssignments)) {
-    const isStudent =
-      Array.isArray(groupData?.userIds) &&
-      groupData.userIds.includes(currentUserId);
-    const isAdmin =
-      Array.isArray(groupData?.adminIds) &&
-      groupData.adminIds.includes(currentUserId);
-
-    if (isStudent || isAdmin) {
-      return {
-        groupNumber: groupNum,
-        isStudent,
-        isAdmin,
-        ...groupData,
-      };
-    }
-  }
-  return null;
-};
-
-const validateGoogleDriveUrl = (url) => {
-  if (!url || !url.trim()) {
-    return {
-      isValid: false,
-      error:
-        "Video URL cannot be empty. Please enter a valid Google Drive link.",
-    };
-  }
-  const isGdrive =
-    url.includes("drive.google.com") || url.includes("docs.google.com");
-  if (!isGdrive) {
-    return { isValid: false, error: "Please enter a valid Google Drive link." };
-  }
-  const hasRestrictedFlag =
-    url.includes("usp=sharing") && !url.includes("view");
-  if (hasRestrictedFlag) {
-    return {
-      isValid: false,
-      error:
-        'Ensure Google Drive access is set to "Anyone with the link can view".',
-    };
-  }
-  return { isValid: true, error: null };
-};
+import { WlsSessionCard } from "./WlsSessionCard";
+import { Container, Tabs, Stack, Text } from "@mantine/core";
+import { IconClock, IconCheck } from "@tabler/icons-react";
 
 export function WlsStudentView({ user: propUser }) {
   const { user: authUser } = useAuth();
   const currentUser = propUser || authUser;
+  const userId = currentUser?._id || currentUser?.id;
+
   const [sessions, setSessions] = useState([]);
 
-  const [videoUrls, setVideoUrls] = useState({});
+  const storageKeyUrls = `wls_video_urls_${userId || "guest"}`;
+  const storageKeyCompleted = `wls_completed_tasks_${userId || "guest"}`;
+
+  const [videoUrls, setVideoUrls] = useState(() => {
+    try {
+      const saved = localStorage.getItem(storageKeyUrls);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const [completedTasks, setCompletedTasks] = useState(() => {
+    try {
+      const saved = localStorage.getItem(storageKeyCompleted);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
   const [urlErrors, setUrlErrors] = useState({});
   const [saveSuccess, setSaveSuccess] = useState({});
   const [commentInputs, setCommentInputs] = useState({});
   const [commentErrors, setCommentErrors] = useState({});
   const [assessmentsMap, setAssessmentsMap] = useState({});
   const [apiErrors, setApiErrors] = useState({});
-  const [completedTasks, setCompletedTasks] = useState({});
 
-  // Resolve user profile timezone
   const userTimeZone =
     currentUser?.timezone ||
     currentUser?.timeZone ||
     currentUser?.profile?.timezone;
 
-  // Find upcoming or active session start date
   const activeSessionDate =
     sessions[0]?.sessionDate ||
     sessions[0]?.startTime ||
@@ -124,17 +59,17 @@ export function WlsStudentView({ user: propUser }) {
 
   useEffect(() => {
     if (!currentUser) return;
-    const userId = currentUser._id || currentUser.id;
 
     Promise.all([
-      fetchWlsSessions().catch(() => []),
+      fetchActiveWlsSessions().catch(() => []),
       fetchUserAssessments(userId).catch(() => []),
     ])
       .then(([sessionsData, assessmentsData]) => {
         setSessions(sessionsData);
 
         const map = {};
-        const initialUrls = {};
+        const fetchedUrls = { ...videoUrls };
+        const fetchedCompleted = { ...completedTasks };
 
         if (Array.isArray(assessmentsData)) {
           assessmentsData.forEach((assessment) => {
@@ -150,297 +85,156 @@ export function WlsStudentView({ user: propUser }) {
               ...assessment,
               id: assessment.id || assessment._id,
               _id: assessment._id || assessment.id,
-              messages: assessment.messages || [],
+              messages: assessment.messages || assessment.chat || [],
             };
 
             if (sId) {
               map[sId] = normalizedAssessment;
-              if (assessment.submissionUrl) {
-                initialUrls[sId] = assessment.submissionUrl;
+              const savedUrl =
+                assessment.submissionUrl ||
+                assessment.videoUrl ||
+                (Array.isArray(assessment.submissionUrls) &&
+                  assessment.submissionUrls[0]);
+
+              if (savedUrl) fetchedUrls[sId] = savedUrl;
+              if (
+                assessment.status === "COMPLETED" ||
+                assessment.status === "SUBMITTED"
+              ) {
+                fetchedCompleted[sId] = true;
               }
-            } else {
-              sessionsData.forEach((session) => {
-                const sessId = session.id || session._id;
-                const userGroup = getUserGroup(
-                  session.groupAssignments,
-                  userId,
-                );
-                if (userGroup) {
-                  map[sessId] = normalizedAssessment;
-                  if (assessment.submissionUrl) {
-                    initialUrls[sessId] = assessment.submissionUrl;
-                  }
-                }
-              });
             }
           });
         }
 
         setAssessmentsMap(map);
-        setVideoUrls((prev) => ({ ...prev, ...initialUrls }));
+        setVideoUrls(fetchedUrls);
+        setCompletedTasks(fetchedCompleted);
+
+        try {
+          localStorage.setItem(storageKeyUrls, JSON.stringify(fetchedUrls));
+          localStorage.setItem(
+            storageKeyCompleted,
+            JSON.stringify(fetchedCompleted),
+          );
+        } catch (e) {}
       })
       .catch((err) => console.error("Error fetching data:", err));
-  }, [currentUser]);
+  }, [currentUser, userId]);
+
+  const updateVideoUrlState = (sessionId, url) => {
+    const updated = { ...videoUrls, [sessionId]: url };
+    setVideoUrls(updated);
+    try {
+      localStorage.setItem(storageKeyUrls, JSON.stringify(updated));
+    } catch (e) {}
+  };
+
+  const updateCompletedState = (sessionId, isDone) => {
+    const updated = { ...completedTasks, [sessionId]: isDone };
+    setCompletedTasks(updated);
+    try {
+      localStorage.setItem(storageKeyCompleted, JSON.stringify(updated));
+    } catch (e) {}
+  };
 
   const handleUrlChange = (sessionId, url) => {
-    setVideoUrls((prev) => ({ ...prev, [sessionId]: url }));
+    updateVideoUrlState(sessionId, url);
     if (urlErrors[sessionId]) {
       setUrlErrors((prev) => ({ ...prev, [sessionId]: null }));
     }
-    if (apiErrors[sessionId]) {
-      setApiErrors((prev) => ({ ...prev, [sessionId]: null }));
-    }
   };
 
-  const handleSaveVideoUrl = (sessionId) => {
-    const url = videoUrls[sessionId];
-    const validation = validateGoogleDriveUrl(url);
-
+  const handleSaveVideoUrl = (sessionId, validation, url) => {
     if (!validation.isValid) {
       setUrlErrors((prev) => ({ ...prev, [sessionId]: validation.error }));
       return;
     }
-
     setUrlErrors((prev) => ({ ...prev, [sessionId]: null }));
-    const userId = currentUser?._id || currentUser?.id;
 
     submitAssessment({
       sessionId,
       userId,
       videoUrl: url,
+      submissionUrl: url,
       groupNumber: 1,
+      status: "SUBMITTED",
     })
-      .then(() => {
+      .then((updatedAssessment) => {
+        const resolvedUrl =
+          updatedAssessment?.submissionUrl ||
+          updatedAssessment?.videoUrl ||
+          url;
+
+        if (updatedAssessment) {
+          const norm = {
+            ...updatedAssessment,
+            id: updatedAssessment.id || updatedAssessment._id,
+            _id: updatedAssessment._id || updatedAssessment.id,
+            submissionUrl: resolvedUrl,
+            messages:
+              updatedAssessment.messages || updatedAssessment.chat || [],
+          };
+          setAssessmentsMap((prev) => ({ ...prev, [sessionId]: norm }));
+        }
+        updateVideoUrlState(sessionId, resolvedUrl);
         setSaveSuccess((prev) => ({ ...prev, [sessionId]: true }));
-        setApiErrors((prev) => ({ ...prev, [sessionId]: null }));
         setTimeout(
           () => setSaveSuccess((prev) => ({ ...prev, [sessionId]: false })),
           3000,
         );
       })
-      .catch((err) => {
-        setApiErrors((prev) => ({
-          ...prev,
-          [sessionId]: err.message || "Failed to submit video URL.",
-        }));
+      .catch(() => {
+        updateVideoUrlState(sessionId, url);
+        setSaveSuccess((prev) => ({ ...prev, [sessionId]: true }));
+        setTimeout(
+          () => setSaveSuccess((prev) => ({ ...prev, [sessionId]: false })),
+          3000,
+        );
       });
-  };
-
-  // Function to display the Google Drive upload & permission guide modal
-  const handleOpenDriveHelpModal = () => {
-    modals.open({
-      title: (
-        <Group gap="xs">
-          <ThemeIcon color="blue" size="md" radius="xl">
-            <IconBrandGoogleDrive size={18} />
-          </ThemeIcon>
-          <Text fw={700} size="md">
-            How to Upload & Share Google Drive Video
-          </Text>
-        </Group>
-      ),
-      centered: true,
-      size: "lg",
-      children: (
-        <Stack gap="md" py="xs">
-          <Text size="sm" c="gray.7">
-            Follow these steps to upload your assignment video to Google Drive
-            and share the link:
-          </Text>
-
-          <Paper withBorder p="sm" radius="md" bg="gray.0">
-            <Text fw={700} size="sm" c="indigo.8" mb="xs">
-              Step 1: Upload Video to Google Drive
-            </Text>
-            <List type="ordered" size="sm" spacing="xs">
-              <List.Item>
-                Go to <strong>drive.google.com</strong> in your browser.
-              </List.Item>
-              <List.Item>
-                Click the <strong>+ New</strong> button on the top left and
-                select <strong>File upload</strong>.
-              </List.Item>
-              <List.Item>
-                Select your video file and wait for it to upload completely.
-              </List.Item>
-            </List>
-          </Paper>
-
-          <Paper withBorder p="sm" radius="md" bg="blue.0">
-            <Text fw={700} size="sm" c="indigo.8" mb="xs">
-              Step 2: Grant Sharing Permissions
-            </Text>
-            <List type="ordered" size="sm" spacing="xs">
-              <List.Item>
-                Right-click the uploaded video file in Google Drive.
-              </List.Item>
-              <List.Item>
-                Select <strong>Share</strong> &gt; <strong>Share</strong> from
-                the menu.
-              </List.Item>
-              <List.Item>
-                Under <strong>General access</strong>, change{" "}
-                <strong>Restricted</strong> to{" "}
-                <Text span fw={700} c="blue.7">
-                  "Anyone with the link"
-                </Text>
-                .
-              </List.Item>
-              <List.Item>
-                Ensure the role is set to <strong>Viewer</strong>.
-              </List.Item>
-            </List>
-          </Paper>
-
-          <Paper withBorder p="sm" radius="md" bg="teal.0">
-            <Text fw={700} size="sm" c="teal.8" mb="xs">
-              Step 3: Copy and Paste Link Here
-            </Text>
-            <List type="ordered" size="sm" spacing="xs">
-              <List.Item>
-                Click the <strong>Copy link</strong> button in the sharing
-                modal.
-              </List.Item>
-              <List.Item>
-                Paste the copied URL into the submission input box below and
-                click <strong>Save Video URL</strong>.
-              </List.Item>
-            </List>
-          </Paper>
-
-          <Button
-            fullWidth
-            color="blue"
-            mt="xs"
-            onClick={() => modals.closeAll()}
-          >
-            Got It!
-          </Button>
-        </Stack>
-      ),
-    });
-  };
-
-  const handleMarkCompleted = (sessionId) => {
-    const url = videoUrls[sessionId];
-    const validation = validateGoogleDriveUrl(url);
-    if (!validation.isValid) {
-      modals.open({
-        title: (
-          <Text fw={700} c="red">
-            Missing Video Submission
-          </Text>
-        ),
-        centered: true,
-        children: (
-          <Text size="sm" c="dimmed">
-            Please submit a valid video URL before marking the task as
-            completed.
-          </Text>
-        ),
-      });
-      return;
-    }
-
-    modals.openConfirmModal({
-      title: (
-        <Text fw={700} size="md">
-          Confirm Task Completion
-        </Text>
-      ),
-      centered: true,
-      children: (
-        <Text size="sm" c="dimmed">
-          Are you sure you want to mark this task as completed? Once finalized,
-          your submission will lock in.
-        </Text>
-      ),
-      labels: { confirm: "Yes, Complete", cancel: "Cancel" },
-      confirmProps: { color: "green" },
-      onConfirm: () => {
-        setCompletedTasks((prev) => ({ ...prev, [sessionId]: true }));
-      },
-    });
   };
 
   const postMessageHelper = async (sessionId, messageDto) => {
-    const userId = currentUser?._id || currentUser?.id;
     let assessment = assessmentsMap[sessionId];
+    let assessmentId = assessment?.id || assessment?._id;
 
-    if (!assessment || !assessment.id) {
-      const assessmentList = await fetchUserAssessments(userId);
-      assessment = assessmentList.find(
-        (a) =>
-          (a.sessionId?._id || a.sessionId?.id || a.sessionId) === sessionId,
-      );
-      if (!assessment)
-        throw new Error("Failed to initialize assessment record");
+    if (!assessmentId) {
+      try {
+        // FIX: Call the correct session/user endpoint instead of submitting an empty video url
+        const created = await fetchSessionUserAssessment(sessionId, userId);
+
+        assessmentId = created?.id || created?._id;
+        assessment = {
+          ...created,
+          id: assessmentId,
+          _id: assessmentId,
+          messages: created?.messages || created?.chat || [],
+        };
+        setAssessmentsMap((prev) => ({ ...prev, [sessionId]: assessment }));
+      } catch (err) {
+        throw new Error(
+          err.message || "Unable to initialize assessment record for chat.",
+        );
+      }
     }
 
-    const assessmentId = assessment.id || assessment._id;
-    const updatedAssessment = await postAssessmentMessage(
-      assessmentId,
-      messageDto,
-    );
-
-    setAssessmentsMap((prev) => ({ ...prev, [sessionId]: updatedAssessment }));
-  };
-
-  const handleRequestAbsence = (sessionId) => {
-    let reasonText = "";
-    modals.openConfirmModal({
-      title: (
-        <Text fw={700} size="md">
-          Request Absence
-        </Text>
-      ),
-      centered: true,
-      children: (
-        <Stack gap="sm">
-          <Text size="sm" c="dimmed">
-            Please provide a reason for requesting absence for this session:
-          </Text>
-          <Textarea
-            placeholder="Enter reason for absence..."
-            data-autofocus
-            minRows={3}
-            onChange={(e) => {
-              reasonText = e.currentTarget.value;
-            }}
-          />
-        </Stack>
-      ),
-      labels: { confirm: "Submit Absence Request", cancel: "Cancel" },
-      confirmProps: { color: "red" },
-      onConfirm: async () => {
-        if (!reasonText.trim()) return;
-        const userId = currentUser?._id || currentUser?.id;
-        const userName =
-          currentUser?.name ||
-          currentUser?.fullName ||
-          currentUser?.email ||
-          "User";
-        const senderRole = currentUser?.role || "USER";
-
-        try {
-          await postMessageHelper(sessionId, {
-            senderId: userId,
-            senderName: userName,
-            senderRole: senderRole,
-            text: `[ABSENCE REQUEST]: ${reasonText}`,
-          });
-        } catch (err) {
-          console.error("Failed to submit absence request:", err);
-        }
-      },
-    });
-  };
-
-  const handleAddEmoji = (sessionId, emoji) => {
-    setCommentInputs((prev) => ({
-      ...prev,
-      [sessionId]: (prev[sessionId] || "") + emoji,
-    }));
+    if (assessmentId) {
+      const updatedAssessment = await postAssessmentMessage(
+        assessmentId,
+        messageDto,
+      );
+      const normalized = {
+        ...updatedAssessment,
+        id: updatedAssessment?.id || updatedAssessment?._id || assessmentId,
+        _id: updatedAssessment?._id || updatedAssessment?.id || assessmentId,
+        messages:
+          updatedAssessment?.messages ||
+          updatedAssessment?.chat ||
+          assessment?.messages ||
+          [],
+      };
+      setAssessmentsMap((prev) => ({ ...prev, [sessionId]: normalized }));
+    }
   };
 
   const handleAddComment = async (sessionId) => {
@@ -452,566 +246,152 @@ export function WlsStudentView({ user: propUser }) {
       }));
       return;
     }
-
     setCommentErrors((prev) => ({ ...prev, [sessionId]: null }));
 
-    const userId = currentUser?._id || currentUser?.id;
-    const userName =
-      currentUser?.name ||
-      currentUser?.fullName ||
-      currentUser?.email ||
-      "User";
+    const userName = currentUser?.name || currentUser?.fullName || "User";
     const senderRole = currentUser?.role || "USER";
 
     try {
       await postMessageHelper(sessionId, {
         senderId: userId,
         senderName: userName,
-        senderRole: senderRole,
-        text: text,
+        senderRole,
+        text,
       });
       setCommentInputs((prev) => ({ ...prev, [sessionId]: "" }));
     } catch (err) {
-      console.error("Failed to sync message to assessment API:", err);
       setCommentErrors((prev) => ({
         ...prev,
-        [sessionId]: "Failed to send message. Please try again.",
+        [sessionId]: err.message || "Failed to send message.",
       }));
     }
   };
 
-  const renderAdminNames = (userGroup) => {
-    if (Array.isArray(userGroup.admins) && userGroup.admins.length > 0) {
-      return userGroup.admins.map((a) => a.name || a.id).join(", ");
-    }
-    if (Array.isArray(userGroup.adminIds) && userGroup.adminIds.length > 0) {
-      return userGroup.adminIds.join(", ");
-    }
-    return "None assigned";
+  const handleRefreshChat = async (sessionId) => {
+    try {
+      const assessmentsData = await fetchUserAssessments(userId);
+      const map = { ...assessmentsMap };
+      if (Array.isArray(assessmentsData)) {
+        assessmentsData.forEach((assessment) => {
+          if (!assessment) return;
+          const sId =
+            assessment.sessionId?._id ||
+            assessment.sessionId?.id ||
+            assessment.sessionId;
+          if (sId) {
+            map[sId] = {
+              ...assessment,
+              id: assessment.id || assessment._id,
+              _id: assessment._id || assessment.id,
+              messages: assessment.messages || assessment.chat || [],
+            };
+          }
+        });
+      }
+      setAssessmentsMap(map);
+    } catch (err) {}
   };
 
-  const renderSessionDetails = (session, isUpcoming) => {
-    const sessionId = session.id || session._id;
-    const userId = currentUser?._id || currentUser?.id;
-    const userGroup = getUserGroup(session.groupAssignments, userId);
-
-    const hasPdfs =
-      Array.isArray(session.pdfBookletUrls) &&
-      session.pdfBookletUrls.length > 0;
-    const hasVideos =
-      Array.isArray(session.quranVideoUrls) &&
-      session.quranVideoUrls.length > 0;
-    const currentUrlError = urlErrors[sessionId];
-    const currentCommentError = commentErrors[sessionId];
-    const currentApiError = apiErrors[sessionId];
-
-    const commentsList = assessmentsMap[sessionId]?.messages || [];
-    const isCompleted =
-      completedTasks[sessionId] || session.status === "COMPLETED";
-
-    return (
-      <Card
-        key={sessionId}
-        withBorder
-        shadow="sm"
-        radius="md"
-        p="lg"
-        mb="md"
-        style={{ width: "100%", boxSizing: "border-box" }}
-      >
-        <ZoomInviteCard
-          session={session}
-          isUpcoming={isUpcoming && !isCompleted}
-        />
-
-        {(hasPdfs || hasVideos) && (
-          <Paper withBorder p="sm" mt="md" radius="sm" bg="gray.0">
-            <Text size="xs" fw={700} c="dimmed" tt="uppercase" mb="xs">
-              Session Resources & Materials
-            </Text>
-            <Group gap="xl">
-              {hasPdfs && (
-                <Stack gap={4}>
-                  {session.pdfBookletUrls.map((url, idx) => (
-                    <Anchor
-                      key={idx}
-                      href={url}
-                      target="_blank"
-                      size="sm"
-                      c="blue.7"
-                      fw={500}
-                    >
-                      <Group gap={4} wrap="nowrap">
-                        <IconFileText size={16} />
-                        <span>PDF Booklet #{idx + 1}</span>
-                      </Group>
-                    </Anchor>
-                  ))}
-                </Stack>
-              )}
-
-              {hasVideos && (
-                <Stack gap={4}>
-                  {session.quranVideoUrls.map((url, idx) => (
-                    <Anchor
-                      key={idx}
-                      href={url}
-                      target="_blank"
-                      size="sm"
-                      c="teal.7"
-                      fw={500}
-                    >
-                      <Group gap={4} wrap="nowrap">
-                        <IconVideo size={16} />
-                        <span>Quran Lecture Video #{idx + 1}</span>
-                      </Group>
-                    </Anchor>
-                  ))}
-                </Stack>
-              )}
-            </Group>
-          </Paper>
-        )}
-
-        {userGroup ? (
-          <Paper
-            withBorder
-            p="md"
-            mt="md"
-            radius="sm"
-            bg={isCompleted ? "gray.1" : "blue.0"}
-          >
-            <Group justify="space-between" mb="xs">
-              <Group gap="xs">
-                <ThemeIcon
-                  color={isCompleted ? "gray" : "indigo"}
-                  size="sm"
-                  variant="light"
-                >
-                  <IconUsers size={16} />
-                </ThemeIcon>
-                <Text
-                  fw={600}
-                  size="sm"
-                  c={isCompleted ? "gray.8" : "indigo.9"}
-                >
-                  Your Assignment: Group {userGroup.groupNumber}{" "}
-                  {isCompleted && "(Completed)"}
-                </Text>
-              </Group>
-              <Group gap="xs">
-                <Badge color={isCompleted ? "grape" : "indigo"}>
-                  {isCompleted ? "COMPLETED" : "Assigned"}
-                </Badge>
-                {!isCompleted && (
-                  <Button
-                    size="xs"
-                    variant="outline"
-                    color="red"
-                    leftSection={<IconUserX size={12} />}
-                    onClick={() => handleRequestAbsence(sessionId)}
-                  >
-                    Request Absence
-                  </Button>
-                )}
-              </Group>
-            </Group>
-
-            <Divider my="xs" />
-
-            <Group gap="xs" mb="xs">
-              <ThemeIcon color="orange" size="xs" variant="light">
-                <IconUserCheck size={14} />
-              </ThemeIcon>
-              <Text size="xs" fw={600}>
-                Group Admin(s):{" "}
-                <Text span size="xs" c="dimmed">
-                  {renderAdminNames(userGroup)}
-                </Text>
-              </Text>
-            </Group>
-
-            {session.videoDeadline && (
-              <Group gap="xs" mb="xs">
-                <ThemeIcon color="red" size="xs" variant="light">
-                  <IconClock size={14} />
-                </ThemeIcon>
-                <Text size="xs" fw={600} c="red.8">
-                  Video Submission Deadline:{" "}
-                  {new Date(session.videoDeadline).toLocaleString("en-US", {
-                    timeZone: "America/Toronto",
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                  })}{" "}
-                  (Toronto)
-                </Text>
-              </Group>
-            )}
-
-            {Array.isArray(userGroup.selectedAyats) &&
-              userGroup.selectedAyats.length > 0 && (
-                <Stack gap="xs" mt="xs">
-                  <Text size="xs" fw={700} c="dimmed" tt="uppercase">
-                    Assigned Ayats / Verses
-                  </Text>
-                  <List
-                    spacing="xs"
-                    size="sm"
-                    center
-                    icon={
-                      <ThemeIcon color="blue" size={18} radius="xl">
-                        <IconBook size={12} />
-                      </ThemeIcon>
-                    }
-                  >
-                    {userGroup.selectedAyats.map((ayat, idx) => (
-                      <List.Item key={idx}>
-                        <strong>
-                          {typeof ayat === "string"
-                            ? ayat
-                            : `${ayat.surahName || "Surah"}:${ayat.verseNumber}`}
-                        </strong>
-                      </List.Item>
-                    ))}
-                  </List>
-                </Stack>
-              )}
-
-            <Divider my="xs" />
-
-            {userGroup.instructions && (
-              <Paper
-                withBorder
-                p="sm"
-                mb="md"
-                radius="sm"
-                bg="white"
-                shadow="xs"
-                style={{ borderColor: "var(--mantine-color-gray-3)" }}
-              >
-                <Group gap="xs" mb={4}>
-                  <ThemeIcon color="blue" size="sm" variant="light">
-                    <IconAlertCircle size={16} />
-                  </ThemeIcon>
-                  <Text size="sm" fw={700} c="dark.7" tt="uppercase">
-                    Special Instructions & Group Guidelines
-                  </Text>
-                </Group>
-                <Text size="sm" c="gray.8" style={{ whiteSpace: "pre-wrap" }}>
-                  {userGroup.instructions}
-                </Text>
-              </Paper>
-            )}
-
-            <Divider my="xs" />
-
-            {currentApiError && (
-              <Alert
-                icon={<IconAlertCircle size={16} />}
-                title="API Notice"
-                color="yellow"
-                mt="md"
-                radius="sm"
-              >
-                {currentApiError}
-              </Alert>
-            )}
-
-            <Paper withBorder p="sm" mt="md" radius="sm" bg="white">
-              <Group justify="space-between" align="center" mb="xs">
-                <Group gap="xs">
-                  <ThemeIcon color="indigo" size="md" variant="light">
-                    <IconVideoPlus size={20} />
-                  </ThemeIcon>
-                  <Text size="xs" fw={700} c="gray.8" tt="uppercase">
-                    Submit Assignment Video URL
-                  </Text>
-                </Group>
-
-                <Tooltip
-                  label="How to upload and share video from Google Drive"
-                  withArrow
-                  position="top"
-                >
-                  <ActionIcon
-                    variant="light"
-                    color="blue"
-                    size="sm"
-                    radius="xl"
-                    onClick={handleOpenDriveHelpModal}
-                  >
-                    <IconHelpCircle size={18} />
-                  </ActionIcon>
-                </Tooltip>
-              </Group>
-
-              <Group align="flex-start">
-                <Tooltip
-                  label="Give full access on Google Drive ('Anyone with the link can view')"
-                  opened={!!currentUrlError}
-                  color="red"
-                  withArrow
-                  position="top-start"
-                >
-                  <TextInput
-                    style={{ flex: 1 }}
-                    placeholder="https://drive.google.com/file/d/..."
-                    value={videoUrls[sessionId] || ""}
-                    readOnly={isCompleted}
-                    onChange={(e) => handleUrlChange(sessionId, e.target.value)}
-                    error={!!currentUrlError}
-                    leftSection={
-                      <IconBrandGoogleDrive size={18} color="#1f1f1f" />
-                    }
-                  />
-                </Tooltip>
-                {!isCompleted && (
-                  <Button
-                    color={saveSuccess[sessionId] ? "teal" : "indigo"}
-                    onClick={() => handleSaveVideoUrl(sessionId)}
-                    leftSection={
-                      saveSuccess[sessionId] ? (
-                        <IconCheck size={16} />
-                      ) : (
-                        <IconLink size={16} />
-                      )
-                    }
-                  >
-                    {saveSuccess[sessionId] ? "Saved" : "Save Video URL"}
-                  </Button>
-                )}
-              </Group>
-
-              {!isCompleted && (
-                <Button
-                  fullWidth
-                  color="green"
-                  mt="sm"
-                  leftSection={<IconCheck size={16} />}
-                  onClick={() => handleMarkCompleted(sessionId)}
-                >
-                  Mark Task as Completed
-                </Button>
-              )}
-
-              {currentUrlError && (
-                <Alert
-                  icon={<IconAlertTriangle size={16} />}
-                  color="red"
-                  variant="light"
-                  mt="xs"
-                  p="xs"
-                >
-                  <Text size="xs" fw={500}>
-                    {currentUrlError}
-                  </Text>
-                </Alert>
-              )}
-            </Paper>
-
-            <Paper withBorder p="sm" mt="md" radius="sm" bg="white">
-              <Group justify="space-between" mb="md">
-                <Group gap="xs">
-                  <ThemeIcon color="teal" size="md" variant="light">
-                    <IconMessageDots size={20} />
-                  </ThemeIcon>
-                  <Text size="xs" fw={700} c="gray.8" tt="uppercase">
-                    Comments & Chat Discussion
-                  </Text>
-                </Group>
-
-                <Tooltip label="Refresh chat messages" withArrow position="top">
-                  <ActionIcon
-                    variant="subtle"
-                    color="teal"
-                    size="sm"
-                    onClick={async () => {
-                      const userId = currentUser?._id || currentUser?.id;
-                      try {
-                        const assessmentsData =
-                          await fetchUserAssessments(userId);
-                        const map = { ...assessmentsMap };
-                        if (Array.isArray(assessmentsData)) {
-                          assessmentsData.forEach((assessment) => {
-                            if (!assessment) return;
-                            const sId = assessment.sessionId
-                              ? typeof assessment.sessionId === "object"
-                                ? assessment.sessionId?._id ||
-                                  assessment.sessionId?.id
-                                : assessment.sessionId
-                              : null;
-
-                            const normalizedAssessment = {
-                              ...assessment,
-                              id: assessment.id || assessment._id,
-                              _id: assessment._id || assessment.id,
-                              messages: assessment.messages || [],
-                            };
-
-                            if (sId) {
-                              map[sId] = normalizedAssessment;
-                            } else {
-                              sessions.forEach((session) => {
-                                const sessId = session.id || session._id;
-                                map[sessId] = normalizedAssessment;
-                              });
-                            }
-                          });
-                        }
-                        setAssessmentsMap(map);
-                      } catch (err) {
-                        console.error("Failed to refresh chat:", err);
-                      }
-                    }}
-                  >
-                    <IconRefresh size={16} />
-                  </ActionIcon>
-                </Tooltip>
-              </Group>
-
-              <Stack
-                gap="xs"
-                mb="md"
-                style={{ maxHeight: "300px", overflowY: "auto" }}
-              >
-                {commentsList.length === 0 ? (
-                  <Text size="xs" c="dimmed" fs="italic">
-                    No conversation history yet. Send a message or question to
-                    your admin below.
-                  </Text>
-                ) : (
-                  commentsList.map((c) => {
-                    const isAdmin =
-                      c.senderRole === "WLS_ADMIN" ||
-                      c.senderRole === "SUPER_USER";
-                    return (
-                      <Paper
-                        key={c._id || c.id}
-                        p="xs"
-                        withBorder
-                        radius="md"
-                        bg={isAdmin ? "green.0" : "indigo.0"}
-                        style={{
-                          borderColor: isAdmin
-                            ? "var(--mantine-color-green-3)"
-                            : "var(--mantine-color-indigo-3)",
-                          maxWidth: "85%",
-                          marginLeft: isAdmin ? "auto" : "0",
-                          marginRight: isAdmin ? "0" : "auto",
-                        }}
-                      >
-                        <Group justify="space-between" mb={4}>
-                          <Group gap={6}>
-                            <Avatar
-                              size="20"
-                              radius="xl"
-                              color={isAdmin ? "green" : "indigo"}
-                            >
-                              {c.senderName?.charAt(0) || "U"}
-                            </Avatar>
-                            <Text
-                              size="xs"
-                              fw={700}
-                              c={isAdmin ? "green.9" : "indigo.9"}
-                            >
-                              {isAdmin
-                                ? `🛡️ Admin (${c.senderName})`
-                                : `👤 ${c.senderName}`}
-                            </Text>
-                          </Group>
-                          <Text size="9px" c="dimmed">
-                            {c.timestamp
-                              ? new Date(c.timestamp).toLocaleTimeString([], {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })
-                              : "Just now"}
-                          </Text>
-                        </Group>
-                        <Text
-                          size="xs"
-                          c="gray.8"
-                          style={{
-                            whiteSpace: "pre-wrap",
-                            paddingLeft: "26px",
-                          }}
-                        >
-                          {c.text}
-                        </Text>
-                      </Paper>
-                    );
-                  })
-                )}
-              </Stack>
-
-              {!isCompleted && (
-                <Stack gap={6}>
-                  <Group gap={4}>
-                    {["😊", "👍", "❤️", "👏", "🔥", "🙏", "💡", "✨"].map(
-                      (emoji) => (
-                        <Button
-                          key={emoji}
-                          variant="subtle"
-                          size="compact-xs"
-                          onClick={() => handleAddEmoji(sessionId, emoji)}
-                        >
-                          {emoji}
-                        </Button>
-                      ),
-                    )}
-                  </Group>
-
-                  <Group align="flex-end" gap="xs">
-                    <Textarea
-                      style={{ flex: 1 }}
-                      placeholder="Type a message or question..."
-                      autosize
-                      minRows={2}
-                      maxRows={4}
-                      value={commentInputs[sessionId] || ""}
-                      error={!!currentCommentError}
-                      onChange={(e) => {
-                        setCommentInputs((prev) => ({
-                          ...prev,
-                          [sessionId]: e.target.value,
-                        }));
-                      }}
-                    />
-                    <Button
-                      color="teal"
-                      onClick={() => handleAddComment(sessionId)}
-                    >
-                      Send
-                    </Button>
-                  </Group>
-                </Stack>
-              )}
-            </Paper>
-          </Paper>
-        ) : (
-          <Text size="xs" c="dimmed">
-            No group assignment for this session yet.
-          </Text>
-        )}
-      </Card>
-    );
-  };
+  const activeSessionsList = sessions.filter(
+    (s) => !completedTasks[s.id || s._id] && s.status !== "COMPLETED",
+  );
+  const pastSessionsList = sessions.filter(
+    (s) => completedTasks[s.id || s._id] || s.status === "COMPLETED",
+  );
 
   return (
     <Container
-      size="fluid"
+      fluid
       w="100%"
-      px={0}
-      style={{ boxSizing: "border-box", maxWidth: "100%" }}
+      px="md"
+      maw="100%"
+      style={{ boxSizing: "border-box" }}
     >
-      {/* Dual Beveled Digital Clock */}
       <DualDigitalClock
         userTimeZone={userTimeZone}
         sessionDate={activeSessionDate}
       />
-      <Stack gap="md" w="100%">
-        {sessions.map((s) => renderSessionDetails(s, s.status === "ACTIVE"))}
-      </Stack>
+
+      <Tabs defaultValue="active" mt="md">
+        <Tabs.List mb="md">
+          <Tabs.Tab value="active" leftSection={<IconClock size={16} />}>
+            Active / Upcoming Sessions ({activeSessionsList.length})
+          </Tabs.Tab>
+          <Tabs.Tab value="past" leftSection={<IconCheck size={16} />}>
+            Past / Completed Sessions ({pastSessionsList.length})
+          </Tabs.Tab>
+        </Tabs.List>
+
+        <Tabs.Panel value="active">
+          <Stack gap="md" w="100%" maw="100%">
+            {activeSessionsList.length === 0 ? (
+              <Text size="sm" c="dimmed" fs="italic" py="lg">
+                No active or upcoming sessions found.
+              </Text>
+            ) : (
+              activeSessionsList.map((s) => (
+                <WlsSessionCard
+                  key={s.id || s._id}
+                  session={s}
+                  userId={userId}
+                  currentUser={currentUser}
+                  isUpcoming={true}
+                  videoUrls={videoUrls}
+                  completedTasks={completedTasks}
+                  urlErrors={urlErrors}
+                  saveSuccess={saveSuccess}
+                  commentInputs={commentInputs}
+                  commentErrors={commentErrors}
+                  apiErrors={apiErrors}
+                  assessmentsMap={assessmentsMap}
+                  onUrlChange={handleUrlChange}
+                  onSaveVideoUrl={handleSaveVideoUrl}
+                  onMarkCompleted={updateCompletedState}
+                  onPostMessage={postMessageHelper}
+                  onAddComment={handleAddComment}
+                  onRefreshChat={handleRefreshChat}
+                  setCommentInputs={setCommentInputs}
+                />
+              ))
+            )}
+          </Stack>
+        </Tabs.Panel>
+
+        <Tabs.Panel value="past">
+          <Stack gap="md" w="100%" maw="100%">
+            {pastSessionsList.length === 0 ? (
+              <Text size="sm" c="dimmed" fs="italic" py="lg">
+                No past or completed sessions yet.
+              </Text>
+            ) : (
+              pastSessionsList.map((s) => (
+                <WlsSessionCard
+                  key={s.id || s._id}
+                  session={s}
+                  userId={userId}
+                  currentUser={currentUser}
+                  isUpcoming={false}
+                  videoUrls={videoUrls}
+                  completedTasks={completedTasks}
+                  urlErrors={urlErrors}
+                  saveSuccess={saveSuccess}
+                  commentInputs={commentInputs}
+                  commentErrors={commentErrors}
+                  apiErrors={apiErrors}
+                  assessmentsMap={assessmentsMap}
+                  onUrlChange={handleUrlChange}
+                  onSaveVideoUrl={handleSaveVideoUrl}
+                  onMarkCompleted={updateCompletedState}
+                  onPostMessage={postMessageHelper}
+                  onAddComment={handleAddComment}
+                  onRefreshChat={handleRefreshChat}
+                  setCommentInputs={setCommentInputs}
+                />
+              ))
+            )}
+          </Stack>
+        </Tabs.Panel>
+      </Tabs>
     </Container>
   );
 }
