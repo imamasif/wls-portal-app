@@ -77,4 +77,16 @@ router.get("/analytics-report", async (req, res) => {
   return res.status(200).json(mockData);
 });
 
+// Add to wlsReporting.controller.js
+router.essions = async (req, res) => {
+  try {
+    const sessions = await WlsSessionModel.find().sort({
+      sessionDateTimeToronto: -1,
+    });
+    res.json({ success: true, sessions });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
 export default router;

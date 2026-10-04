@@ -16,7 +16,7 @@ import { UniversityPortalDashboard } from "./features/university/components/Univ
 import { WlsStudentView } from "./features/wls-management/components/WlsStudentView";
 import { WlsManagementPanel } from "./features/wls-management/components/WlsManagementPanel";
 import { WlsAssessmentPanel } from "./features/wls-assessment/components/WlsAssessmentPanel";
-import { ReportingDashboard } from "./features/reporting/components/WlsReportingDashboard";
+import { WlsReportingDashboard } from "./features/reporting/components/WlsReportingDashboard";
 import { NotificationPanel } from "./features/notifications/components/NotificationPanel";
 import { EditProfileCard } from "./components/profile/EditProfileCard";
 import { LoginPage } from "./features/auth/components/LoginPage";
@@ -94,7 +94,7 @@ export default function App() {
           {activeTab === AppTab.ASSESSMENT && isWlsAdmin && (
             <WlsAssessmentPanel currentUser={user} activeTab={activeTab} />
           )}
-          {activeTab === AppTab.REPORTS && <ReportingDashboard />}
+          {activeTab === AppTab.REPORTS && <WlsReportingDashboard />}
           {activeTab === AppTab.NOTIFICATIONS && (
             <NotificationPanel user={user} />
           )}

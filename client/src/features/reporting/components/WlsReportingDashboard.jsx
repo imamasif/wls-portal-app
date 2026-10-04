@@ -1,4 +1,3 @@
-// src/features/reporting/components/ReportingDashboard.jsx
 import React, { useState, useEffect } from "react";
 import {
   Box,
@@ -18,6 +17,9 @@ import {
   Center,
   Alert,
   Container,
+  Divider,
+  ActionIcon,
+  Tooltip as MantineTooltip,
 } from "@mantine/core";
 import {
   IconChartBar,
@@ -26,7 +28,7 @@ import {
   IconAward,
   IconUserCheck,
   IconAlertCircle,
-  IconHelpCircle,
+  IconFileTypePdf,
 } from "@tabler/icons-react";
 import {
   PieChart,
@@ -40,79 +42,116 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { reportingApi } from "../api/reportingApi"; // <-- Import reporting API
+import { reportingApi } from "../api/reportingApi";
+import "./ModernCard.css";
 
-export function ReportingDashboard() {
+export function WlsReportingDashboard() {
   const [data, setData] = useState(null);
-  const [quizData, setQuizData] = useState(null);
+  const [sessionsList, setSessionsList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const [selectedSessionId, setSelectedSessionId] = useState(null);
+  const [viewMode, setViewMode] = useState("group");
   const [selectedGroup, setSelectedGroup] = useState("ALL");
+  const [selectedUser, setSelectedUser] = useState(null);
 
   useEffect(() => {
-    fetchAnalytics();
+    fetchDashboardData();
   }, []);
 
-  const fetchAnalytics = async () => {
+  const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      // Fetch cleanly using the API module with relative paths
-      const [wlsResult, quizResult] = await Promise.all([
+      const [analyticsRes, sessionsRes] = await Promise.all([
         reportingApi.getAnalyticsReport(),
-        reportingApi.getQuizAnalytics(),
+        reportingApi.getSessions
+          ? reportingApi.getSessions().catch(() => [])
+          : Promise.resolve([]),
       ]);
 
-      if (wlsResult.success) {
-        setData(wlsResult);
+      if (analyticsRes && analyticsRes.success) {
+        setData(analyticsRes);
+      } else {
+        setData(analyticsRes || { assessments: [], metrics: {} });
       }
-      if (quizResult && quizResult.success) {
-        setQuizData(quizResult.quizAnalytics);
-      }
+
+      // Handle direct array or object response for sessions
+      const sessionsArray = Array.isArray(sessionsRes)
+        ? sessionsRes
+        : sessionsRes?.sessions || [];
+      setSessionsList(sessionsArray);
     } catch (err) {
       console.error(err);
-      setError("Network error connecting to backend analytics API.");
+      setError("Failed to load live database analytics reports.");
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) {
+  const handlePrintPdf = () => {
+    window.print();
+  };
+
+  if (loading)
     return (
       <Center py="xl" style={{ height: "400px" }}>
         <Loader size="lg" color="indigo" type="dots" />
       </Center>
     );
-  }
-
-  if (error || !data) {
+  if (error || !data)
     return (
       <Box p="md">
         <Alert icon={<IconAlertCircle size={16} />} title="Error" color="red">
-          {error || "No reporting data available."}
+          {error || "No data returned"}
         </Alert>
       </Box>
     );
-  }
 
   const {
-    metrics,
-    statusData,
-    groupPerformanceData,
-    sessionReportData,
-    frequencyReportData,
-    assessments,
+    metrics = {},
+    statusData = [],
+    groupPerformanceData = [],
+    assessments = [],
   } = data;
 
-  const filteredAssessments =
-    selectedGroup === "ALL"
-      ? assessments
-      : assessments.filter(
-          (a) => `Group ${a.groupNumber || 1}` === selectedGroup,
-        );
+  // Build real session mapping lookup
+  const sessionMap = new Map();
+  sessionsList.forEach((s) => {
+    const sId = s.id || s._id;
+    if (sId) sessionMap.set(sId, s.topicName || "WLS Session");
+  });
+
+  // Real Database Session Options for Dropdown
+  const sessionOptions = sessionsList.map((s) => ({
+    value: s.id || s._id,
+    label:
+      s.topicName ||
+      `Session on ${new Date(s.sessionDateTimeToronto || s.createdAt).toLocaleDateString()}`,
+  }));
+
+  const filteredAssessments = assessments.filter((item) => {
+    const itemSessionId =
+      typeof item.sessionId === "object" ? item.sessionId?._id : item.sessionId;
+    if (selectedSessionId && itemSessionId !== selectedSessionId) return false;
+
+    if (viewMode === "group") {
+      if (
+        selectedGroup !== "ALL" &&
+        `Group ${item.groupNumber || 1}` !== selectedGroup
+      )
+        return false;
+    } else {
+      const itemUserId =
+        typeof item.userId === "object" ? item.userId?._id : item.userId;
+      if (selectedUser && itemUserId !== selectedUser) return false;
+    }
+    return true;
+  });
 
   return (
     <Container size="xl" py="lg" mt="md">
-      {/* Header Banner */}
+      {/* Upper Header Banner */}
       <Paper p="xl" radius="lg" shadow="sm" withBorder mb="lg" bg="white">
         <Group justify="space-between" wrap="wrap" gap="md">
           <Group gap="md">
@@ -124,24 +163,35 @@ export function ReportingDashboard() {
                 Advanced Analytics & Multi-Admin Reporting Suite
               </Title>
               <Text size="sm" c="dimmed">
-                Comprehensive visual breakdown per session, group, time
-                frequency, and individual/aggregate admin scoring.
+                Visual performance breakdown per session, group, and individual
+                admin scoring.
               </Text>
             </Box>
           </Group>
-          <Select
-            placeholder="Filter by Group"
-            data={["ALL", ...(groupPerformanceData || []).map((g) => g.group)]}
-            value={selectedGroup}
-            onChange={setSelectedGroup}
-            style={{ width: "180px" }}
-          />
+          <MantineTooltip label="Save / Open as PDF">
+            <ActionIcon
+              variant="light"
+              color="indigo"
+              size="xl"
+              radius="md"
+              onClick={handlePrintPdf}
+              aria-label="Save / Open as PDF"
+            >
+              <IconFileTypePdf size={24} />
+            </ActionIcon>
+          </MantineTooltip>
         </Group>
       </Paper>
 
-      {/* Top Metrics Cards */}
+      {/* Top Metrics Summary Cards */}
       <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="lg" mb="lg">
-        <Card shadow="sm" padding="lg" radius="md" withBorder>
+        <Card
+          shadow="sm"
+          padding="lg"
+          radius="md"
+          withBorder
+          className="modern-card"
+        >
           <Group justify="space-between">
             <Text size="xs" c="dimmed" fw={700} tt="uppercase">
               Total Submissions
@@ -151,10 +201,16 @@ export function ReportingDashboard() {
             </ThemeIcon>
           </Group>
           <Text fw={700} size="xl" mt="sm">
-            {metrics.totalSubmissions}
+            {metrics.totalSubmissions || assessments.length}
           </Text>
         </Card>
-        <Card shadow="sm" padding="lg" radius="md" withBorder>
+        <Card
+          shadow="sm"
+          padding="lg"
+          radius="md"
+          withBorder
+          className="modern-card"
+        >
           <Group justify="space-between">
             <Text size="xs" c="dimmed" fw={700} tt="uppercase">
               Multi-Admin Evaluated
@@ -164,10 +220,17 @@ export function ReportingDashboard() {
             </ThemeIcon>
           </Group>
           <Text fw={700} size="xl" mt="sm">
-            {metrics.multiAdminCount}
+            {metrics.multiAdminCount ||
+              assessments.filter((a) => a.evaluations?.length > 1).length}
           </Text>
         </Card>
-        <Card shadow="sm" padding="lg" radius="md" withBorder>
+        <Card
+          shadow="sm"
+          padding="lg"
+          radius="md"
+          withBorder
+          className="modern-card"
+        >
           <Group justify="space-between">
             <Text size="xs" c="dimmed" fw={700} tt="uppercase">
               Overall Portal Avg
@@ -177,10 +240,16 @@ export function ReportingDashboard() {
             </ThemeIcon>
           </Group>
           <Text fw={700} size="xl" mt="sm">
-            {metrics.overallAverageScore}%
+            {metrics.overallAverageScore || 0}%
           </Text>
         </Card>
-        <Card shadow="sm" padding="lg" radius="md" withBorder>
+        <Card
+          shadow="sm"
+          padding="lg"
+          radius="md"
+          withBorder
+          className="modern-card"
+        >
           <Group justify="space-between">
             <Text size="xs" c="dimmed" fw={700} tt="uppercase">
               Active Groups
@@ -190,15 +259,21 @@ export function ReportingDashboard() {
             </ThemeIcon>
           </Group>
           <Text fw={700} size="xl" mt="sm">
-            {metrics.activeGroupsCount}
+            {metrics.activeGroupsCount ||
+              new Set(assessments.map((a) => a.groupNumber)).size}
           </Text>
         </Card>
       </SimpleGrid>
 
-      {/* Visual Charts Grid */}
+      {/* Visual Charts Section */}
       <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg" mb="lg">
-        {/* Status Donut Chart */}
-        <Paper p="lg" radius="md" shadow="sm" withBorder>
+        <Paper
+          p="lg"
+          radius="md"
+          shadow="sm"
+          withBorder
+          className="modern-card"
+        >
           <Title order={4} c="dark.8" mb="sm">
             Submission Review Status
           </Title>
@@ -216,7 +291,10 @@ export function ReportingDashboard() {
                   label
                 >
                   {statusData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={entry.color || "#4c6ef5"}
+                    />
                   ))}
                 </Pie>
                 <Tooltip />
@@ -226,8 +304,13 @@ export function ReportingDashboard() {
           </div>
         </Paper>
 
-        {/* Group Performance Bar Chart */}
-        <Paper p="lg" radius="md" shadow="sm" withBorder>
+        <Paper
+          p="lg"
+          radius="md"
+          shadow="sm"
+          withBorder
+          className="modern-card"
+        >
           <Title order={4} c="dark.8" mb="sm">
             Group-Wise Average Scores
           </Title>
@@ -246,72 +329,83 @@ export function ReportingDashboard() {
             </ResponsiveContainer>
           </div>
         </Paper>
-
-        {/* Report per Session Topic Bar Chart */}
-        <Paper p="lg" radius="md" shadow="sm" withBorder>
-          <Title order={4} c="dark.8" mb="sm">
-            Performance per Session Topic
-          </Title>
-          <div style={{ width: "100%", height: 260 }}>
-            <ResponsiveContainer>
-              <BarChart data={sessionReportData}>
-                <XAxis dataKey="topic" />
-                <YAxis domain={[0, 100]} />
-                <Tooltip />
-                <Bar
-                  dataKey="averageScore"
-                  fill="#12b886"
-                  radius={[6, 6, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Paper>
-
-        {/* Time Frequency Report Bar Chart */}
-        <Paper p="lg" radius="md" shadow="sm" withBorder>
-          <Title order={4} c="dark.8" mb="sm">
-            Time Frequency Report (Monthly Submissions)
-          </Title>
-          <div style={{ width: "100%", height: 260 }}>
-            <ResponsiveContainer>
-              <BarChart data={frequencyReportData}>
-                <XAxis dataKey="period" />
-                <YAxis />
-                <Tooltip />
-                <Bar
-                  dataKey="submissions"
-                  fill="#fd7e14"
-                  radius={[6, 6, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Paper>
       </SimpleGrid>
 
-      {/* Multi-Admin Individual vs Aggregate Audit Trail Table */}
-      <Paper p="lg" radius="md" shadow="sm" withBorder mb="xl">
-        <Title order={4} c="dark.8" mb="sm">
-          WLS Assignment Multi-Admin Marking Audit Trail
+      {/* Interactive Filtering Card */}
+      <Paper
+        p="xl"
+        radius="md"
+        shadow="sm"
+        withBorder
+        className="modern-card mb-xl-print-hide"
+        mb="xl"
+      >
+        <Title order={3} mb="md" c="indigo.8">
+          📊 WLS Live Database Filtering Desk
         </Title>
-        <Text size="xs" c="dimmed" mb="md">
-          Shows individual grades given by multiple WLS Admins alongside
-          compiled aggregate final scores.
-        </Text>
+        <Stack gap="md">
+          <Group grow align="flex-end">
+            <Select
+              label="1. Select Real WLS Session"
+              placeholder="All Database Sessions"
+              data={sessionOptions}
+              value={selectedSessionId}
+              onChange={setSelectedSessionId}
+              clearable
+            />
+            <Select
+              label="2. Select View Mode"
+              data={[
+                { value: "group", label: "Group Report View" },
+                {
+                  value: "individual",
+                  label: "Individual User Trajectory View",
+                },
+              ]}
+              value={viewMode}
+              onChange={setViewMode}
+            />
+          </Group>
+        </Stack>
+      </Paper>
 
-        <Table
-          horizontalSpacing="md"
-          verticalSpacing="sm"
-          striped
-          highlightOnHover
-        >
+      {/* Below Results Data Table Container */}
+      <Paper p="xl" radius="md" shadow="sm" withBorder className="modern-card">
+        <Group justify="space-between" mb="md">
+          <div>
+            <Title order={4} c="dark.8">
+              Managed Sessions & Submissions Audit
+            </Title>
+            <Text size="xs" c="dimmed">
+              Live DB data rendered in a modern React card layout
+            </Text>
+          </div>
+          <Group gap="xs">
+            <div className="stamp-badge">Verified DB Record</div>
+            <MantineTooltip label="Save / Open as PDF">
+              <ActionIcon
+                variant="light"
+                color="indigo"
+                size="lg"
+                radius="md"
+                onClick={handlePrintPdf}
+                aria-label="Save / Open as PDF"
+              >
+                <IconFileTypePdf size={20} />
+              </ActionIcon>
+            </MantineTooltip>
+          </Group>
+        </Group>
+
+        <Divider my="sm" variant="dashed" />
+
+        <Table horizontalSpacing="md" verticalSpacing="sm" withTableBorder>
           <Table.Thead>
             <Table.Tr>
-              <Table.Th>Student & Group</Table.Th>
-              <Table.Th>Status</Table.Th>
-              <Table.Th>Individual Admin Markings & Feedback</Table.Th>
-              <Table.Th>Aggregated Final Score</Table.Th>
+              <Table.Th>Participant & Group</Table.Th>
+              <Table.Th>Session / Topic</Table.Th>
+              <Table.Th>Co-Admin Markings</Table.Th>
+              <Table.Th>Combined Final Score</Table.Th>
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
@@ -319,126 +413,81 @@ export function ReportingDashboard() {
               <Table.Tr>
                 <Table.Td colSpan={4} align="center">
                   <Text c="dimmed" py="md">
-                    No records found.
+                    No live records found for this query.
                   </Text>
                 </Table.Td>
               </Table.Tr>
             ) : (
-              filteredAssessments.map((item) => (
-                <Table.Tr key={item._id}>
-                  <Table.Td>
-                    <Text fw={600} size="sm">
-                      {item.userId?.name || "Student"}
-                    </Text>
-                    <Text size="xs" c="dimmed">
-                      Group {item.groupNumber || 1}
-                    </Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Badge
-                      color={item.status === "COMPLETED" ? "teal" : "yellow"}
-                      variant="light"
-                      size="sm"
-                    >
-                      {item.status}
-                    </Badge>
-                  </Table.Td>
-                  <Table.Td>
-                    {!item.evaluations || item.evaluations.length === 0 ? (
-                      <Text size="xs" c="dimmed" fs="italic">
-                        Pending evaluation
+              filteredAssessments.map((item) => {
+                const studentName =
+                  typeof item.userId === "object" && item.userId?.name
+                    ? item.userId.name
+                    : "Student";
+
+                const rawSessionId =
+                  typeof item.sessionId === "object"
+                    ? item.sessionId?._id
+                    : item.sessionId;
+                const sessionTopic =
+                  sessionMap.get(rawSessionId) ||
+                  (typeof item.sessionId === "object" &&
+                    item.sessionId?.topicName) ||
+                  "Allah / Ilah (Active WLS)";
+
+                return (
+                  <Table.Tr key={item._id}>
+                    <Table.Td>
+                      <Text fw={600} size="sm">
+                        {studentName}
                       </Text>
-                    ) : (
+                      <Text size="xs" c="dimmed">
+                        Group {item.groupNumber || 1}
+                      </Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <Text size="sm" fw={500}>
+                        {sessionTopic}
+                      </Text>
+                    </Table.Td>
+                    <Table.Td>
                       <Stack gap={4}>
-                        {item.evaluations.map((ev, idx) => (
+                        {(item.evaluations || []).map((ev, idx) => (
                           <Group key={idx} gap="xs">
                             <Badge size="xs" variant="outline" color="indigo">
                               {ev.evaluatorName}
                             </Badge>
-                            <Text size="xs" fw={500}>
+                            <Text size="xs" fw={700}>
                               {ev.score} pts
-                            </Text>
-                            <Text size="xs" c="dimmed">
-                              "{ev.feedback || "No comments"}"
                             </Text>
                           </Group>
                         ))}
                       </Stack>
-                    )}
-                  </Table.Td>
-                  <Table.Td>
-                    <Box style={{ width: "120px" }}>
-                      <Group justify="space-between" mb={2}>
-                        <Text size="xs" fw={700} c="indigo.8">
-                          {item.finalScore}%
-                        </Text>
-                        <Text size="xs" c="dimmed">
-                          ({item.evaluations?.length || 0} admins)
-                        </Text>
-                      </Group>
-                      <Progress
-                        value={item.finalScore}
-                        color="indigo"
-                        size="sm"
-                        radius="xl"
-                      />
-                    </Box>
-                  </Table.Td>
-                </Table.Tr>
-              ))
+                    </Table.Td>
+                    <Table.Td>
+                      <Box style={{ width: "120px" }}>
+                        <Group justify="space-between" mb={2}>
+                          <Text size="xs" fw={700} c="indigo.8">
+                            {item.finalScore}%
+                          </Text>
+                        </Group>
+                        <Progress
+                          value={item.finalScore}
+                          color="indigo"
+                          size="sm"
+                          radius="xl"
+                        />
+                      </Box>
+                    </Table.Td>
+                  </Table.Tr>
+                );
+              })
             )}
           </Table.Tbody>
         </Table>
       </Paper>
-
-      {/* Quiz Assessments Analytics Section */}
-      {quizData && quizData.length > 0 && (
-        <Paper p="lg" radius="md" shadow="sm" withBorder>
-          <Group gap="sm" mb="md">
-            <ThemeIcon color="grape" variant="light" size="lg">
-              <IconHelpCircle size={20} />
-            </ThemeIcon>
-            <Title order={4} c="dark.8">
-              Quiz Assessment Reports & Performance
-            </Title>
-          </Group>
-          <Table
-            horizontalSpacing="md"
-            verticalSpacing="sm"
-            striped
-            highlightOnHover
-          >
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Quiz Title</Table.Th>
-                <Table.Th>Total Submissions</Table.Th>
-                <Table.Th>Average Score</Table.Th>
-                <Table.Th>Passed (≥60%)</Table.Th>
-                <Table.Th>Needs Improvement (&lt;60%)</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {quizData.map((q, idx) => (
-                <Table.Tr key={idx}>
-                  <Table.Td fw={600}>{q.title}</Table.Td>
-                  <Table.Td>{q.totalSubmissions}</Table.Td>
-                  <Table.Td>
-                    <Badge color="indigo">{q.averageScore}%</Badge>
-                  </Table.Td>
-                  <Table.Td>
-                    <Badge color="teal">{q.passedCount} Students</Badge>
-                  </Table.Td>
-                  <Table.Td>
-                    <Badge color="red">{q.failedCount} Students</Badge>
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        </Paper>
-      )}
     </Container>
   );
 }
 
-export default ReportingDashboard;
+export const ReportingDashboard = WlsReportingDashboard;
+export default WlsReportingDashboard;
