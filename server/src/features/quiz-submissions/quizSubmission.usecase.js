@@ -16,34 +16,32 @@ export class QuizSubmissionUseCase {
 
     let totalScore = 0;
     let maxScore = 0;
+    const processedAnswers = [];
 
     quiz.questions.forEach((q, idx) => {
       const qPoints = q.points || 1;
       maxScore += qPoints;
 
       const userAnsObj = dto.answers.find((a) => a.questionIndex === idx);
-      if (!userAnsObj) return;
-
-      const userAns = userAnsObj.selectedAnswer;
-
-      // If it's a short text input, leave it for manual grading
-      if (
-        q.questionType === "SHORT_ANSWER" ||
-        q.questionType === "TEXT_INPUT"
-      ) {
-        submissionAnswers.push({
+      if (!userAnsObj) {
+        processedAnswers.push({
           questionIndex: idx,
           questionType: q.questionType,
-          selectedAnswer: userAns,
-          gradingStatus: "PENDING",
+          selectedAnswer: null,
+          gradingStatus: "WRONG",
+          isCorrect: false,
           awardedPoints: 0,
         });
-        return; // Do not add points yet; instructor will grade later
+        return;
       }
+
+      const userAns = userAnsObj.selectedAnswer;
       const correctAns = q.correctAnswers || [];
       const correctSeq = q.correctSequence || [];
 
       let isCorrect = false;
+      let gradingStatus = "PENDING";
+      let awardedPoints = 0;
 
       // 1. Multiple Select (Exact set match)
       if (
@@ -55,6 +53,8 @@ export class QuizSubmissionUseCase {
         const sortedCorrect = [...correctAns].sort();
         isCorrect =
           JSON.stringify(sortedUser) === JSON.stringify(sortedCorrect);
+        gradingStatus = isCorrect ? "CORRECT" : "WRONG";
+        awardedPoints = isCorrect ? qPoints : 0;
       }
       // 2. Sequence Ordering (Exact sequential order match)
       else if (
@@ -64,26 +64,43 @@ export class QuizSubmissionUseCase {
       ) {
         const targetSeq = correctSeq.length > 0 ? correctSeq : correctAns;
         isCorrect = JSON.stringify(userAns) === JSON.stringify(targetSeq);
+        gradingStatus = isCorrect ? "CORRECT" : "WRONG";
+        awardedPoints = isCorrect ? qPoints : 0;
       }
-      // 3. Short Answer / Text Input
+      // 3. Short Answer / Text Input (Auto-grade if exact match or keyword match, else leave PENDING for manual review)
       else if (
         q.questionType === "TEXT_INPUT" ||
         q.questionType === "SHORT_ANSWER"
       ) {
-        isCorrect = correctAns.some(
-          (ans) =>
-            String(ans).trim().toLowerCase() ===
-            String(userAns).trim().toLowerCase(),
-        );
+        const expected = correctAns?.[0] || "";
+        isCorrect =
+          expected &&
+          typeof userAns === "string" &&
+          String(userAns).trim().toLowerCase() ===
+            String(expected).trim().toLowerCase();
+
+        gradingStatus = isCorrect ? "CORRECT" : "PENDING";
+        awardedPoints = isCorrect ? qPoints : 0;
       }
       // 4. Single Select / True-False
       else {
         isCorrect = correctAns.includes(String(userAns));
+        gradingStatus = isCorrect ? "CORRECT" : "WRONG";
+        awardedPoints = isCorrect ? qPoints : 0;
       }
 
       if (isCorrect) {
-        totalScore += qPoints;
+        totalScore += awardedPoints;
       }
+
+      processedAnswers.push({
+        questionIndex: idx,
+        questionType: q.questionType,
+        selectedAnswer: userAns,
+        gradingStatus,
+        isCorrect,
+        awardedPoints,
+      });
     });
 
     const percentage =
@@ -93,10 +110,13 @@ export class QuizSubmissionUseCase {
       quizId: dto.quizId,
       userId: dto.userId,
       userName: dto.userName || "Student",
-      answers: dto.answers,
+      answers: processedAnswers,
       totalScore,
       maxScore,
       percentage,
+      isFullyGraded: !processedAnswers.some(
+        (a) => a.gradingStatus === "PENDING",
+      ),
     });
 
     return QuizSubmissionMapper.toResponse(submission);
@@ -127,19 +147,22 @@ export class QuizSubmissionUseCase {
 
     answer.gradingStatus = status; // 'CORRECT', 'SOMEWHAT_CORRECT', 'WRONG'
 
-    // Assign points based on button choice (e.g., CORRECT = full points, SOMEWHAT_CORRECT = half points, WRONG = 0)
     if (status === "CORRECT") answer.awardedPoints = customPoints;
     else if (status === "SOMEWHAT_CORRECT")
       answer.awardedPoints = customPoints * 0.5;
     else answer.awardedPoints = 0;
 
-    // Recalculate total score across all answers
+    answer.isCorrect = status === "CORRECT";
+
     submission.totalScore = submission.answers.reduce(
       (acc, curr) => acc + (curr.awardedPoints || 0),
       0,
     );
     submission.percentage = Number(
       ((submission.totalScore / submission.maxScore) * 100).toFixed(2),
+    );
+    submission.isFullyGraded = !submission.answers.some(
+      (a) => a.gradingStatus === "PENDING",
     );
 
     await submission.save();

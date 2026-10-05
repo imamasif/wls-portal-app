@@ -9,11 +9,14 @@ export class CreateQuizReqDto {
       ? body.questions.map((q) => ({
           questionText: q.questionText,
           questionType: q.questionType,
-          imageUrl: q.imageUrl || "",
+          questionImageUrl: q.questionImageUrl || q.imageUrl || "",
+          questionImage:
+            q.questionImage || q.questionImageUrl || q.imageUrl || "",
           options: q.options || [],
           correctAnswers: q.correctAnswers || [],
-          sequenceItems: q.sequenceItems || [], // <-- Added for sequence ordering
-          correctSequence: q.correctSequence || [], // <-- Added for sequence ordering
+          sampleAnswer: q.sampleAnswer || "", // <-- Preserves short answer / keyword data
+          sequenceItems: q.sequenceItems || [],
+          correctSequence: q.correctSequence || [],
           points: q.points || 1,
         }))
       : [];

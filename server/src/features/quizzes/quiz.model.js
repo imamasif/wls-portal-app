@@ -4,7 +4,9 @@ import { QUESTION_TYPE_VALUES } from "../../common/constants/enums.js";
 
 const questionSchema = new mongoose.Schema({
   questionText: { type: String, required: true },
-  questionImage: { type: String }, // Optional snapshot or image URL
+  questionImage: { type: String },
+  questionImageUrl: { type: String },
+  imageUrl: { type: String }, // Added to match frontend payload directly
   questionType: {
     type: String,
     enum: QUESTION_TYPE_VALUES,
@@ -14,18 +16,16 @@ const questionSchema = new mongoose.Schema({
   points: { type: Number, default: 5 },
   orderIndex: { type: Number, default: 0 },
 
-  // Choice-Based (Single, Multiple, True/False)
   options: [{ type: String }],
   correctAnswers: [{ type: String }],
+  sampleAnswer: { type: String },
 
-  // Text Validation Rules
   textValidation: {
     caseSensitive: { type: Boolean, default: false },
   },
 
-  // Sequence & Ordering Questions
   sequenceItems: [{ type: String }],
-  correctSequence: [{ type: String }], // The correct ordered array of strings
+  correctSequence: [{ type: String }],
 });
 
 const quizSchema = new mongoose.Schema(
@@ -33,8 +33,8 @@ const quizSchema = new mongoose.Schema(
     title: { type: String, required: true },
     description: { type: String },
     createdBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      type: String, // Changed from ObjectId to String to accept "super_user"
+      default: "super_user",
       required: false,
     },
     isPublished: { type: Boolean, default: false },

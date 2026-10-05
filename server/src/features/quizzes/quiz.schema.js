@@ -1,5 +1,7 @@
 // quiz.schema.js
 import Ajv from "ajv";
+import { QUESTION_TYPE_VALUES } from "../../common/constants/enums.js";
+
 const ajv = new Ajv({ allErrors: true, allowUnionTypes: true });
 
 const createQuizSchema = {
@@ -16,14 +18,7 @@ const createQuizSchema = {
         properties: {
           questionText: { type: "string", minLength: 1 },
           questionType: {
-            enum: [
-              "SINGLE_SELECT",
-              "MULTIPLE_SELECT",
-              "TRUE_FALSE",
-              "TEXT_INPUT",
-              "SEQUENCE",
-              "SEQUENCE_ORDER",
-            ],
+            enum: QUESTION_TYPE_VALUES, // Uses the exact shared enum array
           },
           imageUrl: { type: "string" },
           options: { type: "array", items: { type: "string" } },

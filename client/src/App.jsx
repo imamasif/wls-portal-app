@@ -27,7 +27,7 @@ import QuranVerseMemorizerPanel from "./features/quran-reference-memorizer/compo
 
 import {
   QuizListScreen,
-  QuizAdminWorkspace,
+  QuizCreatorStudio,
   QuizReportDashboard,
   QuizStudentView,
 } from "./features/quiz-management";
@@ -106,22 +106,43 @@ export default function App() {
           )}
           {activeTab === AppTab.QUIZ_LIST && isWlsAdmin && (
             <QuizListScreen
-              onEditQuiz={(q) => {
-                setSelectedQuizForEdit(q);
+              onCreateNew={() => {
+                setSelectedQuizForEdit(null);
+                setActiveTab(AppTab.QUIZ_STUDIO);
+              }}
+              onEditQuiz={(quiz) => {
+                setSelectedQuizForEdit(quiz);
                 setActiveTab(AppTab.QUIZ_STUDIO);
               }}
             />
           )}
+
+          {/* Quiz Creator Studio (Create / Edit) */}
           {activeTab === AppTab.QUIZ_STUDIO && isWlsAdmin && (
-            <QuizAdminWorkspace
-              initialQuizData={selectedQuizForEdit}
-              onSave={() => setActiveTab(AppTab.QUIZ_LIST)}
+            <QuizCreatorStudio
+              key={
+                selectedQuizForEdit?._id ||
+                selectedQuizForEdit?.id ||
+                "new-quiz"
+              }
+              quizToEdit={selectedQuizForEdit}
+              onSaveComplete={(savedQuiz) => {
+                // Clear out the selection and navigate back to the list
+                setSelectedQuizForEdit(null);
+                setActiveTab(AppTab.QUIZ_LIST);
+              }}
             />
           )}
+
+          {/* Analytics & Performance Reports */}
           {activeTab === AppTab.QUIZ_REPORTS && isWlsAdmin && (
-            <QuizReportDashboard user={user} />
+            <QuizReportDashboard />
           )}
+
+          {/* Student-facing View to Take Active Quizzes */}
           {activeTab === AppTab.QUIZ_STUDENT && <QuizStudentView user={user} />}
+
+          {/* */}
           {activeTab === AppTab.WLS_ATTENDANCE_MONITORING && isWlsAdmin && (
             <WlsAttendanceMonitoringPanel user={user} />
           )}

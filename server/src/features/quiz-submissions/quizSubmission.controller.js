@@ -1,4 +1,5 @@
 import { CreateQuizSubmissionReqDto } from "./quizSubmission.req.js";
+import { QuizModel } from "../quizzes/quiz.model.js";
 
 export class QuizSubmissionController {
   constructor(useCase) {
@@ -9,12 +10,12 @@ export class QuizSubmissionController {
     try {
       const dto = new CreateQuizSubmissionReqDto(req.body);
 
-      // Check if the target quiz is active before accepting submissions
-      const quiz = await Quiz.findById(dto.quizId);
-      if (!quiz || !quiz.isActive) {
+      // Check if the target quiz exists and is active before accepting submissions
+      const quiz = await QuizModel.findById(dto.quizId);
+      if (!quiz || quiz.isActive === false) {
         return res.status(403).json({
           error: "This quiz is inactive and no longer accepting submissions.",
-        }); // <-- Removed dot before status
+        });
       }
 
       const result = await this.useCase.submitQuiz(dto);
@@ -46,7 +47,6 @@ export class QuizSubmissionController {
     }
   };
 
-  // Add inside QuizSubmissionController
   getQuizAnalyticsReport = async (req, res) => {
     try {
       const quizAnalytics = await this.useCase.getQuizAnalyticsReport();

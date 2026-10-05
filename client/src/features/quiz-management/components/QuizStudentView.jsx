@@ -16,6 +16,7 @@ import {
 } from "@mantine/core";
 import { IconArrowUp, IconArrowDown } from "@tabler/icons-react";
 import { quizApi } from "../api/quizApi";
+import { QUESTION_TYPES, QTYPES } from "../../../config/constants";
 
 export function QuizStudentView({ user }) {
   const [quizzes, setQuizzes] = useState([]);
@@ -44,10 +45,9 @@ export function QuizStudentView({ user }) {
     setActiveQuiz(quiz);
     const initialSeqMap = {};
     quiz.questions.forEach((q, idx) => {
-      if (q.questionType === "SEQUENCE_ORDER") {
+      if (q.questionType === QTYPES.SEQUENCE_ORDER.value) {
         const items =
           q.sequenceItems?.length > 0 ? [...q.sequenceItems] : [...q.options];
-        // Optional: Shuffle them so they aren't already in the correct order
         initialSeqMap[idx] = items.sort(() => Math.random() - 0.5);
       }
     });
@@ -71,16 +71,14 @@ export function QuizStudentView({ user }) {
     currentList[targetIndex] = temp;
 
     setStudentSequences({ ...studentSequences, [qIndex]: currentList });
-    // Save the arranged array as the answer for this question
     handleAnswerChange(qIndex, currentList);
   };
 
   const handleSubmit = async () => {
     try {
-      // Ensure sequence answers are included from studentSequences if not modified yet
       const finalAnswers = { ...answers };
       activeQuiz.questions.forEach((q, idx) => {
-        if (q.questionType === "SEQUENCE_ORDER" && !finalAnswers[idx]) {
+        if (q.questionType === QTYPES.SEQUENCE_ORDER && !finalAnswers[idx]) {
           finalAnswers[idx] =
             studentSequences[idx] || q.sequenceItems || q.options;
         }
@@ -164,7 +162,7 @@ export function QuizStudentView({ user }) {
                 </Text>
 
                 {/* 1. SINGLE_SELECT */}
-                {q.questionType === "SINGLE_SELECT" && (
+                {q.questionType === QTYPES.SINGLE_SELECT && (
                   <Radio.Group
                     value={answers[idx] || ""}
                     onChange={(val) => handleAnswerChange(idx, val)}
@@ -178,7 +176,7 @@ export function QuizStudentView({ user }) {
                 )}
 
                 {/* 2. TRUE_FALSE */}
-                {q.questionType === "TRUE_FALSE" && (
+                {q.questionType === QTYPES.TRUE_FALSE && (
                   <Radio.Group
                     value={answers[idx] || ""}
                     onChange={(val) => handleAnswerChange(idx, val)}
@@ -192,7 +190,7 @@ export function QuizStudentView({ user }) {
                 )}
 
                 {/* 3. MULTI_SELECT */}
-                {q.questionType === "MULTI_SELECT" && (
+                {q.questionType === QTYPES.MULTI_SELECT && (
                   <Stack gap="xs" mt="xs">
                     {q.options.map((opt, oIdx) => {
                       const currentSelected = answers[idx] || [];
@@ -219,8 +217,8 @@ export function QuizStudentView({ user }) {
                   </Stack>
                 )}
 
-                {/* 4. SEQUENCE_ORDER (Interactive Up/Down Sorting) */}
-                {q.questionType === "SEQUENCE_ORDER" && (
+                {/* 4. SEQUENCE_ORDER */}
+                {q.questionType === QTYPES.SEQUENCE_ORDER && (
                   <Stack gap="xs" mt="xs">
                     <Text size="sm" c="dimmed">
                       Use the up and down arrows to arrange the steps in the
@@ -277,7 +275,7 @@ export function QuizStudentView({ user }) {
                 )}
 
                 {/* 5. TEXT_INPUT */}
-                {q.questionType === "TEXT_INPUT" && (
+                {q.questionType === QTYPES.TEXT_INPUT && (
                   <TextInput
                     placeholder="Type your answer..."
                     value={answers[idx] || ""}

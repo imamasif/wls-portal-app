@@ -3,12 +3,12 @@ export class CreateQuizSubmissionReqDto {
   constructor(body) {
     this.quizId = body.quizId;
     this.userId = body.userId;
-    this.userName = body.userName || "";
+    this.userName = body.userName || "Student";
     this.answers = Array.isArray(body.answers)
-      ? body.answers.map((ans) => ({
-          questionIndex: ans.questionIndex,
-          questionType: ans.questionType,
-          selectedAnswer: ans.selectedAnswer, // Can be String, Number, or Array (for MULTIPLE_SELECT / SEQUENCE)
+      ? body.answers.map((a) => ({
+          questionIndex: a.questionIndex,
+          questionType: a.questionType,
+          selectedAnswer: a.selectedAnswer,
         }))
       : [];
   }
