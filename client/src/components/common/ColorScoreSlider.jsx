@@ -1,39 +1,68 @@
-import React from 'react';
-import styles from './ColorScoreSlider.module.css';
+import React from "react";
+import { Card, Group, Text, Slider, Badge } from "@mantine/core";
+import { getScoreLevel } from "../../config/constants";
 
 export function ColorScoreSlider({ label, value = 1, onChange, max = 10 }) {
-  const getColorClass = (val) => {
-    switch (Number(val)) {
-      case 1: return styles.score1;
-      case 2: return styles.score2;
-      case 3: return styles.score3;
-      case 4: return styles.score4;
-      case 5: return styles.score5;
-      case 6: return styles.score6;
-      case 7: return styles.score7;
-      case 8: return styles.score8;
-      case 9: return styles.score9;
-      case 10: return styles.score10;
-      default: return styles.scoreDefault;
-    }
-  };
+  const currentVal = Number(value) || 1;
+  const scoreLevel = getScoreLevel(currentVal);
 
   return (
-    <div className={styles.wrapper}>
-      <div className={styles.header}>
-        <span className={styles.label}>{label}</span>
-        <span className={`${styles.badge} ${getColorClass(value)}`}>
-          {value} / {max}
-        </span>
-      </div>
-      <input
-        type="range"
-        min="1"
+    <Card padding="md" radius="md" withBorder mb="md" shadow="xs">
+      <Group justify="space-between" mb="xs">
+        <Text size="sm" fw={600} c="dark.7" style={{ flex: 1 }}>
+          {label}
+        </Text>
+        <Group gap="xs">
+          <Badge
+            color={scoreLevel.color}
+            variant="light"
+            size="sm"
+            tt="uppercase"
+            fw={700}
+            style={{
+              backgroundColor: `${scoreLevel.color}15`,
+              color: scoreLevel.color,
+              borderColor: scoreLevel.color,
+            }}
+          >
+            {scoreLevel.label}
+          </Badge>
+          <Badge
+            color={scoreLevel.color}
+            variant="filled"
+            size="sm"
+            fw={700}
+            style={{ backgroundColor: scoreLevel.color }}
+          >
+            {currentVal} / {max}
+          </Badge>
+        </Group>
+      </Group>
+
+      <Slider
+        value={currentVal}
+        onChange={onChange}
+        min={1}
         max={max}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className={styles.rangeInput}
+        step={1}
+        color={scoreLevel.color}
+        label={(val) => `${val} — ${getScoreLevel(val).label}`}
+        marks={[
+          { value: 1, label: "1" },
+          { value: Math.round(max * 0.25), label: "25%" },
+          { value: Math.round(max * 0.5), label: "50%" },
+          { value: Math.round(max * 0.75), label: "75%" },
+          { value: max, label: `${max}` },
+        ]}
+        styles={{
+          markLabel: { fontSize: "10px", color: "#868e96" },
+          thumb: {
+            backgroundColor: scoreLevel.color,
+            borderColor: scoreLevel.color,
+          },
+          bar: { backgroundColor: scoreLevel.color },
+        }}
       />
-    </div>
+    </Card>
   );
 }
