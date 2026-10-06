@@ -3,6 +3,7 @@ import {
   ASSESSMENT_STATUSES,
   CONCLUSION_STATUSES,
 } from "../../common/constants/enums.js";
+import { UserRole } from "../types/user.js";
 
 const evaluationSchema = new mongoose.Schema(
   {
@@ -14,6 +15,11 @@ const evaluationSchema = new mongoose.Schema(
       default: {},
     },
     feedback: { type: String, default: "" },
+    status: {
+      type: String,
+      enum: Object.values(ASSESSMENT_STATUSES),
+      default: ASSESSMENT_STATUSES.PARTIAL_SAVED,
+    },
     evaluatedAt: { type: Date, default: Date.now },
   },
   { _id: false },
@@ -25,8 +31,8 @@ const assessmentMessageSchema = new mongoose.Schema(
     senderName: { type: String, required: true },
     senderRole: {
       type: String,
-      enum: ["USER", "WLS_ADMIN", "SUPER_USER"],
-      default: "USER",
+      enum: Object.values(UserRole),
+      default: UserRole.USER,
     },
     text: { type: String, required: true },
     timestamp: { type: Date, default: Date.now },

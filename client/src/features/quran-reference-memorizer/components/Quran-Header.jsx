@@ -16,14 +16,16 @@ import {
   IconTrophy,
   IconFlame,
   IconChartBar,
+  IconFilter,
 } from "@tabler/icons-react";
 
 export default function QuranHeader({
-  useLiveApi,
-  setUseLiveApi,
+  dataSource,
+  setDataSource,
   score,
   streak,
   accuracyRate,
+  onOpenFilterModal,
 }) {
   return (
     <Paper
@@ -59,44 +61,49 @@ export default function QuranHeader({
               Memorize & Test Surah & Ayah References
             </Text>
           </Stack>
-
-          {/* Circular Verses Badge */}
-          <Box
-            style={{
-              width: 50,
-              height: 50,
-              borderRadius: "50%",
-              backgroundColor: "#D8F3DC",
-              border: "1px solid #B7E4C7",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              lineHeight: 1,
-            }}
-          >
-            <Text size="10px" fw={700} c="teal.8">
-              6,236
-            </Text>
-            <Text size="8px" c="teal.8">
-              Verses
-            </Text>
-          </Box>
         </Group>
 
         <Group gap="xs" wrap="wrap">
-          <Button
-            size="xs"
-            radius="xl"
-            style={{
-              backgroundColor: useLiveApi ? "#1B4332" : "#FFF",
-              color: useLiveApi ? "#FFF" : "#333",
-            }}
-            leftSection={<IconGlobe size={14} />}
-            onClick={() => setUseLiveApi(!useLiveApi)}
-          >
-            {useLiveApi ? "Live Quran API (Active)" : "Preset Verses"}
-          </Button>
+          <Button.Group>
+            <Button
+              size="xs"
+              radius="xl"
+              style={{
+                backgroundColor: dataSource === "live" ? "#1B4332" : "#FFF",
+                color: dataSource === "live" ? "#FFF" : "#333",
+              }}
+              leftSection={<IconGlobe size={14} />}
+              onClick={() => setDataSource("live")}
+            >
+              Live Quran API
+            </Button>
+            <Button
+              size="xs"
+              radius="xl"
+              style={{
+                backgroundColor: dataSource === "preset" ? "#1B4332" : "#FFF",
+                color: dataSource === "preset" ? "#FFF" : "#333",
+              }}
+              onClick={() => setDataSource("preset")}
+            >
+              Preset Verses
+            </Button>
+            <Button
+              size="xs"
+              radius="xl"
+              style={{
+                backgroundColor: dataSource === "lectures" ? "#1B4332" : "#FFF",
+                color: dataSource === "lectures" ? "#FFF" : "#333",
+              }}
+              leftSection={<IconFilter size={14} />}
+              onClick={() => {
+                setDataSource("lectures");
+                if (onOpenFilterModal) onOpenFilterModal();
+              }}
+            >
+              Lecture Categories
+            </Button>
+          </Button.Group>
 
           <Badge
             variant="white"

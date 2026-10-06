@@ -10,7 +10,8 @@
     "seedmaster": "tsx src/data/seeders/seedMasterData.js",
     "seeddata": "tsx src/data/seeders/seedData.js",
     "seed-all-students": "tsx src/data/seeders/seed-all-students.js",
-    "seedCoursesAndProgress": "tsx src/data/seeders/seedCoursesAndProgress.js"
+    "seedCoursesAndProgress": "tsx src/data/seeders/seedCoursesAndProgress.js",
+    "seed:lectures": "tsx src/data/seeders/seedLectures.js"
   },
   "dependencies": {
     "ajv": "^8.20.0",

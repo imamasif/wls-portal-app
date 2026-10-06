@@ -1,3 +1,5 @@
+import { UserRole } from "../types/user.js";
+
 export class SubmitAssessmentReqDTO {
   constructor({ sessionId, userId, videoUrl, submissionUrl, groupNumber }) {
     this.sessionId = sessionId;
@@ -31,7 +33,7 @@ export class AssessmentMessageReqDTO {
   constructor({ senderId, senderName, senderRole, text }) {
     this.senderId = senderId;
     this.senderName = senderName || "User";
-    this.senderRole = senderRole || "USER";
+    this.senderRole = senderRole || UserRole.USER;
     this.text = text;
   }
 }

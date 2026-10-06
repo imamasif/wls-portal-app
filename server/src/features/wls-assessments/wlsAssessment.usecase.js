@@ -1,6 +1,15 @@
 import mongoose from "mongoose";
 import { AssessmentModel } from "./wlsAssessment.model.js";
 import { WlsSessionModel } from "../wls-session/wlsSession.model.js";
+import {
+  ASSESSMENT_STATUSES,
+  CONCLUSION_STATUSES,
+} from "../../common/constants/enums.js";
+
+const REQUIRED_COMPLETED_EVALUATIONS = process.env
+  .REQUIRED_COMPLETED_EVALUATIONS
+  ? parseInt(process.env.REQUIRED_COMPLETED_EVALUATIONS, 10)
+  : 1;
 
 export class AssessmentUseCase {
   static async getAllAssessments() {
@@ -31,7 +40,7 @@ export class AssessmentUseCase {
       { sessionId: sessionObjId, userId: userObjId },
       {
         $setOnInsert: {
-          status: "PENDING",
+          status: ASSESSMENT_STATUSES.PENDING,
           submissionUrl: "",
           messages: [],
           evaluations: [],
@@ -77,7 +86,7 @@ export class AssessmentUseCase {
           submissionUrl: urlToSave,
           submissionUrls: [urlToSave],
           groupNumber: groupNumber || 1,
-          status: "SUBMITTED",
+          status: ASSESSMENT_STATUSES.SUBMITTED,
         },
       },
       { new: true, upsert: true, setDefaultsOnInsert: true },
@@ -90,19 +99,26 @@ export class AssessmentUseCase {
     const assessment = await AssessmentModel.findById(assessmentId);
     if (!assessment) return null;
 
+    // 1. Remove existing evaluation from this evaluator
     assessment.evaluations = assessment.evaluations.filter(
       (e) =>
         e.evaluatorId &&
         e.evaluatorId.toString() !== dto.evaluatorId.toString(),
     );
 
+    const currentAdminStatus = dto.status || ASSESSMENT_STATUSES.COMPLETED;
+
+    // 2. Add new evaluation entry with evaluator's status
     assessment.evaluations.push({
       evaluatorId: dto.evaluatorId,
       evaluatorName: dto.evaluatorName,
       scores: dto.scores,
       feedback: dto.feedback,
+      status: currentAdminStatus,
+      evaluatedAt: new Date(),
     });
 
+    // 3. Compute merged scores
     let totalObtained = 0;
     let totalPossible = 0;
 
@@ -122,8 +138,20 @@ export class AssessmentUseCase {
 
     assessment.finalScore = percentage;
     assessment.conclusionStatus =
-      assessment.finalScore >= 70 ? "PASSED" : "FAILED";
-    assessment.status = dto.status || "COMPLETED";
+      assessment.finalScore >= 70
+        ? CONCLUSION_STATUSES.PASSED
+        : CONCLUSION_STATUSES.FAILED;
+
+    // 4. Threshold check for overall status across all admins
+    const completedCount = assessment.evaluations.filter(
+      (e) => e.status === ASSESSMENT_STATUSES.COMPLETED,
+    ).length;
+
+    if (completedCount >= REQUIRED_COMPLETED_EVALUATIONS) {
+      assessment.status = ASSESSMENT_STATUSES.COMPLETED;
+    } else if (assessment.evaluations.length > 0) {
+      assessment.status = ASSESSMENT_STATUSES.PARTIAL_SAVED;
+    }
 
     return await assessment.save();
   }
@@ -134,7 +162,7 @@ export class AssessmentUseCase {
       throw new Error("Cannot mark as completed without a video submission.");
     }
 
-    assessment.status = "SUBMITTED";
+    assessment.status = ASSESSMENT_STATUSES.SUBMITTED;
     assessment.completedAt = new Date();
     return await assessment.save();
   }

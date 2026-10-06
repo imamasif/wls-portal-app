@@ -1,6 +1,5 @@
 import React, { useMemo } from "react";
 import {
-  Paper,
   Card,
   Group,
   Stack,
@@ -10,6 +9,7 @@ import {
   Loader,
   Alert,
   Box,
+  Paper,
 } from "@mantine/core";
 import {
   IconVolume,
@@ -18,16 +18,15 @@ import {
   IconHelpCircle,
 } from "@tabler/icons-react";
 
-// Tape color palette options (with high aesthetic translucency)
 const TAPE_COLORS = [
-  "#FEF08A", // Yellow
-  "#93C5FD", // Soft Blue
-  "#FCA5A5", // Soft Red
-  "#86EFAC", // Soft Green
-  "#D8B4FE", // Soft Purple
-  "#99F6E4", // Soft Teal
-  "#374151", // Dark Slate / Black
-  "#FDBA74", // Coral / Orange
+  "#FEF08A",
+  "#93C5FD",
+  "#FCA5A5",
+  "#86EFAC",
+  "#D8B4FE",
+  "#99F6E4",
+  "#374151",
+  "#FDBA74",
 ];
 
 export default function VerseCard({
@@ -42,13 +41,10 @@ export default function VerseCard({
 }) {
   const isCompleted = surahStatus === "correct" && ayahStatus === "correct";
 
-  // Pick random tape colors that change whenever currentAyah updates
   const { leftTapeColor, rightTapeColor } = useMemo(() => {
     const leftIdx = Math.floor(Math.random() * TAPE_COLORS.length);
     let rightIdx = Math.floor(Math.random() * TAPE_COLORS.length);
-    if (leftIdx === rightIdx) {
-      rightIdx = (rightIdx + 1) % TAPE_COLORS.length;
-    }
+    if (leftIdx === rightIdx) rightIdx = (rightIdx + 1) % TAPE_COLORS.length;
     return {
       leftTapeColor: TAPE_COLORS[leftIdx],
       rightTapeColor: TAPE_COLORS[rightIdx],
@@ -57,7 +53,6 @@ export default function VerseCard({
 
   return (
     <Box style={{ position: "relative", width: "100%", margin: "15px 0" }}>
-      {/* Stack Paper Shadow Effect Behind (Tilted Right) */}
       <Box
         style={{
           position: "absolute",
@@ -69,8 +64,6 @@ export default function VerseCard({
           zIndex: 0,
         }}
       />
-
-      {/* Dynamic Colored Tape Strips */}
       <Box
         style={{
           position: "absolute",
@@ -82,7 +75,6 @@ export default function VerseCard({
           opacity: 0.85,
           transform: "rotate(-6deg)",
           zIndex: 10,
-          boxShadow: "0 2px 4px rgba(0,0,0,0.12)",
           borderRadius: "2px",
         }}
       />
@@ -97,12 +89,10 @@ export default function VerseCard({
           opacity: 0.85,
           transform: "rotate(5deg)",
           zIndex: 10,
-          boxShadow: "0 2px 4px rgba(0,0,0,0.12)",
           borderRadius: "2px",
         }}
       />
 
-      {/* Main Front Card (Tilted Left) */}
       <Card
         shadow="md"
         padding="xl"
@@ -112,8 +102,7 @@ export default function VerseCard({
           zIndex: 1,
           backgroundColor: "#FFFFFF",
           border: isCompleted ? "2px solid #2B8A3E" : "1px solid #EAE6DF",
-          transform: "rotate(-1.2deg)", // Counter-clockwise tilt
-          transition: "transform 0.2s ease, box-shadow 0.2s ease",
+          transform: "rotate(-1.2deg)",
           boxShadow: "0 12px 30px rgba(0,0,0,0.06)",
         }}
       >
@@ -121,7 +110,7 @@ export default function VerseCard({
           <Stack align="center" py="xl" gap="sm">
             <Loader color="teal" type="dots" />
             <Text size="sm" c="dimmed" fs="italic">
-              Fetching Ayah from Live Quran Network...
+              Loading Verse...
             </Text>
           </Stack>
         ) : currentAyah ? (
@@ -129,7 +118,7 @@ export default function VerseCard({
             <Group justify="space-between" align="center">
               <Group gap="xs">
                 <Badge color="gray" variant="light" radius="sm" size="xs">
-                  AYAH #{currentAyah.globalId || "?"} IN QURAN
+                  AYAH #{currentAyah.globalId || currentAyah.ayahNo}
                 </Badge>
                 {currentAyah.juz && (
                   <Badge color="yellow" variant="light" radius="sm" size="xs">
@@ -138,22 +127,24 @@ export default function VerseCard({
                 )}
               </Group>
 
-              <Button
-                size="xs"
-                radius="xl"
-                variant="subtle"
-                style={{ backgroundColor: "#F3F4F6", color: "#374151" }}
-                leftSection={
-                  isPlayingAudio ? (
-                    <IconVolumeOff size={14} />
-                  ) : (
-                    <IconVolume size={14} />
-                  )
-                }
-                onClick={toggleAudio}
-              >
-                {isPlayingAudio ? "Pause Recitation" : "Listen Recitation"}
-              </Button>
+              {currentAyah.audioUrl && (
+                <Button
+                  size="xs"
+                  radius="xl"
+                  variant="subtle"
+                  style={{ backgroundColor: "#F3F4F6", color: "#374151" }}
+                  leftSection={
+                    isPlayingAudio ? (
+                      <IconVolumeOff size={14} />
+                    ) : (
+                      <IconVolume size={14} />
+                    )
+                  }
+                  onClick={toggleAudio}
+                >
+                  {isPlayingAudio ? "Pause Recitation" : "Listen Recitation"}
+                </Button>
+              )}
             </Group>
 
             <Text
@@ -170,32 +161,65 @@ export default function VerseCard({
               {currentAyah.arabic}
             </Text>
 
-            <Paper
-              p="md"
-              radius="lg"
-              style={{
-                backgroundColor: "#FAF9F5",
-                border: "1px dashed #E5E7EB",
-              }}
-            >
-              <Badge
-                color="yellow"
-                size="xs"
-                variant="light"
-                radius="xs"
-                mb={6}
-              >
-                ENGLISH TRANSLATION
-              </Badge>
-              <Text
-                size="sm"
-                fs="italic"
-                c="dimmed"
-                style={{ fontFamily: "serif" }}
-              >
-                "{currentAyah.translation}"
-              </Text>
-            </Paper>
+            {/* Translations Stack: English, Urdu, Hindi */}
+            <Stack gap="xs">
+              {currentAyah.translation && (
+                <Paper
+                  p="sm"
+                  radius="md"
+                  style={{
+                    backgroundColor: "#FAF9F5",
+                    border: "1px dashed #E5E7EB",
+                  }}
+                >
+                  <Badge color="yellow" size="xs" variant="light" mb={4}>
+                    ENGLISH TRANSLATION
+                  </Badge>
+                  <Text
+                    size="sm"
+                    fs="italic"
+                    c="dimmed"
+                    style={{ fontFamily: "serif" }}
+                  >
+                    "{currentAyah.translation}"
+                  </Text>
+                </Paper>
+              )}
+
+              {currentAyah.translationUrdu && (
+                <Paper
+                  p="sm"
+                  radius="md"
+                  style={{
+                    backgroundColor: "#F0FDF4",
+                    border: "1px dashed #BBF7D0",
+                  }}
+                >
+                  <Badge color="green" size="xs" variant="light" mb={4}>
+                    URDU (اردو)
+                  </Badge>
+                  <Text size="sm" dir="rtl" style={{ fontFamily: "serif" }}>
+                    {currentAyah.translationUrdu}
+                  </Text>
+                </Paper>
+              )}
+
+              {currentAyah.translationHindi && (
+                <Paper
+                  p="sm"
+                  radius="md"
+                  style={{
+                    backgroundColor: "#EFF6FF",
+                    border: "1px dashed #BFDBFE",
+                  }}
+                >
+                  <Badge color="blue" size="xs" variant="light" mb={4}>
+                    HINDI (हिंदी)
+                  </Badge>
+                  <Text size="sm">{currentAyah.translationHindi}</Text>
+                </Paper>
+              )}
+            </Stack>
 
             {showHint && (
               <Alert
@@ -204,8 +228,8 @@ export default function VerseCard({
                 color="yellow"
                 radius="md"
               >
-                This Surah contains a total of {currentAyah.totalAyahsInSurah}{" "}
-                verses and is located in Juz {currentAyah.juz || "N/A"}.
+                {currentAyah.notes ||
+                  `Surah contains total ${currentAyah.totalAyahsInSurah || "N/A"} verses.`}
               </Alert>
             )}
 

@@ -1,7 +1,10 @@
 import React from "react";
-import { Menu, Button, Text } from "@mantine/core";
+import { Group, Menu, Button, Text, Avatar } from "@mantine/core";
 import { AppTab } from "@/types/user";
 import {
+  IconLayoutDashboard,
+  IconChecklist,
+  IconFingerprint,
   IconSchool,
   IconClipboardCheck,
   IconBellRinging,
