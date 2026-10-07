@@ -1,3 +1,4 @@
+// src/features/quiz-management/components/QuizCreatorStudio.jsx
 import React, { useState, useEffect } from "react";
 import {
   Paper,
@@ -18,6 +19,8 @@ import {
   Radio,
   Checkbox,
   Modal,
+  FileButton,
+  ActionIcon,
 } from "@mantine/core";
 import {
   IconPlus,
@@ -30,6 +33,8 @@ import {
   IconArrowLeft,
   IconRefresh,
   IconZoomIn,
+  IconPhoto,
+  IconX,
 } from "@tabler/icons-react";
 import { quizApi } from "../api/quizApi";
 import { QUESTION_TYPES, QTYPES } from "../../../config/constants";
@@ -505,6 +510,78 @@ export function QuizCreatorStudio({
                 }
                 mb="sm"
               />
+
+              <Group justify="space-between" align="center" mb="xs">
+                <Text size="xs" fw={700} c="dimmed" tt="uppercase">
+                  Question Image (Optional)
+                </Text>
+                <FileButton
+                  onChange={(file) =>
+                    handleFileProcess(file, (imgData) =>
+                      updateCurrentQuestion("imageUrl", imgData),
+                    )
+                  }
+                  accept="image/*"
+                >
+                  {(props) => (
+                    <Button
+                      {...props}
+                      size="xs"
+                      variant="light"
+                      color="violet"
+                      leftSection={<IconPhoto size={14} />}
+                    >
+                      Upload Question Image
+                    </Button>
+                  )}
+                </FileButton>
+              </Group>
+
+              {currentQ.imageUrl && (
+                <Box
+                  pos="relative"
+                  p={2}
+                  bg="white"
+                  w="fit-content"
+                  mb="md"
+                  style={{
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "6px",
+                  }}
+                >
+                  <Image
+                    src={currentQ.imageUrl}
+                    h={120}
+                    w={160}
+                    radius="sm"
+                    fit="contain"
+                    style={{ cursor: "pointer" }}
+                    onClick={() => setZoomedImageUrl(currentQ.imageUrl)}
+                  />
+                  <ActionIcon
+                    size="xs"
+                    color="violet"
+                    variant="filled"
+                    pos="absolute"
+                    bottom={4}
+                    left={4}
+                    onClick={() => setZoomedImageUrl(currentQ.imageUrl)}
+                  >
+                    <IconZoomIn size={12} />
+                  </ActionIcon>
+                  <ActionIcon
+                    size="xs"
+                    color="red"
+                    variant="filled"
+                    pos="absolute"
+                    top={-6}
+                    right={-6}
+                    onClick={() => updateCurrentQuestion("imageUrl", "")}
+                  >
+                    <IconX size={12} />
+                  </ActionIcon>
+                </Box>
+              )}
 
               {(currentQ.questionType === QTYPES.SINGLE_SELECT ||
                 currentQ.questionType === QTYPES.MULTI_SELECT ||

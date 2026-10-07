@@ -12,8 +12,9 @@ import {
   Badge,
   Tooltip,
   Box,
+  TextInput,
 } from "@mantine/core";
-import { IconUsersGroup, IconUserCheck } from "@tabler/icons-react";
+import { IconUsersGroup, IconUserCheck, IconSearch } from "@tabler/icons-react";
 import { SliderCountSelector } from "../../../components/common/SliderCountSelector";
 import { QuranVersePicker } from "../../../components/common/QuranVersePicker";
 
@@ -24,6 +25,8 @@ export function WlsGroupAssigner({
   onAssignmentsChange,
 }) {
   const [groupCount, setGroupCount] = useState(1);
+  const [adminSearchTerms, setAdminSearchTerms] = useState({});
+  const [userSearchTerms, setUserSearchTerms] = useState({});
 
   useEffect(() => {
     if (groupAssignments && typeof groupAssignments === "object") {
@@ -158,6 +161,22 @@ export function WlsGroupAssigner({
             instructions: "",
           };
 
+          const adminSearch = (adminSearchTerms[groupIdx] || "").toLowerCase();
+          const userSearch = (userSearchTerms[groupIdx] || "").toLowerCase();
+
+          const filteredAdmins = wlsAdmins.filter(
+            (admin) =>
+              (admin.name && admin.name.toLowerCase().includes(adminSearch)) ||
+              (admin.email && admin.email.toLowerCase().includes(adminSearch)),
+          );
+
+          const filteredUsers = users.filter(
+            (u) =>
+              (u.name && u.name.toLowerCase().includes(userSearch)) ||
+              (u.email && u.email.toLowerCase().includes(userSearch)) ||
+              (u.city && u.city.toLowerCase().includes(userSearch)),
+          );
+
           return (
             <Accordion.Item key={groupIdx} value={`group-${groupIdx}`}>
               <Accordion.Control>
@@ -183,11 +202,26 @@ export function WlsGroupAssigner({
               <Accordion.Panel>
                 <Stack gap="md">
                   <div>
-                    <Text fw={600} size="sm" mb="xs">
-                      Assign WLS-Admins (Monitoring)
-                    </Text>
+                    <Group justify="space-between" mb="xs">
+                      <Text fw={600} size="sm">
+                        Assign WLS-Admins (Monitoring)
+                      </Text>
+                    </Group>
+                    <TextInput
+                      placeholder="Search admins by name or email..."
+                      size="xs"
+                      mb="sm"
+                      leftSection={<IconSearch size={14} />}
+                      value={adminSearchTerms[groupIdx] || ""}
+                      onChange={(e) =>
+                        setAdminSearchTerms((prev) => ({
+                          ...prev,
+                          [groupIdx]: e.target.value,
+                        }))
+                      }
+                    />
                     <Grid>
-                      {wlsAdmins.map((admin) => {
+                      {filteredAdmins.map((admin) => {
                         const adminId = admin._id || admin.id;
                         return (
                           <Grid.Col
@@ -202,13 +236,35 @@ export function WlsGroupAssigner({
                           </Grid.Col>
                         );
                       })}
+                      {filteredAdmins.length === 0 && (
+                        <Grid.Col span={12}>
+                          <Text size="xs" c="dimmed" ta="center" py="xs">
+                            No matching admins found.
+                          </Text>
+                        </Grid.Col>
+                      )}
                     </Grid>
                   </div>
 
                   <div>
-                    <Text fw={600} size="sm" mb="xs">
-                      Assign Users & Students ({users.length} Total)
-                    </Text>
+                    <Group justify="space-between" mb="xs">
+                      <Text fw={600} size="sm">
+                        Assign Users & Students ({users.length} Total)
+                      </Text>
+                    </Group>
+                    <TextInput
+                      placeholder="Search users by name, email, or city..."
+                      size="xs"
+                      mb="sm"
+                      leftSection={<IconSearch size={14} />}
+                      value={userSearchTerms[groupIdx] || ""}
+                      onChange={(e) =>
+                        setUserSearchTerms((prev) => ({
+                          ...prev,
+                          [groupIdx]: e.target.value,
+                        }))
+                      }
+                    />
                     <Box
                       mah={240}
                       style={{
@@ -220,7 +276,7 @@ export function WlsGroupAssigner({
                       }}
                     >
                       <Grid>
-                        {users.map((u) => {
+                        {filteredUsers.map((u) => {
                           const uId = u._id || u.id;
                           return (
                             <Grid.Col
@@ -235,6 +291,13 @@ export function WlsGroupAssigner({
                             </Grid.Col>
                           );
                         })}
+                        {filteredUsers.length === 0 && (
+                          <Grid.Col span={12}>
+                            <Text size="xs" c="dimmed" ta="center" py="xs">
+                              No matching users found.
+                            </Text>
+                          </Grid.Col>
+                        )}
                       </Grid>
                     </Box>
                   </div>

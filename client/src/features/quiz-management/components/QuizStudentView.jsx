@@ -1,3 +1,4 @@
+// src/features/quiz-management/components/QuizStudentView.jsx
 import React, { useState, useEffect } from "react";
 import {
   Container,
@@ -24,8 +25,9 @@ export function QuizStudentView({ user }) {
   const [answers, setAnswers] = useState({});
   const [result, setResult] = useState(null);
 
-  // Local state to manage student-specific reorderable items for sequence questions
+  // State to manage student-specific shuffled options and reorderable sequence items
   const [studentSequences, setStudentSequences] = useState({});
+  const [shuffledOptionsMap, setShuffledOptionsMap] = useState({});
 
   useEffect(() => {
     const fetchQuizzes = async () => {
@@ -40,28 +42,51 @@ export function QuizStudentView({ user }) {
     fetchQuizzes();
   }, []);
 
-  // When a quiz is selected, initialize the sequence items for sequence questions
+  // When a quiz is selected, randomize question order and option/sequence order
   const handleStartQuiz = (quiz) => {
-    setActiveQuiz(quiz);
-    const initialSeqMap = {};
-    quiz.questions.forEach((q, idx) => {
-      if (q.questionType === QTYPES.SEQUENCE_ORDER.value) {
+    const questionsWithIndex = (quiz.questions || []).map((q, idx) => ({
+      ...q,
+      originalIndex: idx,
+    }));
+
+    // Shuffle questions randomly
+    const shuffledQuestions = [...questionsWithIndex].sort(
+      () => Math.random() - 0.5,
+    );
+
+    const optionsMap = {};
+    const seqMap = {};
+
+    shuffledQuestions.forEach((q) => {
+      const origIdx = q.originalIndex;
+      if (
+        q.questionType === QTYPES.SINGLE_SELECT ||
+        q.questionType === QTYPES.MULTI_SELECT ||
+        q.questionType === QTYPES.TRUE_FALSE
+      ) {
+        if (Array.isArray(q.options) && q.options.length > 0) {
+          optionsMap[origIdx] = [...q.options].sort(() => Math.random() - 0.5);
+        }
+      } else if (q.questionType === QTYPES.SEQUENCE_ORDER) {
         const items =
           q.sequenceItems?.length > 0 ? [...q.sequenceItems] : [...q.options];
-        initialSeqMap[idx] = items.sort(() => Math.random() - 0.5);
+        seqMap[origIdx] = items.sort(() => Math.random() - 0.5);
       }
     });
-    setStudentSequences(initialSeqMap);
+
+    setActiveQuiz({ ...quiz, questions: shuffledQuestions });
+    setShuffledOptionsMap(optionsMap);
+    setStudentSequences(seqMap);
     setAnswers({});
   };
 
-  const handleAnswerChange = (qIndex, val) => {
-    setAnswers({ ...answers, [qIndex]: val });
+  const handleAnswerChange = (originalIndex, val) => {
+    setAnswers({ ...answers, [originalIndex]: val });
   };
 
   // Handle moving sequence items up or down
-  const moveStudentSequenceItem = (qIndex, itemIndex, direction) => {
-    const currentList = [...(studentSequences[qIndex] || [])];
+  const moveStudentSequenceItem = (originalIndex, itemIndex, direction) => {
+    const currentList = [...(studentSequences[originalIndex] || [])];
     const targetIndex = direction === "up" ? itemIndex - 1 : itemIndex + 1;
 
     if (targetIndex < 0 || targetIndex >= currentList.length) return;
@@ -70,17 +95,21 @@ export function QuizStudentView({ user }) {
     currentList[itemIndex] = currentList[targetIndex];
     currentList[targetIndex] = temp;
 
-    setStudentSequences({ ...studentSequences, [qIndex]: currentList });
-    handleAnswerChange(qIndex, currentList);
+    setStudentSequences({ ...studentSequences, [originalIndex]: currentList });
+    handleAnswerChange(originalIndex, currentList);
   };
 
   const handleSubmit = async () => {
     try {
       const finalAnswers = { ...answers };
-      activeQuiz.questions.forEach((q, idx) => {
-        if (q.questionType === QTYPES.SEQUENCE_ORDER && !finalAnswers[idx]) {
-          finalAnswers[idx] =
-            studentSequences[idx] || q.sequenceItems || q.options;
+      activeQuiz.questions.forEach((q) => {
+        const origIdx = q.originalIndex;
+        if (
+          q.questionType === QTYPES.SEQUENCE_ORDER &&
+          !finalAnswers[origIdx]
+        ) {
+          finalAnswers[origIdx] =
+            studentSequences[origIdx] || q.sequenceItems || q.options;
         }
       });
 
@@ -90,7 +119,7 @@ export function QuizStudentView({ user }) {
       }));
 
       const response = await quizApi.submitQuiz({
-        quizId: activeQuiz.id,
+        quizId: activeQuiz.id || activeQuiz._id,
         userId: user?.id || "student-123",
         userName: user?.name || "Student",
         answers: formattedAnswers,
@@ -151,24 +180,34 @@ export function QuizStudentView({ user }) {
         </Card>
 
         <Stack gap="lg">
-          {activeQuiz.questions.map((q, idx) => {
+          {activeQuiz.questions.map((q, displayIdx) => {
+            const origIdx =
+              q.originalIndex !== undefined ? q.originalIndex : displayIdx;
+            const currentOptions =
+              shuffledOptionsMap[origIdx] || q.options || [];
             const currentSequenceItems =
-              studentSequences[idx] || q.sequenceItems || q.options || [];
+              studentSequences[origIdx] || q.sequenceItems || q.options || [];
 
             return (
-              <Card key={idx} shadow="xs" padding="lg" radius="md" withBorder>
+              <Card
+                key={displayIdx}
+                shadow="xs"
+                padding="lg"
+                radius="md"
+                withBorder
+              >
                 <Text fw={600} mb="sm">
-                  Q{idx + 1}: {q.questionText} ({q.points || 1} pt)
+                  Q{displayIdx + 1}: {q.questionText} ({q.points || 1} pt)
                 </Text>
 
                 {/* 1. SINGLE_SELECT */}
                 {q.questionType === QTYPES.SINGLE_SELECT && (
                   <Radio.Group
-                    value={answers[idx] || ""}
-                    onChange={(val) => handleAnswerChange(idx, val)}
+                    value={answers[origIdx] || ""}
+                    onChange={(val) => handleAnswerChange(origIdx, val)}
                   >
                     <Stack gap="xs" mt="xs">
-                      {q.options.map((opt, oIdx) => (
+                      {currentOptions.map((opt, oIdx) => (
                         <Radio key={oIdx} value={opt} label={opt} />
                       ))}
                     </Stack>
@@ -178,11 +217,11 @@ export function QuizStudentView({ user }) {
                 {/* 2. TRUE_FALSE */}
                 {q.questionType === QTYPES.TRUE_FALSE && (
                   <Radio.Group
-                    value={answers[idx] || ""}
-                    onChange={(val) => handleAnswerChange(idx, val)}
+                    value={answers[origIdx] || ""}
+                    onChange={(val) => handleAnswerChange(origIdx, val)}
                   >
                     <Stack gap="xs" mt="xs">
-                      {q.options.map((opt, oIdx) => (
+                      {currentOptions.map((opt, oIdx) => (
                         <Radio key={oIdx} value={opt} label={opt} />
                       ))}
                     </Stack>
@@ -192,8 +231,8 @@ export function QuizStudentView({ user }) {
                 {/* 3. MULTI_SELECT */}
                 {q.questionType === QTYPES.MULTI_SELECT && (
                   <Stack gap="xs" mt="xs">
-                    {q.options.map((opt, oIdx) => {
-                      const currentSelected = answers[idx] || [];
+                    {currentOptions.map((opt, oIdx) => {
+                      const currentSelected = answers[origIdx] || [];
                       const isChecked = currentSelected.includes(opt);
                       return (
                         <Checkbox
@@ -209,7 +248,7 @@ export function QuizStudentView({ user }) {
                                 (item) => item !== opt,
                               );
                             }
-                            handleAnswerChange(idx, updated);
+                            handleAnswerChange(origIdx, updated);
                           }}
                         />
                       );
@@ -250,7 +289,7 @@ export function QuizStudentView({ user }) {
                               size="sm"
                               disabled={sIdx === 0}
                               onClick={() =>
-                                moveStudentSequenceItem(idx, sIdx, "up")
+                                moveStudentSequenceItem(origIdx, sIdx, "up")
                               }
                             >
                               <IconArrowUp size={14} />
@@ -262,7 +301,7 @@ export function QuizStudentView({ user }) {
                                 sIdx === currentSequenceItems.length - 1
                               }
                               onClick={() =>
-                                moveStudentSequenceItem(idx, sIdx, "down")
+                                moveStudentSequenceItem(origIdx, sIdx, "down")
                               }
                             >
                               <IconArrowDown size={14} />
@@ -278,8 +317,10 @@ export function QuizStudentView({ user }) {
                 {q.questionType === QTYPES.TEXT_INPUT && (
                   <TextInput
                     placeholder="Type your answer..."
-                    value={answers[idx] || ""}
-                    onChange={(e) => handleAnswerChange(idx, e.target.value)}
+                    value={answers[origIdx] || ""}
+                    onChange={(e) =>
+                      handleAnswerChange(origIdx, e.target.value)
+                    }
                   />
                 )}
               </Card>
@@ -300,7 +341,13 @@ export function QuizStudentView({ user }) {
       </Title>
       <Stack gap="md">
         {quizzes.map((quiz) => (
-          <Card key={quiz.id} shadow="sm" padding="lg" radius="md" withBorder>
+          <Card
+            key={quiz.id || quiz._id}
+            shadow="sm"
+            padding="lg"
+            radius="md"
+            withBorder
+          >
             <Group justify="space-between">
               <div>
                 <Title order={4}>{quiz.title}</Title>

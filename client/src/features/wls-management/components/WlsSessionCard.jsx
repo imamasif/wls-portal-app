@@ -379,6 +379,41 @@ export function WlsSessionCard({
             </Text>
           </Group>
 
+          {/* Assigned Ayats / Verses Section */}
+          {Array.isArray(userGroup.selectedAyats) &&
+            userGroup.selectedAyats.length > 0 && (
+              <Paper withBorder p="sm" mb="md" radius="sm" bg="white">
+                <Group gap="xs" mb="xs">
+                  <ThemeIcon color="blue" size="sm" variant="light">
+                    <IconBook size={16} />
+                  </ThemeIcon>
+                  <Text size="sm" fw={700} c="dark.7" tt="uppercase">
+                    Assigned Ayats / Verses
+                  </Text>
+                </Group>
+                <List
+                  spacing="xs"
+                  size="sm"
+                  center
+                  icon={
+                    <ThemeIcon color="blue" size={18} radius="xl">
+                      <IconBook size={12} />
+                    </ThemeIcon>
+                  }
+                >
+                  {userGroup.selectedAyats.map((ayat, idx) => (
+                    <List.Item key={idx}>
+                      <Text size="sm" fw={600} c="dark.8">
+                        {typeof ayat === "string"
+                          ? ayat
+                          : `${ayat.surahName || "Surah"}:${ayat.verseNumber}`}
+                      </Text>
+                    </List.Item>
+                  ))}
+                </List>
+              </Paper>
+            )}
+
           {userGroup.instructions && (
             <Paper withBorder p="sm" mb="md" radius="sm" bg="white">
               <Text size="sm" fw={700} c="dark.7" tt="uppercase" mb={4}>
