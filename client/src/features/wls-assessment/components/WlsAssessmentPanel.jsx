@@ -156,7 +156,8 @@ function extractNormalizedScores(rawAssessment, currentAdminId) {
 
 export function WlsAssessmentPanel({
   currentAdminId,
-  currentAdminName = "Syed Imam",
+  currentAdminName = "Admin",
+  currentUser,
   onSubmitAssessment,
 }) {
   const [allSessions, setAllSessions] = useState([]);
@@ -807,7 +808,7 @@ export function WlsAssessmentPanel({
         allSessions={allSessions}
         selectedSessionId={selectedSessionId}
         onSessionSwitch={handleSessionSwitch}
-        currentAdminName={currentAdminName}
+        currentAdminName={currentUser?.name || currentAdminName}
       />
 
       <Grid gutter="lg" align="flex-start" style={{ width: "100%", margin: 0 }}>

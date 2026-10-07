@@ -93,7 +93,12 @@ export default function App() {
           {(activeTab === AppTab.WLS_MGMT || activeTab === AppTab.WLS_ADMIN) &&
             isWlsAdmin && <WlsManagementPanel user={user} />}
           {activeTab === AppTab.ASSESSMENT && isWlsAdmin && (
-            <WlsAssessmentPanel currentUser={user} activeTab={activeTab} />
+            <WlsAssessmentPanel
+              currentAdminId={user?.id || user?._id}
+              currentAdminName={user?.name}
+              currentUser={user}
+              activeTab={activeTab}
+            />
           )}
 
           {activeTab === AppTab.ASSESSMENT_OVERVIEW && isSuperAdmin && (
