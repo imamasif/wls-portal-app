@@ -21,8 +21,13 @@ import {
 import { ColorScoreSlider } from "../../../components/common/ColorScoreSlider";
 import { WlsAdminComments } from "./WlsAdminComments";
 
+// Imported directly from client/src/config/constants.js
+import { ASSESSMENT_STATUSES } from "../../../config/constants";
+
 export function WlsAssessmentWorkspace({
   selectedUser,
+  currentAdminId,
+  currentAdminName,
   banner,
   onCloseBanner,
   activeVideoToRender,
@@ -40,31 +45,86 @@ export function WlsAssessmentWorkspace({
   onOpenSaveModal,
   onRefresh,
 }) {
+  const getAdminPersonalStatus = () => {
+    // 1. Overall task finalized by Super User
+    if (selectedUser?.status === ASSESSMENT_STATUSES.COMPLETED) {
+      return ASSESSMENT_STATUSES.COMPLETED;
+    }
+
+    const evaluations = Array.isArray(selectedUser?.evaluations)
+      ? selectedUser.evaluations
+      : [];
+
+    const adminIdStr = currentAdminId ? String(currentAdminId).trim() : "";
+    const adminNameStr = currentAdminName
+      ? String(currentAdminName).trim()
+      : "";
+
+    // 2. Find evaluation for THIS logged-in admin
+    const myEval = evaluations.find((e) => {
+      const eId = e?.evaluatorId ? String(e.evaluatorId).trim() : "";
+      const eName = e?.evaluatorName ? String(e.evaluatorName).trim() : "";
+      return (
+        (adminIdStr && eId === adminIdStr) ||
+        (adminNameStr && eName === adminNameStr) ||
+        eId === "admin-default"
+      );
+    });
+
+    if (
+      myEval?.status === ASSESSMENT_STATUSES.REVIEWED ||
+      myEval?.status === ASSESSMENT_STATUSES.COMPLETED
+    ) {
+      return ASSESSMENT_STATUSES.REVIEWED;
+    }
+
+    if (myEval?.status === ASSESSMENT_STATUSES.PARTIAL_SAVED) {
+      return ASSESSMENT_STATUSES.PARTIAL_SAVED;
+    }
+
+    // 3. Fallback to submission or pending status
+    if (
+      selectedUser?.submissionUrl ||
+      selectedUser?.adminSubmissionUrl ||
+      activeVideoToRender
+    ) {
+      return ASSESSMENT_STATUSES.SUBMITTED;
+    }
+
+    return ASSESSMENT_STATUSES.PENDING;
+  };
+
   const getStatusBadge = (status) => {
     switch (status) {
-      case "COMPLETED":
+      case ASSESSMENT_STATUSES.COMPLETED:
         return (
-          <Badge size="xs" color="green" variant="filled">
-            COMPLETED
+          <Badge size="xs" color="teal" variant="filled">
+            {ASSESSMENT_STATUSES.COMPLETED}
           </Badge>
         );
-      case "PARTIAL_SAVED":
+      case ASSESSMENT_STATUSES.REVIEWED:
+        return (
+          <Badge size="xs" color="indigo" variant="filled">
+            {ASSESSMENT_STATUSES.REVIEWED}
+          </Badge>
+        );
+      case ASSESSMENT_STATUSES.PARTIAL_SAVED:
         return (
           <Badge size="xs" color="orange" variant="filled">
-            PARTIAL SAVED
+            {ASSESSMENT_STATUSES.PARTIAL_SAVED}
           </Badge>
         );
-      case "SUBMITTED":
+      case ASSESSMENT_STATUSES.SUBMITTED:
         return (
           <Badge size="xs" color="blue" variant="filled">
-            SUBMITTED
+            {ASSESSMENT_STATUSES.SUBMITTED}
           </Badge>
         );
-      case "PENDING":
+      case ASSESSMENT_STATUSES.PENDING:
       default:
         return (
           <Badge size="xs" color="red" variant="filled">
-            PENDING
+            {ASSESSMENT_STATUSES.PENDING}
           </Badge>
         );
     }
@@ -77,6 +137,8 @@ export function WlsAssessmentWorkspace({
       </Text>
     );
   }
+
+  const activeAdminStatus = getAdminPersonalStatus();
 
   return (
     <Card
@@ -98,7 +160,7 @@ export function WlsAssessmentWorkspace({
             </Text>
           </Text>
         </Group>
-        {getStatusBadge(selectedUser.status)}
+        {getStatusBadge(activeAdminStatus)}
       </Group>
 
       {banner.show && (
@@ -124,9 +186,9 @@ export function WlsAssessmentWorkspace({
           mb="md"
         >
           This student has <strong>not submitted a video link</strong>. You
-          cannot mark this assessment as <strong>COMPLETED</strong> until a
-          valid video URL is provided by the student or entered in the Admin
-          Override section.
+          cannot mark this assessment as <strong>REVIEWED</strong> until a valid
+          video URL is provided by the student or entered in the Admin Override
+          section.
         </Alert>
       ) : (
         <Alert

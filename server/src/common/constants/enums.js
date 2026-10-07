@@ -10,7 +10,8 @@ export const ASSESSMENT_STATUSES = {
   PENDING: "PENDING",
   SUBMITTED: "SUBMITTED",
   PARTIAL_SAVED: "PARTIAL_SAVED",
-  COMPLETED: "COMPLETED",
+  REVIEWED: "REVIEWED", // <-- Admin marked their grading as done
+  COMPLETED: "COMPLETED", // <-- Reserved for Super User overall completion
 };
 
 export const CONCLUSION_STATUSES = {

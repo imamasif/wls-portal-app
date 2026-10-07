@@ -73,6 +73,7 @@ export enum AppTab {
   WLS_MGMT = "wls-mgmt",
   WLS_ADMIN = "wls_admin",
   ASSESSMENT = "assessment",
+  ASSESSMENT_OVERVIEW = "ASSESSMENT_OVERVIEW",
   REPORTS = "reports",
   NOTIFICATIONS = "notifications",
   EDIT_PROFILE = "edit-profile",

@@ -19,6 +19,7 @@ import {
   IconFingerprint,
   IconBook,
   IconSitemap,
+  IconCircleCheck,
 } from "@tabler/icons-react";
 
 export function SuperUserMenu({ activeTab, setActiveTab }) {
@@ -95,6 +96,16 @@ export function SuperUserMenu({ activeTab, setActiveTab }) {
             }
           >
             Assessments & Grading
+          </Menu.Item>
+          <Menu.Divider />
+          {/* NEW: Explicit Super User Completion Portal */}
+          <Menu.Item
+            onClick={() => setActiveTab(AppTab.ASSESSMENT_OVERVIEW)}
+            leftSection={
+              <IconCircleCheck size={16} color="var(--mantine-color-teal-6)" />
+            }
+          >
+            Assessment Completion Portal
           </Menu.Item>
         </Menu.Dropdown>
       </Menu>

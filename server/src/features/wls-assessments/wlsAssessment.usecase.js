@@ -1,3 +1,4 @@
+// src/features/wls-assessments/wlsAssessment.usecase.js
 import mongoose from "mongoose";
 import { AssessmentModel } from "./wlsAssessment.model.js";
 import { WlsSessionModel } from "../wls-session/wlsSession.model.js";
@@ -5,26 +6,42 @@ import {
   ASSESSMENT_STATUSES,
   CONCLUSION_STATUSES,
 } from "../../common/constants/enums.js";
-
-const REQUIRED_COMPLETED_EVALUATIONS = process.env
-  .REQUIRED_COMPLETED_EVALUATIONS
-  ? parseInt(process.env.REQUIRED_COMPLETED_EVALUATIONS, 10)
-  : 1;
+import { UserRole } from "../types/user.js";
 
 export class AssessmentUseCase {
+  /**
+   * Helper to verify if a user is assigned as a submitter in any group of a session
+   */
+  static _isUserAssignedToSession(session, userId) {
+    if (!session || !session.groupAssignments) return false;
+
+    const assignments =
+      session.groupAssignments instanceof Map
+        ? Object.fromEntries(session.groupAssignments)
+        : session.groupAssignments;
+
+    const userIdStr = String(userId).trim();
+
+    return Object.values(assignments).some(
+      (group) =>
+        Array.isArray(group.userIds) &&
+        group.userIds.some((id) => String(id).trim() === userIdStr),
+    );
+  }
+
   static async getAllAssessments() {
     return await AssessmentModel.find({})
-      .populate("userId", "name email profilePictureUrl city country")
+      .populate("userId", "name email profilePictureUrl city country role")
       .populate("sessionId", "weekNumber topicName status");
   }
 
   static async getAssessmentById(id) {
     return await AssessmentModel.findById(id)
-      .populate("userId", "name email profilePictureUrl city country")
+      .populate("userId", "name email profilePictureUrl city country role")
       .populate("sessionId", "weekNumber topicName status");
   }
 
-  // Ensures assessment is only created/accessed if session is ACTIVE
+  // Ensures assessment is only created/accessed if session is ACTIVE and user is assigned
   static async getOrCreateAssessment(sessionId, userId) {
     const sessionObjId = new mongoose.Types.ObjectId(sessionId);
     const userObjId = new mongoose.Types.ObjectId(userId);
@@ -33,6 +50,13 @@ export class AssessmentUseCase {
     if (!session || session.status !== "ACTIVE") {
       throw new Error(
         "Cannot access assessments for a session that is not active.",
+      );
+    }
+
+    const isAssigned = this._isUserAssignedToSession(session, userId);
+    if (!isAssigned) {
+      throw new Error(
+        "User is not assigned to submit an assignment for this session.",
       );
     }
 
@@ -49,7 +73,7 @@ export class AssessmentUseCase {
       },
       { new: true, upsert: true, setDefaultsOnInsert: true },
     )
-      .populate("userId", "name email profilePictureUrl city country")
+      .populate("userId", "name email profilePictureUrl city country role")
       .populate("sessionId", "weekNumber topicName status");
   }
 
@@ -59,7 +83,6 @@ export class AssessmentUseCase {
       "weekNumber topicName status",
     );
 
-    // Filter out submissions belonging to non-active sessions so they don't show up prematurely
     return assessments.filter(
       (assessment) =>
         assessment.sessionId && assessment.sessionId.status === "ACTIVE",
@@ -77,6 +100,13 @@ export class AssessmentUseCase {
     const session = await WlsSessionModel.findById(sessionId);
     if (!session || session.status !== "ACTIVE") {
       throw new Error("Submissions are only allowed for active sessions.");
+    }
+
+    const isAssigned = this._isUserAssignedToSession(session, userId);
+    if (!isAssigned) {
+      throw new Error(
+        "Unauthorized: You are not assigned to submit an assignment for this session.",
+      );
     }
 
     const updatedAssessment = await AssessmentModel.findOneAndUpdate(
@@ -99,26 +129,45 @@ export class AssessmentUseCase {
     const assessment = await AssessmentModel.findById(assessmentId);
     if (!assessment) return null;
 
-    // 1. Remove existing evaluation from this evaluator
+    // 1. Save Admin Video Override URL if provided
+    if (dto.adminSubmissionUrl && dto.adminSubmissionUrl.trim() !== "") {
+      const overrideUrl = dto.adminSubmissionUrl.trim();
+      assessment.submissionUrl = overrideUrl;
+      if (
+        !assessment.submissionUrls ||
+        assessment.submissionUrls.length === 0
+      ) {
+        assessment.submissionUrls = [overrideUrl];
+      } else if (!assessment.submissionUrls.includes(overrideUrl)) {
+        assessment.submissionUrls.push(overrideUrl);
+      }
+    }
+
+    // 2. Remove previous evaluation for THIS evaluator
     assessment.evaluations = assessment.evaluations.filter(
       (e) =>
         e.evaluatorId &&
         e.evaluatorId.toString() !== dto.evaluatorId.toString(),
     );
 
-    const currentAdminStatus = dto.status || ASSESSMENT_STATUSES.COMPLETED;
+    // Determine individual admin evaluation status
+    const myAdminStatus =
+      dto.status === "COMPLETED" || dto.status === "REVIEWED"
+        ? ASSESSMENT_STATUSES.REVIEWED
+        : ASSESSMENT_STATUSES.PARTIAL_SAVED;
 
-    // 2. Add new evaluation entry with evaluator's status
+    // 3. Add updated evaluation entry for THIS admin
     assessment.evaluations.push({
       evaluatorId: dto.evaluatorId,
       evaluatorName: dto.evaluatorName,
       scores: dto.scores,
       feedback: dto.feedback,
-      status: currentAdminStatus,
+      adminSubmissionUrl: dto.adminSubmissionUrl || "",
+      status: myAdminStatus, // Stores THIS admin's status
       evaluatedAt: new Date(),
     });
 
-    // 3. Compute merged scores
+    // 4. Recalculate merged average scores
     let totalObtained = 0;
     let totalPossible = 0;
 
@@ -135,24 +184,44 @@ export class AssessmentUseCase {
 
     const percentage =
       totalPossible > 0 ? Math.round((totalObtained / totalPossible) * 100) : 0;
-
     assessment.finalScore = percentage;
     assessment.conclusionStatus =
       assessment.finalScore >= 70
         ? CONCLUSION_STATUSES.PASSED
         : CONCLUSION_STATUSES.FAILED;
 
-    // 4. Threshold check for overall status across all admins
-    const completedCount = assessment.evaluations.filter(
-      (e) => e.status === ASSESSMENT_STATUSES.COMPLETED,
-    ).length;
-
-    if (completedCount >= REQUIRED_COMPLETED_EVALUATIONS) {
-      assessment.status = ASSESSMENT_STATUSES.COMPLETED;
-    } else if (assessment.evaluations.length > 0) {
+    // Top-level status stays in PARTIAL_SAVED until Super User finalizes it to COMPLETED
+    if (assessment.status !== ASSESSMENT_STATUSES.COMPLETED) {
       assessment.status = ASSESSMENT_STATUSES.PARTIAL_SAVED;
     }
 
+    return await assessment.save();
+  }
+
+  // --- Super User Completion Method ---
+  static async finalizeAssessmentBySuperUser(assessmentId, requestingUserRole) {
+    if (requestingUserRole !== UserRole.SUPER_USER) {
+      throw new Error(
+        "Forbidden: Only a Super User can mark an assessment task as completed.",
+      );
+    }
+
+    const assessment = await AssessmentModel.findById(assessmentId);
+    if (!assessment) return null;
+
+    // Verify video stream exists either in submissionUrl or evaluations array
+    const hasVideo =
+      assessment.submissionUrl ||
+      (assessment.submissionUrls && assessment.submissionUrls.length > 0) ||
+      assessment.evaluations?.some((e) => e.adminSubmissionUrl);
+
+    if (!hasVideo) {
+      throw new Error(
+        "Cannot finalize assessment without a video submission or Admin Video Override.",
+      );
+    }
+
+    assessment.status = ASSESSMENT_STATUSES.COMPLETED;
     return await assessment.save();
   }
 
@@ -163,7 +232,6 @@ export class AssessmentUseCase {
     }
 
     assessment.status = ASSESSMENT_STATUSES.SUBMITTED;
-    assessment.completedAt = new Date();
     return await assessment.save();
   }
 

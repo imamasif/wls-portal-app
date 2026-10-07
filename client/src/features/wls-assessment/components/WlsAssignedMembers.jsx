@@ -1,3 +1,4 @@
+// src/features/wls-assessment/components/WlsAssignedMembers.jsx
 import React from "react";
 import {
   Card,
@@ -11,40 +12,81 @@ import {
   Box,
 } from "@mantine/core";
 import { IconUsers, IconUser } from "@tabler/icons-react";
+import { ASSESSMENT_STATUSES } from "../../../config/constants";
 
 export function WlsAssignedMembers({
   assignedUsers,
   selectedUserId,
   onUserSelect,
+  currentAdminId,
+  currentAdminName,
 }) {
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case "COMPLETED":
-        return (
-          <Badge size="xs" color="green" variant="filled">
-            COMPLETED
-          </Badge>
-        );
-      case "PARTIAL_SAVED":
-        return (
-          <Badge size="xs" color="orange" variant="filled">
-            PARTIAL SAVED
-          </Badge>
-        );
-      case "SUBMITTED":
-        return (
-          <Badge size="xs" color="blue" variant="filled">
-            SUBMITTED
-          </Badge>
-        );
-      case "PENDING":
-      default:
-        return (
-          <Badge size="xs" color="red" variant="filled">
-            PENDING
-          </Badge>
-        );
+  const getAdminMemberStatus = (member) => {
+    const evaluations = Array.isArray(member?.evaluations)
+      ? member.evaluations
+      : [];
+
+    const adminIdStr = currentAdminId ? String(currentAdminId).trim() : "";
+    const adminNameStr = currentAdminName
+      ? String(currentAdminName).trim()
+      : "";
+
+    // Find the evaluation created specifically by THIS logged-in admin
+    const myEval = evaluations.find((e) => {
+      const eId = e?.evaluatorId ? String(e.evaluatorId).trim() : "";
+      const eName = e?.evaluatorName ? String(e.evaluatorName).trim() : "";
+      return (
+        (adminIdStr && eId === adminIdStr) ||
+        (adminNameStr && eName === adminNameStr) ||
+        eId === "admin-default"
+      );
+    });
+
+    // 1. Overall Super User Finalized
+    if (member?.status === ASSESSMENT_STATUSES.COMPLETED) {
+      return (
+        <Badge size="xs" color="teal" variant="filled">
+          COMPLETED
+        </Badge>
+      );
     }
+
+    // 2. THIS Admin finished grading
+    if (
+      myEval?.status === ASSESSMENT_STATUSES.REVIEWED ||
+      myEval?.status === ASSESSMENT_STATUSES.COMPLETED
+    ) {
+      return (
+        <Badge size="xs" color="indigo" variant="filled">
+          REVIEWED
+        </Badge>
+      );
+    }
+
+    // 3. THIS Admin saved draft
+    if (myEval?.status === ASSESSMENT_STATUSES.PARTIAL_SAVED) {
+      return (
+        <Badge size="xs" color="orange" variant="filled">
+          PARTIAL_SAVED
+        </Badge>
+      );
+    }
+
+    // 4. Student submitted video, but THIS Admin hasn't graded yet
+    if (member?.submissionUrl || member?.adminSubmissionUrl) {
+      return (
+        <Badge size="xs" color="blue" variant="filled">
+          SUBMITTED
+        </Badge>
+      );
+    }
+
+    // 5. No video submitted
+    return (
+      <Badge size="xs" color="red" variant="filled">
+        PENDING
+      </Badge>
+    );
   };
 
   return (
@@ -91,9 +133,6 @@ export function WlsAssignedMembers({
                     ? "var(--mantine-color-blue-5)"
                     : "var(--mantine-color-gray-3)",
                   borderWidth: isSelected ? 2 : 1,
-                  boxShadow: isSelected
-                    ? "0 2px 8px rgba(28, 126, 214, 0.15)"
-                    : "none",
                   transition: "all 0.15s ease",
                 }}
               >
@@ -118,7 +157,7 @@ export function WlsAssignedMembers({
                     </Box>
                   </Group>
 
-                  {getStatusBadge(item.status)}
+                  {getAdminMemberStatus(item)}
                 </Group>
               </Paper>
             );

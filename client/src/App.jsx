@@ -24,6 +24,7 @@ import { WlsAttendanceMonitoringPanel } from "./features/wls-attendance-monitori
 import { WlsClassAttendancePanel } from "./features/wls-attendance-monitoring/components/WlsClassAttendancePanel";
 import { StickyNotesPanel } from "./features/sticky-notes/components/StickyNotesPanel";
 import QuranVerseMemorizerPanel from "./features/quran-reference-memorizer/components/QuranVerseMemorizerPanel";
+import { SuperUserAssessmentOverview } from "./features/wls-assessment/components/SuperUserAssessmentOverview";
 
 import {
   QuizListScreen,
@@ -94,6 +95,11 @@ export default function App() {
           {activeTab === AppTab.ASSESSMENT && isWlsAdmin && (
             <WlsAssessmentPanel currentUser={user} activeTab={activeTab} />
           )}
+
+          {activeTab === AppTab.ASSESSMENT_OVERVIEW && isSuperAdmin && (
+            <SuperUserAssessmentOverview currentUser={user} />
+          )}
+
           {activeTab === AppTab.REPORTS && <WlsReportingDashboard />}
           {activeTab === AppTab.NOTIFICATIONS && (
             <NotificationPanel user={user} />

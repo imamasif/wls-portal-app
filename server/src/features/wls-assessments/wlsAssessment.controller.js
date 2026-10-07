@@ -1,3 +1,4 @@
+// src/features/wls-assessments/wlsAssessment.controller.js
 import express from "express";
 import mongoose from "mongoose";
 import { assessmentUseCase } from "./wlsAssessment.usecase.js";
@@ -124,6 +125,29 @@ router.put(
     }
   },
 );
+
+// --- NEW ROUTE: Super User Finalize Endpoint ---
+router.put("/:id/finalize", async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: "Invalid Assessment ObjectId" });
+    }
+
+    const { requestingUserRole } = req.body;
+    const finalized = await assessmentUseCase.finalizeAssessmentBySuperUser(
+      req.params.id,
+      requestingUserRole,
+    );
+
+    if (!finalized) {
+      return res.status(404).json({ message: "Assessment record not found" });
+    }
+
+    res.json(AssessmentMapper.toResDTO(finalized));
+  } catch (err) {
+    res.status(403).json({ error: err.message });
+  }
+});
 
 router.put("/:id/complete", async (req, res) => {
   try {

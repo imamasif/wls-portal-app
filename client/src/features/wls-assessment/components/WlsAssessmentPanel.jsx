@@ -12,19 +12,13 @@ import {
   sendAssessmentMessage,
 } from "../api/wlsAssessmentApi";
 
-// Application Enums matching backend definitions
-export const ASSESSMENT_STATUSES = {
-  PENDING: "PENDING",
-  SUBMITTED: "SUBMITTED",
-  PARTIAL_SAVED: "PARTIAL_SAVED",
-  COMPLETED: "COMPLETED",
-};
-
-export const UserRole = {
-  SUPER_USER: "SUPER_USER",
-  WLS_ADMIN: "WLS_ADMIN",
-  USER: "USER",
-};
+// Imported directly from client/src/config/constants.js
+import {
+  ASSESSMENT_STATUSES,
+  USER_ROLES,
+  ASSESSMENT_SCORE_LEVELS,
+  getScoreLevel,
+} from "../../../config/constants";
 
 function formatDriveEmbedUrl(url) {
   if (!url) return { embedUrl: "", error: null };
@@ -122,7 +116,7 @@ function extractNormalizedScores(rawAssessment, currentAdminId) {
     }
   }
 
-  // 2. Check direct property bags
+  // 2. Check direct property bags fallback
   const rawEvals =
     rawAssessment.scores ||
     rawAssessment.grades ||
@@ -355,7 +349,6 @@ export function WlsAssessmentPanel({
           );
         }
 
-        // Standardized status resolution with enum fallback
         let resolvedStatus = assessment.status;
 
         if (!resolvedStatus) {
@@ -369,20 +362,15 @@ export function WlsAssessmentPanel({
         memberList.push({
           id: studentId,
           sessionId: resolvedSessionId,
-          name:
-            userObj.name ||
-            userObj.fullName ||
-            `Student (${studentId.slice(-4)})`,
+          name: userObj.name || `Student (${studentId.slice(-4)})`,
           email: userObj.email || "",
           assessmentId: assessment.id || assessment._id,
           submissionUrl: studentUrl,
           adminSubmissionUrl: adminUrl,
-          status: resolvedStatus,
-          missedReason: assessment.missedReason || "",
+          status: resolvedStatus, // Keeps backend status intact
           groupNumber: assessment.groupNumber || 1,
-          evaluations: assessment.evaluations || [],
-          feedback: assessment.feedback || assessment.adminComments || "",
-          userComments: extractedUserComments,
+          evaluations: assessment.evaluations || [], // Important: Pass evaluations array!
+          feedback: assessment.feedback || "",
           messages: assessment.messages || [],
         });
       }
@@ -567,26 +555,15 @@ export function WlsAssessmentPanel({
     if (!selectedUser) return;
     setBanner({ show: false, type: "", message: "" });
 
-    // Use defined enum values for payload status
-    const payloadStatus =
-      saveType === "complete"
-        ? ASSESSMENT_STATUSES.COMPLETED
-        : ASSESSMENT_STATUSES.PARTIAL_SAVED;
-
     const validEvaluatorId =
       currentAdminId || localStorage.getItem("adminId") || "admin-default";
-    const activeStreamUrl = adminVideoUrl || videoUrl;
+    const activeStreamUrl = (adminVideoUrl || videoUrl || "").trim();
 
-    if (
-      saveType === "complete" &&
-      (!activeStreamUrl || activeStreamUrl.trim() === "")
-    ) {
-      showBanner(
-        "error",
-        "Cannot complete assessment: Student has not provided a mandatory video link, and no admin override link exists.",
-      );
-      return;
-    }
+    // Admin evaluation status for this save
+    const myAdminStatus =
+      saveType === "complete"
+        ? ASSESSMENT_STATUSES.REVIEWED
+        : ASSESSMENT_STATUSES.PARTIAL_SAVED;
 
     const currentScoresToSave = { ...(userScoresMap[selectedUser.id] || {}) };
     const sanitizedScores = {};
@@ -625,7 +602,6 @@ export function WlsAssessmentPanel({
     try {
       if (!targetId) {
         const resolvedSessionId = selectedSessionId || selectedUser.sessionId;
-
         const submitData = await createAssessmentRecord({
           sessionId: resolvedSessionId,
           userId: selectedUser.id || selectedUser._id,
@@ -641,22 +617,19 @@ export function WlsAssessmentPanel({
         evaluatorName: currentAdminName,
         scores: sanitizedScores,
         feedback: feedback || "",
-        adminSubmissionUrl: adminVideoUrl || "",
-        status: payloadStatus,
+        adminSubmissionUrl: activeStreamUrl || "",
+        status: myAdminStatus,
       };
 
       const gradedRes = await gradeAssessmentRecord(targetId, payload);
 
-      setUserScoresMap((prev) => ({
-        ...prev,
-        [selectedUser.id]: currentScoresToSave,
-      }));
-
+      // Build updated evaluation entry for local state sync
       const newAdminEval = {
         evaluatorId: validEvaluatorId,
         evaluatorName: currentAdminName,
         scores: { ...sanitizedScores },
-        status: payloadStatus,
+        status: myAdminStatus,
+        evaluatedAt: new Date().toISOString(),
       };
 
       const existingEvals = Array.isArray(selectedUser.evaluations)
@@ -667,17 +640,14 @@ export function WlsAssessmentPanel({
       );
       const updatedEvaluationsList = [...filteredEvals, newAdminEval];
 
-      // Update local state with the returned status from server if available
-      const updatedStatus = gradedRes?.status || payloadStatus;
-
       const updatedUserObj = {
         ...selectedUser,
         assessmentId: targetId,
-        submissionUrl: videoUrl,
-        adminSubmissionUrl: adminVideoUrl,
+        submissionUrl: activeStreamUrl,
+        adminSubmissionUrl: activeStreamUrl,
         feedback,
-        evaluations: updatedEvaluationsList,
-        status: updatedStatus,
+        evaluations: gradedRes?.evaluations || updatedEvaluationsList,
+        status: gradedRes?.status || myAdminStatus,
       };
 
       setAssignedUsers((prev) =>
@@ -687,7 +657,7 @@ export function WlsAssessmentPanel({
 
       showBanner(
         "success",
-        `Assessment successfully ${saveType === "complete" ? "completed" : "saved"}!`,
+        `Assessment successfully ${saveType === "complete" ? "reviewed" : "saved as draft"}!`,
       );
 
       if (onSubmitAssessment) {
@@ -715,11 +685,10 @@ export function WlsAssessmentPanel({
         ? currentAdminId
         : selectedUser.id || selectedUser._id;
 
-    // Standardized senderRole with UserRole enum
     const senderRole =
       currentAdminId === "super-user"
-        ? UserRole.SUPER_USER
-        : UserRole.WLS_ADMIN;
+        ? USER_ROLES.SUPER_USER
+        : USER_ROLES.WLS_ADMIN;
 
     try {
       let targetAssessmentId = selectedUser.assessmentId;
@@ -847,6 +816,7 @@ export function WlsAssessmentPanel({
             assignedUsers={assignedUsers}
             selectedUserId={selectedUser?.id}
             onUserSelect={handleUserSelect}
+            currentAdminId={currentAdminId}
           />
         </Grid.Col>
 
@@ -858,6 +828,8 @@ export function WlsAssessmentPanel({
 
           <WlsAssessmentWorkspace
             selectedUser={selectedUser}
+            currentAdminId={currentAdminId}
+            currentAdminName={currentAdminName}
             banner={banner}
             onCloseBanner={() =>
               setBanner({ show: false, type: "", message: "" })
