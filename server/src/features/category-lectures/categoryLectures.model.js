@@ -18,7 +18,9 @@ const ayatSchema = new mongoose.Schema({
   english_translation: { type: String, default: "" },
   urdu_translation: { type: String, default: "" },
   hindi_translation: { type: String, default: "" },
-  points_notes: { type: String, default: "" },
+  points_notes_eng: { type: String, default: "" },
+  points_notes_urdu: { type: String, default: "" },
+  points_notes_hindi: { type: String, default: "" },
   quest_answer: { type: Boolean, default: false },
   question_text: { type: String, default: "" },
   video_url_eng: { type: String, default: "" },
@@ -27,6 +29,9 @@ const ayatSchema = new mongoose.Schema({
   video_url_urdu: { type: String, default: "" },
   youtube_url_urdu: { type: String, default: "" },
   facebook_url_urdu: { type: String, default: "" },
+  ayat_image_eng_url: { type: String, default: "" },
+  ayat_image_urdu_url: { type: String, default: "" },
+  ayat_image_hindi_url: { type: String, default: "" },
 });
 
 const lectureSchema = new mongoose.Schema({
@@ -37,7 +42,6 @@ const lectureSchema = new mongoose.Schema({
   },
   lecture_id: { type: Number, required: true },
   lecture_name: { type: String, required: true },
-  language: { type: String, default: "eng" },
   year_delivered: { type: String, default: "" },
   total_ayats: { type: Number, default: 0 },
 });
@@ -46,9 +50,9 @@ const categorySchema = new mongoose.Schema(
   {
     source: { type: String, required: true },
     compiler: { type: String, required: true },
-    language: { type: String, default: "eng" },
     category_id: { type: Number, unique: true, required: true },
     category_name: { type: String, required: true },
+    language: { type: String, default: "eng" },
     total_lectures: { type: Number, default: 0 },
   },
   { timestamps: true },

@@ -99,27 +99,35 @@ export class CategoryLecturesUsecase {
 
   static async getMetaCategories() {
     try {
-      const categories = await CategoryModel.find(
-        {},
-        { category_id: 1, category_name: 1 },
-      ).lean();
+      const categories = await CategoryModel.find().lean();
 
       return await Promise.all(
         categories.map(async (cat) => {
-          const lectures = await LectureModel.find(
-            { category_id_ref: cat._id },
-            { lecture_id: 1, lecture_name: 1, total_ayats: 1 },
-          ).lean();
+          const lectures = await LectureModel.find({
+            category_id_ref: cat._id,
+          }).lean();
+
+          const lecturesWithAyats = await Promise.all(
+            lectures.map(async (lecture) => {
+              const ayats = await AyatModel.find({
+                lecture_id: lecture._id,
+              }).lean();
+              return {
+                lecture_id: lecture.lecture_id,
+                lecture_name: lecture.lecture_name,
+                year_delivered: lecture.year_delivered,
+                ayat_count: ayats.length,
+                total_ayats: ayats.length,
+                ayat_references: ayats, // Include the full ayat list so the frontend pool populates correctly
+              };
+            }),
+          );
 
           return {
             category_id: cat.category_id,
             category_name: cat.category_name,
             total_lectures: lectures.length,
-            lectures: lectures.map((l) => ({
-              lecture_id: l.lecture_id,
-              lecture_name: l.lecture_name,
-              ayat_count: l.total_ayats,
-            })),
+            lectures: lecturesWithAyats,
           };
         }),
       );

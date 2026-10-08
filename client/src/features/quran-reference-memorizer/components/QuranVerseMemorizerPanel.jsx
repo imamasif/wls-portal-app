@@ -51,45 +51,79 @@ export default function QuranVerseMemorizerPanel() {
   // Fetch metadata on mount
   useEffect(() => {
     fetchCategoryLecturesMeta().then((data) => {
-      setMetaCategories(data);
+      setMetaCategories(Array.isArray(data) ? data : []);
     });
   }, []);
 
-  // Compute available lecture options based on chosen category multi-select
-  const availableLectureOptions = useMemo(() => {
-    let options = [];
+  // Compute unique and valid category filter options safely
+  const availableCategoryOptions = useMemo(() => {
+    if (!Array.isArray(metaCategories)) return [];
+    const map = new Map();
     metaCategories.forEach((cat) => {
+      const val = cat.categoryId ?? cat.category_id ?? cat._id;
+      const lbl = cat.categoryName ?? cat.category_name;
+      if (val !== undefined && val !== null && lbl) {
+        map.set(String(val), { value: String(val), label: String(lbl) });
+      }
+    });
+    return Array.from(map.values());
+  }, [metaCategories]);
+
+  // Compute available lecture options based on chosen category multi-select safely
+  const availableLectureOptions = useMemo(() => {
+    let optionsMap = new Map();
+    if (!Array.isArray(metaCategories)) return [];
+
+    metaCategories.forEach((cat) => {
+      const catVal = cat.categoryId ?? cat.category_id ?? cat._id;
       if (
-        selectedCategoryIds.length === 0 ||
-        selectedCategoryIds.includes(String(cat.categoryId))
+        catVal !== undefined &&
+        (selectedCategoryIds.length === 0 ||
+          selectedCategoryIds.includes(String(catVal)))
       ) {
-        cat.booklets.forEach((b) => {
-          options.push({
-            value: String(b.lectureId),
-            label: `${cat.categoryName} ➔ ${b.lectureName} (${b.ayatCount} ayat)`,
-          });
+        // Support both 'booklets' and 'lectures' property names
+        const booklets = cat.booklets || cat.lectures || [];
+        booklets.forEach((b) => {
+          const lVal = b.lectureId ?? b.lecture_id ?? b.id;
+          const lLbl = b.lectureName ?? b.lecture_name ?? b.name;
+          const count =
+            b.ayatCount ??
+            b.total_ayats ??
+            (b.ayat_references ? b.ayat_references.length : 0);
+          if (lVal !== undefined && lVal !== null && lLbl) {
+            optionsMap.set(String(lVal), {
+              value: String(lVal),
+              label: `${cat.categoryName || cat.category_name || "Category"} ➔ ${lLbl} (${count} ayat)`,
+            });
+          }
         });
       }
     });
-    return options;
+    return Array.from(optionsMap.values());
   }, [metaCategories, selectedCategoryIds]);
 
-  // Compute final aggregated pool of ayat references matching multi-selections
+  // Compute final aggregated pool of ayat references matching multi-selections safely
   const customLectureAyatPool = useMemo(() => {
     let pool = [];
+    if (!Array.isArray(metaCategories)) return pool;
+
     metaCategories.forEach((cat) => {
+      const catVal = cat.categoryId ?? cat.category_id ?? cat._id;
       const matchCat =
         selectedCategoryIds.length === 0 ||
-        selectedCategoryIds.includes(String(cat.categoryId));
+        (catVal !== undefined && selectedCategoryIds.includes(String(catVal)));
 
       if (matchCat) {
-        cat.booklets.forEach((b) => {
+        const booklets = cat.booklets || cat.lectures || [];
+        booklets.forEach((b) => {
+          const lVal = b.lectureId ?? b.lecture_id ?? b.id;
           const matchLec =
             selectedLectureIds.length === 0 ||
-            selectedLectureIds.includes(String(b.lectureId));
+            (lVal !== undefined && selectedLectureIds.includes(String(lVal)));
 
           if (matchLec) {
-            b.ayatList.forEach((ayat) => {
+            const ayatList = b.ayatList || b.ayat_references || [];
+            ayatList.forEach((ayat) => {
               pool.push({
                 globalId: ayat.ayat_number,
                 surahNo: ayat.surah_number,
@@ -101,8 +135,16 @@ export default function QuranVerseMemorizerPanel() {
                 translation: ayat.english_translation,
                 translationUrdu: ayat.urdu_translation,
                 translationHindi: ayat.hindi_translation,
-                notes: ayat.points_notes,
-                audioUrl: ayat.youtube_url || ayat.video_url || "",
+                notes:
+                  ayat.points_notes ||
+                  ayat.points_notes_eng ||
+                  ayat.points_notes_urdu ||
+                  "",
+                audioUrl:
+                  ayat.youtube_url_eng ||
+                  ayat.youtube_url ||
+                  ayat.video_url ||
+                  "",
               });
             });
           }
@@ -133,8 +175,38 @@ export default function QuranVerseMemorizerPanel() {
         customLectureAyatPool.length > 0
           ? customLectureAyatPool
           : LOCAL_PRESET_AYAT;
-      const randomAyat = pool[Math.floor(Math.random() * pool.length)];
-      setCurrentAyah(randomAyat);
+
+      const selectedDbAyat = pool[Math.floor(Math.random() * pool.length)];
+
+      let liveArabicText = selectedDbAyat.arabic; // fallback
+      let liveAudioUrl = selectedDbAyat.audioUrl;
+
+      // Fetch pristine Arabic text and audio from Live Quran API using surah_number & ayat_number
+      if (selectedDbAyat.surahNo && selectedDbAyat.ayahNo) {
+        try {
+          const res = await fetch(
+            `https://api.alquran.cloud/v1/ayah/${selectedDbAyat.surahNo}:${selectedDbAyat.ayahNo}/editions/quran-uthmani,en.sahih,ar.alafasy`,
+          );
+          const json = await res.json();
+          if (json.code === 200 && json.data && json.data.length >= 2) {
+            liveArabicText = json.data[0].text;
+            liveAudioUrl =
+              json.data[2]?.audio || json.data[0].audio || liveAudioUrl;
+          }
+        } catch (err) {
+          console.error(
+            "Error fetching live verse data from API, using DB text:",
+            err,
+          );
+        }
+      }
+
+      // Merge MongoDB translation & notes with Live Quran API Arabic text
+      setCurrentAyah({
+        ...selectedDbAyat,
+        arabic: liveArabicText,
+        audioUrl: liveAudioUrl,
+      });
     }
     setIsLoading(false);
   };
@@ -356,10 +428,7 @@ export default function QuranVerseMemorizerPanel() {
           <MultiSelect
             label="Filter Categories"
             placeholder="Select category or categories"
-            data={metaCategories.map((c) => ({
-              value: String(c.categoryId),
-              label: c.categoryName,
-            }))}
+            data={availableCategoryOptions}
             value={selectedCategoryIds}
             onChange={setSelectedCategoryIds}
             clearable
