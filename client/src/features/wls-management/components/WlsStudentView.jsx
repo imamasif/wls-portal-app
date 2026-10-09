@@ -99,7 +99,8 @@ export function WlsStudentView({ user: propUser }) {
               if (savedUrl) fetchedUrls[sId] = savedUrl;
               if (
                 assessment.status === "COMPLETED" ||
-                assessment.status === "SUBMITTED"
+                assessment.status === "SUBMITTED" ||
+                assessment.status === "UNDER_REVIEW"
               ) {
                 fetchedCompleted[sId] = true;
               }

@@ -7,6 +7,15 @@ export enum UserRole {
   USER = "USER",
 }
 
+export enum AssessmentStatus {
+  PENDING = "PENDING",
+  SUBMITTED = "SUBMITTED",
+  UNDER_REVIEW = "UNDER_REVIEW",
+  PARTIAL_SAVED = "PARTIAL_SAVED",
+  REVIEWED = "REVIEWED",
+  COMPLETED = "COMPLETED",
+}
+
 /**
  * Social Media Link Interface
  */

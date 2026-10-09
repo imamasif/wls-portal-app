@@ -72,8 +72,21 @@ export function WlsAssignedMembers({
       );
     }
 
-    // 4. Student submitted video, but THIS Admin hasn't graded yet
-    if (member?.submissionUrl || member?.adminSubmissionUrl) {
+    // 4. Overall session status is UNDER_REVIEW
+    if (member?.status === ASSESSMENT_STATUSES.UNDER_REVIEW) {
+      return (
+        <Badge size="xs" color="orange" variant="filled">
+          UNDER REVIEW
+        </Badge>
+      );
+    }
+
+    // 5. Student submitted video, but THIS Admin hasn't graded yet
+    if (
+      member?.submissionUrl ||
+      member?.adminSubmissionUrl ||
+      member?.status === ASSESSMENT_STATUSES.SUBMITTED
+    ) {
       return (
         <Badge size="xs" color="blue" variant="filled">
           SUBMITTED

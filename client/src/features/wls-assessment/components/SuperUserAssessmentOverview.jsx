@@ -577,18 +577,30 @@ export function SuperUserAssessmentOverview({ currentUser }) {
                       size="md"
                       variant="filled"
                       color={
-                        isCompleted
+                        isCompleted ||
+                        assessmentRecord?.status ===
+                          ASSESSMENT_STATUSES.COMPLETED
                           ? "teal"
                           : assessmentRecord?.status ===
-                              ASSESSMENT_STATUSES.REVIEWED
-                            ? "indigo"
+                              ASSESSMENT_STATUSES.UNDER_REVIEW
+                            ? "orange"
                             : assessmentRecord?.status ===
-                                ASSESSMENT_STATUSES.PARTIAL_SAVED
-                              ? "orange"
-                              : "blue"
+                                ASSESSMENT_STATUSES.REVIEWED
+                              ? "indigo"
+                              : assessmentRecord?.status ===
+                                  ASSESSMENT_STATUSES.PARTIAL_SAVED
+                                ? "orange"
+                                : assessmentRecord?.status ===
+                                    ASSESSMENT_STATUSES.SUBMITTED
+                                  ? "blue"
+                                  : "gray"
                       }
                     >
-                      {assessmentRecord?.status || ASSESSMENT_STATUSES.PENDING}
+                      {assessmentRecord?.status ===
+                      ASSESSMENT_STATUSES.UNDER_REVIEW
+                        ? "UNDER REVIEW"
+                        : assessmentRecord?.status ||
+                          ASSESSMENT_STATUSES.PENDING}
                     </Badge>
                   </Grid.Col>
 

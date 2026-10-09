@@ -35,6 +35,10 @@ app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
 connectDB();
 
+app.get("/api/health", (req, res) => {
+  res.json({ status: "OK", timestamp: new Date().toISOString() });
+});
+
 app.use("/api/users", userController);
 app.use("/api/wls-sessions", wlsSessionRoutes); // <-- Mount WLS Session endpoints here
 // app.use("/api/sessions", sessionController);

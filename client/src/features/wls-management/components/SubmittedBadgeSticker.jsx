@@ -4,11 +4,20 @@ import { Box, Text } from "@mantine/core";
 export function SubmittedBadgeSticker({
   text = "SUBMITTED",
   isCompleted = false,
+  isUnderReview = false,
 }) {
-  const badgeColor = isCompleted ? "#2b8a3e" : "#1c7ed6";
+  const isReview =
+    isUnderReview || text === "UNDER REVIEW" || text === "UNDER_REVIEW";
+  const badgeColor = isCompleted
+    ? "#2b8a3e"
+    : isReview
+      ? "#e67700"
+      : "#1c7ed6";
   const badgeGradient = isCompleted
     ? "linear-gradient(135deg, #40c057 0%, #2b8a3e 100%)"
-    : "linear-gradient(135deg, #339af0 0%, #1c7ed6 100%)";
+    : isReview
+      ? "linear-gradient(135deg, #f59f00 0%, #d9480f 100%)"
+      : "linear-gradient(135deg, #339af0 0%, #1c7ed6 100%)";
 
   return (
     <Box

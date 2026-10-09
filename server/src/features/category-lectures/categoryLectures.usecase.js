@@ -118,7 +118,7 @@ export class CategoryLecturesUsecase {
                 year_delivered: lecture.year_delivered,
                 ayat_count: ayats.length,
                 total_ayats: ayats.length,
-                ayat_references: ayats, // Include the full ayat list so the frontend pool populates correctly
+                ayat_references: ayats,
               };
             }),
           );
@@ -126,6 +126,7 @@ export class CategoryLecturesUsecase {
           return {
             category_id: cat.category_id,
             category_name: cat.category_name,
+            language: cat.language || "eng",
             total_lectures: lectures.length,
             lectures: lecturesWithAyats,
           };

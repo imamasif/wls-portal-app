@@ -9,6 +9,7 @@ export const USER_ROLES = {
 export const ASSESSMENT_STATUSES = {
   PENDING: "PENDING",
   SUBMITTED: "SUBMITTED",
+  UNDER_REVIEW: "UNDER_REVIEW",
   PARTIAL_SAVED: "PARTIAL_SAVED",
   REVIEWED: "REVIEWED", // <-- Admin marked their grading as done
   COMPLETED: "COMPLETED", // <-- Reserved for Super User overall completion

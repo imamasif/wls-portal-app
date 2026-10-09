@@ -126,6 +126,21 @@ router.put(
   },
 );
 
+router.put("/:id/start-review", async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: "Invalid Assessment ObjectId" });
+    }
+    const updated = await assessmentUseCase.startReview(req.params.id);
+    if (!updated) {
+      return res.status(404).json({ message: "Assessment record not found" });
+    }
+    res.json(AssessmentMapper.toResDTO(updated));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- NEW ROUTE: Super User Finalize Endpoint ---
 router.put("/:id/finalize", async (req, res) => {
   try {

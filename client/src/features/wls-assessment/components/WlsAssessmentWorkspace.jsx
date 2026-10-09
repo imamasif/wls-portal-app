@@ -82,11 +82,17 @@ export function WlsAssessmentWorkspace({
       return ASSESSMENT_STATUSES.PARTIAL_SAVED;
     }
 
-    // 3. Fallback to submission or pending status
+    // 3. Overall status is under review
+    if (selectedUser?.status === ASSESSMENT_STATUSES.UNDER_REVIEW) {
+      return ASSESSMENT_STATUSES.UNDER_REVIEW;
+    }
+
+    // 4. Fallback to submission or pending status
     if (
       selectedUser?.submissionUrl ||
       selectedUser?.adminSubmissionUrl ||
-      activeVideoToRender
+      activeVideoToRender ||
+      selectedUser?.status === ASSESSMENT_STATUSES.SUBMITTED
     ) {
       return ASSESSMENT_STATUSES.SUBMITTED;
     }
@@ -112,6 +118,12 @@ export function WlsAssessmentWorkspace({
         return (
           <Badge size="xs" color="orange" variant="filled">
             {ASSESSMENT_STATUSES.PARTIAL_SAVED}
+          </Badge>
+        );
+      case ASSESSMENT_STATUSES.UNDER_REVIEW:
+        return (
+          <Badge size="xs" color="orange" variant="filled">
+            UNDER REVIEW
           </Badge>
         );
       case ASSESSMENT_STATUSES.SUBMITTED:

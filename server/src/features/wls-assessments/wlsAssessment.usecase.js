@@ -190,12 +190,27 @@ export class AssessmentUseCase {
         ? CONCLUSION_STATUSES.PASSED
         : CONCLUSION_STATUSES.FAILED;
 
-    // Top-level status stays in PARTIAL_SAVED until Super User finalizes it to COMPLETED
+    // Top-level status changes to UNDER_REVIEW when any admin saves or partial-saves ranking, until Super User finalizes to COMPLETED
     if (assessment.status !== ASSESSMENT_STATUSES.COMPLETED) {
-      assessment.status = ASSESSMENT_STATUSES.PARTIAL_SAVED;
+      assessment.status = ASSESSMENT_STATUSES.UNDER_REVIEW;
     }
 
     return await assessment.save();
+  }
+
+  // --- Start Review Method (transitions SUBMITTED/PENDING to UNDER_REVIEW) ---
+  static async startReview(assessmentId) {
+    const assessment = await AssessmentModel.findById(assessmentId);
+    if (!assessment) return null;
+
+    if (
+      assessment.status !== ASSESSMENT_STATUSES.COMPLETED &&
+      assessment.status !== ASSESSMENT_STATUSES.UNDER_REVIEW
+    ) {
+      assessment.status = ASSESSMENT_STATUSES.UNDER_REVIEW;
+      return await assessment.save();
+    }
+    return assessment;
   }
 
   // --- Super User Completion Method ---

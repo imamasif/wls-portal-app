@@ -92,9 +92,15 @@ export function WlsSessionCard({
 }) {
   const sessionId = session.id || session._id;
   const userGroup = getUserGroup(session.groupAssignments, userId);
+  const currentAssessment = assessmentsMap?.[sessionId];
+  const currentStatus = currentAssessment?.status;
   const isCompleted =
-    completedTasks[sessionId] || session.status === "COMPLETED";
-  const hasSubmittedUrl = Boolean(videoUrls[sessionId]);
+    completedTasks[sessionId] ||
+    session.status === "COMPLETED" ||
+    currentStatus === "COMPLETED";
+  const isUnderReview = currentStatus === "UNDER_REVIEW";
+  const hasSubmittedUrl =
+    Boolean(videoUrls[sessionId]) || currentStatus === "SUBMITTED";
 
   const handleOpenDriveHelpModal = () => {
     modals.open({
@@ -251,14 +257,18 @@ export function WlsSessionCard({
         borderWidth: "2px",
         borderColor: isCompleted
           ? "var(--mantine-color-green-6)"
-          : hasSubmittedUrl
-            ? "var(--mantine-color-blue-6)"
-            : "var(--mantine-color-gray-3)",
+          : isUnderReview
+            ? "var(--mantine-color-orange-6)"
+            : hasSubmittedUrl
+              ? "var(--mantine-color-blue-6)"
+              : "var(--mantine-color-gray-3)",
         background: isCompleted
           ? "linear-gradient(135deg, #f4fdf6 0%, #e6fcf5 100%)"
-          : hasSubmittedUrl
-            ? "linear-gradient(135deg, #f4f8ff 0%, #e7f5ff 100%)"
-            : "linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)",
+          : isUnderReview
+            ? "linear-gradient(135deg, #fff9db 0%, #fff3bf 100%)"
+            : hasSubmittedUrl
+              ? "linear-gradient(135deg, #f4f8ff 0%, #e7f5ff 100%)"
+              : "linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)",
       }}
     >
       <Group justify="space-between" align="center" mb="md">
@@ -266,11 +276,21 @@ export function WlsSessionCard({
           <ThemeIcon
             size="lg"
             radius="xl"
-            color={isCompleted ? "green" : hasSubmittedUrl ? "blue" : "gray"}
+            color={
+              isCompleted
+                ? "green"
+                : isUnderReview
+                  ? "orange"
+                  : hasSubmittedUrl
+                    ? "blue"
+                    : "gray"
+            }
             variant="filled"
           >
             {isCompleted ? (
               <IconAward size={22} />
+            ) : isUnderReview ? (
+              <IconClock size={20} />
             ) : hasSubmittedUrl ? (
               <IconCheck size={20} />
             ) : (
@@ -282,7 +302,13 @@ export function WlsSessionCard({
               fw={800}
               size="lg"
               c={
-                isCompleted ? "green.9" : hasSubmittedUrl ? "blue.9" : "dark.8"
+                isCompleted
+                  ? "green.9"
+                  : isUnderReview
+                    ? "orange.9"
+                    : hasSubmittedUrl
+                      ? "blue.9"
+                      : "dark.8"
               }
             >
               {session.title ||
@@ -304,6 +330,8 @@ export function WlsSessionCard({
 
         {isCompleted ? (
           <SubmittedBadgeSticker text="COMPLETED" isCompleted={true} />
+        ) : isUnderReview ? (
+          <SubmittedBadgeSticker text="UNDER REVIEW" isUnderReview={true} />
         ) : hasSubmittedUrl ? (
           <SubmittedBadgeSticker text="SUBMITTED" isCompleted={false} />
         ) : (

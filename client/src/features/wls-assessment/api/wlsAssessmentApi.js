@@ -118,3 +118,24 @@ export async function sendAssessmentMessage(assessmentId, messageData) {
   }
   return data;
 }
+
+/**
+ * Transitions assessment status to UNDER_REVIEW when an admin starts review.
+ * Matches backend PUT /api/assessments/:id/start-review endpoint.
+ */
+export async function startAssessmentReview(assessmentId) {
+  if (!assessmentId || !/^[0-9a-fA-F]{24}$/.test(assessmentId)) {
+    return null;
+  }
+
+  const response = await fetch(`/api/assessments/${assessmentId}/start-review`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || data.message || 'Failed to start review');
+  }
+  return data;
+}

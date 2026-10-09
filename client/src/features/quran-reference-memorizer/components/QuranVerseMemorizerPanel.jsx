@@ -63,14 +63,32 @@ export default function QuranVerseMemorizerPanel() {
   }, []);
 
   // Compute unique and valid category filter options safely
+  // const availableCategoryOptions = useMemo(() => {
+  //   if (!Array.isArray(metaCategories)) return [];
+  //   const map = new Map();
+  //   metaCategories.forEach((cat) => {
+  //     const val = cat.categoryId ?? cat.category_id ?? cat._id;
+  //     const lbl = cat.categoryName ?? cat.category_name;
+  //     if (val !== undefined && val !== null && lbl) {
+  //       map.set(String(val), { value: String(val), label: String(lbl) });
+  //     }
+  //   });
+  //   return Array.from(map.values());
+  // }, [metaCategories]);
+
+  // Compute unique and valid category filter options strictly for English ("eng") categories
   const availableCategoryOptions = useMemo(() => {
     if (!Array.isArray(metaCategories)) return [];
     const map = new Map();
     metaCategories.forEach((cat) => {
-      const val = cat.categoryId ?? cat.category_id ?? cat._id;
-      const lbl = cat.categoryName ?? cat.category_name;
-      if (val !== undefined && val !== null && lbl) {
-        map.set(String(val), { value: String(val), label: String(lbl) });
+      // Check if language is explicitly English ("eng") or defaults to it
+      const lang = (cat.language || "eng").toLowerCase();
+      if (lang === "eng") {
+        const val = cat.categoryId ?? cat.category_id ?? cat._id;
+        const lbl = cat.categoryName ?? cat.category_name;
+        if (val !== undefined && val !== null && lbl) {
+          map.set(String(val), { value: String(val), label: String(lbl) });
+        }
       }
     });
     return Array.from(map.values());
