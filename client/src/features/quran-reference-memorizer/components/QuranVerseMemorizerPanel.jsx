@@ -7,7 +7,6 @@ import {
   Button,
   MultiSelect,
   Divider,
-  Collapse,
   Box,
 } from "@mantine/core";
 import {
@@ -83,12 +82,11 @@ export default function QuranVerseMemorizerPanel() {
     if (!Array.isArray(metaCategories)) return [];
 
     metaCategories.forEach((cat) => {
-      const catVal = cat.categoryId ?? cat.category_id ?? cat._id;
+      const catVal = String(cat.categoryId ?? cat.category_id ?? cat._id ?? "");
 
-      // Strict check: if categories are selected, catVal MUST be in selectedCategoryIds
       const isCategorySelected =
         selectedCategoryIds.length === 0 ||
-        (catVal !== undefined && selectedCategoryIds.includes(String(catVal)));
+        selectedCategoryIds.map(String).includes(catVal);
 
       if (isCategorySelected) {
         const booklets = cat.booklets || cat.lectures || [];
@@ -117,22 +115,26 @@ export default function QuranVerseMemorizerPanel() {
     if (!Array.isArray(metaCategories)) return pool;
 
     metaCategories.forEach((cat) => {
-      const catVal = cat.categoryId ?? cat.category_id ?? cat._id;
+      const catVal = String(cat.categoryId ?? cat.category_id ?? cat._id ?? "");
       const matchCat =
         selectedCategoryIds.length === 0 ||
-        (catVal !== undefined && selectedCategoryIds.includes(String(catVal)));
+        selectedCategoryIds.map(String).includes(catVal);
 
       if (matchCat) {
         const booklets = cat.booklets || cat.lectures || [];
         booklets.forEach((b) => {
-          const lVal = b.lectureId ?? b.lecture_id ?? b.id;
+          const lVal = String(b.lectureId ?? b.lecture_id ?? b.id ?? "");
           const matchLec =
             selectedLectureIds.length === 0 ||
-            (lVal !== undefined && selectedLectureIds.includes(String(lVal)));
+            selectedLectureIds.map(String).includes(lVal);
 
           if (matchLec) {
             const ayatList = b.ayatList || b.ayat_references || [];
             ayatList.forEach((ayat) => {
+              const eng = ayat.english_translation || ayat.eng || "";
+              const urdu = ayat.urdu_translation || ayat.urdu || "";
+              const hindi = ayat.hindi_translation || ayat.hindi || "";
+
               pool.push({
                 globalId: ayat.ayat_number,
                 surahNo: ayat.surah_number,
@@ -140,12 +142,18 @@ export default function QuranVerseMemorizerPanel() {
                 surahNameArabic: ayat.surah_name,
                 ayahNo: ayat.ayat_number,
                 totalAyahsInSurah: 200,
-                arabic: ayat.arabic_text,
+                arabic: ayat.arabic_text || "",
                 surahNumber: ayat.surah_number,
                 ayatNumber: ayat.ayat_number,
-                translation: ayat.english_translation,
-                translationUrdu: ayat.urdu_translation,
-                translationHindi: ayat.hindi_translation,
+
+                // Map BOTH MongoDB keys and VerseCard expected keys to prevent any mismatch:
+                english_translation: eng,
+                translation: eng,
+                urdu_translation: urdu,
+                translationUrdu: urdu,
+                hindi_translation: hindi,
+                translationHindi: hindi,
+
                 notes:
                   ayat.points_notes ||
                   ayat.points_notes_eng ||
@@ -165,7 +173,88 @@ export default function QuranVerseMemorizerPanel() {
     return pool;
   }, [metaCategories, selectedCategoryIds, selectedLectureIds]);
 
+  // Fetch missing translations & audio from Al-Quran Cloud API on demand
+  const enrichTranslationsIfNeeded = async (ayahData) => {
+    const sNo = ayahData.surahNo || ayahData.surahNumber;
+    const aNo = ayahData.ayahNo || ayahData.ayatNumber;
+    if (!sNo || !aNo) return ayahData;
+
+    const needsArabic = !ayahData.arabic || ayahData.arabic.trim() === "";
+    const needsEng =
+      !ayahData.translation || ayahData.translation.trim() === "";
+    const needsUrdu =
+      !ayahData.translationUrdu || ayahData.translationUrdu.trim() === "";
+    const needsHindi =
+      !ayahData.translationHindi || ayahData.translationHindi.trim() === "";
+    const needsAudio = !ayahData.audioUrl;
+
+    if (!needsArabic && !needsEng && !needsUrdu && !needsHindi && !needsAudio) {
+      return ayahData;
+    }
+
+    const updated = { ...ayahData };
+
+    try {
+      const editionsList = [];
+      if (needsArabic) editionsList.push("quran-uthmani");
+      if (needsEng) editionsList.push("en.sahih");
+      if (needsUrdu) editionsList.push("ur.jalandhry");
+      if (needsHindi) editionsList.push("hi.hindi");
+      editionsList.push("ar.alafasy");
+
+      const res = await fetch(
+        `https://api.alquran.cloud/v1/ayah/${sNo}:${aNo}/editions/${editionsList.join(",")}`,
+      );
+      const json = await res.json();
+
+      if (json.code === 200 && Array.isArray(json.data)) {
+        json.data.forEach((item) => {
+          if (
+            item.edition.identifier === "quran-uthmani" &&
+            (!updated.arabic || updated.arabic.trim() === "")
+          ) {
+            updated.arabic = item.text;
+          }
+          if (
+            item.edition.identifier === "en.sahih" &&
+            (!updated.translation || updated.translation.trim() === "")
+          ) {
+            updated.english_translation = item.text;
+            updated.translation = item.text;
+          }
+          if (
+            item.edition.identifier === "ur.jalandhry" &&
+            (!updated.translationUrdu || updated.translationUrdu.trim() === "")
+          ) {
+            updated.urdu_translation = item.text;
+            updated.translationUrdu = item.text;
+          }
+          if (
+            item.edition.identifier === "hi.hindi" &&
+            (!updated.translationHindi ||
+              updated.translationHindi.trim() === "")
+          ) {
+            updated.hindi_translation = item.text;
+            updated.translationHindi = item.text;
+          }
+          if (item.edition.format === "audio" && !updated.audioUrl) {
+            updated.audioUrl = item.audio;
+          }
+        });
+      }
+
+      if (!updated.audioUrl) {
+        updated.audioUrl = `https://cdn.islamic.network/quran/audio/128/ar.alafasy/${sNo}/${aNo}.mp3`;
+      }
+    } catch (err) {
+      console.error("Error fetching missing verse editions from API:", err);
+    }
+
+    return updated;
+  };
+
   const loadNextAyah = async () => {
+    if (isLoading) return;
     setIsLoading(true);
     setSelectedSurah(null);
     setSelectedAyahNo(null);
@@ -174,52 +263,34 @@ export default function QuranVerseMemorizerPanel() {
     setShowHint(false);
     setIsPlayingAudio(false);
 
+    let rawAyah = null;
+
     if (dataSource === "live") {
-      const ayah = await fetchRandomVerse();
-      setCurrentAyah(ayah);
+      rawAyah = await fetchRandomVerse();
     } else if (dataSource === "preset") {
-      const randomPreset =
+      rawAyah =
         LOCAL_PRESET_AYAT[Math.floor(Math.random() * LOCAL_PRESET_AYAT.length)];
-      setCurrentAyah(randomPreset);
     } else if (dataSource === "lectures") {
       const pool =
         customLectureAyatPool.length > 0
           ? customLectureAyatPool
           : LOCAL_PRESET_AYAT;
 
-      const selectedDbAyat = pool[Math.floor(Math.random() * pool.length)];
-
-      let liveArabicText = selectedDbAyat.arabic;
-      let liveAudioUrl = selectedDbAyat.audioUrl;
-
-      if (selectedDbAyat.surahNo && selectedDbAyat.ayahNo) {
-        try {
-          const res = await fetch(
-            `https://api.alquran.cloud/v1/ayah/${selectedDbAyat.surahNo}:${selectedDbAyat.ayahNo}/editions/quran-uthmani,en.sahih,ar.alafasy`,
-          );
-          const json = await res.json();
-          if (json.code === 200 && json.data && json.data.length >= 2) {
-            liveArabicText = json.data[0].text;
-            liveAudioUrl =
-              json.data[2]?.audio || json.data[0].audio || liveAudioUrl;
-          }
-        } catch (err) {
-          console.error("Error fetching live verse from Quran API:", err);
-        }
-      }
-
-      setCurrentAyah({
-        ...selectedDbAyat,
-        arabic: liveArabicText,
-        audioUrl: liveAudioUrl,
-      });
+      rawAyah = pool[Math.floor(Math.random() * pool.length)];
     }
+
+    if (rawAyah) {
+      const fullyEnrichedAyah = await enrichTranslationsIfNeeded(rawAyah);
+      setCurrentAyah(fullyEnrichedAyah);
+    }
+
     setIsLoading(false);
   };
 
+  // Safe effect: Only trigger when dataSource changes. User uses the Draw / Wipe buttons to change verses.
   useEffect(() => {
     loadNextAyah();
-  }, [dataSource, selectedCategoryIds, selectedLectureIds]);
+  }, [dataSource]);
 
   const surahOptions = useMemo(() => {
     if (!currentAyah) return [];
@@ -401,13 +472,13 @@ export default function QuranVerseMemorizerPanel() {
             <Box
               p="xl"
               style={{
-                backgroundColor: "#161b18", // Deep matte slate blackboard
+                backgroundColor: "#161b18",
                 backgroundImage: `
                   radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 0),
                   radial-gradient(rgba(255, 255, 255, 0.02) 2px, transparent 0)
                 `,
                 backgroundSize: "16px 16px, 32px 32px",
-                border: "12px solid #4a3319", // Rich dark wooden frame
+                border: "12px solid #4a3319",
                 borderRadius: "8px",
                 boxShadow:
                   "0 16px 40px rgba(0,0,0,0.5), inset 0 0 60px rgba(0,0,0,0.7)",
@@ -422,19 +493,19 @@ export default function QuranVerseMemorizerPanel() {
                       fw={600}
                       size="lg"
                       style={{
-                        color: "#fff176", // Bright chalk yellow
+                        color: "#fff176",
                         fontFamily: "Courier New, monospace",
                         letterSpacing: "1.5px",
                         textShadow: "0 0 4px rgba(255, 241, 118, 0.4)",
                       }}
                     >
-                      CHALKBOARD: CATEGORY & LECTURE SELECTOR
+                      CATEGORY & LECTURE SELECTOR
                     </Text>
                   </Group>
                   <Button
                     variant="subtle"
                     size="xs"
-                    c="#ff8a80" // Soft chalk red for close button
+                    c="#ff8a80"
                     style={{ fontFamily: "Courier New, monospace" }}
                     onClick={() => setIsChalkboardOpen(false)}
                   >
@@ -445,13 +516,12 @@ export default function QuranVerseMemorizerPanel() {
                 <Text
                   size="sm"
                   style={{
-                    color: "#e0f2f1", // Soft dusty white/mint chalk text
+                    color: "#e0f2f1",
                     fontFamily: "Courier New, monospace",
                     textShadow: "0 0 3px rgba(224, 242, 241, 0.3)",
                   }}
                 >
-                  Write your selections in chalk. Choose category and lecture
-                  streams from MongoDB to target your memorization deck.
+                  Choose category and lecture.
                 </Text>
 
                 {/* Chalkboard Select Fields */}
@@ -525,13 +595,10 @@ export default function QuranVerseMemorizerPanel() {
                       styles={{
                         input: {
                           backgroundColor: "#111614",
-                          border: "2px solid #ffb74d", // Clean solid amber chalk border
+                          border: "2px solid #ffb74d",
                           color: "#ffffff",
                           fontFamily: "Courier New, monospace",
                           fontSize: "14px",
-                        },
-                        inputField: {
-                          color: "#ffffff",
                         },
                         dropdown: {
                           backgroundColor: "#111614",
@@ -542,14 +609,6 @@ export default function QuranVerseMemorizerPanel() {
                           backgroundColor: "#111614",
                           color: "#ffffff",
                           fontFamily: "Courier New, monospace",
-                          "&[data-selected]": {
-                            backgroundColor: "#e65100",
-                            color: "#ffffff",
-                          },
-                          "&[data-hovered]": {
-                            backgroundColor: "#f57c00",
-                            color: "#ffffff",
-                          },
                         },
                         pill: {
                           backgroundColor: "#e65100",
@@ -573,9 +632,9 @@ export default function QuranVerseMemorizerPanel() {
                     loadNextAyah();
                   }}
                   style={{
-                    backgroundColor: "#795548", // Wooden block eraser color
+                    backgroundColor: "#795548",
                     border: "2px solid #d7ccc8",
-                    color: "#fffde7", // Bright chalk cream text
+                    color: "#fffde7",
                     fontWeight: "bold",
                     fontFamily: "Courier New, monospace",
                     fontSize: "15px",
