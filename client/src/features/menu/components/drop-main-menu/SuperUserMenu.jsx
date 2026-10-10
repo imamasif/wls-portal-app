@@ -107,6 +107,15 @@ export function SuperUserMenu({ activeTab, setActiveTab }) {
           >
             Assessment Completion Portal
           </Menu.Item>
+          <Menu.Divider />
+          <Menu.Item
+            onClick={() => setActiveTab(AppTab.REPORTS)}
+            leftSection={
+              <IconChartBar size={16} color="var(--mantine-color-grape-6)" />
+            }
+          >
+            WLS Analytics & Reports
+          </Menu.Item>
         </Menu.Dropdown>
       </Menu>
 

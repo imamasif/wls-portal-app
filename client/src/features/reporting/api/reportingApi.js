@@ -2,8 +2,24 @@
 import axios from "axios";
 
 export const reportingApi = {
-  getAnalyticsReport: async () => {
-    const res = await axios.get("/api/reports/analytics-report");
+  getAnalyticsReport: async (params = {}) => {
+    const cleanParams = {};
+    if (params.sessionId && params.sessionId !== "ALL") {
+      cleanParams.sessionId = params.sessionId;
+    }
+    if (params.userId && params.userId !== "ALL") {
+      cleanParams.userId = params.userId;
+    }
+    if (params.role) {
+      cleanParams.role = params.role;
+    }
+    if (params.groupNumber && params.groupNumber !== "ALL") {
+      cleanParams.groupNumber = params.groupNumber;
+    }
+
+    const res = await axios.get("/api/reports/analytics-report", {
+      params: cleanParams,
+    });
     return res.data;
   },
 
@@ -13,7 +29,9 @@ export const reportingApi = {
   },
 
   getSessions: async () => {
-    const res = await axios.get("/api/wls-sessions"); // Adjust route to match your WLS session router
+    const res = await axios.get("/api/wls-sessions");
     return res.data;
   },
 };
+
+export default reportingApi;
