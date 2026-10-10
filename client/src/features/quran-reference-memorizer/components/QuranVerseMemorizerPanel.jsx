@@ -485,78 +485,129 @@ export default function QuranVerseMemorizerPanel() {
             </Group>
           </Group>
 
-          {/* VINTAGE SCHOOL BLACKBOARD CHALK PANEL */}
+          {/* REALISTIC SCHOOL CHALKBOARD PANEL */}
           {isChalkboardOpen && (
             <Box
-              p="xl"
               style={{
-                backgroundColor: "#161b18",
-                backgroundImage: `
-                  radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 0),
-                  radial-gradient(rgba(255, 255, 255, 0.02) 2px, transparent 0)
-                `,
-                backgroundSize: "16px 16px, 32px 32px",
-                border: "12px solid #4a3319",
-                borderRadius: "8px",
-                boxShadow:
-                  "0 16px 40px rgba(0,0,0,0.5), inset 0 0 60px rgba(0,0,0,0.7)",
+                /* Outer wooden frame */
+                background: "linear-gradient(135deg, #6b3a2a 0%, #8b4e35 25%, #7a4030 50%, #5c2f1e 75%, #6b3a2a 100%)",
+                borderRadius: "6px",
+                padding: "14px",
+                boxShadow: "0 20px 60px rgba(0,0,0,0.7), 0 8px 20px rgba(0,0,0,0.5), inset 0 2px 4px rgba(255,200,150,0.3)",
                 position: "relative",
               }}
             >
-              <Stack gap="md">
-                <Group justify="space-between" align="center">
-                  <Group gap="xs">
-                    <IconChalkboard size={22} color="#fff176" />
-                    <Text
-                      fw={600}
-                      size="lg"
+              {/* Wood grain lines */}
+              <div style={{
+                position: "absolute", inset: 0, borderRadius: "6px", pointerEvents: "none",
+                backgroundImage: `repeating-linear-gradient(90deg, transparent, transparent 18px, rgba(0,0,0,0.08) 18px, rgba(0,0,0,0.08) 19px)`,
+              }} />
+
+              {/* Inner chalkboard surface */}
+              <div style={{
+                background: "linear-gradient(160deg, #2d4a35 0%, #1e3828 30%, #243d2e 60%, #1a3322 100%)",
+                borderRadius: "3px",
+                padding: "24px 28px",
+                position: "relative",
+                overflow: "hidden",
+                boxShadow: "inset 0 0 80px rgba(0,0,0,0.6), inset 0 0 30px rgba(0,0,0,0.4)",
+              }}>
+
+                {/* Chalk dust smudge overlay */}
+                <div style={{
+                  position: "absolute", inset: 0, pointerEvents: "none", borderRadius: "3px",
+                  backgroundImage: `
+                    radial-gradient(ellipse 120px 40px at 15% 10%, rgba(255,255,255,0.025) 0%, transparent 70%),
+                    radial-gradient(ellipse 80px 25px at 80% 85%, rgba(255,255,255,0.02) 0%, transparent 70%),
+                    radial-gradient(ellipse 60px 20px at 60% 30%, rgba(255,255,255,0.015) 0%, transparent 70%),
+                    radial-gradient(ellipse 200px 6px at 50% 50%, rgba(255,255,255,0.018) 0%, transparent 80%)
+                  `,
+                }} />
+
+                {/* Faint chalk eraser streaks */}
+                <div style={{
+                  position: "absolute", inset: 0, pointerEvents: "none",
+                  backgroundImage: `
+                    repeating-linear-gradient(
+                      172deg,
+                      transparent 0px, transparent 28px,
+                      rgba(255,255,255,0.012) 28px, rgba(255,255,255,0.012) 29px,
+                      transparent 29px, transparent 58px
+                    )
+                  `,
+                }} />
+
+                <Stack gap="lg">
+                  {/* Header Row */}
+                  <Group justify="space-between" align="center">
+                    <Group gap="sm">
+                      <IconChalkboard size={20} color="rgba(255,255,255,0.75)" />
+                      <span style={{
+                        fontFamily: "'Segoe UI', sans-serif",
+                        fontSize: "15px",
+                        fontWeight: 400,
+                        letterSpacing: "3px",
+                        color: "rgba(255, 255, 255, 0.82)",
+                        textShadow: "0 0 8px rgba(255,255,255,0.35), 1px 1px 0 rgba(0,0,0,0.5)",
+                        textTransform: "uppercase",
+                        filter: "blur(0.3px)",
+                      }}>
+                        Category &amp; Lecture Selector
+                      </span>
+                    </Group>
+                    <button
+                      onClick={() => setIsChalkboardOpen(false)}
                       style={{
-                        color: "#fff176",
-                        fontFamily: "Courier New, monospace",
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        color: "rgba(255,160,140,0.85)",
+                        fontFamily: "'Segoe UI', sans-serif",
+                        fontSize: "12px",
                         letterSpacing: "1.5px",
-                        textShadow: "0 0 4px rgba(255, 241, 118, 0.4)",
+                        textShadow: "0 0 6px rgba(255,120,100,0.5)",
+                        opacity: 0.9,
+                        filter: "blur(0.2px)",
                       }}
                     >
-                      CATEGORY & LECTURE SELECTOR
-                    </Text>
+                      ✕ CLOSE
+                    </button>
                   </Group>
-                  <Button
-                    variant="subtle"
-                    size="xs"
-                    c="#ff8a80"
-                    style={{ fontFamily: "Courier New, monospace" }}
-                    onClick={() => setIsChalkboardOpen(false)}
-                  >
-                    [Close Board]
-                  </Button>
-                </Group>
 
-                <Text
-                  size="sm"
-                  style={{
-                    color: "#e0f2f1",
-                    fontFamily: "Courier New, monospace",
-                    textShadow: "0 0 3px rgba(224, 242, 241, 0.3)",
-                  }}
-                >
-                  Choose category and lecture.
-                </Text>
+                  {/* Chalk horizontal rule */}
+                  <div style={{
+                    height: "2px",
+                    background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.25) 10%, rgba(255,255,255,0.35) 50%, rgba(255,255,255,0.2) 90%, transparent 100%)",
+                    filter: "blur(0.5px)",
+                    margin: "-8px 0 -4px",
+                  }} />
 
-                {/* Chalkboard Select Fields */}
-                <Stack gap="md">
+                  <p style={{
+                    fontFamily: "'Segoe UI', sans-serif",
+                    fontSize: "13px",
+                    color: "rgba(220, 240, 225, 0.72)",
+                    margin: 0,
+                    letterSpacing: "1.5px",
+                    textShadow: "0 0 5px rgba(200,255,210,0.3)",
+                    filter: "blur(0.25px)",
+                  }}>
+                    Choose a category and lecture to filter your verse pool.
+                  </p>
+
+                  {/* FILTER CATEGORIES */}
                   <div>
-                    <Text
-                      size="xs"
-                      fw={700}
-                      c="#ffffff"
-                      mb={6}
-                      style={{
-                        fontFamily: "Courier New, monospace",
-                        letterSpacing: "1px",
-                      }}
-                    >
-                      📁 FILTER CATEGORIES
-                    </Text>
+                    <div style={{
+                      fontFamily: "'Segoe UI', sans-serif",
+                      fontSize: "11px",
+                      letterSpacing: "3px",
+                      color: "rgba(180, 230, 195, 0.8)",
+                      textShadow: "0 0 6px rgba(150,255,180,0.4)",
+                      marginBottom: "10px",
+                      textTransform: "uppercase",
+                      filter: "blur(0.2px)",
+                    }}>
+                      📁 Filter Categories
+                    </div>
                     <MultiSelect
                       placeholder="Select category..."
                       data={availableCategoryOptions}
@@ -565,45 +616,46 @@ export default function QuranVerseMemorizerPanel() {
                       clearable
                       styles={{
                         input: {
-                          backgroundColor: "#111614",
-                          border: "2px solid #81c784",
-                          color: "#ffffff",
-                          fontFamily: "Courier New, monospace",
-                          fontSize: "14px",
+                          backgroundColor: "rgba(10, 28, 18, 0.85)",
+                          border: "1px solid rgba(130, 200, 150, 0.45)",
+                          color: "rgba(220, 245, 225, 0.9)",
+                          fontFamily: "'Segoe UI', sans-serif",
+                          fontSize: "13px",
+                          letterSpacing: "0.5px",
+                          boxShadow: "inset 0 2px 8px rgba(0,0,0,0.4)",
                         },
                         dropdown: {
-                          backgroundColor: "#111614",
-                          border: "2px solid #81c784",
-                          color: "#ffffff",
+                          backgroundColor: "#0f1f14",
+                          border: "1px solid rgba(130, 200, 150, 0.35)",
                         },
                         option: {
-                          backgroundColor: "#111614",
-                          color: "#ffffff",
-                          fontFamily: "Courier New, monospace",
+                          backgroundColor: "#0f1f14",
+                          color: "rgba(220, 245, 225, 0.85)",
+                          fontFamily: "'Segoe UI', sans-serif",
                         },
                         pill: {
-                          backgroundColor: "#2e7d32",
-                          color: "#ffffff",
-                          border: "1px solid #81c784",
-                          fontFamily: "Courier New, monospace",
+                          backgroundColor: "rgba(30, 80, 45, 0.9)",
+                          color: "rgba(200, 240, 210, 0.95)",
+                          border: "1px solid rgba(100, 180, 120, 0.5)",
                         },
                       }}
                     />
                   </div>
 
+                  {/* FILTER LECTURES */}
                   <div>
-                    <Text
-                      size="xs"
-                      fw={700}
-                      c="#ffffff"
-                      mb={6}
-                      style={{
-                        fontFamily: "Courier New, monospace",
-                        letterSpacing: "1px",
-                      }}
-                    >
-                      📚 FILTER LECTURES
-                    </Text>
+                    <div style={{
+                      fontFamily: "'Segoe UI', sans-serif",
+                      fontSize: "11px",
+                      letterSpacing: "3px",
+                      color: "rgba(255, 220, 160, 0.8)",
+                      textShadow: "0 0 6px rgba(255,200,100,0.35)",
+                      marginBottom: "10px",
+                      textTransform: "uppercase",
+                      filter: "blur(0.2px)",
+                    }}>
+                      📚 Filter Lectures
+                    </div>
                     <MultiSelect
                       placeholder="Select lectures..."
                       data={availableLectureOptions}
@@ -612,59 +664,89 @@ export default function QuranVerseMemorizerPanel() {
                       clearable
                       styles={{
                         input: {
-                          backgroundColor: "#111614",
-                          border: "2px solid #ffb74d",
-                          color: "#ffffff",
-                          fontFamily: "Courier New, monospace",
-                          fontSize: "14px",
+                          backgroundColor: "rgba(10, 28, 18, 0.85)",
+                          border: "1px solid rgba(200, 160, 80, 0.45)",
+                          color: "rgba(220, 245, 225, 0.9)",
+                          fontFamily: "'Segoe UI', sans-serif",
+                          fontSize: "13px",
+                          letterSpacing: "0.5px",
+                          boxShadow: "inset 0 2px 8px rgba(0,0,0,0.4)",
                         },
                         dropdown: {
-                          backgroundColor: "#111614",
-                          border: "2px solid #ffb74d",
-                          color: "#ffffff",
+                          backgroundColor: "#0f1f14",
+                          border: "1px solid rgba(200, 160, 80, 0.35)",
                         },
                         option: {
-                          backgroundColor: "#111614",
-                          color: "#ffffff",
-                          fontFamily: "Courier New, monospace",
+                          backgroundColor: "#0f1f14",
+                          color: "rgba(220, 245, 225, 0.85)",
+                          fontFamily: "'Segoe UI', sans-serif",
                         },
                         pill: {
-                          backgroundColor: "#e65100",
-                          color: "#ffffff",
-                          border: "1px solid #ffb74d",
-                          fontFamily: "Courier New, monospace",
+                          backgroundColor: "rgba(80, 45, 10, 0.9)",
+                          color: "rgba(255, 225, 170, 0.95)",
+                          border: "1px solid rgba(200, 155, 70, 0.5)",
                         },
                       }}
                     />
                   </div>
+
+                  {/* Chalk divider */}
+                  <div style={{
+                    height: "1px",
+                    background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.18) 20%, rgba(255,255,255,0.28) 50%, rgba(255,255,255,0.15) 80%, transparent 100%)",
+                    filter: "blur(0.4px)",
+                  }} />
+
+                  {/* Eraser / Wipe Button */}
+                  <button
+                    onClick={() => { setIsChalkboardOpen(false); loadNextAyah(); }}
+                    style={{
+                      width: "100%",
+                      padding: "12px 16px",
+                      background: "linear-gradient(180deg, #7d5a3c 0%, #6b4a30 40%, #5c3c24 100%)",
+                      border: "1px solid rgba(210, 180, 140, 0.5)",
+                      borderRadius: "4px",
+                      color: "rgba(255, 248, 220, 0.92)",
+                      fontFamily: "'Segoe UI', sans-serif",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      letterSpacing: "2.5px",
+                      textTransform: "uppercase",
+                      cursor: "pointer",
+                      textShadow: "0 1px 3px rgba(0,0,0,0.6)",
+                      boxShadow: "0 4px 0 #3a2010, 0 6px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,220,180,0.25)",
+                      transition: "all 0.12s ease",
+                    }}
+                    onMouseDown={e => e.currentTarget.style.transform = "translateY(3px)"}
+                    onMouseUp={e => e.currentTarget.style.transform = "translateY(0)"}
+                  >
+                    🧽&nbsp;&nbsp;Wipe &amp; Practice &mdash; {customLectureAyatPool.length} Verses Ready
+                  </button>
+
                 </Stack>
+              </div>
 
-                <Divider my="xs" color="#33443b" />
-
-                {/* Wooden Duster Action Button */}
-                <Button
-                  fullWidth
-                  size="md"
-                  onClick={() => {
-                    setIsChalkboardOpen(false);
-                    loadNextAyah();
-                  }}
-                  style={{
-                    backgroundColor: "#795548",
-                    border: "2px solid #d7ccc8",
-                    color: "#fffde7",
-                    fontWeight: "bold",
-                    fontFamily: "Courier New, monospace",
-                    fontSize: "15px",
-                    letterSpacing: "1px",
-                    boxShadow: "0 5px 0 #3e2723",
-                    transition: "all 0.1s ease",
-                  }}
-                >
-                  🧽 Wipe & Practice ({customLectureAyatPool.length} Verses
-                  Ready in Pool)
-                </Button>
-              </Stack>
+              {/* Chalk tray at bottom of wooden frame */}
+              <div style={{
+                height: "10px",
+                marginTop: "6px",
+                background: "linear-gradient(180deg, #5a3220 0%, #4a2818 100%)",
+                borderRadius: "0 0 4px 4px",
+                boxShadow: "inset 0 2px 4px rgba(0,0,0,0.5)",
+                display: "flex",
+                alignItems: "center",
+                paddingLeft: "12px",
+                gap: "8px",
+              }}>
+                {/* chalk stick decorations */}
+                {["#f5f0e8","#f0e8d8","#e8f5e9","#fff9c4","#fce4ec"].map((c, i) => (
+                  <div key={i} style={{
+                    width: "18px", height: "5px", borderRadius: "2px",
+                    backgroundColor: c, opacity: 0.7,
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.4)",
+                  }} />
+                ))}
+              </div>
             </Box>
           )}
 
