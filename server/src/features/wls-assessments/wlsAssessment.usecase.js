@@ -10,22 +10,36 @@ import { UserRole } from "../types/user.js";
 
 export class AssessmentUseCase {
   /**
-   * Helper to verify if a user is assigned as a submitter in any group of a session
+   * Helper to verify if a user is assigned as a submitter or admin in any group of a session,
+   * or has SUPER_USER / WLS_ADMIN role.
    */
-  static _isUserAssignedToSession(session, userId) {
+  static async _isUserAssignedToSession(session, userId) {
     if (!session || !session.groupAssignments) return false;
+
+    const userIdStr = String(userId).trim();
+
+    try {
+      const User = mongoose.model("User");
+      const userDoc = await User.findById(userIdStr).lean();
+      if (
+        userDoc &&
+        (userDoc.role === "SUPER_USER" || userDoc.role === "WLS_ADMIN")
+      ) {
+        return true;
+      }
+    } catch (e) {}
 
     const assignments =
       session.groupAssignments instanceof Map
         ? Object.fromEntries(session.groupAssignments)
         : session.groupAssignments;
 
-    const userIdStr = String(userId).trim();
-
     return Object.values(assignments).some(
       (group) =>
-        Array.isArray(group.userIds) &&
-        group.userIds.some((id) => String(id).trim() === userIdStr),
+        (Array.isArray(group.userIds) &&
+          group.userIds.some((id) => String(id).trim() === userIdStr)) ||
+        (Array.isArray(group.adminIds) &&
+          group.adminIds.some((id) => String(id).trim() === userIdStr)),
     );
   }
 
@@ -41,19 +55,20 @@ export class AssessmentUseCase {
       .populate("sessionId", "weekNumber topicName status");
   }
 
-  // Ensures assessment is only created/accessed if session is ACTIVE and user is assigned
+  // Ensures assessment is accessed/created for any active or completed session
   static async getOrCreateAssessment(sessionId, userId) {
     const sessionObjId = new mongoose.Types.ObjectId(sessionId);
     const userObjId = new mongoose.Types.ObjectId(userId);
 
     const session = await WlsSessionModel.findById(sessionObjId);
-    if (!session || session.status !== "ACTIVE") {
-      throw new Error(
-        "Cannot access assessments for a session that is not active.",
-      );
+    if (!session) {
+      throw new Error("WLS Session not found.");
+    }
+    if (session.status === "CANCELLED" || session.status === "CANCELED") {
+      throw new Error("Cannot access assessments for a cancelled session.");
     }
 
-    const isAssigned = this._isUserAssignedToSession(session, userId);
+    const isAssigned = await this._isUserAssignedToSession(session, userId);
     if (!isAssigned) {
       throw new Error(
         "User is not assigned to submit an assignment for this session.",
@@ -85,7 +100,9 @@ export class AssessmentUseCase {
 
     return assessments.filter(
       (assessment) =>
-        assessment.sessionId && assessment.sessionId.status === "ACTIVE",
+        assessment.sessionId &&
+        assessment.sessionId.status !== "CANCELLED" &&
+        assessment.sessionId.status !== "CANCELED",
     );
   }
 
@@ -102,7 +119,7 @@ export class AssessmentUseCase {
       throw new Error("Submissions are only allowed for active sessions.");
     }
 
-    const isAssigned = this._isUserAssignedToSession(session, userId);
+    const isAssigned = await this._isUserAssignedToSession(session, userId);
     if (!isAssigned) {
       throw new Error(
         "Unauthorized: You are not assigned to submit an assignment for this session.",

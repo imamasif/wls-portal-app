@@ -38,23 +38,37 @@ import { SessionResources } from "./SessionResources";
 import { SessionChatSection } from "./SessionChatSection";
 import { submitAssessment } from "../api/wlsManagementApi";
 
-const getUserGroup = (groupAssignments, currentUserId) => {
+const getUserGroup = (groupAssignments, currentUserId, userRole) => {
   if (!groupAssignments || typeof groupAssignments !== "object") return null;
-  // Coerce the current user ID to string once for safe comparison
   const uid = String(currentUserId || "");
-  if (!uid) return null;
 
-  for (const [groupNum, groupData] of Object.entries(groupAssignments)) {
-    const isStudent =
-      Array.isArray(groupData?.userIds) &&
-      groupData.userIds.some((id) => String(id) === uid);
-    const isAdmin =
-      Array.isArray(groupData?.adminIds) &&
-      groupData.adminIds.some((id) => String(id) === uid);
-    if (isStudent || isAdmin) {
-      return { groupNumber: groupNum, isStudent, isAdmin, ...groupData };
+  // 1. First check if user is explicitly listed in userIds or adminIds of any group
+  if (uid) {
+    for (const [groupNum, groupData] of Object.entries(groupAssignments)) {
+      const isStudent =
+        Array.isArray(groupData?.userIds) &&
+        groupData.userIds.some((id) => String(id) === uid);
+      const isAdmin =
+        Array.isArray(groupData?.adminIds) &&
+        groupData.adminIds.some((id) => String(id) === uid);
+      if (isStudent || isAdmin) {
+        return { groupNumber: groupNum, isStudent, isAdmin, ...groupData };
+      }
     }
   }
+
+  // 2. If user is SUPER_USER or WLS_ADMIN, allow viewing the group that has ayats, or Group 1
+  if (userRole === "SUPER_USER" || userRole === "WLS_ADMIN") {
+    const entries = Object.entries(groupAssignments);
+    if (entries.length > 0) {
+      const withAyats = entries.find(
+        ([_, g]) => Array.isArray(g?.selectedAyats) && g.selectedAyats.length > 0,
+      );
+      const [groupNum, groupData] = withAyats || entries[0];
+      return { groupNumber: groupNum, isStudent: false, isAdmin: true, ...groupData };
+    }
+  }
+
   return null;
 };
 
@@ -95,7 +109,11 @@ export function WlsSessionCard({
   setCommentInputs,
 }) {
   const sessionId = session.id || session._id;
-  const userGroup = getUserGroup(session.groupAssignments, userId);
+  const userGroup = getUserGroup(
+    session.groupAssignments,
+    userId,
+    currentUser?.role,
+  );
   const currentAssessment = assessmentsMap?.[sessionId];
   const currentStatus = currentAssessment?.status;
   const isCompleted =
