@@ -48,7 +48,7 @@ export function UserMenu({ activeTab, setActiveTab }) {
               <IconSchool size={16} color="var(--mantine-color-indigo-6)" />
             }
           >
-            Weekly Learning Sessions
+            My WLS Session
           </Menu.Item>
 
           <Menu.Divider />

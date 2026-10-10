@@ -48,14 +48,14 @@ export function WlsAdminMenu({ activeTab, setActiveTab }) {
           </Button>
         </Menu.Target>
         <Menu.Dropdown>
-          {/* Point Active Sessions to wls-mgmt */}
+          {/* Point to wls-mgmt */}
           <Menu.Item
             onClick={() => setActiveTab(AppTab.WLS_SESSION)}
             leftSection={
               <IconSchool size={16} color="var(--mantine-color-teal-6)" />
             }
           >
-            Active Sessions
+            My WLS Session
           </Menu.Item>
 
           <Menu.Item

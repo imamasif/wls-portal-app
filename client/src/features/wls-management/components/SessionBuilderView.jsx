@@ -33,6 +33,7 @@ import {
   IconPower,
   IconTrash,
   IconEye,
+  IconCheck,
 } from "@tabler/icons-react";
 import { API_BASE } from "../../../config/constants";
 
@@ -158,6 +159,23 @@ export function SessionBuilderView({
     }
   };
 
+  const handleMarkCompleted = async (session) => {
+    const sId = session.id || session._id;
+    try {
+      const res = await fetch(`${API_BASE}/wls-sessions/${sId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "COMPLETED" }),
+      });
+
+      if (res.ok) {
+        fetchManagedSessions();
+      }
+    } catch (err) {
+      console.error("Failed to mark completed:", err);
+    }
+  };
+
   const handleDeleteSession = async (session) => {
     const sId = session.id || session._id;
     if (
@@ -189,6 +207,13 @@ export function SessionBuilderView({
     e.preventDefault();
     if (!topicName.trim() || !dateTime.trim()) return;
 
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    if (new Date(dateTime) < startOfToday) {
+      alert("Session date cannot be prior to today's date. Backdated sessions are not allowed.");
+      return;
+    }
+
     setIsSubmitting(true);
     const isEditMode = Boolean(activeEditSession?.id || activeEditSession?._id);
 
@@ -206,6 +231,7 @@ export function SessionBuilderView({
       pdfBookletUrls: pdfResourceUrl ? [pdfResourceUrl] : [],
       quranVideoUrls: videoClipUrl ? [videoClipUrl] : [],
       totalGroups,
+      status: isEditMode ? (activeEditSession.status || "ACTIVE") : "ACTIVE",
     };
 
     try {
@@ -225,9 +251,13 @@ export function SessionBuilderView({
         resetForm();
         fetchManagedSessions();
         if (onCreated) onCreated();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || err.message || "Failed to save session.");
       }
     } catch (err) {
       console.error("Error saving session:", err);
+      alert(err.message || "Error saving session.");
     } finally {
       setIsSubmitting(false);
     }
@@ -287,6 +317,7 @@ export function SessionBuilderView({
                     label="Session Date & Time (Toronto ET) *"
                     type="datetime-local"
                     value={dateTime}
+                    min={new Date().toISOString().slice(0, 16)}
                     onChange={(e) => setDateTime(e.target.value)}
                     leftSection={<IconCalendar size={18} />}
                     required
@@ -298,6 +329,7 @@ export function SessionBuilderView({
                     label="Video Submission Deadline"
                     type="datetime-local"
                     value={videoDeadline}
+                    min={new Date().toISOString().slice(0, 16)}
                     onChange={(e) => setVideoDeadline(e.target.value)}
                     leftSection={<IconCalendar size={18} />}
                   />
@@ -461,6 +493,19 @@ export function SessionBuilderView({
                             <IconPower size={16} />
                           </ActionIcon>
                         </Tooltip>
+
+                        {session.status !== "COMPLETED" && (
+                          <Tooltip label="Mark Completed">
+                            <ActionIcon
+                              size="sm"
+                              color="teal"
+                              variant="light"
+                              onClick={() => handleMarkCompleted(session)}
+                            >
+                              <IconCheck size={16} />
+                            </ActionIcon>
+                          </Tooltip>
+                        )}
 
                         <Tooltip label="Delete Session">
                           <ActionIcon
