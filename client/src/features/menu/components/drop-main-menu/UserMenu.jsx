@@ -13,6 +13,7 @@ import {
   IconNotes,
   IconBook,
   IconSitemap,
+  IconChartBar,
 } from "@tabler/icons-react";
 
 export function UserMenu({ activeTab, setActiveTab }) {
@@ -26,6 +27,17 @@ export function UserMenu({ activeTab, setActiveTab }) {
         size="xs"
       >
         Dashboard
+      </Button>
+
+      {/* Direct My Reports Button */}
+      <Button
+        variant={activeTab === AppTab.REPORTS ? "filled" : "subtle"}
+        color="grape"
+        leftSection={<IconChartBar size={18} />}
+        onClick={() => setActiveTab(AppTab.REPORTS)}
+        size="xs"
+      >
+        My Reports
       </Button>
 
       {/* Assignments Dropdown Menu for Users */}
@@ -49,6 +61,15 @@ export function UserMenu({ activeTab, setActiveTab }) {
             }
           >
             My WLS Session
+          </Menu.Item>
+
+          <Menu.Item
+            onClick={() => setActiveTab(AppTab.REPORTS)}
+            leftSection={
+              <IconChartBar size={16} color="var(--mantine-color-grape-6)" />
+            }
+          >
+            My Performance Reports
           </Menu.Item>
 
           <Menu.Divider />

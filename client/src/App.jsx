@@ -105,7 +105,9 @@ export default function App() {
             <SuperUserAssessmentOverview currentUser={user} />
           )}
 
-          {activeTab === AppTab.REPORTS && <WlsReportingDashboard />}
+          {activeTab === AppTab.REPORTS && (
+            <WlsReportingDashboard currentUser={user} />
+          )}
           {activeTab === AppTab.NOTIFICATIONS && (
             <NotificationPanel user={user} />
           )}

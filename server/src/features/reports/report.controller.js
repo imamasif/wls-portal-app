@@ -1,92 +1,48 @@
 import express from "express";
+import { ReportService } from "./report.service.js";
+import { WlsSessionModel } from "../wls-session/wlsSession.model.js";
 
 const router = express.Router();
 
-// GET /api/reports/analytics-report - Direct self-contained payload test
+/**
+ * GET /api/reports/analytics-report
+ * Queries real MongoDB data with optional filters:
+ * ?sessionId=...&userId=...&role=...&groupNumber=...
+ */
 router.get("/analytics-report", async (req, res) => {
-  console.log(
-    "-> [ReportController DIRECT] GET /api/reports/analytics-report hit!",
-  );
-
-  const mockData = {
-    success: true,
-    metrics: {
-      totalSubmissions: 3,
-      multiAdminCount: 2,
-      overallAverageScore: 91,
-      activeGroupsCount: 2,
-    },
-    statusData: [
-      { name: "Completed / Reviewed", value: 2, color: "#40c057" },
-      { name: "Pending Review", value: 1, color: "#fab005" },
-    ],
-    groupPerformanceData: [
-      { group: "Group 1", averageScore: 95 },
-      { group: "Group 2", averageScore: 88 },
-    ],
-    sessionReportData: [
-      { topic: "Tafseer & Recitation Module - Week 1", averageScore: 91 },
-    ],
-    frequencyReportData: [{ period: "Sep 2026", submissions: 3 }],
-    assessments: [
-      {
-        _id: "demo_1",
-        sessionId: "session_demo_1",
-        userId: { name: "Syed Imam", email: "syed@iipccanada.com" },
-        groupNumber: 1,
-        status: "COMPLETED",
-        finalScore: 95,
-        evaluations: [
-          {
-            evaluatorName: "Syed Imam",
-            score: 95,
-            feedback: "Outstanding recitation and analytical presentation.",
-          },
-        ],
-        createdAt: new Date(),
-      },
-      {
-        _id: "demo_2",
-        sessionId: "session_demo_1",
-        userId: { name: "Aisha Rahman", email: "aisha@iipc.org" },
-        groupNumber: 2,
-        status: "SUBMITTED",
-        finalScore: 88,
-        evaluations: [
-          {
-            evaluatorName: "Sheikh Ahmed Khan",
-            score: 88,
-            feedback: "Very good execution of assignment goals.",
-          },
-        ],
-        createdAt: new Date(),
-      },
-      {
-        _id: "demo_3",
-        sessionId: "session_demo_2",
-        userId: { name: "Bilal Khan", email: "bilal@iipc.org" },
-        groupNumber: 1,
-        status: "PENDING",
-        finalScore: 0,
-        evaluations: [],
-        createdAt: new Date(),
-      },
-    ],
-  };
-
-  return res.status(200).json(mockData);
+  try {
+    const { sessionId, userId, role, groupNumber } = req.query;
+    const reportData = await ReportService.getAnalyticsReport({
+      sessionId,
+      userId,
+      role,
+      groupNumber,
+    });
+    return res.status(200).json(reportData);
+  } catch (err) {
+    console.error("Error generating analytics report:", err);
+    return res.status(500).json({
+      success: false,
+      error: "Failed to generate report from live database",
+      details: err.message,
+    });
+  }
 });
 
-// Add to wlsReporting.controller.js
-router.essions = async (req, res) => {
+/**
+ * GET /api/reports/sessions
+ * Helper endpoint returning all sessions for dropdown filters
+ */
+router.get("/sessions", async (req, res) => {
   try {
-    const sessions = await WlsSessionModel.find().sort({
-      sessionDateTimeToronto: -1,
-    });
-    res.json({ success: true, sessions });
+    const sessions = await WlsSessionModel.find()
+      .sort({ sessionDateTimeToronto: -1 })
+      .lean();
+    return res.status(200).json({ success: true, sessions });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    console.error("Error fetching report sessions:", err);
+    return res.status(500).json({ success: false, error: err.message });
   }
-};
+});
 
 export default router;
