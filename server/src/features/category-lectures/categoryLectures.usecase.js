@@ -113,6 +113,10 @@ export class CategoryLecturesUsecase {
                 lecture_id: lecture._id,
               }).lean();
               return {
+                _id: String(lecture._id),
+                id: String(lecture._id),
+                category_id: cat.category_id,
+                category_id_ref: String(cat._id),
                 lecture_id: lecture.lecture_id,
                 lecture_name: lecture.lecture_name,
                 year_delivered: lecture.year_delivered,
@@ -124,6 +128,8 @@ export class CategoryLecturesUsecase {
           );
 
           return {
+            _id: String(cat._id),
+            id: String(cat._id),
             category_id: cat.category_id,
             category_name: cat.category_name,
             language: cat.language || "eng",
