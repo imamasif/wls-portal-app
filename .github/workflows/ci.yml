@@ -1,0 +1,33 @@
+name: CI Quality & Build Check
+
+on:
+  push:
+    branches:
+      - develop
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  validate:
+    name: Validate Client Build & Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Validate Server
+        run: |
+          cd server
+          npm install
+
+      - name: Build Client
+        run: |
+          cd client
+          npm install
+          npm run build
