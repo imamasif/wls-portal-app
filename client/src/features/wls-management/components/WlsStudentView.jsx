@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../../../context/AuthContext";
 import { DualDigitalClock } from "../../../components/DualDigitalClock";
 import {
-  fetchActiveWlsSessions,
+  fetchAllWlsSessionsForUser,
   fetchUserAssessments,
   submitAssessment,
   fetchSessionUserAssessment,
@@ -11,6 +11,88 @@ import {
 import { WlsSessionCard } from "./WlsSessionCard";
 import { Container, Tabs, Stack, Text } from "@mantine/core";
 import { IconClock, IconCheck } from "@tabler/icons-react";
+
+/**
+ * Derive a best-guess IANA timezone from the user's profile (country + city/state).
+ * Falls back to the browser's local timezone if nothing matches.
+ */
+function deriveTimezone(user) {
+  // If the user profile has an explicit IANA timezone string already, use it.
+  const explicit =
+    user?.timezone || user?.timeZone || user?.profile?.timezone;
+  if (explicit) return explicit;
+
+  // Attempt to derive from country + city.  The mapping covers the most common
+  // cities used in this portal. Extend as needed.
+  const country = (user?.country || "").toLowerCase();
+  const city = (user?.city || "").toLowerCase();
+  const state = (user?.state || "").toLowerCase();
+
+  const cityMap = {
+    toronto: "America/Toronto",
+    ottawa: "America/Toronto",
+    montreal: "America/Toronto",
+    vancouver: "America/Vancouver",
+    calgary: "America/Edmonton",
+    edmonton: "America/Edmonton",
+    winnipeg: "America/Winnipeg",
+    halifax: "America/Halifax",
+    // USA
+    "new york": "America/New_York",
+    "new york city": "America/New_York",
+    nyc: "America/New_York",
+    chicago: "America/Chicago",
+    houston: "America/Chicago",
+    dallas: "America/Chicago",
+    phoenix: "America/Phoenix",
+    denver: "America/Denver",
+    "los angeles": "America/Los_Angeles",
+    seattle: "America/Los_Angeles",
+    "san francisco": "America/Los_Angeles",
+    // UK
+    london: "Europe/London",
+    // South Asia
+    karachi: "Asia/Karachi",
+    lahore: "Asia/Karachi",
+    islamabad: "Asia/Karachi",
+    mumbai: "Asia/Kolkata",
+    delhi: "Asia/Kolkata",
+    dhaka: "Asia/Dhaka",
+    // Middle East
+    dubai: "Asia/Dubai",
+    riyadh: "Asia/Riyadh",
+    // Australia
+    sydney: "Australia/Sydney",
+    melbourne: "Australia/Melbourne",
+  };
+
+  for (const [key, tz] of Object.entries(cityMap)) {
+    if (city.includes(key) || state.includes(key)) return tz;
+  }
+
+  // Country-level fallback
+  const countryMap = {
+    canada: "America/Toronto",
+    "united states": "America/New_York",
+    usa: "America/New_York",
+    uk: "Europe/London",
+    "united kingdom": "Europe/London",
+    pakistan: "Asia/Karachi",
+    india: "Asia/Kolkata",
+    bangladesh: "Asia/Dhaka",
+    uae: "Asia/Dubai",
+    "united arab emirates": "Asia/Dubai",
+    australia: "Australia/Sydney",
+  };
+
+  for (const [key, tz] of Object.entries(countryMap)) {
+    if (country.includes(key)) return tz;
+  }
+
+  // Final fallback: browser timezone
+  return Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
 
 export function WlsStudentView({ user: propUser }) {
   const { user: authUser } = useAuth();
@@ -47,25 +129,32 @@ export function WlsStudentView({ user: propUser }) {
   const [assessmentsMap, setAssessmentsMap] = useState({});
   const [apiErrors, setApiErrors] = useState({});
 
-  const userTimeZone =
-    currentUser?.timezone ||
-    currentUser?.timeZone ||
-    currentUser?.profile?.timezone;
+  // Derive the user's timezone from their profile (country/city) or browser fallback
+  const userTimeZone = useMemo(() => deriveTimezone(currentUser), [currentUser]);
 
-  const activeSessionDate =
-    sessions[0]?.sessionDate ||
-    sessions[0]?.startTime ||
-    sessions[0]?.createdAt;
+  // Always point the clock at the next upcoming active session
+  const activeSessionDate = useMemo(() => {
+    const active = sessions.find((s) => s.status === "ACTIVE");
+    return (
+      active?.sessionDateTimeToronto ||
+      active?.sessionDate ||
+      active?.startTime ||
+      sessions[0]?.sessionDateTimeToronto ||
+      sessions[0]?.sessionDate ||
+      sessions[0]?.createdAt
+    );
+  }, [sessions]);
 
   useEffect(() => {
     if (!currentUser) return;
 
     Promise.all([
-      fetchActiveWlsSessions().catch(() => []),
+      // Use the all-for-user endpoint so completed sessions also load
+      fetchAllWlsSessionsForUser().catch(() => []),
       fetchUserAssessments(userId).catch(() => []),
     ])
       .then(([sessionsData, assessmentsData]) => {
-        setSessions(sessionsData);
+        setSessions(Array.isArray(sessionsData) ? sessionsData : []);
 
         const map = {};
         const fetchedUrls = { ...videoUrls };
@@ -77,8 +166,8 @@ export function WlsStudentView({ user: propUser }) {
 
             const sId = assessment.sessionId
               ? typeof assessment.sessionId === "object"
-                ? assessment.sessionId?._id || assessment.sessionId?.id
-                : assessment.sessionId
+                ? String(assessment.sessionId?._id || assessment.sessionId?.id || "")
+                : String(assessment.sessionId)
               : null;
 
             const normalizedAssessment = {
@@ -122,6 +211,7 @@ export function WlsStudentView({ user: propUser }) {
       })
       .catch((err) => console.error("Error fetching data:", err));
   }, [currentUser, userId]);
+
 
   const updateVideoUrlState = (sessionId, url) => {
     const updated = { ...videoUrls, [sessionId]: url };
@@ -293,12 +383,17 @@ export function WlsStudentView({ user: propUser }) {
     } catch (err) {}
   };
 
-  const activeSessionsList = sessions.filter(
-    (s) => !completedTasks[s.id || s._id] && s.status !== "COMPLETED",
-  );
-  const pastSessionsList = sessions.filter(
-    (s) => completedTasks[s.id || s._id] || s.status === "COMPLETED",
-  );
+  // A session is "past/completed" if the SERVER status is COMPLETED,
+  // OR the user locally marked it done via completedTasks.
+  // A session is "active/upcoming" if neither of those is true.
+  const activeSessionsList = sessions.filter((s) => {
+    const sId = String(s.id || s._id || "");
+    return s.status !== "COMPLETED" && !completedTasks[sId];
+  });
+  const pastSessionsList = sessions.filter((s) => {
+    const sId = String(s.id || s._id || "");
+    return s.status === "COMPLETED" || completedTasks[sId];
+  });
 
   return (
     <Container

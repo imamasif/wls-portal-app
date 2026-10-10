@@ -7,6 +7,7 @@ const useCase = new WlsSessionUseCase();
 const controller = new WlsSessionController(useCase);
 
 router.get("/active", controller.getActiveForUser);
+router.get("/all-for-user", controller.getAllForUser);
 router.get("/", controller.getAll);
 router.post("/", controller.create);
 router.put("/:id", controller.update);

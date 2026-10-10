@@ -158,3 +158,15 @@ export const fetchActiveWlsSessions = async () => {
     );
   return data;
 };
+
+// Fetches ALL non-cancelled sessions (active + completed) for the student view
+export const fetchAllWlsSessionsForUser = async () => {
+  const res = await fetch("/api/wls-sessions/all-for-user");
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok)
+    throw new Error(
+      data.error || data.message || "Failed to fetch WLS sessions",
+    );
+  return Array.isArray(data) ? data : [];
+};
+

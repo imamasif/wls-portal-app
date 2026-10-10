@@ -68,7 +68,39 @@ export class WlsSessionUseCase {
     return WlsSessionMapper.toResponseList(docs);
   }
 
+  // Returns ALL non-cancelled sessions (active + completed) for the student view
+  async getAllSessionsForUser() {
+    const docs = await WlsSessionModel.find({
+      status: { $nin: ["CANCELLED", "CANCELED"] },
+    })
+      .lean()
+      .sort({ sessionDateTimeToronto: -1 });
+    return this._populateAdminNames(docs);
+  }
+
   async createSession(dto) {
+    // Enforce only ONE active session per calendar date (Toronto calendar day)
+    if (dto.sessionDateTimeToronto) {
+      const incoming = new Date(dto.sessionDateTimeToronto);
+      // Build start/end of that day in UTC (Toronto is UTC-4/UTC-5; 
+      // using a ±1 day window in UTC is safe enough to catch same-day duplicates)
+      const dayStart = new Date(incoming);
+      dayStart.setUTCHours(0, 0, 0, 0);
+      const dayEnd = new Date(incoming);
+      dayEnd.setUTCHours(23, 59, 59, 999);
+
+      const existing = await WlsSessionModel.findOne({
+        status: WLS_SESSION_STATUSES.ACTIVE,
+        sessionDateTimeToronto: { $gte: dayStart, $lte: dayEnd },
+      }).lean();
+
+      if (existing) {
+        throw new Error(
+          `An active WLS session already exists on ${incoming.toDateString()}. Only one active session is allowed per day. Please complete or cancel the existing session first.`
+        );
+      }
+    }
+
     const created = await WlsSessionModel.create(dto);
     return WlsSessionMapper.toResponse(created);
   }

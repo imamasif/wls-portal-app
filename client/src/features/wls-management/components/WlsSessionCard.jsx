@@ -40,13 +40,17 @@ import { submitAssessment } from "../api/wlsManagementApi";
 
 const getUserGroup = (groupAssignments, currentUserId) => {
   if (!groupAssignments || typeof groupAssignments !== "object") return null;
+  // Coerce the current user ID to string once for safe comparison
+  const uid = String(currentUserId || "");
+  if (!uid) return null;
+
   for (const [groupNum, groupData] of Object.entries(groupAssignments)) {
     const isStudent =
       Array.isArray(groupData?.userIds) &&
-      groupData.userIds.includes(currentUserId);
+      groupData.userIds.some((id) => String(id) === uid);
     const isAdmin =
       Array.isArray(groupData?.adminIds) &&
-      groupData.adminIds.includes(currentUserId);
+      groupData.adminIds.some((id) => String(id) === uid);
     if (isStudent || isAdmin) {
       return { groupNumber: groupNum, isStudent, isAdmin, ...groupData };
     }
@@ -317,8 +321,8 @@ export function WlsSessionCard({
                 "WLS Study Session"}
             </Text>
             <Text size="xs" c="dimmed">
-              {session.sessionDate
-                ? new Date(session.sessionDate).toLocaleDateString("en-US", {
+              {(session.sessionDateTimeToronto || session.sessionDate || session.startTime)
+                ? new Date(session.sessionDateTimeToronto || session.sessionDate || session.startTime).toLocaleDateString("en-US", {
                     weekday: "long",
                     month: "short",
                     day: "numeric",

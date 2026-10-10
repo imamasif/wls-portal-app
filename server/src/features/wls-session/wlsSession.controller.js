@@ -24,6 +24,17 @@ export class WlsSessionController {
     }
   };
 
+  // Returns all non-cancelled sessions (active + completed) for student portals
+  getAllForUser = async (req, res) => {
+    try {
+      const data = await this.useCase.getAllSessionsForUser();
+      res.json(data);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  };
+
+
   create = async (req, res) => {
     if (!validateCreateWlsSession(req.body)) {
       return res.status(400).json({ errors: validateCreateWlsSession.errors });
