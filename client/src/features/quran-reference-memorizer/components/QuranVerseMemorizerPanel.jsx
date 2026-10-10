@@ -55,8 +55,10 @@ const customStyles = `
       inset 0 1.5px 1px rgba(255, 255, 255, 1),
       inset 0 -2px 4px rgba(0, 0, 0, 0.03);
     position: relative;
-    overflow: hidden;
-    padding: 22px;
+    overflow: visible !important;
+    padding: 24px 28px;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .apple-embossed-card::before {
@@ -142,17 +144,14 @@ const customStyles = `
 
   /* Popover Dropdown Window */
   .apple-dropdown-popover {
-    background: rgba(255, 255, 255, 0.96);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border: 1px solid rgba(220, 225, 235, 0.9);
-    border-radius: 18px;
+    background: #ffffff;
+    border: 1px solid rgba(195, 205, 220, 0.95);
+    border-radius: 16px;
     box-shadow: 
-      0 20px 40px rgba(0, 0, 0, 0.12),
-      0 4px 12px rgba(0, 0, 0, 0.05),
-      inset 0 1px 1px rgba(255, 255, 255, 0.9);
+      0 20px 45px rgba(0, 0, 0, 0.16),
+      0 6px 16px rgba(0, 0, 0, 0.08);
     padding: 10px;
-    z-index: 1000;
+    z-index: 9999 !important;
   }
 
   /* Search Input inside Dropdown */
@@ -351,7 +350,14 @@ const CustomMultiSelect = ({
   }, [options, selectedIds]);
 
   return (
-    <div style={{ position: "relative", width: "100%" }} ref={containerRef}>
+    <div
+      style={{
+        position: "relative",
+        width: "100%",
+        zIndex: isOpen ? 100 : 1,
+      }}
+      ref={containerRef}
+    >
       {/* Header Label */}
       <div
         style={{
@@ -471,9 +477,9 @@ const CustomMultiSelect = ({
             top: "calc(100% + 6px)",
             left: 0,
             right: 0,
-            maxHeight: 280,
+            maxHeight: 380,
             overflowY: "auto",
-            zIndex: 1000,
+            zIndex: 9999,
           }}
         >
           {/* Search Box inside Dropdown */}
@@ -993,7 +999,7 @@ export default function QuranVerseMemorizerPanel() {
         onError={() => setIsPlayingAudio(false)}
       />
 
-      <Container size="lg" py="md">
+      <Container size="xl" py="md" maw={1400} w="100%">
         <Stack gap="md">
           <QuranHeader
             dataSource={dataSource}
@@ -1054,138 +1060,153 @@ export default function QuranVerseMemorizerPanel() {
 
           {/* APPLE EMBOSSED INTERACTIVE CURRICULUM STUDIO */}
           {isStudioOpen && (
-            <div className="apple-container">
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))",
-                  gap: 24,
-                  alignItems: "start",
-                }}
-              >
-                {/* LEFT PANEL: Tactile Control Card */}
-                <div className="apple-embossed-card">
-                  {/* Card Header */}
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      marginBottom: 20,
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <div
-                        style={{
-                          width: 38,
-                          height: 38,
-                          borderRadius: 12,
-                          background:
-                            "linear-gradient(135deg, #007AFF 0%, #0056b3 100%)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          color: "#ffffff",
-                          boxShadow: "0 4px 12px rgba(0, 122, 255, 0.35)",
-                        }}
-                      >
-                        <SlidersHorizontal size={20} />
-                      </div>
-                      <div>
-                        <h3
-                          style={{
-                            fontSize: 16,
-                            fontWeight: 600,
-                            color: "#1d1d1f",
-                            margin: 0,
-                          }}
-                        >
-                          Curriculum Studio
-                        </h3>
-                        <span style={{ fontSize: 12, color: "#8e8e93" }}>
-                          Configure categories &amp; lectures
-                        </span>
-                      </div>
-                    </div>
-
-                    {(selectedCategoryIds.length > 0 ||
-                      selectedLectureIds.length > 0) && (
-                      <button
-                        onClick={handleResetAll}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          color: "#8e8e93",
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4,
-                          fontSize: 12,
-                          fontWeight: 500,
-                        }}
-                        title="Reset all filters"
-                      >
-                        <RotateCcw size={14} /> Reset All
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Dropdown Control Stack */}
-                  <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-                    {/* Categories Multi-Select */}
-                    <CustomMultiSelect
-                      title="Filter Categories"
-                      icon={Folder}
-                      options={availableCategoryOptions}
-                      selectedIds={selectedCategoryIds}
-                      onChange={setSelectedCategoryIds}
-                      placeholder="Choose categories..."
-                    />
-
-                    {/* Lectures Multi-Select */}
-                    <CustomMultiSelect
-                      title="Select Specific Lectures"
-                      icon={BookOpen}
-                      options={filteredAvailableLectures}
-                      selectedIds={selectedLectureIds}
-                      onChange={setSelectedLectureIds}
-                      placeholder={
-                        filteredAvailableLectures.length === 0
-                          ? "No lectures found..."
-                          : "Choose lectures..."
-                      }
-                    />
-
-                    {/* Summary Stats Pill */}
+            <div className="apple-container" style={{ width: "100%", maxWidth: "100%", marginBottom: "1rem" }}>
+              <div className="apple-embossed-card" style={{ width: "100%" }}>
+                {/* Card Header */}
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: 20,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                     <div
                       style={{
-                        background: "rgba(240, 243, 248, 0.8)",
-                        border: "1px solid rgba(215, 220, 230, 0.7)",
-                        borderRadius: 14,
-                        padding: "10px 14px",
+                        width: 38,
+                        height: 38,
+                        borderRadius: 12,
+                        background:
+                          "linear-gradient(135deg, #007AFF 0%, #0056b3 100%)",
                         display: "flex",
-                        justifyContent: "space-between",
                         alignItems: "center",
+                        justifyContent: "center",
+                        color: "#ffffff",
+                        boxShadow: "0 4px 12px rgba(0, 122, 255, 0.35)",
                       }}
                     >
-                      <span
+                      <SlidersHorizontal size={20} />
+                    </div>
+                    <div>
+                      <h3
                         style={{
-                          fontSize: 12,
-                          color: "#8e8e93",
-                          fontWeight: 500,
+                          fontSize: 17,
+                          fontWeight: 600,
+                          color: "#1d1d1f",
+                          margin: 0,
                         }}
                       >
-                        Selected Verses Pool:
-                      </span>
-                      <span
-                        className="apple-pill"
-                        style={{ background: "#007AFF", color: "#fff" }}
-                      >
-                        {customLectureAyatPool.length} Verses Ready ({displayLectures.length} Lectures)
+                        Curriculum Studio
+                      </h3>
+                      <span style={{ fontSize: 12, color: "#8e8e93" }}>
+                        Configure categories &amp; lectures
                       </span>
                     </div>
+                  </div>
 
-                    {/* Action Button */}
+                  {(selectedCategoryIds.length > 0 ||
+                    selectedLectureIds.length > 0) && (
+                    <button
+                      onClick={handleResetAll}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: "#8e8e93",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 4,
+                        fontSize: 12,
+                        fontWeight: 500,
+                      }}
+                      title="Reset all filters"
+                    >
+                      <RotateCcw size={14} /> Reset All
+                    </button>
+                  )}
+                </div>
+
+                {/* Wide 2-Column Responsive Layout for Pickers */}
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))",
+                    gap: 22,
+                    marginBottom: 22,
+                  }}
+                >
+                  {/* Categories Multi-Select */}
+                  <CustomMultiSelect
+                    title="Filter Categories"
+                    icon={Folder}
+                    options={availableCategoryOptions}
+                    selectedIds={selectedCategoryIds}
+                    onChange={setSelectedCategoryIds}
+                    placeholder="Choose categories..."
+                  />
+
+                  {/* Lectures Multi-Select */}
+                  <CustomMultiSelect
+                    title="Select Specific Lectures"
+                    icon={BookOpen}
+                    options={filteredAvailableLectures}
+                    selectedIds={selectedLectureIds}
+                    onChange={setSelectedLectureIds}
+                    placeholder={
+                      filteredAvailableLectures.length === 0
+                        ? "No lectures found..."
+                        : "Choose lectures..."
+                    }
+                  />
+                </div>
+
+                {/* Bottom Action Row: Summary Stats Pill & Embossed Start Button */}
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 16,
+                    paddingTop: 16,
+                    borderTop: "1px solid rgba(220, 226, 236, 0.75)",
+                  }}
+                >
+                  <div
+                    style={{
+                      background: "rgba(240, 243, 248, 0.85)",
+                      border: "1px solid rgba(215, 220, 230, 0.7)",
+                      borderRadius: 14,
+                      padding: "10px 16px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: 13,
+                        color: "#6c757d",
+                        fontWeight: 500,
+                      }}
+                    >
+                      Active Pool:
+                    </span>
+                    <span
+                      className="apple-pill"
+                      style={{
+                        background: "#007AFF",
+                        color: "#fff",
+                        fontSize: 12,
+                        padding: "4px 12px",
+                      }}
+                    >
+                      {customLectureAyatPool.length} Verses Ready ({displayLectures.length} Lectures)
+                    </span>
+                  </div>
+
+                  <div style={{ flex: "1 1 300px", maxWidth: "460px" }}>
                     <button
                       className="apple-button-embossed"
                       onClick={() => {
@@ -1214,201 +1235,6 @@ export default function QuranVerseMemorizerPanel() {
                         </>
                       )}
                     </button>
-                  </div>
-                </div>
-
-                {/* RIGHT PANEL: Dynamic Curriculum Preview */}
-                <div
-                  className="apple-embossed-card custom-scrollbar"
-                  style={{
-                    maxHeight: 520,
-                    overflowY: "auto",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      marginBottom: 16,
-                      position: "sticky",
-                      top: 0,
-                      background: "rgba(255,255,255,0.95)",
-                      backdropFilter: "blur(10px)",
-                      paddingBottom: 8,
-                      zIndex: 2,
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <Compass size={20} color="#007AFF" />
-                      <h3
-                        style={{
-                          fontSize: 16,
-                          fontWeight: 600,
-                          color: "#1d1d1f",
-                          margin: 0,
-                        }}
-                      >
-                        Active Curriculum
-                      </h3>
-                    </div>
-                    <span style={{ fontSize: 12, color: "#8e8e93" }}>
-                      {displayLectures.length} lecture{displayLectures.length !== 1 ? "s" : ""} shown
-                    </span>
-                  </div>
-
-                  {/* List of Filtered Items */}
-                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    {displayLectures.length === 0 ? (
-                      <div
-                        style={{
-                          padding: "40px 20px",
-                          textAlign: "center",
-                          background: "rgba(245, 247, 250, 0.6)",
-                          borderRadius: 16,
-                          border: "1px dashed #cbd5e1",
-                        }}
-                      >
-                        <BookOpen
-                          size={36}
-                          color="#a0aec0"
-                          style={{ marginBottom: 10 }}
-                        />
-                        <div
-                          style={{
-                            fontSize: 14,
-                            fontWeight: 600,
-                            color: "#4a5568",
-                          }}
-                        >
-                          No lectures matched
-                        </div>
-                        <div
-                          style={{
-                            fontSize: 12,
-                            color: "#8e8e93",
-                            marginTop: 4,
-                          }}
-                        >
-                          Try selecting different categories or clearing filters.
-                        </div>
-                      </div>
-                    ) : (
-                      displayLectures.map((lec) => (
-                        <div key={lec.id} className="apple-lecture-card">
-                          <div
-                            style={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "flex-start",
-                              gap: 12,
-                            }}
-                          >
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div
-                                style={{
-                                  display: "flex",
-                                  gap: 6,
-                                  marginBottom: 6,
-                                  flexWrap: "wrap",
-                                }}
-                              >
-                                <span
-                                  className="apple-pill"
-                                  style={{
-                                    background: "rgba(0, 122, 255, 0.1)",
-                                    color: "#007AFF",
-                                  }}
-                                >
-                                  📁 {lec.categoryName}
-                                </span>
-                                <span
-                                  className="apple-pill"
-                                  style={{
-                                    background: "#f0f2f5",
-                                    color: "#616161",
-                                    border: "1px solid #e0e0e0",
-                                  }}
-                                >
-                                  {lec.totalAyats} ayat
-                                </span>
-                              </div>
-
-                              <h4
-                                style={{
-                                  fontSize: 14,
-                                  fontWeight: 600,
-                                  color: "#1d1d1f",
-                                  lineHeight: 1.4,
-                                  margin: 0,
-                                }}
-                              >
-                                {lec.title}
-                              </h4>
-
-                              <div
-                                style={{
-                                  display: "flex",
-                                  gap: 14,
-                                  marginTop: 8,
-                                }}
-                              >
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 4,
-                                    fontSize: 11,
-                                    color: "#8e8e93",
-                                  }}
-                                >
-                                  <User size={12} />
-                                  <span>{lec.instructor || "IIPC Canada"}</span>
-                                </div>
-                                {lec.year && (
-                                  <div
-                                    style={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: 4,
-                                      fontSize: 11,
-                                      color: "#8e8e93",
-                                    }}
-                                  >
-                                    <Clock size={12} />
-                                    <span>{lec.year}</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Play / Practice Action */}
-                            <div
-                              style={{
-                                width: 34,
-                                height: 34,
-                                borderRadius: "50%",
-                                background: "rgba(0, 122, 255, 0.1)",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                color: "#007AFF",
-                                cursor: "pointer",
-                                flexShrink: 0,
-                              }}
-                              title="Practice this lecture specifically"
-                              onClick={() => {
-                                setSelectedLectureIds([lec.id]);
-                                setDataSource("lectures");
-                                loadNextAyah();
-                              }}
-                            >
-                              <Play size={14} style={{ marginLeft: 2 }} />
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    )}
                   </div>
                 </div>
               </div>
