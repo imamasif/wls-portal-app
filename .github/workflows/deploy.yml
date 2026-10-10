@@ -21,13 +21,13 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           password: ${{ secrets.SERVER_PASSWORD }}
           port: ${{ secrets.SERVER_PORT || 22 }}
-          script_stop: true
           script: |
             echo "🚀 [Deploy] Starting deployment on production server..."
             cd /var/www/wls-portal
 
             echo "📥 [Deploy] Pulling latest changes from main..."
             git fetch origin main
+            git checkout -f main
             git reset --hard origin/main
 
             echo "📦 [Deploy] Installing server dependencies..."
@@ -39,11 +39,11 @@ jobs:
             npm install
             npm run build
 
-            echo "🔄 [Deploy] Reloading backend process with PM2..."
-            pm2 reload wls-backend || pm2 restart wls-backend || pm2 start "npx tsx server.js" --name wls-backend
+            echo "🔄 [Deploy] Restarting backend process with PM2..."
+            pm2 restart wls-backend || pm2 start "npx tsx server.js" --name wls-backend
             pm2 save
 
-            echo "🔍 [Deploy] Verifying status..."
+            echo "🔍 [Deploy] Verifying PM2 status..."
             pm2 status wls-backend
 
             echo "✅ [Deploy] Successfully deployed to https://wls-portal.iipc.ca!"
