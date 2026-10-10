@@ -15,6 +15,19 @@ export default defineConfig(({ mode }) => {
         '@': path.resolve(__dirname, './src'),
       },
     },
+    build: {
+      chunkSizeWarningLimit: 2000,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'vendor-react': ['react', 'react-dom'],
+            'vendor-mantine': ['@mantine/core', '@mantine/hooks'],
+            'vendor-charts': ['recharts'],
+            'vendor-icons': ['@tabler/icons-react', 'lucide-react'],
+          },
+        },
+      },
+    },
     server: {
       port: 5173,
       proxy: {

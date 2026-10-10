@@ -14,7 +14,18 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Deploy via SSH
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build Client on GitHub Actions
+        run: |
+          cd client
+          npm install
+          npm run build
+
+      - name: Deploy Server Code & Dependencies via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -22,6 +33,7 @@ jobs:
           password: ${{ secrets.SERVER_PASSWORD }}
           port: ${{ secrets.SERVER_PORT || 22 }}
           script: |
+            set -e
             echo "🚀 [Deploy] Starting deployment on production server..."
             cd /var/www/wls-portal
 
@@ -34,11 +46,6 @@ jobs:
             cd /var/www/wls-portal/server
             npm install --production=false
 
-            echo "🎨 [Deploy] Building client production bundle..."
-            cd /var/www/wls-portal/client
-            npm install
-            npm run build
-
             echo "🔄 [Deploy] Restarting backend process with PM2..."
             pm2 restart wls-backend || pm2 start "npx tsx server.js" --name wls-backend
             pm2 save
@@ -46,4 +53,18 @@ jobs:
             echo "🔍 [Deploy] Verifying PM2 status..."
             pm2 status wls-backend
 
-            echo "✅ [Deploy] Successfully deployed to https://wls-portal.iipc.ca!"
+      - name: Deploy Built Client Dist to Server via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: ${{ secrets.SERVER_PORT || 22 }}
+          source: "client/dist"
+          target: "/var/www/wls-portal/client"
+          overwrite: true
+          strip_components: 1
+
+      - name: Deployment Success Notification
+        run: |
+          echo "✅ [Deploy] Successfully built on CI runner and deployed to https://wls-portal.iipc.ca!"
