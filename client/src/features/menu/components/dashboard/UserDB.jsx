@@ -22,7 +22,7 @@ import {
 export function UserDB({ setActiveTab }) {
   const cards = [
     {
-      title: "My Sessions",
+      title: "My WLS Session",
       description:
         "Access active live weekly sessions and educational materials.",
       icon: IconSchool,

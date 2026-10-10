@@ -24,7 +24,7 @@ import {
 export function WlsAdminDB({ setActiveTab }) {
   const cards = [
     {
-      title: "Active Sessions",
+      title: "My WLS Session",
       description: "Monitor ongoing weekly leadership sessions and attendance.",
       icon: IconSchool,
       color: "teal",

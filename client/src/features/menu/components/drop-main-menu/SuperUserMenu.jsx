@@ -55,7 +55,7 @@ export function SuperUserMenu({ activeTab, setActiveTab }) {
               <IconSchool size={16} color="var(--mantine-color-teal-6)" />
             }
           >
-            Active Sessions
+            My WLS Session
           </Menu.Item>
 
           <Menu.Item

@@ -44,6 +44,7 @@ export function WlsManagementPanel() {
 
   const [topicName, setTopicName] = useState("");
   const [sessionDate, setSessionDate] = useState(null);
+  const [dateError, setDateError] = useState(null);
   const [videoDeadline, setVideoDeadline] = useState(null);
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState("NEW");
@@ -185,6 +186,14 @@ export function WlsManagementPanel() {
         : videoDeadline
           ? new Date(videoDeadline)
           : null;
+
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    if (dateObj < startOfToday) {
+      alert("Session date cannot be prior to today's date. Backdated sessions are not allowed.");
+      return;
+    }
 
     const cleanPdfUrls = pdfUrls.map((url) => url.trim()).filter(Boolean);
     const cleanVideoUrls = quranVideoUrls
@@ -449,7 +458,22 @@ export function WlsManagementPanel() {
                     label="Session Date & Time (Toronto ET)"
                     placeholder="Pick date and time"
                     value={sessionDate}
-                    onChange={setSessionDate}
+                    onChange={(val) => {
+                      setSessionDate(val);
+                      if (val) {
+                        const startOfToday = new Date();
+                        startOfToday.setHours(0, 0, 0, 0);
+                        if (new Date(val) < startOfToday) {
+                          setDateError("Session date cannot be prior to today's date.");
+                        } else {
+                          setDateError(null);
+                        }
+                      } else {
+                        setDateError(null);
+                      }
+                    }}
+                    minDate={new Date()}
+                    error={dateError}
                     required
                   />
                 </Grid.Col>
@@ -459,6 +483,7 @@ export function WlsManagementPanel() {
                     placeholder="Select last date/time to submit video"
                     value={videoDeadline}
                     onChange={setVideoDeadline}
+                    minDate={new Date()}
                   />
                 </Grid.Col>
               </Grid>

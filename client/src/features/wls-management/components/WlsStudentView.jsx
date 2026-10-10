@@ -186,11 +186,7 @@ export function WlsStudentView({ user: propUser }) {
                   assessment.submissionUrls[0]);
 
               if (savedUrl) fetchedUrls[sId] = savedUrl;
-              if (
-                assessment.status === "COMPLETED" ||
-                assessment.status === "SUBMITTED" ||
-                assessment.status === "UNDER_REVIEW"
-              ) {
+              if (assessment.status === "COMPLETED") {
                 fetchedCompleted[sId] = true;
               }
             }
@@ -384,16 +380,20 @@ export function WlsStudentView({ user: propUser }) {
   };
 
   // A session is "past/completed" if the SERVER status is COMPLETED,
-  // OR the user locally marked it done via completedTasks.
-  // A session is "active/upcoming" if neither of those is true.
-  const activeSessionsList = sessions.filter((s) => {
+  // OR the user locally marked it done via completedTasks,
+  // OR the assessment status in DB is COMPLETED.
+  // A session is "active/upcoming" if none of those is true.
+  const isSessionDone = (s) => {
     const sId = String(s.id || s._id || "");
-    return s.status !== "COMPLETED" && !completedTasks[sId];
-  });
-  const pastSessionsList = sessions.filter((s) => {
-    const sId = String(s.id || s._id || "");
-    return s.status === "COMPLETED" || completedTasks[sId];
-  });
+    return (
+      s.status === "COMPLETED" ||
+      Boolean(completedTasks[sId]) ||
+      assessmentsMap[sId]?.status === "COMPLETED"
+    );
+  };
+
+  const activeSessionsList = sessions.filter((s) => !isSessionDone(s));
+  const pastSessionsList = sessions.filter((s) => isSessionDone(s));
 
   return (
     <Container
@@ -411,10 +411,10 @@ export function WlsStudentView({ user: propUser }) {
       <Tabs defaultValue="active" mt="md">
         <Tabs.List mb="md">
           <Tabs.Tab value="active" leftSection={<IconClock size={16} />}>
-            Active / Upcoming Sessions ({activeSessionsList.length})
+            My WLS Session ({activeSessionsList.length})
           </Tabs.Tab>
           <Tabs.Tab value="past" leftSection={<IconCheck size={16} />}>
-            Past / Completed Sessions ({pastSessionsList.length})
+            Past Completed Sessions ({pastSessionsList.length})
           </Tabs.Tab>
         </Tabs.List>
 

@@ -79,26 +79,24 @@ export class WlsSessionUseCase {
   }
 
   async createSession(dto) {
-    // Enforce only ONE active session per calendar date (Toronto calendar day)
     if (dto.sessionDateTimeToronto) {
       const incoming = new Date(dto.sessionDateTimeToronto);
-      // Build start/end of that day in UTC (Toronto is UTC-4/UTC-5; 
-      // using a ±1 day window in UTC is safe enough to catch same-day duplicates)
-      const dayStart = new Date(incoming);
-      dayStart.setUTCHours(0, 0, 0, 0);
-      const dayEnd = new Date(incoming);
-      dayEnd.setUTCHours(23, 59, 59, 999);
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
 
-      const existing = await WlsSessionModel.findOne({
-        status: WLS_SESSION_STATUSES.ACTIVE,
-        sessionDateTimeToronto: { $gte: dayStart, $lte: dayEnd },
-      }).lean();
-
-      if (existing) {
+      if (incoming < startOfToday) {
         throw new Error(
-          `An active WLS session already exists on ${incoming.toDateString()}. Only one active session is allowed per day. Please complete or cancel the existing session first.`
+          "Session date cannot be prior to today's date. Backdated sessions are not allowed."
         );
       }
+    }
+
+    // Enforce only ONE active session at a time across the entire portal
+    if (dto.status === WLS_SESSION_STATUSES.ACTIVE) {
+      await WlsSessionModel.updateMany(
+        { status: WLS_SESSION_STATUSES.ACTIVE },
+        { $set: { status: WLS_SESSION_STATUSES.COMPLETED } },
+      );
     }
 
     const created = await WlsSessionModel.create(dto);
@@ -147,6 +145,26 @@ export class WlsSessionUseCase {
   }
 
   async updateSession(id, dto) {
+    if (dto.sessionDateTimeToronto) {
+      const incoming = new Date(dto.sessionDateTimeToronto);
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+
+      if (incoming < startOfToday) {
+        throw new Error(
+          "Session date cannot be prior to today's date. Backdated sessions are not allowed."
+        );
+      }
+    }
+
+    // Enforce only ONE active session at a time
+    if (dto.status === WLS_SESSION_STATUSES.ACTIVE) {
+      await WlsSessionModel.updateMany(
+        { status: WLS_SESSION_STATUSES.ACTIVE, _id: { $ne: id } },
+        { $set: { status: WLS_SESSION_STATUSES.COMPLETED } },
+      );
+    }
+
     const updated = await WlsSessionModel.findByIdAndUpdate(
       id,
       {
@@ -157,7 +175,7 @@ export class WlsSessionUseCase {
         pdfBookletUrls: dto.pdfBookletUrls,
         quranVideoUrls: dto.quranVideoUrls,
         groupAssignments: dto.groupAssignments,
-        status: dto.status, // <--- Add this line here
+        status: dto.status,
       },
       { new: true, runValidators: true },
     );
@@ -169,3 +187,4 @@ export class WlsSessionUseCase {
     return WlsSessionMapper.toResponse(updated);
   }
 }
+
