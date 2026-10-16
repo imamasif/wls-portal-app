@@ -593,29 +593,32 @@ export default function QuranVerseMemorizerPanel() {
     });
   }, []);
 
-  // Compute unique and valid English categories
+  // Compute unique and valid categories (including both English and Urdu with ayats)
   const availableCategoryOptions = useMemo(() => {
     if (!Array.isArray(metaCategories)) return [];
     const list = [];
     metaCategories.forEach((cat) => {
       const lang = (cat.language || "eng").toLowerCase();
-      if (lang === "eng") {
-        const catId = String(cat.category_id ?? cat.categoryId ?? cat._id);
-        const catName =
-          cat.category_name ?? cat.categoryName ?? `Category ${catId}`;
-        const totalLectures =
-          cat.total_lectures ?? (cat.lectures ? cat.lectures.length : 0);
-        list.push({
-          id: catId,
-          _id: String(cat._id || catId),
-          label: catName,
-          title: catName,
-          icon: "📁",
-          instructor: `${totalLectures} lectures`,
-          duration: `${totalLectures} lectures`,
-          totalLectures,
-        });
-      }
+      const catId = String(cat.category_id ?? cat.categoryId ?? cat._id);
+      const catName =
+        cat.category_name ?? cat.categoryName ?? `Category ${catId}`;
+      const totalLectures =
+        cat.total_lectures ?? (cat.lectures ? cat.lectures.length : 0);
+
+      if (totalLectures === 0 && (!cat.lectures || cat.lectures.length === 0)) return;
+
+      const langTag = lang === "urdu" ? " [Urdu]" : "";
+      list.push({
+        id: catId,
+        _id: String(cat._id || catId),
+        label: `${catName}${langTag}`,
+        title: `${catName}${langTag}`,
+        language: lang,
+        icon: lang === "urdu" ? "📗" : "📁",
+        instructor: `${totalLectures} lectures (${lang.toUpperCase()})`,
+        duration: `${totalLectures} lectures`,
+        totalLectures,
+      });
     });
     return list;
   }, [metaCategories]);
@@ -628,8 +631,6 @@ export default function QuranVerseMemorizerPanel() {
 
     metaCategories.forEach((cat) => {
       const lang = (cat.language || "eng").toLowerCase();
-      if (lang !== "eng") return;
-
       const catId = String(cat.category_id ?? cat.categoryId ?? cat._id);
       const isCategorySelected =
         selectedCategoryIds.length === 0 ||
@@ -647,20 +648,22 @@ export default function QuranVerseMemorizerPanel() {
             b.total_ayats ??
             (b.ayat_references ? b.ayat_references.length : 0);
 
+          const langTag = lang === "urdu" ? " [Urdu]" : "";
           lectures.push({
             id: uniqueId,
             uniqueId,
             categoryId: catId,
             categoryName: cat.category_name || `Category ${catId}`,
-            title: lName,
-            label: `${lName} (${count} ayat)`,
+            language: lang,
+            title: `${lName}${langTag}`,
+            label: `${lName}${langTag} (${count} ayat)`,
             lectureNumber: lNum,
             totalAyats: count,
             duration: `${count} ayat`,
             instructor: cat.category_name || "IIPC Canada",
             year: b.year_delivered || "",
             level: `${count} ayat`,
-            icon: "📖",
+            icon: lang === "urdu" ? "📗" : "📖",
             rawLecture: b,
           });
         });
@@ -716,7 +719,7 @@ export default function QuranVerseMemorizerPanel() {
           surahNumber: ayat.surah_number,
           ayatNumber: ayat.ayat_number,
           english_translation: eng,
-          translation: eng,
+          translation: eng || urdu || hindi,
           urdu_translation: urdu,
           translationUrdu: urdu,
           hindi_translation: hindi,
@@ -725,10 +728,14 @@ export default function QuranVerseMemorizerPanel() {
             ayat.points_notes ||
             ayat.points_notes_eng ||
             ayat.points_notes_urdu ||
+            ayat.points_notes_hindi ||
             "",
           audioUrl:
             ayat.youtube_url_eng ||
+            ayat.youtube_url_urdu ||
             ayat.youtube_url ||
+            ayat.video_url_eng ||
+            ayat.video_url_urdu ||
             ayat.video_url ||
             "",
           lectureTitle: lec.title,

@@ -5,6 +5,7 @@ export const USER_ROLES = {
   WLS_ADMIN: "WLS_ADMIN",
   USER: "USER",
 };
+export const UserRole = USER_ROLES;
 
 export const ASSESSMENT_STATUSES = {
   PENDING: "PENDING",
@@ -14,12 +15,14 @@ export const ASSESSMENT_STATUSES = {
   REVIEWED: "REVIEWED", // <-- Admin marked their grading as done
   COMPLETED: "COMPLETED", // <-- Reserved for Super User overall completion
 };
+export const AssessmentStatus = ASSESSMENT_STATUSES;
 
 export const CONCLUSION_STATUSES = {
   PENDING: "PENDING",
   PASSED: "PASSED",
   FAILED: "FAILED",
 };
+export const ConclusionStatus = CONCLUSION_STATUSES;
 
 export const WLS_SESSION_STATUSES = {
   NEW: "NEW",
@@ -27,6 +30,8 @@ export const WLS_SESSION_STATUSES = {
   INACTIVE: "INACTIVE",
   COMPLETED: "COMPLETED",
 };
+export const WlsSessionStatus = WLS_SESSION_STATUSES;
+
 
 export const SYSTEM_ROLES = [
   { value: "SUPER_USER", label: "SUPER USER" },

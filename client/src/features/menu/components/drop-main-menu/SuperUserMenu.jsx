@@ -20,7 +20,10 @@ import {
   IconBook,
   IconSitemap,
   IconCircleCheck,
+  IconDatabase,
+  IconSparkles,
 } from "@tabler/icons-react";
+
 
 export function SuperUserMenu({ activeTab, setActiveTab }) {
   return (
@@ -239,6 +242,24 @@ export function SuperUserMenu({ activeTab, setActiveTab }) {
           </Menu.Item>
           <Menu.Divider />
           <Menu.Item
+            onClick={() => setActiveTab(AppTab.QURAN_EXPLORER)}
+            leftSection={
+              <IconSparkles size={16} color="var(--mantine-color-grape-6)" />
+            }
+          >
+            Quran Sticky Notes Explorer
+          </Menu.Item>
+          <Menu.Divider />
+          <Menu.Item
+            onClick={() => setActiveTab(AppTab.AYAT_MANAGER)}
+            leftSection={
+              <IconDatabase size={16} color="var(--mantine-color-teal-6)" />
+            }
+          >
+            Ayats Database Studio
+          </Menu.Item>
+          <Menu.Divider />
+          <Menu.Item
             onClick={() => setActiveTab(AppTab.QURAN_TREE)}
             leftSection={
               <IconSitemap size={16} color="var(--mantine-color-emerald-6)" />
@@ -246,6 +267,7 @@ export function SuperUserMenu({ activeTab, setActiveTab }) {
           >
             Quran Morphology Tree
           </Menu.Item>
+
         </Menu.Dropdown>
       </Menu>
     </Group>

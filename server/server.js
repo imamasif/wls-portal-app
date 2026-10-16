@@ -25,6 +25,8 @@ import courseProgressRoutes from "./src/features/universities/course-progress/in
 import attendanceController from "./src/features/wls-attendance-monitoring/index.js";
 import categoryLecturesRoutes from "./src/features/category-lectures/index.js";
 import { quranRoutes } from "./src/features/quran/index.js";
+import ayatsRoutes from "./src/features/ayats/index.js";
+
 
 const app = express();
 
@@ -57,6 +59,8 @@ app.use("/api/universities", universityRoutes);
 app.use("/api/universities/course-progress", courseProgressRoutes);
 app.use("/api/category-lectures", categoryLecturesRoutes);
 app.use("/api/quran", quranRoutes);
+app.use("/api/ayats", ayatsRoutes);
+
 
 // 3. Seed Route
 app.post("/api/seed", async (req, res) => {
