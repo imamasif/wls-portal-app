@@ -1,61 +1,66 @@
 import mongoose from "mongoose";
 
-const ayatSchema = new mongoose.Schema({
-  category_id_ref: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Category",
-    required: true,
+const ayatSchema = new mongoose.Schema(
+  {
+    _id: { type: mongoose.Schema.Types.Mixed },
+    category_id_ref: {
+      type: mongoose.Schema.Types.Mixed,
+    },
+    lecture_id: {
+      type: mongoose.Schema.Types.Mixed,
+      required: true,
+    },
+    surah_number: { type: Number, required: true },
+    surah_name: { type: String, default: "" },
+    ayat_number: { type: Number, required: true },
+    arabic_text: { type: String, default: "" },
+    english_translation: { type: String, default: "" },
+    urdu_translation: { type: String, default: "" },
+    hindi_translation: { type: String, default: "" },
+    points_notes_eng: { type: String, default: "" },
+    points_notes_urdu: { type: String, default: "" },
+    points_notes_hindi: { type: String, default: "" },
+    quest_answer: { type: Boolean, default: false },
+    question_text: { type: String, default: "" },
+    video_url_eng: { type: String, default: "" },
+    youtube_url_eng: { type: String, default: "" },
+    facebook_url_eng: { type: String, default: "" },
+    video_url_urdu: { type: String, default: "" },
+    youtube_url_urdu: { type: String, default: "" },
+    facebook_url_urdu: { type: String, default: "" },
+    ayat_image_eng_url: { type: String, default: "" },
+    ayat_image_urdu_url: { type: String, default: "" },
+    ayat_image_hindi_url: { type: String, default: "" },
   },
-  lecture_id: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Lecture",
-    required: true,
-  },
-  surah_number: { type: Number, required: true },
-  surah_name: { type: String, default: "" },
-  ayat_number: { type: Number, required: true },
-  arabic_text: { type: String, default: "" },
-  english_translation: { type: String, default: "" },
-  urdu_translation: { type: String, default: "" },
-  hindi_translation: { type: String, default: "" },
-  points_notes_eng: { type: String, default: "" },
-  points_notes_urdu: { type: String, default: "" },
-  points_notes_hindi: { type: String, default: "" },
-  quest_answer: { type: Boolean, default: false },
-  question_text: { type: String, default: "" },
-  video_url_eng: { type: String, default: "" },
-  youtube_url_eng: { type: String, default: "" },
-  facebook_url_eng: { type: String, default: "" },
-  video_url_urdu: { type: String, default: "" },
-  youtube_url_urdu: { type: String, default: "" },
-  facebook_url_urdu: { type: String, default: "" },
-  ayat_image_eng_url: { type: String, default: "" },
-  ayat_image_urdu_url: { type: String, default: "" },
-  ayat_image_hindi_url: { type: String, default: "" },
-});
+  { strict: false },
+);
 
-const lectureSchema = new mongoose.Schema({
-  category_id_ref: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Category",
-    required: true,
+const lectureSchema = new mongoose.Schema(
+  {
+    _id: { type: mongoose.Schema.Types.Mixed },
+    category_id_ref: {
+      type: mongoose.Schema.Types.Mixed,
+      required: true,
+    },
+    lecture_id: { type: Number, required: true },
+    lecture_name: { type: String, required: true },
+    year_delivered: { type: String, default: "" },
+    total_ayats: { type: Number, default: 0 },
   },
-  lecture_id: { type: Number, required: true },
-  lecture_name: { type: String, required: true },
-  year_delivered: { type: String, default: "" },
-  total_ayats: { type: Number, default: 0 },
-});
+  { strict: false },
+);
 
 const categorySchema = new mongoose.Schema(
   {
+    _id: { type: mongoose.Schema.Types.Mixed },
     source: { type: String, required: true },
     compiler: { type: String, required: true },
-    category_id: { type: Number, unique: true, required: true },
+    category_id: { type: Number, required: true },
     category_name: { type: String, required: true },
     language: { type: String, default: "eng" },
     total_lectures: { type: Number, default: 0 },
   },
-  { timestamps: true },
+  { timestamps: true, strict: false },
 );
 
 export const AyatModel = mongoose.model("Ayat", ayatSchema);

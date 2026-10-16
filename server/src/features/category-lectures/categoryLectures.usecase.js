@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Ajv from "ajv";
 import { categoryValidationSchema } from "./categoryLectures.schema.js";
 import {
@@ -63,16 +64,36 @@ export class CategoryLecturesUsecase {
   }
 
   static async getCategoryWithChildren(categoryId) {
-    const category = await CategoryModel.findById(categoryId).lean();
+    const catStr = String(categoryId);
+    const orCategory = [{ _id: catStr }, { _id: categoryId }];
+    if (mongoose.Types.ObjectId.isValid(catStr)) {
+      try {
+        orCategory.push({ _id: new mongoose.Types.ObjectId(catStr) });
+      } catch (_) {}
+    }
+    const category = await CategoryModel.findOne({ $or: orCategory }).lean();
     if (!category) return null;
 
-    const lectures = await LectureModel.find({
-      category_id_ref: category._id,
-    }).lean();
+    const catIdStr = String(category._id);
+    const orLectures = [{ category_id_ref: catIdStr }, { category_id_ref: category._id }];
+    if (mongoose.Types.ObjectId.isValid(catIdStr)) {
+      try {
+        orLectures.push({ category_id_ref: new mongoose.Types.ObjectId(catIdStr) });
+      } catch (_) {}
+    }
+
+    const lectures = await LectureModel.find({ $or: orLectures }).lean();
 
     const lecturesWithAyats = await Promise.all(
       lectures.map(async (lecture) => {
-        const ayats = await AyatModel.find({ lecture_id: lecture._id }).lean();
+        const lecStr = String(lecture._id);
+        const orAyats = [{ lecture_id: lecStr }, { lecture_id: lecture._id }];
+        if (mongoose.Types.ObjectId.isValid(lecStr)) {
+          try {
+            orAyats.push({ lecture_id: new mongoose.Types.ObjectId(lecStr) });
+          } catch (_) {}
+        }
+        const ayats = await AyatModel.find({ $or: orAyats }).lean();
         return {
           ...lecture,
           ayat_references: ayats,
@@ -103,15 +124,32 @@ export class CategoryLecturesUsecase {
 
       return await Promise.all(
         categories.map(async (cat) => {
+          const catStr = String(cat._id);
+          const orLectures = [{ category_id_ref: catStr }, { category_id_ref: cat._id }];
+          if (mongoose.Types.ObjectId.isValid(catStr)) {
+            try {
+              orLectures.push({ category_id_ref: new mongoose.Types.ObjectId(catStr) });
+            } catch (_) {}
+          }
+
           const lectures = await LectureModel.find({
-            category_id_ref: cat._id,
+            $or: orLectures,
           }).lean();
 
           const lecturesWithAyats = await Promise.all(
             lectures.map(async (lecture) => {
+              const lecStr = String(lecture._id);
+              const orAyats = [{ lecture_id: lecStr }, { lecture_id: lecture._id }];
+              if (mongoose.Types.ObjectId.isValid(lecStr)) {
+                try {
+                  orAyats.push({ lecture_id: new mongoose.Types.ObjectId(lecStr) });
+                } catch (_) {}
+              }
+
               const ayats = await AyatModel.find({
-                lecture_id: lecture._id,
+                $or: orAyats,
               }).lean();
+
               return {
                 _id: String(lecture._id),
                 id: String(lecture._id),
