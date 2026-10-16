@@ -1,0 +1,1570 @@
+[
+  {
+    "_id": "6ac813f338bef4b9d8a1329c",
+    "category_id_ref": "6ac7e7644f6dc255a8101172",
+    "lecture_id": 1,
+    "lecture_name": "Gods & Allah - English",
+    "year_delivered": "",
+    "total_ayats": 55
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1329d",
+    "category_id_ref": "6ac7e7644f6dc255a8101172",
+    "lecture_id": 2,
+    "lecture_name": "Devil / Satan - English",
+    "year_delivered": "",
+    "total_ayats": 98
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1329e",
+    "category_id_ref": "6ac7e7644f6dc255a8101175",
+    "lecture_id": 1,
+    "lecture_name": "The Vision of Ibraheem pbuh - English",
+    "year_delivered": "",
+    "total_ayats": 50
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1329f",
+    "category_id_ref": "6ac7e7644f6dc255a8101175",
+    "lecture_id": 2,
+    "lecture_name": "The Book of Moses pbuh - English",
+    "year_delivered": "",
+    "total_ayats": 60
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132a0",
+    "category_id_ref": "6ac7e7644f6dc255a8101175",
+    "lecture_id": 3,
+    "lecture_name": "Mary pbuh - English",
+    "year_delivered": "",
+    "total_ayats": 54
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132a1",
+    "category_id_ref": "6ac7e7644f6dc255a8101175",
+    "lecture_id": 4,
+    "lecture_name": "Is Mary (pbuh) the only parent of Jesus Christ (pbuh)? - English",
+    "year_delivered": "",
+    "total_ayats": 56
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132a2",
+    "category_id_ref": "6ac7e7644f6dc255a8101175",
+    "lecture_id": 5,
+    "lecture_name": "Jesus / Christ pbuh - English",
+    "year_delivered": "",
+    "total_ayats": 45
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132a3",
+    "category_id_ref": "6ac7e7644f6dc255a8101175",
+    "lecture_id": 6,
+    "lecture_name": "Prophecies of Jesus (pbuh) about his life and death - English",
+    "year_delivered": "",
+    "total_ayats": 49
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132a4",
+    "category_id_ref": "6ac7e7644f6dc255a8101175",
+    "lecture_id": 7,
+    "lecture_name": "Mohammad pbuh - English",
+    "year_delivered": "",
+    "total_ayats": 55
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132a5",
+    "category_id_ref": "6ac7e7644f6dc255a8101178",
+    "lecture_id": 1,
+    "lecture_name": "The Book - English",
+    "year_delivered": "",
+    "total_ayats": 52
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132a6",
+    "category_id_ref": "6ac7e7644f6dc255a8101178",
+    "lecture_id": 2,
+    "lecture_name": "Al-Quran / The Reading - English",
+    "year_delivered": "",
+    "total_ayats": 75
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132a7",
+    "category_id_ref": "6ac7e7644f6dc255a8101178",
+    "lecture_id": 3,
+    "lecture_name": "Book of Allah - English",
+    "year_delivered": "",
+    "total_ayats": 226
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132a8",
+    "category_id_ref": "6ac7e7644f6dc255a8101178",
+    "lecture_id": 4,
+    "lecture_name": "Is The Quran Word of Allah/God? - English",
+    "year_delivered": "",
+    "total_ayats": 102
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132a9",
+    "category_id_ref": "6ac7e7644f6dc255a8101178",
+    "lecture_id": 5,
+    "lecture_name": "Torah & Gospel - English",
+    "year_delivered": "",
+    "total_ayats": 37
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132aa",
+    "category_id_ref": "6ac7e7644f6dc255a8101178",
+    "lecture_id": 6,
+    "lecture_name": "Psalms - English",
+    "year_delivered": "",
+    "total_ayats": 65
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132ab",
+    "category_id_ref": "6ac7e7644f6dc255a8101178",
+    "lecture_id": 7,
+    "lecture_name": "Hadith / Event - English",
+    "year_delivered": "",
+    "total_ayats": 18
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132ac",
+    "category_id_ref": "6ac7e7644f6dc255a8101178",
+    "lecture_id": 8,
+    "lecture_name": "Sunnah / Practice - English",
+    "year_delivered": "",
+    "total_ayats": 23
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132ad",
+    "category_id_ref": "6ac7e7644f6dc255a8101178",
+    "lecture_id": 9,
+    "lecture_name": "The Wisdom - English",
+    "year_delivered": "",
+    "total_ayats": 33
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132ae",
+    "category_id_ref": "6ac7e7644f6dc255a8101178",
+    "lecture_id": 10,
+    "lecture_name": "Holy Ghost - English",
+    "year_delivered": "",
+    "total_ayats": 42
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132af",
+    "category_id_ref": "6ac7e7644f6dc255a8101178",
+    "lecture_id": 11,
+    "lecture_name": "The Languages - English",
+    "year_delivered": "",
+    "total_ayats": 36
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132b0",
+    "category_id_ref": "6ac7e7644f6dc255a8101178",
+    "lecture_id": 12,
+    "lecture_name": "Guidance - English",
+    "year_delivered": "",
+    "total_ayats": 65
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132b1",
+    "category_id_ref": "6ac7e7644f6dc255a810117b",
+    "lecture_id": 1,
+    "lecture_name": "Muslim / Submitter - English",
+    "year_delivered": "",
+    "total_ayats": 35
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132b2",
+    "category_id_ref": "6ac7e7644f6dc255a810117b",
+    "lecture_id": 2,
+    "lecture_name": "People of The Book - English",
+    "year_delivered": "",
+    "total_ayats": 57
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132b3",
+    "category_id_ref": "6ac7e7644f6dc255a810117b",
+    "lecture_id": 3,
+    "lecture_name": "Children of Israel - English",
+    "year_delivered": "",
+    "total_ayats": 52
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132b4",
+    "category_id_ref": "6ac7e7644f6dc255a810117b",
+    "lecture_id": 4,
+    "lecture_name": "Aulia / Protectors - English",
+    "year_delivered": "",
+    "total_ayats": 63
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132b5",
+    "category_id_ref": "6ac7e7644f6dc255a810117b",
+    "lecture_id": 5,
+    "lecture_name": "Khalifa / Successor - English",
+    "year_delivered": "",
+    "total_ayats": 69
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132b6",
+    "category_id_ref": "6ac7e7644f6dc255a810117b",
+    "lecture_id": 6,
+    "lecture_name": "Imam / Leader - English",
+    "year_delivered": "",
+    "total_ayats": 56
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132b7",
+    "category_id_ref": "6ac7e7644f6dc255a810117b",
+    "lecture_id": 7,
+    "lecture_name": "Sect - English",
+    "year_delivered": "",
+    "total_ayats": 31
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132b8",
+    "category_id_ref": "6ac7e7644f6dc255a810117b",
+    "lecture_id": 8,
+    "lecture_name": "Hypocrites",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132b9",
+    "category_id_ref": "6ac7e7644f6dc255a810117b",
+    "lecture_id": 9,
+    "lecture_name": "Jews and Christians - English",
+    "year_delivered": "",
+    "total_ayats": 45
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132ba",
+    "category_id_ref": "6ac7e7644f6dc255a810117b",
+    "lecture_id": 10,
+    "lecture_name": "How Allah communicates with Bashar / Human?",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132bb",
+    "category_id_ref": "6ac7e7644f6dc255a810117e",
+    "lecture_id": 1,
+    "lecture_name": "Hijab / Veil - English",
+    "year_delivered": "",
+    "total_ayats": 40
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132bc",
+    "category_id_ref": "6ac7e7644f6dc255a810117e",
+    "lecture_id": 2,
+    "lecture_name": "Marriage - English",
+    "year_delivered": "",
+    "total_ayats": 35
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132bd",
+    "category_id_ref": "6ac7e7644f6dc255a810117e",
+    "lecture_id": 3,
+    "lecture_name": "Husband And Wife Relationship - English",
+    "year_delivered": "",
+    "total_ayats": 48
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132be",
+    "category_id_ref": "6ac7e7644f6dc255a810117e",
+    "lecture_id": 4,
+    "lecture_name": "Obscenity - English",
+    "year_delivered": "",
+    "total_ayats": 47
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132bf",
+    "category_id_ref": "6ac7e7644f6dc255a810117e",
+    "lecture_id": 5,
+    "lecture_name": "Divorce - English",
+    "year_delivered": "",
+    "total_ayats": 35
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132c0",
+    "category_id_ref": "6ac7e7644f6dc255a810117e",
+    "lecture_id": 6,
+    "lecture_name": "Parent & Children Relationship - English",
+    "year_delivered": "",
+    "total_ayats": 56
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132c1",
+    "category_id_ref": "6ac7e7644f6dc255a8101181",
+    "lecture_id": 1,
+    "lecture_name": "Charity - English",
+    "year_delivered": "",
+    "total_ayats": 41
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132c2",
+    "category_id_ref": "6ac7e7644f6dc255a8101181",
+    "lecture_id": 2,
+    "lecture_name": "The Interest - English",
+    "year_delivered": "",
+    "total_ayats": 29
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132c3",
+    "category_id_ref": "6ac7e7644f6dc255a8101181",
+    "lecture_id": 3,
+    "lecture_name": "Inheritance",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132c4",
+    "category_id_ref": "6ac7e7644f6dc255a8101184",
+    "lecture_id": 1,
+    "lecture_name": "Islam and Muslim",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132c5",
+    "category_id_ref": "6ac7e7644f6dc255a8101184",
+    "lecture_id": 2,
+    "lecture_name": "Islam - English",
+    "year_delivered": "",
+    "total_ayats": 28
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132c6",
+    "category_id_ref": "6ac7e7644f6dc255a8101184",
+    "lecture_id": 3,
+    "lecture_name": "Religion of Abraham pbuh - English",
+    "year_delivered": "",
+    "total_ayats": 85
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132c7",
+    "category_id_ref": "6ac7e7644f6dc255a8101184",
+    "lecture_id": 4,
+    "lecture_name": "Upright / Straight Path - English",
+    "year_delivered": "",
+    "total_ayats": 130
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132c8",
+    "category_id_ref": "6ac7e7644f6dc255a8101184",
+    "lecture_id": 5,
+    "lecture_name": "Shafaat / Intercession - English",
+    "year_delivered": "",
+    "total_ayats": 70
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132c9",
+    "category_id_ref": "6ac7e7644f6dc255a8101184",
+    "lecture_id": 6,
+    "lecture_name": "Kabah and Direction of Belief - English",
+    "year_delivered": "",
+    "total_ayats": 40
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132ca",
+    "category_id_ref": "6ac7e7644f6dc255a8101184",
+    "lecture_id": 7,
+    "lecture_name": "Mosques / Masajid - English",
+    "year_delivered": "",
+    "total_ayats": 66
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132cb",
+    "category_id_ref": "6ac7e7644f6dc255a8101184",
+    "lecture_id": 8,
+    "lecture_name": "Salah / The Prayer - English",
+    "year_delivered": "",
+    "total_ayats": 61
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132cc",
+    "category_id_ref": "6ac7e7644f6dc255a8101184",
+    "lecture_id": 9,
+    "lecture_name": "The Forbidden Months - English",
+    "year_delivered": "",
+    "total_ayats": 30
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132cd",
+    "category_id_ref": "6ac7e7644f6dc255a8101184",
+    "lecture_id": 10,
+    "lecture_name": "The Fasting - English",
+    "year_delivered": "",
+    "total_ayats": 45
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132ce",
+    "category_id_ref": "6ac7e7644f6dc255a8101184",
+    "lecture_id": 11,
+    "lecture_name": "Umrah and Hajj - English",
+    "year_delivered": "",
+    "total_ayats": 88
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132cf",
+    "category_id_ref": "6ac7e7644f6dc255a8101184",
+    "lecture_id": 12,
+    "lecture_name": "Umm-ul-Qura / Mother of the cities - English",
+    "year_delivered": "",
+    "total_ayats": 76
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132d0",
+    "category_id_ref": "6ac7e7644f6dc255a8101184",
+    "lecture_id": 13,
+    "lecture_name": "Mountain of Moses (pbuh) - English",
+    "year_delivered": "",
+    "total_ayats": 46
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132d1",
+    "category_id_ref": "6ac7e7644f6dc255a8101187",
+    "lecture_id": 1,
+    "lecture_name": "Al-Jihad / The Strive - English",
+    "year_delivered": "",
+    "total_ayats": 24
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132d2",
+    "category_id_ref": "6ac7e7644f6dc255a8101187",
+    "lecture_id": 2,
+    "lecture_name": "Physical Killing - English",
+    "year_delivered": "",
+    "total_ayats": 19
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132d3",
+    "category_id_ref": "6ac7e7644f6dc255a8101187",
+    "lecture_id": 3,
+    "lecture_name": "Psychological Killing - English",
+    "year_delivered": "",
+    "total_ayats": 57
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132d4",
+    "category_id_ref": "6ac7e7644f6dc255a8101187",
+    "lecture_id": 4,
+    "lecture_name": "Terrorism - English",
+    "year_delivered": "",
+    "total_ayats": 43
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132d5",
+    "category_id_ref": "6ac7e7644f6dc255a8101187",
+    "lecture_id": 5,
+    "lecture_name": "The War - English",
+    "year_delivered": "",
+    "total_ayats": 29
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132d6",
+    "category_id_ref": "6ac7e7644f6dc255a8101187",
+    "lecture_id": 6,
+    "lecture_name": "Qisaas / Requital - English",
+    "year_delivered": "",
+    "total_ayats": 56
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132d7",
+    "category_id_ref": "6ac7e7644f6dc255a8101187",
+    "lecture_id": 7,
+    "lecture_name": "Consolation of Psychological Hurts - English",
+    "year_delivered": "",
+    "total_ayats": 82
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132d8",
+    "category_id_ref": "6ac7e7644f6dc255a8101187",
+    "lecture_id": 8,
+    "lecture_name": "Akhlaq / Morality - English",
+    "year_delivered": "",
+    "total_ayats": 29
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132d9",
+    "category_id_ref": "6ac7e7644f6dc255a8101187",
+    "lecture_id": 9,
+    "lecture_name": "Maut / Death - English",
+    "year_delivered": "",
+    "total_ayats": 50
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132da",
+    "category_id_ref": "6ac7e7644f6dc255a8101173",
+    "lecture_id": 1,
+    "lecture_name": "Aaliha aur Allah - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132db",
+    "category_id_ref": "6ac7e7644f6dc255a8101173",
+    "lecture_id": 2,
+    "lecture_name": "Iblees / Shaitaan - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132dc",
+    "category_id_ref": "6ac7e7644f6dc255a8101176",
+    "lecture_id": 1,
+    "lecture_name": "Malka Saba ka Arsh / Takht - Urdu",
+    "year_delivered": "",
+    "total_ayats": 37
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132dd",
+    "category_id_ref": "6ac7e7644f6dc255a8101176",
+    "lecture_id": 2,
+    "lecture_name": "Nooh A.S ki Fulk - Urdu",
+    "year_delivered": "",
+    "total_ayats": 34
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132de",
+    "category_id_ref": "6ac7e7644f6dc255a8101176",
+    "lecture_id": 3,
+    "lecture_name": "Ibraheem ka khuwab - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132df",
+    "category_id_ref": "6ac7e7644f6dc255a8101176",
+    "lecture_id": 4,
+    "lecture_name": "Moosa ki Kitab - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132e0",
+    "category_id_ref": "6ac7e7644f6dc255a8101176",
+    "lecture_id": 5,
+    "lecture_name": "Maryam pbuh - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132e1",
+    "category_id_ref": "6ac7e7644f6dc255a8101176",
+    "lecture_id": 6,
+    "lecture_name": "Kia Maryam pbuh Essa pbuh ki wahid waldain main se hain?",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132e2",
+    "category_id_ref": "6ac7e7644f6dc255a8101176",
+    "lecture_id": 7,
+    "lecture_name": "Essa Ibn-e-Maryam pbuh - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132e3",
+    "category_id_ref": "6ac7e7644f6dc255a8101176",
+    "lecture_id": 8,
+    "lecture_name": "Essa pbuh ki zindagi aur maut ki peshangoiyan",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132e4",
+    "category_id_ref": "6ac7e7644f6dc255a8101176",
+    "lecture_id": 9,
+    "lecture_name": "Mohammad pbuh - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132e5",
+    "category_id_ref": "6ac7e7644f6dc255a8101176",
+    "lecture_id": 10,
+    "lecture_name": "Allah Bashr se kaisi kalam karta hai - Urdu",
+    "year_delivered": "",
+    "total_ayats": 117
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132e6",
+    "category_id_ref": "6ac7e7644f6dc255a8101176",
+    "lecture_id": 11,
+    "lecture_name": "Allah Bashr se kaisi wahi karta hai - Urdu",
+    "year_delivered": "",
+    "total_ayats": 73
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132e7",
+    "category_id_ref": "6ac7e7644f6dc255a8101176",
+    "lecture_id": 12,
+    "lecture_name": "Nabi aur Rasool - Urdu",
+    "year_delivered": "",
+    "total_ayats": 115
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132e8",
+    "category_id_ref": "6ac7e7644f6dc255a8101179",
+    "lecture_id": 1,
+    "lecture_name": "Al-Kitab - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132e9",
+    "category_id_ref": "6ac7e7644f6dc255a8101179",
+    "lecture_id": 2,
+    "lecture_name": "Al-Quran - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132ea",
+    "category_id_ref": "6ac7e7644f6dc255a8101179",
+    "lecture_id": 3,
+    "lecture_name": "Allah ki Kitab",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132eb",
+    "category_id_ref": "6ac7e7644f6dc255a8101179",
+    "lecture_id": 4,
+    "lecture_name": "Kiya Quran Allah ka kalam hai?",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132ec",
+    "category_id_ref": "6ac7e7644f6dc255a8101179",
+    "lecture_id": 5,
+    "lecture_name": "Taurat aur Injeel - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132ed",
+    "category_id_ref": "6ac7e7644f6dc255a8101179",
+    "lecture_id": 6,
+    "lecture_name": "Zaboor - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132ee",
+    "category_id_ref": "6ac7e7644f6dc255a8101179",
+    "lecture_id": 7,
+    "lecture_name": "Hadees - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132ef",
+    "category_id_ref": "6ac7e7644f6dc255a8101179",
+    "lecture_id": 8,
+    "lecture_name": "Sunnat - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132f0",
+    "category_id_ref": "6ac7e7644f6dc255a8101179",
+    "lecture_id": 9,
+    "lecture_name": "Al-Hikmah - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132f1",
+    "category_id_ref": "6ac7e7644f6dc255a8101179",
+    "lecture_id": 10,
+    "lecture_name": "Rooh - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132f2",
+    "category_id_ref": "6ac7e7644f6dc255a8101179",
+    "lecture_id": 11,
+    "lecture_name": "Zabanain - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132f3",
+    "category_id_ref": "6ac7e7644f6dc255a8101179",
+    "lecture_id": 12,
+    "lecture_name": "Hidayat - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132f4",
+    "category_id_ref": "6ac7e7644f6dc255a8101179",
+    "lecture_id": 13,
+    "lecture_name": "Zikr - Urdu",
+    "year_delivered": "",
+    "total_ayats": 23
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132f5",
+    "category_id_ref": "6ac7e7644f6dc255a8101179",
+    "lecture_id": 14,
+    "lecture_name": "Nazil - Urdu",
+    "year_delivered": "",
+    "total_ayats": 22
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132f6",
+    "category_id_ref": "6ac7e7644f6dc255a8101179",
+    "lecture_id": 15,
+    "lecture_name": "Wahi - Urdu",
+    "year_delivered": "",
+    "total_ayats": 24
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132f7",
+    "category_id_ref": "6ac7e7644f6dc255a8101179",
+    "lecture_id": 16,
+    "lecture_name": "Wahi Nazil - Urdu",
+    "year_delivered": "",
+    "total_ayats": 18
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132f8",
+    "category_id_ref": "6ac7e7644f6dc255a810117c",
+    "lecture_id": 1,
+    "lecture_name": "Muslim - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132f9",
+    "category_id_ref": "6ac7e7644f6dc255a810117c",
+    "lecture_id": 2,
+    "lecture_name": "Ahl-e-Kitab - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132fa",
+    "category_id_ref": "6ac7e7644f6dc255a810117c",
+    "lecture_id": 3,
+    "lecture_name": "Bani Israel - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132fb",
+    "category_id_ref": "6ac7e7644f6dc255a810117c",
+    "lecture_id": 4,
+    "lecture_name": "Aulia - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132fc",
+    "category_id_ref": "6ac7e7644f6dc255a810117c",
+    "lecture_id": 5,
+    "lecture_name": "Khalifa - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132fd",
+    "category_id_ref": "6ac7e7644f6dc255a810117c",
+    "lecture_id": 6,
+    "lecture_name": "Imam - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132fe",
+    "category_id_ref": "6ac7e7644f6dc255a810117c",
+    "lecture_id": 7,
+    "lecture_name": "Firqay - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a132ff",
+    "category_id_ref": "6ac7e7644f6dc255a810117c",
+    "lecture_id": 8,
+    "lecture_name": "Munafiq - Urdu",
+    "year_delivered": "",
+    "total_ayats": 52
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13300",
+    "category_id_ref": "6ac7e7644f6dc255a810117c",
+    "lecture_id": 9,
+    "lecture_name": "Shaheed - Urdu",
+    "year_delivered": "",
+    "total_ayats": 38
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13301",
+    "category_id_ref": "6ac7e7644f6dc255a810117c",
+    "lecture_id": 10,
+    "lecture_name": "Yahood aur Nasara - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13302",
+    "category_id_ref": "6ac7e7644f6dc255a810117c",
+    "lecture_id": 11,
+    "lecture_name": "Jinn - Urdu",
+    "year_delivered": "",
+    "total_ayats": 69
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13303",
+    "category_id_ref": "6ac7e7644f6dc255a810117f",
+    "lecture_id": 1,
+    "lecture_name": "Hijab - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13304",
+    "category_id_ref": "6ac7e7644f6dc255a810117f",
+    "lecture_id": 2,
+    "lecture_name": "Nikah - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13305",
+    "category_id_ref": "6ac7e7644f6dc255a810117f",
+    "lecture_id": 3,
+    "lecture_name": "Mian aur Biwi kay taluqat - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13306",
+    "category_id_ref": "6ac7e7644f6dc255a810117f",
+    "lecture_id": 4,
+    "lecture_name": "Fahisha - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13307",
+    "category_id_ref": "6ac7e7644f6dc255a810117f",
+    "lecture_id": 5,
+    "lecture_name": "Talaq - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13308",
+    "category_id_ref": "6ac7e7644f6dc255a810117f",
+    "lecture_id": 6,
+    "lecture_name": "Waldain aur bachon kay taluqat - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13309",
+    "category_id_ref": "6ac7e7644f6dc255a8101182",
+    "lecture_id": 1,
+    "lecture_name": "Sadqa aur Zakat - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1330a",
+    "category_id_ref": "6ac7e7644f6dc255a8101182",
+    "lecture_id": 2,
+    "lecture_name": "Riba - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1330b",
+    "category_id_ref": "6ac7e7644f6dc255a8101182",
+    "lecture_id": 3,
+    "lecture_name": "Rizq - Urdu",
+    "year_delivered": "",
+    "total_ayats": 23
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1330c",
+    "category_id_ref": "6ac7e7644f6dc255a8101182",
+    "lecture_id": 4,
+    "lecture_name": "Wirasat",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1330d",
+    "category_id_ref": "6ac7e7644f6dc255a8101185",
+    "lecture_id": 1,
+    "lecture_name": "Islam aur Muslim",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1330e",
+    "category_id_ref": "6ac7e7644f6dc255a8101185",
+    "lecture_id": 2,
+    "lecture_name": "Islam - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1330f",
+    "category_id_ref": "6ac7e7644f6dc255a8101185",
+    "lecture_id": 3,
+    "lecture_name": "Ibraheem pbuh ka mazhab - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13310",
+    "category_id_ref": "6ac7e7644f6dc255a8101185",
+    "lecture_id": 4,
+    "lecture_name": "Sirat-e-Mustaqeem - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13311",
+    "category_id_ref": "6ac7e7644f6dc255a8101185",
+    "lecture_id": 5,
+    "lecture_name": "Shafaat - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13312",
+    "category_id_ref": "6ac7e7644f6dc255a8101185",
+    "lecture_id": 6,
+    "lecture_name": "Kabah aur Qiblah - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13313",
+    "category_id_ref": "6ac7e7644f6dc255a8101185",
+    "lecture_id": 7,
+    "lecture_name": "Masajid - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13314",
+    "category_id_ref": "6ac7e7644f6dc255a8101185",
+    "lecture_id": 8,
+    "lecture_name": "Salah / Namaz - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13315",
+    "category_id_ref": "6ac7e7644f6dc255a8101185",
+    "lecture_id": 9,
+    "lecture_name": "Motharam Mahinay - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13316",
+    "category_id_ref": "6ac7e7644f6dc255a8101185",
+    "lecture_id": 10,
+    "lecture_name": "Saum / Roza - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13317",
+    "category_id_ref": "6ac7e7644f6dc255a8101185",
+    "lecture_id": 11,
+    "lecture_name": "Umrah aur Hajj - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13318",
+    "category_id_ref": "6ac7e7644f6dc255a8101185",
+    "lecture_id": 12,
+    "lecture_name": "Umm-ul-Qura / Shehron ki Maa - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13319",
+    "category_id_ref": "6ac7e7644f6dc255a8101185",
+    "lecture_id": 13,
+    "lecture_name": "Jabl-e-Noor - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1331a",
+    "category_id_ref": "6ac7e7644f6dc255a8101185",
+    "lecture_id": 14,
+    "lecture_name": "Saat aasman, zameen aur samandar - Urdu",
+    "year_delivered": "",
+    "total_ayats": 36
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1331b",
+    "category_id_ref": "6ac7e7644f6dc255a8101188",
+    "lecture_id": 1,
+    "lecture_name": "Al-Jihad - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1331c",
+    "category_id_ref": "6ac7e7644f6dc255a8101188",
+    "lecture_id": 2,
+    "lecture_name": "Qatal - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1331d",
+    "category_id_ref": "6ac7e7644f6dc255a8101188",
+    "lecture_id": 3,
+    "lecture_name": "Nafsiyati Qatal - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1331e",
+    "category_id_ref": "6ac7e7644f6dc255a8101188",
+    "lecture_id": 4,
+    "lecture_name": "Rehbaniya / Dehshat Gardi - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1331f",
+    "category_id_ref": "6ac7e7644f6dc255a8101188",
+    "lecture_id": 5,
+    "lecture_name": "Jang - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13320",
+    "category_id_ref": "6ac7e7644f6dc255a8101188",
+    "lecture_id": 6,
+    "lecture_name": "Qisaas / Evaz / Badal - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13321",
+    "category_id_ref": "6ac7e7644f6dc255a8101188",
+    "lecture_id": 7,
+    "lecture_name": "Nafsiyati Zakhmon Ki Tasalli - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13322",
+    "category_id_ref": "6ac7e7644f6dc255a8101188",
+    "lecture_id": 8,
+    "lecture_name": "Akhlaq / Morality - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13323",
+    "category_id_ref": "6ac7e7644f6dc255a8101188",
+    "lecture_id": 9,
+    "lecture_name": "Bai / Deal - Urdu",
+    "year_delivered": "",
+    "total_ayats": 55
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13324",
+    "category_id_ref": "6ac7e7644f6dc255a8101188",
+    "lecture_id": 10,
+    "lecture_name": "Maut / Death - Urdu",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13325",
+    "category_id_ref": "6ac7e7644f6dc255a8101174",
+    "lecture_id": 1,
+    "lecture_name": "Gods & Allah - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13326",
+    "category_id_ref": "6ac7e7644f6dc255a8101174",
+    "lecture_id": 2,
+    "lecture_name": "Iblees / Shaitaan - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13327",
+    "category_id_ref": "6ac7e7644f6dc255a8101177",
+    "lecture_id": 1,
+    "lecture_name": "Ibraheem ka khuwab - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13328",
+    "category_id_ref": "6ac7e7644f6dc255a8101177",
+    "lecture_id": 2,
+    "lecture_name": "Moosa ki Kitab - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13329",
+    "category_id_ref": "6ac7e7644f6dc255a8101177",
+    "lecture_id": 3,
+    "lecture_name": "Maryam pbuh - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1332a",
+    "category_id_ref": "6ac7e7644f6dc255a8101177",
+    "lecture_id": 4,
+    "lecture_name": "Essa Ibn-e-Maryam pbuh - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1332b",
+    "category_id_ref": "6ac7e7644f6dc255a8101177",
+    "lecture_id": 5,
+    "lecture_name": "Mohammad pbuh - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1332c",
+    "category_id_ref": "6ac7e7644f6dc255a8101177",
+    "lecture_id": 6,
+    "lecture_name": "Allah Bashr se kaisi kalam karta hai - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1332d",
+    "category_id_ref": "6ac7e7644f6dc255a8101177",
+    "lecture_id": 7,
+    "lecture_name": "Nabi aur Rasool - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1332e",
+    "category_id_ref": "6ac7e7644f6dc255a810117a",
+    "lecture_id": 1,
+    "lecture_name": "Al-Kitab - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1332f",
+    "category_id_ref": "6ac7e7644f6dc255a810117a",
+    "lecture_id": 2,
+    "lecture_name": "Al-Quran - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13330",
+    "category_id_ref": "6ac7e7644f6dc255a810117a",
+    "lecture_id": 3,
+    "lecture_name": "Taurat aur Injeel - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13331",
+    "category_id_ref": "6ac7e7644f6dc255a810117a",
+    "lecture_id": 4,
+    "lecture_name": "Zaboor - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13332",
+    "category_id_ref": "6ac7e7644f6dc255a810117a",
+    "lecture_id": 5,
+    "lecture_name": "Hadees - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13333",
+    "category_id_ref": "6ac7e7644f6dc255a810117a",
+    "lecture_id": 6,
+    "lecture_name": "Sunnat - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13334",
+    "category_id_ref": "6ac7e7644f6dc255a810117a",
+    "lecture_id": 7,
+    "lecture_name": "Al-Hikmah - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13335",
+    "category_id_ref": "6ac7e7644f6dc255a810117a",
+    "lecture_id": 8,
+    "lecture_name": "Rooh - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13336",
+    "category_id_ref": "6ac7e7644f6dc255a810117a",
+    "lecture_id": 9,
+    "lecture_name": "Zabanain - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13337",
+    "category_id_ref": "6ac7e7644f6dc255a810117a",
+    "lecture_id": 10,
+    "lecture_name": "Hidayat - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13338",
+    "category_id_ref": "6ac7e7644f6dc255a810117a",
+    "lecture_id": 11,
+    "lecture_name": "Zikr - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13339",
+    "category_id_ref": "6ac7e7644f6dc255a810117d",
+    "lecture_id": 1,
+    "lecture_name": "Muslim - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1333a",
+    "category_id_ref": "6ac7e7644f6dc255a810117d",
+    "lecture_id": 2,
+    "lecture_name": "Ahl-e-Kitab - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1333b",
+    "category_id_ref": "6ac7e7644f6dc255a810117d",
+    "lecture_id": 3,
+    "lecture_name": "Bani Israel - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1333c",
+    "category_id_ref": "6ac7e7644f6dc255a810117d",
+    "lecture_id": 4,
+    "lecture_name": "Aulia - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1333d",
+    "category_id_ref": "6ac7e7644f6dc255a810117d",
+    "lecture_id": 5,
+    "lecture_name": "Khalifa - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1333e",
+    "category_id_ref": "6ac7e7644f6dc255a810117d",
+    "lecture_id": 6,
+    "lecture_name": "Imam - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1333f",
+    "category_id_ref": "6ac7e7644f6dc255a810117d",
+    "lecture_id": 7,
+    "lecture_name": "Yahood aur Nasara - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13340",
+    "category_id_ref": "6ac7e7644f6dc255a810117d",
+    "lecture_id": 8,
+    "lecture_name": "Munafiq - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13341",
+    "category_id_ref": "6ac7e7644f6dc255a810117d",
+    "lecture_id": 9,
+    "lecture_name": "Shaheed - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13342",
+    "category_id_ref": "6ac7e7644f6dc255a8101180",
+    "lecture_id": 1,
+    "lecture_name": "Hijab - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13343",
+    "category_id_ref": "6ac7e7644f6dc255a8101180",
+    "lecture_id": 2,
+    "lecture_name": "Nikah - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13344",
+    "category_id_ref": "6ac7e7644f6dc255a8101180",
+    "lecture_id": 3,
+    "lecture_name": "Mian aur Biwi kay taluqat - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13345",
+    "category_id_ref": "6ac7e7644f6dc255a8101180",
+    "lecture_id": 4,
+    "lecture_name": "Fahisha - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13346",
+    "category_id_ref": "6ac7e7644f6dc255a8101180",
+    "lecture_id": 5,
+    "lecture_name": "Talaq - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13347",
+    "category_id_ref": "6ac7e7644f6dc255a8101180",
+    "lecture_id": 6,
+    "lecture_name": "Waldain aur bachon kay taluqat - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13348",
+    "category_id_ref": "6ac7e7644f6dc255a8101183",
+    "lecture_id": 1,
+    "lecture_name": "Sadqa aur Zakat - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13349",
+    "category_id_ref": "6ac7e7644f6dc255a8101183",
+    "lecture_id": 2,
+    "lecture_name": "Riba - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1334a",
+    "category_id_ref": "6ac7e7644f6dc255a8101183",
+    "lecture_id": 3,
+    "lecture_name": "Wirasat - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1334b",
+    "category_id_ref": "6ac7e7644f6dc255a8101186",
+    "lecture_id": 1,
+    "lecture_name": "Islam aur Muslim - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1334c",
+    "category_id_ref": "6ac7e7644f6dc255a8101186",
+    "lecture_id": 2,
+    "lecture_name": "Islam - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1334d",
+    "category_id_ref": "6ac7e7644f6dc255a8101186",
+    "lecture_id": 3,
+    "lecture_name": "Ibraheem pbuh ka mazhab - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1334e",
+    "category_id_ref": "6ac7e7644f6dc255a8101186",
+    "lecture_id": 4,
+    "lecture_name": "Sirat-e-Mustaqeem - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1334f",
+    "category_id_ref": "6ac7e7644f6dc255a8101186",
+    "lecture_id": 5,
+    "lecture_name": "Shafaat - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13350",
+    "category_id_ref": "6ac7e7644f6dc255a8101186",
+    "lecture_id": 6,
+    "lecture_name": "Kabah aur Qiblah - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13351",
+    "category_id_ref": "6ac7e7644f6dc255a8101186",
+    "lecture_id": 7,
+    "lecture_name": "Masajid - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13352",
+    "category_id_ref": "6ac7e7644f6dc255a8101186",
+    "lecture_id": 8,
+    "lecture_name": "Salah / Namaz - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13353",
+    "category_id_ref": "6ac7e7644f6dc255a8101186",
+    "lecture_id": 9,
+    "lecture_name": "Motharam Mahinay - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13354",
+    "category_id_ref": "6ac7e7644f6dc255a8101186",
+    "lecture_id": 10,
+    "lecture_name": "Saum / Roza - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13355",
+    "category_id_ref": "6ac7e7644f6dc255a8101186",
+    "lecture_id": 11,
+    "lecture_name": "Umrah aur Hajj - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13356",
+    "category_id_ref": "6ac7e7644f6dc255a8101186",
+    "lecture_id": 12,
+    "lecture_name": "Umm-ul-Qura / Shehron ki Maa - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13357",
+    "category_id_ref": "6ac7e7644f6dc255a8101186",
+    "lecture_id": 13,
+    "lecture_name": "Jabl-e-Noor - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13358",
+    "category_id_ref": "6ac7e7644f6dc255a8101189",
+    "lecture_id": 1,
+    "lecture_name": "Al-Jihad - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a13359",
+    "category_id_ref": "6ac7e7644f6dc255a8101189",
+    "lecture_id": 2,
+    "lecture_name": "Qatal - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1335a",
+    "category_id_ref": "6ac7e7644f6dc255a8101189",
+    "lecture_id": 3,
+    "lecture_name": "Nafsiyati Qatal - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1335b",
+    "category_id_ref": "6ac7e7644f6dc255a8101189",
+    "lecture_id": 4,
+    "lecture_name": "Rehbaniya / Dehshat Gardi - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1335c",
+    "category_id_ref": "6ac7e7644f6dc255a8101189",
+    "lecture_id": 5,
+    "lecture_name": "Jang - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1335d",
+    "category_id_ref": "6ac7e7644f6dc255a8101189",
+    "lecture_id": 6,
+    "lecture_name": "Qisaas / Evaz / Badal - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1335e",
+    "category_id_ref": "6ac7e7644f6dc255a8101189",
+    "lecture_id": 7,
+    "lecture_name": "Nafsiyati Zakhmon Ki Tasalli - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  },
+  {
+    "_id": "6ac813f338bef4b9d8a1335f",
+    "category_id_ref": "6ac7e7644f6dc255a8101189",
+    "lecture_id": 8,
+    "lecture_name": "Akhlaq / Morality - Hindi",
+    "year_delivered": "",
+    "total_ayats": 0
+  }
+]

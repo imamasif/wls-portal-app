@@ -1,63 +1,77 @@
 // client/src/features/quran/api/quranApi.js
 import { SURAH_LIST, LOCAL_PRESET_AYAT } from "../../../data/quranData.jsx";
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
+
 /**
- * Fetches a random verse from api.alquran.cloud out of all 6,236 verses.
+ * Fetches a random verse via the backend proxy (which handles multi-provider fallback and eliminates CORS).
  */
 export const fetchRandomVerse = async () => {
-  const randomVerseId = Math.floor(Math.random() * 6236) + 1;
+  try {
+    const response = await fetch(`${API_BASE}/api/quran/random-verse`);
 
+    if (response.ok) {
+      const json = await response.json();
+      if (json.code === 200 && json.data) {
+        return json.data;
+      }
+    }
+  } catch (err) {
+    console.warn("Backend Quran proxy /random-verse unavailable, trying direct ayah proxy...", err.message);
+  }
+
+  // Fallback to proxying a random ID
+  const randomVerseId = Math.floor(Math.random() * 6236) + 1;
   try {
     const response = await fetch(
-      `https://api.alquran.cloud/v1/ayah/${randomVerseId}/editions/quran-uthmani,en.sahih,ar.alafasy`,
+      `${API_BASE}/api/quran/ayah/${randomVerseId}/editions/quran-uthmani,en.sahih,ar.alafasy`,
     );
 
-    if (!response.ok) {
-      throw new Error(`API response error: ${response.status}`);
+    if (response.ok) {
+      const json = await response.json();
+      if (json.code === 200 && json.data && json.data.length >= 2) {
+        const uthmani = json.data[0];
+        const translation = json.data[1];
+        const audio = json.data[2];
+
+        const surahInfo = SURAH_LIST.find(
+          (s) => s.no === uthmani.surah.number,
+        ) || {
+          no: uthmani.surah.number,
+          name: uthmani.surah.englishName,
+          arabic: uthmani.surah.name,
+          ayahs: uthmani.surah.numberOfAyahs,
+        };
+
+        return {
+          globalId: uthmani.number,
+          surahNo: uthmani.surah.number,
+          surahName: surahInfo.name,
+          surahNameArabic: uthmani.surah.name,
+          ayahNo: uthmani.numberInSurah,
+          totalAyahsInSurah: uthmani.surah.numberOfAyahs,
+          arabic: uthmani.text,
+          eng: translation.text,
+          translation: translation.text,
+          juz: uthmani.juz,
+          audioUrl:
+            audio?.audio ||
+            `https://cdn.islamic.network/quran/audio/128/ar.alafasy/${uthmani.surah.number}/${uthmani.numberInSurah}.mp3`,
+        };
+      }
     }
-
-    const json = await response.json();
-
-    if (json.code === 200 && json.data && json.data.length >= 2) {
-      const uthmani = json.data[0];
-      const translation = json.data[1];
-      const audio = json.data[2];
-
-      const surahInfo = SURAH_LIST.find(
-        (s) => s.no === uthmani.surah.number,
-      ) || {
-        no: uthmani.surah.number,
-        name: uthmani.surah.englishName,
-        arabic: uthmani.surah.name,
-        ayahs: uthmani.surah.numberOfAyahs,
-      };
-
-      return {
-        globalId: uthmani.number,
-        surahNo: uthmani.surah.number,
-        surahName: surahInfo.name,
-        surahNameArabic: uthmani.surah.name,
-        ayahNo: uthmani.numberInSurah,
-        totalAyahsInSurah: uthmani.surah.numberOfAyahs,
-        arabic: uthmani.text,
-        eng: translation.text,
-        juz: uthmani.juz,
-        audioUrl:
-          audio?.audio ||
-          `https://cdn.islamic.network/quran/audio/128/ar.alafasy/${uthmani.surah.number}/${uthmani.numberInSurah}.mp3`,
-      };
-    }
-    throw new Error("Invalid Quran API response payload");
   } catch (error) {
-    console.error("Failed to fetch from Quran Cloud API:", error);
-    return LOCAL_PRESET_AYAT[
-      Math.floor(Math.random() * LOCAL_PRESET_AYAT.length)
-    ];
+    console.warn("Quran proxy request failed, using local verified preset deck:", error.message);
   }
+
+  // Guaranteed offline / preset deck fallback
+  return LOCAL_PRESET_AYAT[
+    Math.floor(Math.random() * LOCAL_PRESET_AYAT.length)
+  ];
 };
 
 /**
- * Enriches a verse object with missing translations or audio editions from Al-Quran Cloud.
+ * Enriches a verse object with missing translations or audio editions from our proxy.
  */
 export const enrichAyahEditions = async (ayahData) => {
   const sNo = ayahData.surahNo || ayahData.surahNumber;
@@ -65,9 +79,9 @@ export const enrichAyahEditions = async (ayahData) => {
   if (!sNo || !aNo) return ayahData;
 
   const needsArabic = !ayahData.arabic;
-  const needsEng = !ayahData.eng;
-  const needsUrdu = !ayahData.urdu;
-  const needsHindi = !ayahData.hindi;
+  const needsEng = !ayahData.eng && !ayahData.translation;
+  const needsUrdu = !ayahData.urdu && !ayahData.translationUrdu;
+  const needsHindi = !ayahData.hindi && !ayahData.translationHindi;
   const needsAudio = !ayahData.audioUrl;
 
   if (!needsArabic && !needsEng && !needsUrdu && !needsHindi && !needsAudio) {
@@ -85,35 +99,47 @@ export const enrichAyahEditions = async (ayahData) => {
     editionsList.push("ar.alafasy");
 
     const response = await fetch(
-      `https://api.alquran.cloud/v1/ayah/${sNo}:${aNo}/editions/${editionsList.join(",")}`,
+      `${API_BASE}/api/quran/ayah/${sNo}:${aNo}/editions/${editionsList.join(",")}`,
     );
-    const json = await response.json();
 
-    if (json.code === 200 && Array.isArray(json.data)) {
-      json.data.forEach((item) => {
-        if (item.edition.identifier === "quran-uthmani" && !updated.arabic) {
-          updated.arabic = item.text;
-        }
-        if (item.edition.identifier === "en.sahih" && !updated.eng) {
-          updated.eng = item.text;
-        }
-        if (item.edition.identifier === "ur.jalandhry" && !updated.urdu) {
-          updated.urdu = item.text;
-        }
-        if (item.edition.identifier === "hi.hindi" && !updated.hindi) {
-          updated.hindi = item.text;
-        }
-        if (item.edition.format === "audio" && !updated.audioUrl) {
-          updated.audioUrl = item.audio;
-        }
-      });
+    if (response.ok) {
+      const json = await response.json();
+
+      if (json.code === 200 && Array.isArray(json.data)) {
+        json.data.forEach((item) => {
+          if (item.edition?.identifier === "quran-uthmani" && !updated.arabic) {
+            updated.arabic = item.text;
+          }
+          if (item.edition?.identifier === "en.sahih") {
+            if (!updated.eng) updated.eng = item.text;
+            if (!updated.translation) updated.translation = item.text;
+            if (!updated.english_translation) updated.english_translation = item.text;
+          }
+          if (item.edition?.identifier === "ur.jalandhry") {
+            if (!updated.urdu) updated.urdu = item.text;
+            if (!updated.translationUrdu) updated.translationUrdu = item.text;
+            if (!updated.urdu_translation) updated.urdu_translation = item.text;
+          }
+          if (item.edition?.identifier === "hi.hindi") {
+            if (!updated.hindi) updated.hindi = item.text;
+            if (!updated.translationHindi) updated.translationHindi = item.text;
+            if (!updated.hindi_translation) updated.hindi_translation = item.text;
+          }
+          if (item.edition?.format === "audio" && !updated.audioUrl) {
+            updated.audioUrl = item.audio;
+          }
+        });
+      }
     }
 
     if (!updated.audioUrl) {
       updated.audioUrl = `https://cdn.islamic.network/quran/audio/128/ar.alafasy/${sNo}/${aNo}.mp3`;
     }
   } catch (err) {
-    console.error("Error fetching missing verse editions from API:", err);
+    console.warn("Proxy edition fetch error (using fallback audio):", err.message);
+    if (!updated.audioUrl) {
+      updated.audioUrl = `https://cdn.islamic.network/quran/audio/128/ar.alafasy/${sNo}/${aNo}.mp3`;
+    }
   }
 
   return updated;

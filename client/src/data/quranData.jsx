@@ -543,11 +543,20 @@ export default function QuranMemorizer() {
     setShowHint(false);
     setIsPlayingAudio(false);
 
-    const randomVerseId = Math.floor(Math.random() * 6236) + 1;
-
     try {
+      const apiBase = import.meta.env.VITE_API_BASE_URL || "";
+      const randomRes = await fetch(`${apiBase}/api/quran/random-verse`);
+      if (randomRes.ok) {
+        const randomJson = await randomRes.json();
+        if (randomJson.code === 200 && randomJson.data) {
+          setCurrentAyah(randomJson.data);
+          return;
+        }
+      }
+
+      const randomVerseId = Math.floor(Math.random() * 6236) + 1;
       const response = await fetch(
-        `https://api.alquran.cloud/v1/ayah/${randomVerseId}/editions/quran-uthmani,en.sahih,ar.alafasy`,
+        `${apiBase}/api/quran/ayah/${randomVerseId}/editions/quran-uthmani,en.sahih,ar.alafasy`,
       );
 
       if (!response.ok) {

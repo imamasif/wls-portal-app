@@ -33,267 +33,404 @@ import QuranHeader from "./Quran-Header";
 import VerseCard from "./VerseCard";
 import QuizControls from "./QuizControls";
 
-import { fetchRandomVerse } from "../api/quranApi";
+import { fetchRandomVerse, enrichAyahEditions } from "../api/quranApi";
 import { fetchCategoryLecturesMeta } from "../api/categoryLecturesApi";
 import { SURAH_LIST, LOCAL_PRESET_AYAT } from "../../../data/quranData";
 
 const customStyles = `
-  /* Main Container */
-  .apple-container {
-    max-width: 100%;
-    margin: 0 auto;
-  }
+  @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&family=Patrick+Hand&family=Inter:wght@400;500;600;700&display=swap');
 
-  /* Glossy Embossed Base Card */
-  .apple-embossed-card {
-    background: linear-gradient(145deg, #ffffff 0%, #f4f6fa 100%);
-    border-radius: 24px;
-    border: 1px solid rgba(255, 255, 255, 0.9);
-    box-shadow: 
-      0 16px 40px -12px rgba(0, 0, 0, 0.08),
-      0 2px 6px rgba(0, 0, 0, 0.03),
-      inset 0 1.5px 1px rgba(255, 255, 255, 1),
-      inset 0 -2px 4px rgba(0, 0, 0, 0.03);
+  /* Real Blackboard Wooden Outer Frame */
+  .chalkboard-outer-frame {
     position: relative;
+    border-radius: 18px;
+    background: linear-gradient(135deg, #623e23 0%, #442714 50%, #5d391f 100%);
+    padding: 14px 14px 22px 14px;
+    box-shadow: 
+      0 24px 50px -12px rgba(0, 0, 0, 0.55),
+      0 10px 24px -6px rgba(0, 0, 0, 0.35),
+      inset 0 2px 4px rgba(255, 235, 210, 0.28),
+      inset 0 -4px 8px rgba(0, 0, 0, 0.7);
+    border: 1px solid #321c0e;
     overflow: visible !important;
-    padding: 24px 28px;
     width: 100%;
     box-sizing: border-box;
   }
 
-  .apple-embossed-card::before {
+  .chalkboard-outer-frame::before {
     content: '';
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.95) 50%, rgba(255,255,255,0) 100%);
+    top: 4px; left: 4px; right: 4px; bottom: 4px;
+    border: 1px solid rgba(255, 220, 180, 0.16);
+    border-radius: 14px;
     pointer-events: none;
   }
 
-  /* Interactive Control Shell */
-  .apple-control-box {
-    background: linear-gradient(180deg, #ffffff 0%, #f2f4f8 100%);
-    border: 1px solid rgba(200, 205, 215, 0.75);
-    border-radius: 14px;
-    padding: 8px 12px;
+  /* Authentic Dark Slate Chalkboard Surface with Dust & Eraser Wipes */
+  .chalkboard-slate {
+    position: relative;
+    border-radius: 10px;
+    background-color: #1a2520;
+    background-image: 
+      radial-gradient(ellipse at 18% 28%, rgba(255, 255, 255, 0.055) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 68%, rgba(255, 255, 255, 0.045) 0%, transparent 55%),
+      radial-gradient(circle at 50% 85%, rgba(255, 255, 255, 0.035) 0%, transparent 65%),
+      radial-gradient(ellipse at 40% 15%, rgba(255, 255, 255, 0.04) 0%, transparent 40%),
+      repeating-linear-gradient(
+        0deg,
+        rgba(255, 255, 255, 0.007) 0px,
+        rgba(255, 255, 255, 0.007) 1px,
+        transparent 1px,
+        transparent 5px
+      );
+    padding: 24px 28px 20px 28px;
     box-shadow: 
-      0 2px 6px rgba(0, 0, 0, 0.03),
-      inset 0 1px 0 rgba(255, 255, 255, 0.9),
-      inset 0 -1.5px 2px rgba(0, 0, 0, 0.03);
+      inset 0 4px 16px rgba(0, 0, 0, 0.85),
+      inset 0 0 40px rgba(0, 0, 0, 0.5),
+      inset 0 0 2px rgba(255, 255, 255, 0.12);
+    color: #f1f5f9;
+    font-family: 'Patrick Hand', 'Caveat', 'Segoe Print', cursive, sans-serif;
+    overflow: visible !important;
+  }
+
+  /* Subtle corner chalk scuffs */
+  .chalkboard-slate::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    background: 
+      radial-gradient(circle at 6% 12%, rgba(255, 255, 255, 0.08) 0%, transparent 22%),
+      radial-gradient(circle at 94% 88%, rgba(255, 255, 255, 0.06) 0%, transparent 20%),
+      radial-gradient(circle at 90% 16%, rgba(255, 255, 255, 0.05) 0%, transparent 18%);
+    border-radius: 10px;
+  }
+
+  /* Wooden Chalk Tray Ledge at Bottom */
+  .chalk-tray {
+    position: relative;
+    margin-top: 12px;
+    height: 20px;
+    background: linear-gradient(180deg, #74492a 0%, #4a2b15 100%);
+    border-radius: 4px;
+    box-shadow: 
+      0 5px 10px rgba(0, 0, 0, 0.55),
+      inset 0 2px 2px rgba(255, 255, 255, 0.28),
+      inset 0 -2px 3px rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 20px;
+    gap: 12px;
+  }
+
+  /* Chalk Sticks */
+  .chalk-stick {
+    width: 38px;
+    height: 9px;
+    border-radius: 3px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.45), inset 0 1px 1px rgba(255,255,255,0.75);
+    position: relative;
+  }
+  .chalk-white {
+    background: linear-gradient(180deg, #ffffff 0%, #cbd5e1 100%);
+  }
+  .chalk-yellow {
+    background: linear-gradient(180deg, #fef08a 0%, #ca8a04 100%);
+  }
+  .chalk-mint {
+    background: linear-gradient(180deg, #bbf7d0 0%, #16a34a 100%);
+  }
+  .chalk-coral {
+    background: linear-gradient(180deg, #fecaca 0%, #dc2626 100%);
+  }
+  .chalk-cyan {
+    background: linear-gradient(180deg, #bae6fd 0%, #0284c7 100%);
+  }
+
+  /* Mini Felt Wooden Eraser in Tray */
+  .chalk-tray-eraser {
+    display: flex;
+    flex-direction: column;
+    width: 58px;
+    height: 14px;
+    border-radius: 2px;
+    box-shadow: 0 3px 5px rgba(0,0,0,0.55);
+  }
+  .eraser-wood-top {
+    height: 8px;
+    background: linear-gradient(180deg, #a76b3f 0%, #7d4924 100%);
+    border-radius: 2px 2px 0 0;
+    border-bottom: 1px solid #3d2311;
+  }
+  .eraser-felt-bottom {
+    height: 6px;
+    background: repeating-linear-gradient(90deg, #262626 0px, #262626 3px, #383838 3px, #383838 6px);
+    border-radius: 0 0 2px 2px;
+  }
+
+  /* Chalk Typography */
+  .chalk-title {
+    font-family: 'Caveat', 'Patrick Hand', cursive;
+    font-size: 26px;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: 0.5px;
+    text-shadow: 
+      0 0 2px rgba(255, 255, 255, 0.85),
+      0 0 8px rgba(255, 255, 255, 0.35),
+      0 0 16px rgba(255, 255, 255, 0.15);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .chalk-subtitle {
+    font-family: 'Patrick Hand', 'Caveat', cursive;
+    font-size: 15px;
+    color: rgba(255, 255, 255, 0.7);
+    text-shadow: 0 0 2px rgba(255, 255, 255, 0.35);
+  }
+
+  .chalk-label {
+    font-family: 'Patrick Hand', 'Caveat', cursive;
+    font-size: 16px;
+    letter-spacing: 0.8px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .chalk-label-mint {
+    color: #86efac;
+    text-shadow: 0 0 3px rgba(134, 239, 172, 0.65);
+  }
+  .chalk-label-yellow {
+    color: #fef08a;
+    text-shadow: 0 0 3px rgba(254, 240, 138, 0.65);
+  }
+
+  /* Chalk Interactive Control Box */
+  .chalk-control-box {
+    background: rgba(12, 19, 16, 0.7);
+    border: 1.5px dashed rgba(255, 255, 255, 0.35);
+    border-radius: 12px;
+    padding: 8px 14px;
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     user-select: none;
-    min-height: 46px;
+    min-height: 48px;
     display: flex;
     align-items: center;
+    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.45);
   }
 
-  .apple-control-box:hover {
-    background: linear-gradient(180deg, #ffffff 0%, #f7f9fc 100%);
-    border-color: rgba(0, 122, 255, 0.5);
+  .chalk-control-box:hover {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.7);
     box-shadow: 
-      0 6px 16px rgba(0, 122, 255, 0.1),
-      inset 0 1px 0 rgba(255, 255, 255, 1);
-    transform: translateY(-1px);
+      0 0 12px rgba(255, 255, 255, 0.16),
+      inset 0 2px 6px rgba(0, 0, 0, 0.45);
   }
 
-  .apple-control-box.open {
-    border-color: #007AFF;
-    box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.2);
+  .chalk-control-box.open {
+    border: 1.5px solid #fef08a;
+    box-shadow: 
+      0 0 16px rgba(254, 240, 138, 0.3),
+      inset 0 2px 8px rgba(0, 0, 0, 0.55);
   }
 
-  /* Multi Select Tag Badge */
-  .apple-tag {
-    background: linear-gradient(180deg, #ffffff 0%, #eceff4 100%);
-    border: 1px solid rgba(190, 195, 205, 0.7);
-    border-radius: 16px;
-    padding: 3px 8px;
-    font-size: 12px;
-    font-weight: 500;
-    color: #1d1d1f;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.9);
+  /* Chalk Multi-Select Tag Badge */
+  .chalk-tag {
+    border-radius: 8px;
+    padding: 3px 10px;
+    font-family: 'Patrick Hand', 'Caveat', cursive;
+    font-size: 14px;
+    font-weight: 600;
     display: inline-flex;
     align-items: center;
     gap: 6px;
     transition: all 0.15s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.35);
   }
 
-  .apple-tag:hover {
-    border-color: rgba(0, 122, 255, 0.6);
-    color: #007AFF;
+  .chalk-tag-mint {
+    background: rgba(134, 239, 172, 0.16);
+    border: 1px dashed #86efac;
+    color: #a7f3d0;
+    text-shadow: 0 0 2px rgba(167, 243, 208, 0.55);
   }
 
-  .apple-tag-remove {
+  .chalk-tag-yellow {
+    background: rgba(254, 240, 138, 0.16);
+    border: 1px dashed #fef08a;
+    color: #fef08a;
+    text-shadow: 0 0 2px rgba(254, 240, 138, 0.55);
+  }
+
+  .chalk-tag-remove {
     display: flex;
     align-items: center;
     justify-content: center;
     border-radius: 50%;
-    width: 14px;
-    height: 14px;
+    width: 15px;
+    height: 15px;
     cursor: pointer;
-    opacity: 0.6;
+    opacity: 0.7;
     transition: opacity 0.15s ease;
   }
 
-  .apple-tag-remove:hover {
+  .chalk-tag-remove:hover {
     opacity: 1;
-    background: rgba(0, 0, 0, 0.08);
+    background: rgba(255, 255, 255, 0.25);
   }
 
-  /* Popover Dropdown Window */
-  .apple-dropdown-popover {
-    background: #ffffff;
-    border: 1px solid rgba(195, 205, 220, 0.95);
-    border-radius: 16px;
+  /* Chalk Popover Dropdown Window */
+  .chalk-dropdown-popover {
+    background: #19231e;
+    border: 2px solid #5d3d24;
+    border-radius: 14px;
     box-shadow: 
-      0 20px 45px rgba(0, 0, 0, 0.16),
-      0 6px 16px rgba(0, 0, 0, 0.08);
-    padding: 10px;
+      0 24px 50px rgba(0, 0, 0, 0.75),
+      0 8px 20px rgba(0, 0, 0, 0.45),
+      inset 0 2px 10px rgba(0, 0, 0, 0.6);
+    padding: 12px;
     z-index: 9999 !important;
+    color: #f1f5f9;
   }
 
-  /* Search Input inside Dropdown */
-  .apple-search-input {
+  /* Search Input inside Chalk Dropdown */
+  .chalk-search-input {
     width: 100%;
-    padding: 8px 12px 8px 32px;
-    border-radius: 10px;
-    border: 1px solid rgba(200, 205, 215, 0.6);
-    background: rgba(240, 242, 246, 0.7);
-    font-size: 13px;
+    padding: 9px 12px 9px 34px;
+    border-radius: 8px;
+    border: 1.5px dashed rgba(255, 255, 255, 0.35);
+    background: rgba(10, 15, 12, 0.65);
+    color: #ffffff;
+    font-family: 'Patrick Hand', 'Caveat', cursive;
+    font-size: 15px;
     outline: none;
     box-sizing: border-box;
     transition: all 0.2s ease;
   }
 
-  .apple-search-input:focus {
-    background: #ffffff;
-    border-color: #007AFF;
-    box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.15);
+  .chalk-search-input:focus {
+    border-color: #fef08a;
+    box-shadow: 0 0 10px rgba(254, 240, 138, 0.25);
+    background: rgba(10, 15, 12, 0.9);
   }
 
   /* Selectable Dropdown Item */
-  .apple-option-item {
-    border-radius: 10px;
-    padding: 8px 10px;
+  .chalk-option-item {
+    border-radius: 8px;
+    padding: 8px 12px;
     transition: all 0.15s ease;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-size: 13px;
-    font-weight: 500;
-    color: #1d1d1f;
-    margin-bottom: 2px;
-  }
-
-  .apple-option-item:hover {
-    background: rgba(0, 122, 255, 0.08);
-    color: #007AFF;
-  }
-
-  .apple-option-item.selected {
-    background: linear-gradient(135deg, #007AFF 0%, #0056b3 100%);
-    color: #ffffff;
-    box-shadow: 0 4px 10px rgba(0, 122, 255, 0.28);
-  }
-
-  /* Tactile Embossed Primary Button */
-  .apple-button-embossed {
-    background: linear-gradient(180deg, #0077FF 0%, #0055D6 100%);
-    border-radius: 16px;
-    border: 1px solid rgba(255, 255, 255, 0.35);
-    color: #ffffff;
-    font-weight: 600;
+    font-family: 'Patrick Hand', 'Caveat', cursive;
     font-size: 15px;
-    letter-spacing: -0.2px;
-    padding: 13px 22px;
+    color: #e2e8f0;
+    margin-bottom: 3px;
+    border: 1px solid transparent;
+  }
+
+  .chalk-option-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.25);
+    color: #ffffff;
+  }
+
+  .chalk-option-item.selected {
+    background: rgba(134, 239, 172, 0.2);
+    border: 1px dashed #86efac;
+    color: #a7f3d0;
+    text-shadow: 0 0 2px rgba(134, 239, 172, 0.55);
+  }
+
+  /* Chalk Eraser Action Button - Styled like a Vintage Wooden Classroom Eraser */
+  .chalk-eraser-button {
+    background: linear-gradient(180deg, #965a30 0%, #6e3e1c 50%, #522d13 100%);
+    border-radius: 12px;
+    border: 2px solid #3c1e0b;
+    color: #fef3c7;
+    font-family: 'Caveat', 'Patrick Hand', cursive;
+    font-weight: 700;
+    font-size: 21px;
+    letter-spacing: 0.5px;
+    padding: 12px 24px;
     box-shadow: 
-      0 10px 24px rgba(0, 118, 255, 0.35),
-      0 2px 4px rgba(0, 0, 0, 0.1),
-      inset 0 1px 1.5px rgba(255, 255, 255, 0.5),
-      inset 0 -2px 3px rgba(0, 0, 0, 0.2);
+      0 10px 22px rgba(0, 0, 0, 0.45),
+      0 2px 4px rgba(0, 0, 0, 0.3),
+      inset 0 2px 2px rgba(255, 255, 255, 0.45),
+      inset 0 -4px 6px rgba(0, 0, 0, 0.55);
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
+    gap: 12px;
     width: 100%;
     position: relative;
     overflow: hidden;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8), 0 0 6px rgba(254, 243, 199, 0.45);
   }
 
-  .apple-button-embossed::after {
+  /* Bottom Felt Strip of the Eraser */
+  .chalk-eraser-button::after {
     content: '';
     position: absolute;
-    top: 0;
+    bottom: 0;
     left: 0;
     right: 0;
-    height: 45%;
-    background: linear-gradient(180deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 100%);
-    pointer-events: none;
-    border-radius: 15px 15px 0 0;
+    height: 6px;
+    background: repeating-linear-gradient(90deg, #1f1f1f 0px, #1f1f1f 4px, #333 4px, #333 8px);
+    border-top: 1px solid #141414;
   }
 
-  .apple-button-embossed:hover {
-    background: linear-gradient(180deg, #1A85FF 0%, #0062E6 100%);
+  .chalk-eraser-button:hover {
+    background: linear-gradient(180deg, #a86638 0%, #7d4721 50%, #5e3417 100%);
     box-shadow: 
-      0 12px 28px rgba(0, 118, 255, 0.45),
-      0 4px 8px rgba(0, 0, 0, 0.1),
-      inset 0 1px 2px rgba(255, 255, 255, 0.6);
+      0 14px 28px rgba(0, 0, 0, 0.55),
+      0 4px 8px rgba(0, 0, 0, 0.3),
+      inset 0 2px 3px rgba(255, 255, 255, 0.55);
     transform: translateY(-2px);
+    color: #ffffff;
   }
 
-  .apple-button-embossed:active {
-    transform: translateY(1px) scale(0.985);
-    background: linear-gradient(180deg, #0050C7 0%, #0040A8 100%);
+  .chalk-eraser-button:active {
+    transform: translateY(2px) scale(0.99);
     box-shadow: 
-      0 4px 10px rgba(0, 118, 255, 0.25),
-      inset 0 2px 5px rgba(0, 0, 0, 0.35);
+      0 4px 10px rgba(0, 0, 0, 0.4),
+      inset 0 2px 6px rgba(0, 0, 0, 0.65);
   }
 
-  /* Live Preview Cards */
-  .apple-lecture-card {
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(220, 226, 236, 0.85);
-    border-radius: 16px;
-    padding: 12px 16px;
-    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.02);
+  /* Summary Box on Blackboard */
+  .chalk-stat-pill {
+    background: rgba(10, 16, 13, 0.7);
+    border: 1.5px dashed rgba(255, 255, 255, 0.3);
+    border-radius: 12px;
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Patrick Hand', 'Caveat', cursive;
+    font-size: 16px;
   }
 
-  .apple-lecture-card:hover {
-    background: #ffffff;
-    box-shadow: 0 8px 22px rgba(0, 122, 255, 0.08);
-    transform: translateY(-2px);
-    border-color: rgba(0, 122, 255, 0.35);
-  }
-
-  /* Badge Pill */
-  .apple-pill {
-    padding: 3px 9px;
-    border-radius: 10px;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.2px;
-  }
-
-  /* Scrollbar styling */
+  /* Scrollbar styling for dark chalkboard */
   .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
   }
   .custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
+    background: rgba(0, 0, 0, 0.2);
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.15);
+    background: rgba(255, 255, 255, 0.2);
     border-radius: 10px;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 0, 0, 0.25);
+    background: rgba(255, 255, 255, 0.35);
   }
 `;
 
@@ -304,6 +441,7 @@ const CustomMultiSelect = ({
   selectedIds,
   onChange,
   placeholder,
+  accentColor = "mint",
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -349,6 +487,9 @@ const CustomMultiSelect = ({
     return options.filter((opt) => selectedIds.includes(opt.id));
   }, [options, selectedIds]);
 
+  const isYellow = accentColor === "yellow";
+  const chalkColor = isYellow ? "#fef08a" : "#86efac";
+
   return (
     <div
       style={{
@@ -367,23 +508,17 @@ const CustomMultiSelect = ({
           marginBottom: 6,
         }}
       >
-        <span
-          style={{
-            fontSize: 11,
-            fontWeight: 700,
-            color: "#8e8e93",
-            letterSpacing: "0.5px",
-            textTransform: "uppercase",
-          }}
-        >
+        <span className={`chalk-label ${isYellow ? "chalk-label-yellow" : "chalk-label-mint"}`}>
           {title}
         </span>
         {selectedIds.length > 0 && (
           <span
             style={{
-              fontSize: 12,
-              fontWeight: 500,
-              color: "#007AFF",
+              fontSize: 13,
+              fontFamily: "'Patrick Hand', 'Caveat', cursive",
+              fontWeight: 600,
+              color: chalkColor,
+              textShadow: `0 0 2px ${chalkColor}`,
               cursor: "pointer",
             }}
             onClick={clearAll}
@@ -395,8 +530,9 @@ const CustomMultiSelect = ({
 
       {/* Control Box Container */}
       <div
-        className={`apple-control-box ${isOpen ? "open" : ""}`}
+        className={`chalk-control-box ${isOpen ? "open" : ""}`}
         onClick={() => setIsOpen(!isOpen)}
+        style={isOpen ? { borderColor: chalkColor } : {}}
       >
         <div
           style={{
@@ -417,22 +553,25 @@ const CustomMultiSelect = ({
               overflow: "hidden",
             }}
           >
-            {Icon && <Icon size={18} color="#007AFF" style={{ flexShrink: 0 }} />}
+            {Icon && <Icon size={18} color={chalkColor} style={{ flexShrink: 0 }} />}
 
             {selectedObjects.length === 0 ? (
               <span
                 style={{
-                  fontSize: 13,
-                  color: "#a0aec0",
-                  fontStyle: "italic",
+                  fontSize: 14,
+                  fontFamily: "'Patrick Hand', 'Caveat', cursive",
+                  color: "rgba(255, 255, 255, 0.45)",
                 }}
               >
                 {placeholder}
               </span>
             ) : (
-              <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 {selectedObjects.map((item) => (
-                  <span key={item.id} className="apple-tag">
+                  <span
+                    key={item.id}
+                    className={`chalk-tag ${isYellow ? "chalk-tag-yellow" : "chalk-tag-mint"}`}
+                  >
                     {item.icon && <span>{item.icon}</span>}
                     <span
                       style={{
@@ -445,10 +584,10 @@ const CustomMultiSelect = ({
                       {item.label || item.title}
                     </span>
                     <span
-                      className="apple-tag-remove"
+                      className="chalk-tag-remove"
                       onClick={(e) => removeTag(item.id, e)}
                     >
-                      <X size={11} color="#1d1d1f" />
+                      <X size={12} color="currentColor" />
                     </span>
                   </span>
                 ))}
@@ -458,7 +597,7 @@ const CustomMultiSelect = ({
 
           <ChevronDown
             size={18}
-            color="#8e8e93"
+            color="rgba(255, 255, 255, 0.65)"
             style={{
               transition: "transform 0.3s ease",
               transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
@@ -471,7 +610,7 @@ const CustomMultiSelect = ({
       {/* Popover Dropdown Panel */}
       {isOpen && (
         <div
-          className="apple-dropdown-popover custom-scrollbar"
+          className="chalk-dropdown-popover custom-scrollbar"
           style={{
             position: "absolute",
             top: "calc(100% + 6px)",
@@ -483,16 +622,16 @@ const CustomMultiSelect = ({
           }}
         >
           {/* Search Box inside Dropdown */}
-          <div style={{ position: "relative", marginBottom: 6 }}>
+          <div style={{ position: "relative", marginBottom: 8 }}>
             <Search
-              size={14}
-              color="#a0aec0"
-              style={{ position: "absolute", left: 10, top: 10 }}
+              size={15}
+              color="rgba(255, 255, 255, 0.5)"
+              style={{ position: "absolute", left: 10, top: 11 }}
             />
             <input
               type="text"
-              className="apple-search-input"
-              placeholder="Search..."
+              className="chalk-search-input"
+              placeholder="Search in chalk..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onClick={(e) => e.stopPropagation()}
@@ -503,13 +642,14 @@ const CustomMultiSelect = ({
           {filteredOptions.length === 0 ? (
             <div
               style={{
-                padding: "12px 8px",
-                fontSize: 13,
-                color: "#8e8e93",
+                padding: "14px 8px",
+                fontSize: 14,
+                fontFamily: "'Patrick Hand', 'Caveat', cursive",
+                color: "rgba(255, 255, 255, 0.45)",
                 textAlign: "center",
               }}
             >
-              No matches found
+              No chalk matches found
             </div>
           ) : (
             filteredOptions.map((option) => {
@@ -517,8 +657,18 @@ const CustomMultiSelect = ({
               return (
                 <div
                   key={option.id}
-                  className={`apple-option-item ${isSelected ? "selected" : ""}`}
+                  className={`chalk-option-item ${isSelected ? "selected" : ""}`}
                   onClick={(e) => toggleOption(option.id, e)}
+                  style={
+                    isSelected && isYellow
+                      ? {
+                          background: "rgba(254, 240, 138, 0.2)",
+                          borderColor: "#fef08a",
+                          color: "#fef08a",
+                          textShadow: "0 0 2px rgba(254,240,138,0.55)",
+                        }
+                      : {}
+                  }
                 >
                   <div
                     style={{
@@ -544,8 +694,8 @@ const CustomMultiSelect = ({
                       {(option.instructor || option.categoryName || option.duration) && (
                         <div
                           style={{
-                            fontSize: 11,
-                            opacity: isSelected ? 0.9 : 0.6,
+                            fontSize: 12,
+                            opacity: isSelected ? 0.9 : 0.65,
                             whiteSpace: "nowrap",
                             overflow: "hidden",
                             textOverflow: "ellipsis",
@@ -559,7 +709,7 @@ const CustomMultiSelect = ({
                   </div>
 
                   {isSelected && (
-                    <Check size={16} style={{ flexShrink: 0, marginLeft: 8 }} />
+                    <Check size={16} color="currentColor" style={{ flexShrink: 0, marginLeft: 8 }} />
                   )}
                 </div>
               );
@@ -762,84 +912,9 @@ export default function QuranVerseMemorizerPanel() {
     setSelectedLectureIds([]);
   };
 
-  // Fetch missing translations & audio from Al-Quran Cloud API on demand
+  // Fetch missing translations & audio via backend proxy (eliminates CORS and handles failovers)
   const enrichTranslationsIfNeeded = async (ayahData) => {
-    const sNo = ayahData.surahNo || ayahData.surahNumber;
-    const aNo = ayahData.ayahNo || ayahData.ayatNumber;
-    if (!sNo || !aNo) return ayahData;
-
-    const needsArabic = !ayahData.arabic || ayahData.arabic.trim() === "";
-    const needsEng =
-      !ayahData.translation || ayahData.translation.trim() === "";
-    const needsUrdu =
-      !ayahData.translationUrdu || ayahData.translationUrdu.trim() === "";
-    const needsHindi =
-      !ayahData.translationHindi || ayahData.translationHindi.trim() === "";
-    const needsAudio = !ayahData.audioUrl;
-
-    if (!needsArabic && !needsEng && !needsUrdu && !needsHindi && !needsAudio) {
-      return ayahData;
-    }
-
-    const updated = { ...ayahData };
-
-    try {
-      const editionsList = [];
-      if (needsArabic) editionsList.push("quran-uthmani");
-      if (needsEng) editionsList.push("en.sahih");
-      if (needsUrdu) editionsList.push("ur.jalandhry");
-      if (needsHindi) editionsList.push("hi.hindi");
-      editionsList.push("ar.alafasy");
-
-      const res = await fetch(
-        `https://api.alquran.cloud/v1/ayah/${sNo}:${aNo}/editions/${editionsList.join(",")}`,
-      );
-      const json = await res.json();
-
-      if (json.code === 200 && Array.isArray(json.data)) {
-        json.data.forEach((item) => {
-          if (
-            item.edition.identifier === "quran-uthmani" &&
-            (!updated.arabic || updated.arabic.trim() === "")
-          ) {
-            updated.arabic = item.text;
-          }
-          if (
-            item.edition.identifier === "en.sahih" &&
-            (!updated.translation || updated.translation.trim() === "")
-          ) {
-            updated.english_translation = item.text;
-            updated.translation = item.text;
-          }
-          if (
-            item.edition.identifier === "ur.jalandhry" &&
-            (!updated.translationUrdu || updated.translationUrdu.trim() === "")
-          ) {
-            updated.urdu_translation = item.text;
-            updated.translationUrdu = item.text;
-          }
-          if (
-            item.edition.identifier === "hi.hindi" &&
-            (!updated.translationHindi ||
-              updated.translationHindi.trim() === "")
-          ) {
-            updated.hindi_translation = item.text;
-            updated.translationHindi = item.text;
-          }
-          if (item.edition.format === "audio" && !updated.audioUrl) {
-            updated.audioUrl = item.audio;
-          }
-        });
-      }
-
-      if (!updated.audioUrl) {
-        updated.audioUrl = `https://cdn.islamic.network/quran/audio/128/ar.alafasy/${sNo}/${aNo}.mp3`;
-      }
-    } catch (err) {
-      console.error("Error fetching missing verse editions from API:", err);
-    }
-
-    return updated;
+    return await enrichAyahEditions(ayahData);
   };
 
   const loadNextAyah = async () => {
@@ -1040,8 +1115,8 @@ export default function QuranVerseMemorizerPanel() {
                 }}
               >
                 {isStudioOpen
-                  ? "Hide Curriculum Studio"
-                  : "Open Curriculum Studio"}
+                  ? "Hide Chalkboard Studio"
+                  : "Open Chalkboard Studio"}
               </Button>
 
               <Button
@@ -1058,183 +1133,194 @@ export default function QuranVerseMemorizerPanel() {
 
           <style>{customStyles}</style>
 
-          {/* APPLE EMBOSSED INTERACTIVE CURRICULUM STUDIO */}
+          {/* AUTHENTIC CLASSROOM CHALKBOARD CURRICULUM STUDIO */}
           {isStudioOpen && (
-            <div className="apple-container" style={{ width: "100%", maxWidth: "100%", marginBottom: "1rem" }}>
-              <div className="apple-embossed-card" style={{ width: "100%" }}>
-                {/* Card Header */}
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: 20,
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <div
-                      style={{
-                        width: 38,
-                        height: 38,
-                        borderRadius: 12,
-                        background:
-                          "linear-gradient(135deg, #007AFF 0%, #0056b3 100%)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: "#ffffff",
-                        boxShadow: "0 4px 12px rgba(0, 122, 255, 0.35)",
-                      }}
-                    >
-                      <SlidersHorizontal size={20} />
-                    </div>
-                    <div>
-                      <h3
-                        style={{
-                          fontSize: 17,
-                          fontWeight: 600,
-                          color: "#1d1d1f",
-                          margin: 0,
-                        }}
-                      >
-                        Curriculum Studio
-                      </h3>
-                      <span style={{ fontSize: 12, color: "#8e8e93" }}>
-                        Configure categories &amp; lectures
-                      </span>
-                    </div>
-                  </div>
-
-                  {(selectedCategoryIds.length > 0 ||
-                    selectedLectureIds.length > 0) && (
-                    <button
-                      onClick={handleResetAll}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        color: "#8e8e93",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 4,
-                        fontSize: 12,
-                        fontWeight: 500,
-                      }}
-                      title="Reset all filters"
-                    >
-                      <RotateCcw size={14} /> Reset All
-                    </button>
-                  )}
-                </div>
-
-                {/* Wide 2-Column Responsive Layout for Pickers */}
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))",
-                    gap: 22,
-                    marginBottom: 22,
-                  }}
-                >
-                  {/* Categories Multi-Select */}
-                  <CustomMultiSelect
-                    title="Filter Categories"
-                    icon={Folder}
-                    options={availableCategoryOptions}
-                    selectedIds={selectedCategoryIds}
-                    onChange={setSelectedCategoryIds}
-                    placeholder="Choose categories..."
-                  />
-
-                  {/* Lectures Multi-Select */}
-                  <CustomMultiSelect
-                    title="Select Specific Lectures"
-                    icon={BookOpen}
-                    options={filteredAvailableLectures}
-                    selectedIds={selectedLectureIds}
-                    onChange={setSelectedLectureIds}
-                    placeholder={
-                      filteredAvailableLectures.length === 0
-                        ? "No lectures found..."
-                        : "Choose lectures..."
-                    }
-                  />
-                </div>
-
-                {/* Bottom Action Row: Summary Stats Pill & Embossed Start Button */}
-                <div
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 16,
-                    paddingTop: 16,
-                    borderTop: "1px solid rgba(220, 226, 236, 0.75)",
-                  }}
-                >
+            <div style={{ width: "100%", maxWidth: "100%", marginBottom: "1.25rem" }}>
+              {/* Real Blackboard Wooden Outer Frame */}
+              <div className="chalkboard-outer-frame">
+                {/* Dark Slate Surface with chalk dust smudges & eraser wipe patterns */}
+                <div className="chalkboard-slate">
+                  {/* Chalkboard Header */}
                   <div
                     style={{
-                      background: "rgba(240, 243, 248, 0.85)",
-                      border: "1px solid rgba(215, 220, 230, 0.7)",
-                      borderRadius: 14,
-                      padding: "10px 16px",
                       display: "flex",
+                      justifyContent: "space-between",
                       alignItems: "center",
-                      gap: 10,
+                      marginBottom: 20,
+                      borderBottom: "1.5px dashed rgba(255, 255, 255, 0.2)",
+                      paddingBottom: 14,
                     }}
                   >
-                    <span
-                      style={{
-                        fontSize: 13,
-                        color: "#6c757d",
-                        fontWeight: 500,
-                      }}
-                    >
-                      Active Pool:
-                    </span>
-                    <span
-                      className="apple-pill"
-                      style={{
-                        background: "#007AFF",
-                        color: "#fff",
-                        fontSize: 12,
-                        padding: "4px 12px",
-                      }}
-                    >
-                      {customLectureAyatPool.length} Verses Ready ({displayLectures.length} Lectures)
-                    </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                      <div
+                        style={{
+                          width: 42,
+                          height: 42,
+                          borderRadius: 10,
+                          background: "rgba(255, 255, 255, 0.08)",
+                          border: "1.5px dashed rgba(255, 255, 255, 0.4)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#fef08a",
+                          boxShadow: "0 0 10px rgba(254, 240, 138, 0.2)",
+                        }}
+                      >
+                        <SlidersHorizontal size={22} />
+                      </div>
+                      <div>
+                        <h3 className="chalk-title">
+                          Curriculum Blackboard Studio
+                        </h3>
+                        <span className="chalk-subtitle">
+                          Select categories &amp; specific lecture booklets to drill
+                        </span>
+                      </div>
+                    </div>
+
+                    {(selectedCategoryIds.length > 0 ||
+                      selectedLectureIds.length > 0) && (
+                      <button
+                        onClick={handleResetAll}
+                        style={{
+                          background: "rgba(255, 255, 255, 0.08)",
+                          border: "1px dashed rgba(255, 255, 255, 0.35)",
+                          borderRadius: 8,
+                          padding: "6px 12px",
+                          color: "#fca5a5",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                          fontFamily: "'Patrick Hand', 'Caveat', cursive",
+                          fontSize: 14,
+                          fontWeight: 600,
+                          transition: "all 0.2s ease",
+                        }}
+                        title="Erase all selections"
+                      >
+                        <RotateCcw size={14} /> Clear Blackboard
+                      </button>
+                    )}
                   </div>
 
-                  <div style={{ flex: "1 1 300px", maxWidth: "460px" }}>
-                    <button
-                      className="apple-button-embossed"
-                      onClick={() => {
-                        setDataSource("lectures");
-                        setIsLaunching(true);
-                        setTimeout(() => {
-                          setIsLaunching(false);
-                          setLaunchSuccess(true);
-                          loadNextAyah();
-                          setTimeout(() => setLaunchSuccess(false), 2500);
-                        }, 400);
-                      }}
-                      disabled={isLaunching || customLectureAyatPool.length === 0}
-                    >
-                      {isLaunching ? (
-                        <span>Preparing Practice Session...</span>
-                      ) : launchSuccess ? (
-                        <>
-                          <CheckCircle2 size={18} />
-                          <span>Curriculum Loaded!</span>
-                        </>
-                      ) : (
-                        <>
-                          <span>Start Learning Session ({customLectureAyatPool.length} Verses)</span>
-                          <ArrowRight size={18} />
-                        </>
-                      )}
-                    </button>
+                  {/* 2-Column Responsive Layout for Pickers */}
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))",
+                      gap: 22,
+                      marginBottom: 22,
+                    }}
+                  >
+                    {/* Categories Multi-Select (Mint Chalk) */}
+                    <CustomMultiSelect
+                      title="Filter Categories"
+                      icon={Folder}
+                      options={availableCategoryOptions}
+                      selectedIds={selectedCategoryIds}
+                      onChange={setSelectedCategoryIds}
+                      placeholder="Choose categories in chalk..."
+                      accentColor="mint"
+                    />
+
+                    {/* Lectures Multi-Select (Yellow Chalk) */}
+                    <CustomMultiSelect
+                      title="Select Specific Lectures"
+                      icon={BookOpen}
+                      options={filteredAvailableLectures}
+                      selectedIds={selectedLectureIds}
+                      onChange={setSelectedLectureIds}
+                      placeholder={
+                        filteredAvailableLectures.length === 0
+                          ? "No lectures found..."
+                          : "Choose lectures in chalk..."
+                      }
+                      accentColor="yellow"
+                    />
+                  </div>
+
+                  {/* Bottom Action Row: Chalk Summary Box & Wooden Felt Eraser Button */}
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 16,
+                      paddingTop: 16,
+                      borderTop: "1.5px dashed rgba(255, 255, 255, 0.2)",
+                    }}
+                  >
+                    <div className="chalk-stat-pill">
+                      <span style={{ color: "rgba(255, 255, 255, 0.7)" }}>
+                        Blackboard Pool:
+                      </span>
+                      <span
+                        style={{
+                          color: "#86efac",
+                          fontWeight: 700,
+                          textShadow: "0 0 3px rgba(134, 239, 172, 0.6)",
+                        }}
+                      >
+                        {customLectureAyatPool.length} Verses Ready
+                      </span>
+                      <span style={{ color: "rgba(255, 255, 255, 0.5)" }}>•</span>
+                      <span
+                        style={{
+                          color: "#fef08a",
+                          fontWeight: 700,
+                          textShadow: "0 0 3px rgba(254, 240, 138, 0.6)",
+                        }}
+                      >
+                        {displayLectures.length} Lectures
+                      </span>
+                    </div>
+
+                    <div style={{ flex: "1 1 320px", maxWidth: "480px" }}>
+                      <button
+                        className="chalk-eraser-button"
+                        onClick={() => {
+                          setDataSource("lectures");
+                          setIsLaunching(true);
+                          setTimeout(() => {
+                            setIsLaunching(false);
+                            setLaunchSuccess(true);
+                            loadNextAyah();
+                            setTimeout(() => setLaunchSuccess(false), 2500);
+                          }, 400);
+                        }}
+                        disabled={isLaunching || customLectureAyatPool.length === 0}
+                      >
+                        {isLaunching ? (
+                          <span>Wiping Board &amp; Preparing Session...</span>
+                        ) : launchSuccess ? (
+                          <>
+                            <CheckCircle2 size={20} color="#86efac" />
+                            <span style={{ color: "#86efac" }}>Blackboard Session Ready!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles size={18} color="#fef08a" />
+                            <span>Wipe Board &amp; Practice ({customLectureAyatPool.length} Verses)</span>
+                            <ArrowRight size={18} />
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Wooden Chalk Tray with Colored Chalk Sticks & Vintage Eraser */}
+                <div className="chalk-tray">
+                  <div className="chalk-stick chalk-white" title="White Chalk" />
+                  <div className="chalk-stick chalk-yellow" title="Yellow Chalk" />
+                  <div className="chalk-stick chalk-mint" title="Mint Chalk" />
+                  <div className="chalk-stick chalk-coral" title="Coral Chalk" />
+                  <div className="chalk-stick chalk-cyan" title="Sky Blue Chalk" />
+                  <div className="chalk-tray-eraser" title="Classroom Felt Eraser">
+                    <div className="eraser-wood-top" />
+                    <div className="eraser-felt-bottom" />
                   </div>
                 </div>
               </div>
