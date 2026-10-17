@@ -17,7 +17,10 @@ export const fetchRandomVerse = async () => {
       }
     }
   } catch (err) {
-    console.warn("Backend Quran proxy /random-verse unavailable, trying direct ayah proxy...", err.message);
+    console.warn(
+      "Backend Quran proxy /random-verse unavailable, trying direct ayah proxy...",
+      err.message,
+    );
   }
 
   // Fallback to proxying a random ID
@@ -61,10 +64,13 @@ export const fetchRandomVerse = async () => {
       }
     }
   } catch (error) {
-    console.warn("Quran proxy request failed, using local verified preset deck:", error.message);
+    console.warn(
+      "Quran proxy request failed, using local verified deck:",
+      error.message,
+    );
   }
 
-  // Guaranteed offline / preset deck fallback
+  // Guaranteed offline / deck fallback
   return LOCAL_PRESET_AYAT[
     Math.floor(Math.random() * LOCAL_PRESET_AYAT.length)
   ];
@@ -113,7 +119,8 @@ export const enrichAyahEditions = async (ayahData) => {
           if (item.edition?.identifier === "en.sahih") {
             if (!updated.eng) updated.eng = item.text;
             if (!updated.translation) updated.translation = item.text;
-            if (!updated.english_translation) updated.english_translation = item.text;
+            if (!updated.english_translation)
+              updated.english_translation = item.text;
           }
           if (item.edition?.identifier === "ur.jalandhry") {
             if (!updated.urdu) updated.urdu = item.text;
@@ -123,7 +130,8 @@ export const enrichAyahEditions = async (ayahData) => {
           if (item.edition?.identifier === "hi.hindi") {
             if (!updated.hindi) updated.hindi = item.text;
             if (!updated.translationHindi) updated.translationHindi = item.text;
-            if (!updated.hindi_translation) updated.hindi_translation = item.text;
+            if (!updated.hindi_translation)
+              updated.hindi_translation = item.text;
           }
           if (item.edition?.format === "audio" && !updated.audioUrl) {
             updated.audioUrl = item.audio;
@@ -136,7 +144,10 @@ export const enrichAyahEditions = async (ayahData) => {
       updated.audioUrl = `https://cdn.islamic.network/quran/audio/128/ar.alafasy/${sNo}/${aNo}.mp3`;
     }
   } catch (err) {
-    console.warn("Proxy edition fetch error (using fallback audio):", err.message);
+    console.warn(
+      "Proxy edition fetch error (using fallback audio):",
+      err.message,
+    );
     if (!updated.audioUrl) {
       updated.audioUrl = `https://cdn.islamic.network/quran/audio/128/ar.alafasy/${sNo}/${aNo}.mp3`;
     }

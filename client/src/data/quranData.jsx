@@ -196,9 +196,7 @@ const Header = ({ useLiveApi, setUseLiveApi, score, streak, accuracyRate }) => {
           }`}
         >
           <Globe className="w-3.5 h-3.5" />
-          <span>
-            {useLiveApi ? "Live Quran API (Active)" : "Preset Verses"}
-          </span>
+          <span>{useLiveApi ? "Live Quran API (Active)" : ""}</span>
         </button>
 
         <div className="bg-white/90 border border-stone-200 px-3 py-1.5 rounded-xl shadow-2xs flex items-center gap-2 transform rotate-1">

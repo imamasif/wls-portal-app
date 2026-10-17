@@ -1,16 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import {
-  Container,
-  Stack,
-  Group,
-  Text,
-  Button,
-} from "@mantine/core";
-import {
-  IconBookmark,
-  IconRefresh,
-  IconFilter,
-} from "@tabler/icons-react";
+import { Container, Stack, Group, Text, Button } from "@mantine/core";
+import { IconBookmark, IconRefresh, IconFilter } from "@tabler/icons-react";
 import {
   ChevronDown,
   Check,
@@ -293,7 +283,10 @@ const CustomMultiSelect = ({
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (containerRef.current && !containerRef.current.contains(event.target)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target)
+      ) {
         setIsOpen(false);
       }
     };
@@ -303,7 +296,8 @@ const CustomMultiSelect = ({
 
   const filteredOptions = useMemo(() => {
     return options.filter((opt) => {
-      const text = `${opt.label || ""} ${opt.title || ""} ${opt.instructor || ""} ${opt.categoryName || ""}`.toLowerCase();
+      const text =
+        `${opt.label || ""} ${opt.title || ""} ${opt.instructor || ""} ${opt.categoryName || ""}`.toLowerCase();
       return text.includes(searchQuery.toLowerCase());
     });
   }, [options, searchQuery]);
@@ -399,7 +393,9 @@ const CustomMultiSelect = ({
               overflow: "hidden",
             }}
           >
-            {Icon && <Icon size={18} color="#007AFF" style={{ flexShrink: 0 }} />}
+            {Icon && (
+              <Icon size={18} color="#007AFF" style={{ flexShrink: 0 }} />
+            )}
 
             {selectedObjects.length === 0 ? (
               <span
@@ -523,7 +519,9 @@ const CustomMultiSelect = ({
                       >
                         {option.label || option.title}
                       </div>
-                      {(option.instructor || option.categoryName || option.duration) && (
+                      {(option.instructor ||
+                        option.categoryName ||
+                        option.duration) && (
                         <div
                           style={{
                             fontSize: 11,
@@ -605,7 +603,8 @@ export default function QuranVerseMemorizerPanel() {
       const totalLectures =
         cat.total_lectures ?? (cat.lectures ? cat.lectures.length : 0);
 
-      if (totalLectures === 0 && (!cat.lectures || cat.lectures.length === 0)) return;
+      if (totalLectures === 0 && (!cat.lectures || cat.lectures.length === 0))
+        return;
 
       const langTag = lang === "urdu" ? " [Urdu]" : "";
       list.push({
@@ -633,8 +632,7 @@ export default function QuranVerseMemorizerPanel() {
       const lang = (cat.language || "eng").toLowerCase();
       const catId = String(cat.category_id ?? cat.categoryId ?? cat._id);
       const isCategorySelected =
-        selectedCategoryIds.length === 0 ||
-        selectedCategoryIds.includes(catId);
+        selectedCategoryIds.length === 0 || selectedCategoryIds.includes(catId);
 
       if (isCategorySelected) {
         const booklets = cat.booklets || cat.lectures || [];
@@ -936,7 +934,7 @@ export default function QuranVerseMemorizerPanel() {
                   {dataSource === "live"
                     ? "Full Quran API"
                     : dataSource === "preset"
-                      ? "Preset Deck"
+                      ? ""
                       : `MongoDB Lectures (${customLectureAyatPool.length} Ayat Loaded)`}
                 </strong>
               </Text>
@@ -974,7 +972,10 @@ export default function QuranVerseMemorizerPanel() {
 
           {/* APPLE EMBOSSED INTERACTIVE CURRICULUM STUDIO */}
           {isStudioOpen && (
-            <div className="apple-container" style={{ width: "100%", maxWidth: "100%", marginBottom: "1rem" }}>
+            <div
+              className="apple-container"
+              style={{ width: "100%", maxWidth: "100%", marginBottom: "1rem" }}
+            >
               <div className="apple-embossed-card" style={{ width: "100%" }}>
                 {/* Card Header */}
                 <div
@@ -985,7 +986,9 @@ export default function QuranVerseMemorizerPanel() {
                     marginBottom: 20,
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div
+                    style={{ display: "flex", alignItems: "center", gap: 12 }}
+                  >
                     <div
                       style={{
                         width: 38,
@@ -1116,7 +1119,8 @@ export default function QuranVerseMemorizerPanel() {
                         padding: "4px 12px",
                       }}
                     >
-                      {customLectureAyatPool.length} Verses Ready ({displayLectures.length} Lectures)
+                      {customLectureAyatPool.length} Verses Ready (
+                      {displayLectures.length} Lectures)
                     </span>
                   </div>
 
@@ -1133,7 +1137,9 @@ export default function QuranVerseMemorizerPanel() {
                           setTimeout(() => setLaunchSuccess(false), 2500);
                         }, 400);
                       }}
-                      disabled={isLaunching || customLectureAyatPool.length === 0}
+                      disabled={
+                        isLaunching || customLectureAyatPool.length === 0
+                      }
                     >
                       {isLaunching ? (
                         <span>Preparing Practice Session...</span>
@@ -1144,7 +1150,10 @@ export default function QuranVerseMemorizerPanel() {
                         </>
                       ) : (
                         <>
-                          <span>Start Learning Session ({customLectureAyatPool.length} Verses)</span>
+                          <span>
+                            Start Learning Session (
+                            {customLectureAyatPool.length} Verses)
+                          </span>
                           <ArrowRight size={18} />
                         </>
                       )}

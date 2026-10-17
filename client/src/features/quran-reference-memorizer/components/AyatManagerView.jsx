@@ -615,6 +615,7 @@ export function AyatManagerView({ user }) {
                               <IconPencil size={14} />
                             </ActionIcon>
                           </Tooltip>
+                          {/* Delete button hidden for now
                           <Tooltip label="Delete Record">
                             <ActionIcon
                               size="sm"
@@ -625,6 +626,8 @@ export function AyatManagerView({ user }) {
                               <IconTrash size={14} />
                             </ActionIcon>
                           </Tooltip>
+                          */}
+
                         </Group>
                       </Table.Td>
                     </Table.Tr>
