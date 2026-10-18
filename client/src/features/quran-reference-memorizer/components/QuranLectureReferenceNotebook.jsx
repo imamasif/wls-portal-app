@@ -22,6 +22,7 @@ import {
   Table,
   Pagination,
   SegmentedControl,
+  SimpleGrid,
   useMantineColorScheme,
 } from "@mantine/core";
 import {
@@ -406,6 +407,13 @@ export function QuranLectureReferenceNotebook({ user }) {
       return `https://www.youtube.com/embed/${id}`;
     }
     return url;
+  };
+
+  // Format verse reference as Surah#:Ayat# e.g. 02:15, 02:127
+  const formatVerseRef = (surah, ayat) => {
+    const s = String(surah || 0).padStart(2, "0");
+    const a = String(ayat || 0).padStart(2, "0");
+    return `${s}:${a}`;
   };
 
   return (
@@ -823,37 +831,29 @@ export function QuranLectureReferenceNotebook({ user }) {
                                 <Table.Tr>
                                   <Table.Th style={{ width: 45, textAlign: "center" }}>#</Table.Th>
                                   <Table.Th
-                                    style={{ width: 100, cursor: "pointer" }}
-                                    onClick={() =>
-                                      setSortField(sortField === "SURAH_ASC" ? "SURAH_DESC" : "SURAH_ASC")
-                                    }
-                                    title="Click to toggle Surah sort"
+                                    style={{ minWidth: 130, width: "1%", whiteSpace: "nowrap", cursor: "pointer" }}
+                                    onClick={() => {
+                                      if (sortField === "SURAH_ASC") setSortField("SURAH_DESC");
+                                      else if (sortField === "SURAH_DESC") setSortField("AYAT_ASC");
+                                      else if (sortField === "AYAT_ASC") setSortField("AYAT_DESC");
+                                      else setSortField("SURAH_ASC");
+                                    }}
+                                    title="Click to toggle sort: Surah / Ayat"
                                   >
                                     <Group gap={4} wrap="nowrap">
-                                      <span>Surah #</span>
+                                      <span>Surah# : Ayat#</span>
                                       {sortField === "SURAH_ASC" && <IconSortAscending size={14} color="#2563eb" />}
                                       {sortField === "SURAH_DESC" && <IconSortDescending size={14} color="#2563eb" />}
-                                      {!sortField.startsWith("SURAH_") && <IconArrowsSort size={12} color="#94a3b8" />}
-                                    </Group>
-                                  </Table.Th>
-                                  <Table.Th
-                                    style={{ width: 90, cursor: "pointer" }}
-                                    onClick={() =>
-                                      setSortField(sortField === "AYAT_ASC" ? "AYAT_DESC" : "AYAT_ASC")
-                                    }
-                                    title="Click to toggle Ayat sort"
-                                  >
-                                    <Group gap={4} wrap="nowrap">
-                                      <span>Ayat #</span>
-                                      {sortField === "AYAT_ASC" && <IconSortAscending size={14} color="#2563eb" />}
-                                      {sortField === "AYAT_DESC" && <IconSortDescending size={14} color="#2563eb" />}
-                                      {!sortField.startsWith("AYAT_") && <IconArrowsSort size={12} color="#94a3b8" />}
+                                      {sortField === "AYAT_ASC" && <IconSortAscending size={14} color="#059669" />}
+                                      {sortField === "AYAT_DESC" && <IconSortDescending size={14} color="#059669" />}
+                                      {sortField === "SURAH_THEN_AYAT" && <IconArrowsSort size={14} color="#2563eb" />}
+                                      {!sortField && <IconArrowsSort size={12} color="#94a3b8" />}
                                     </Group>
                                   </Table.Th>
                                   <Table.Th style={{ minWidth: 160 }}>Arabic Preview</Table.Th>
                                   <Table.Th style={{ minWidth: 220 }}>Translation Preview</Table.Th>
-                                  <Table.Th style={{ width: 100 }}>Clip</Table.Th>
-                                  <Table.Th style={{ width: 110, textAlign: "center" }}>Details</Table.Th>
+                                  <Table.Th style={{ width: 85, whiteSpace: "nowrap" }}>Clip</Table.Th>
+                                  <Table.Th style={{ width: 90, textAlign: "center", whiteSpace: "nowrap" }}>Details</Table.Th>
                                 </Table.Tr>
                               </Table.Thead>
                               <Table.Tbody>
@@ -881,15 +881,21 @@ export function QuranLectureReferenceNotebook({ user }) {
                                         {idx + 1}
                                       </Table.Td>
 
-                                      <Table.Td>
-                                        <Badge color="indigo" size="sm" variant="filled">
-                                          {verse.surah_number}
-                                        </Badge>
-                                      </Table.Td>
-
-                                      <Table.Td>
-                                        <Badge color="teal" size="sm" variant="light">
-                                          {verse.ayat_number}
+                                      <Table.Td style={{ whiteSpace: "nowrap", width: "1%" }}>
+                                        <Badge
+                                          color="indigo"
+                                          size="sm"
+                                          variant="filled"
+                                          style={{
+                                            fontFamily: "monospace",
+                                            fontWeight: 800,
+                                            fontSize: 12,
+                                            letterSpacing: "0.5px",
+                                            padding: "4px 8px",
+                                          }}
+                                          title={`${verse.surah_name || `Surah ${verse.surah_number}`}, Ayat ${verse.ayat_number}`}
+                                        >
+                                          {formatVerseRef(verse.surah_number, verse.ayat_number)}
                                         </Badge>
                                       </Table.Td>
 
@@ -909,7 +915,7 @@ export function QuranLectureReferenceNotebook({ user }) {
                                         </Text>
                                       </Table.Td>
 
-                                      <Table.Td onClick={(e) => e.stopPropagation()}>
+                                      <Table.Td onClick={(e) => e.stopPropagation()} style={{ whiteSpace: "nowrap", width: "1%" }}>
                                         {videoUrl ? (
                                           <Button
                                             size="compact-xs"
@@ -932,7 +938,7 @@ export function QuranLectureReferenceNotebook({ user }) {
                                         )}
                                       </Table.Td>
 
-                                      <Table.Td style={{ textAlign: "center" }}>
+                                      <Table.Td style={{ textAlign: "center", whiteSpace: "nowrap", width: "1%" }}>
                                         <Button
                                           size="compact-xs"
                                           variant="subtle"
@@ -991,7 +997,7 @@ export function QuranLectureReferenceNotebook({ user }) {
                                 <Table className="excel-table" highlightOnHover>
                                   <Table.Thead>
                                     <Table.Tr>
-                                      <Table.Th style={{ width: 80 }}>Ayat #</Table.Th>
+                                      <Table.Th style={{ minWidth: 120, width: "1%", whiteSpace: "nowrap" }}>Surah# : Ayat#</Table.Th>
                                       <Table.Th style={{ minWidth: 160 }}>Arabic Preview</Table.Th>
                                       <Table.Th style={{ minWidth: 200 }}>Translation</Table.Th>
                                       <Table.Th>Cited in Lectures & Categories</Table.Th>
@@ -1001,9 +1007,21 @@ export function QuranLectureReferenceNotebook({ user }) {
                                   <Table.Tbody>
                                     {ch.verses.map((v, vIdx) => (
                                       <Table.Tr key={vIdx} className="excel-row" onClick={() => handleOpenAyatModal(v)}>
-                                        <Table.Td>
-                                          <Badge size="sm" color="dark">
-                                            {v.ayat_number}
+                                        <Table.Td style={{ whiteSpace: "nowrap", width: "1%" }}>
+                                          <Badge
+                                            size="sm"
+                                            color="indigo"
+                                            variant="filled"
+                                            style={{
+                                              fontFamily: "monospace",
+                                              fontWeight: 800,
+                                              fontSize: 12,
+                                              letterSpacing: "0.5px",
+                                              padding: "4px 8px",
+                                            }}
+                                            title={`${ch.surah_name || `Surah ${ch.surah_number}`}, Ayat ${v.ayat_number}`}
+                                          >
+                                            {formatVerseRef(ch.surah_number, v.ayat_number)}
                                           </Badge>
                                         </Table.Td>
 
@@ -1020,15 +1038,17 @@ export function QuranLectureReferenceNotebook({ user }) {
                                         </Table.Td>
 
                                         <Table.Td>
-                                          <Group gap={4} wrap="wrap">
+                                          <Group gap={6} wrap="wrap">
                                             {v.occurrences.map((occ, oIdx) => (
                                               <Badge
                                                 key={oIdx}
                                                 size="xs"
                                                 color={occ.language === "urdu" ? "green" : "blue"}
                                                 variant="light"
+                                                style={{ textTransform: "none", fontWeight: 600 }}
+                                                title={`${occ.category_name} - ${occ.lecture_name || `Lecture ${occ.lecture_number}`}`}
                                               >
-                                                {occ.category_name} • Lec {occ.lecture_number}
+                                                {occ.category_name} - {occ.lecture_name || `Lecture ${occ.lecture_number}`}
                                               </Badge>
                                             ))}
                                           </Group>
@@ -1133,8 +1153,8 @@ export function QuranLectureReferenceNotebook({ user }) {
         title={
           activeAyatModal && (
             <Group gap="xs">
-              <Badge color="indigo" size="md" variant="filled">
-                Surah {activeAyatModal.surah_number} : {activeAyatModal.ayat_number}
+              <Badge color="indigo" size="md" variant="filled" style={{ fontFamily: "monospace", fontWeight: 800 }}>
+                {formatVerseRef(activeAyatModal.surah_number, activeAyatModal.ayat_number)}
               </Badge>
               <Text fw={700} size="sm">
                 {activeAyatModal.surah_name || `Surah ${activeAyatModal.surah_number}`}
@@ -1228,8 +1248,8 @@ export function QuranLectureReferenceNotebook({ user }) {
                     <Paper key={oIdx} p="xs" withBorder radius="xs" style={{ background: "#f8fafc" }}>
                       <Group justify="space-between">
                         <div>
-                          <Text size="xs" fw={600} c="dark.8">
-                            {occ.lecture_name} ({occ.category_name})
+                          <Text size="xs" fw={700} c="dark.8">
+                            {occ.category_name} - {occ.lecture_name || `Lecture ${occ.lecture_number}`}
                           </Text>
                           {occ.year_delivered && (
                             <Text size="10px" c="dimmed">
