@@ -243,10 +243,60 @@ router.get("/random-verse", async (req, res) => {
 });
 
 /**
+ * Route: GET /api/quran/verse/:surah/:ayah
+ * Direct helper returning verse Arabic text, translations, and metadata
+ */
+router.get("/verse/:surah/:ayah", async (req, res) => {
+  try {
+    const { surah, ayah } = req.params;
+    const sNum = parseInt(surah, 10);
+    const aNum = parseInt(ayah, 10);
+    if (isNaN(sNum) || isNaN(aNum) || sNum < 1 || sNum > 114 || aNum < 1) {
+      return res.status(400).json({ error: "Invalid surah or ayah number" });
+    }
+
+    const result = await getAyahData(`${sNum}:${aNum}`);
+    const uthmani =
+      result.data?.find((d) => d.edition?.identifier === "quran-uthmani") ||
+      result.data?.[0];
+    const en =
+      result.data?.find((d) => d.edition?.identifier === "en.sahih") ||
+      result.data?.[1];
+    const ur = result.data?.find((d) => d.edition?.identifier === "ur.jalandhry");
+    const hi = result.data?.find((d) => d.edition?.identifier === "hi.hindi");
+    const audio =
+      result.data?.find((d) => d.edition?.format === "audio") ||
+      result.data?.[4];
+
+    const surahName =
+      SURAH_NAMES[sNum - 1] || uthmani?.surah?.englishName || "Surah";
+
+    res.json({
+      code: 200,
+      status: "OK",
+      surah: sNum,
+      ayah: aNum,
+      surahName: surahName,
+      surahNameArabic: uthmani?.surah?.name || "",
+      arabic: uthmani?.text || "",
+      english: en?.text || "",
+      urdu: ur?.text || "",
+      hindi: hi?.text || "",
+      audioUrl:
+        audio?.audio ||
+        `https://cdn.islamic.network/quran/audio/128/ar.alafasy/${sNum}/${aNum}.mp3`,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
  * Route: GET /api/quran/ayah/:ref
  * Route: GET /api/quran/ayah/:ref/editions/:editions
  * Mirroring the Al-Quran Cloud REST format so clients can drop-in replace
  */
+
 router.get(["/ayah/:ref", "/ayah/:ref/editions/:editions"], async (req, res) => {
   try {
     const { ref } = req.params;

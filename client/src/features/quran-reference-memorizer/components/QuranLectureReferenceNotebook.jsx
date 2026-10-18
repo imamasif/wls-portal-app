@@ -836,7 +836,6 @@ export function QuranLectureReferenceNotebook({ user }) {
                                       {!sortField.startsWith("SURAH_") && <IconArrowsSort size={12} color="#94a3b8" />}
                                     </Group>
                                   </Table.Th>
-                                  <Table.Th style={{ width: 140 }}>Surah Name</Table.Th>
                                   <Table.Th
                                     style={{ width: 90, cursor: "pointer" }}
                                     onClick={() =>
@@ -889,14 +888,8 @@ export function QuranLectureReferenceNotebook({ user }) {
                                       </Table.Td>
 
                                       <Table.Td>
-                                        <Text size="xs" fw={700} c={isDark ? "white" : "dark.8"}>
-                                          {verse.surah_name || `Surah ${verse.surah_number}`}
-                                        </Text>
-                                      </Table.Td>
-
-                                      <Table.Td>
                                         <Badge color="teal" size="sm" variant="light">
-                                          Ayat {verse.ayat_number}
+                                          {verse.ayat_number}
                                         </Badge>
                                       </Table.Td>
 
@@ -1010,7 +1003,7 @@ export function QuranLectureReferenceNotebook({ user }) {
                                       <Table.Tr key={vIdx} className="excel-row" onClick={() => handleOpenAyatModal(v)}>
                                         <Table.Td>
                                           <Badge size="sm" color="dark">
-                                            Ayat {v.ayat_number}
+                                            {v.ayat_number}
                                           </Badge>
                                         </Table.Td>
 

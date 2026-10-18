@@ -1,4 +1,10 @@
-export const API_BASE = "http://localhost:5000/api";
+export const API_BASE =
+  typeof window !== "undefined" &&
+  window.location.hostname !== "localhost" &&
+  window.location.hostname !== "127.0.0.1"
+    ? `${window.location.origin}/api`
+    : "http://localhost:5000/api";
+
 
 export const USER_ROLES = {
   SUPER_USER: "SUPER_USER",
