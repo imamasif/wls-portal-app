@@ -19,7 +19,10 @@ import {
   IconFingerprint,
   IconBook,
   IconSitemap,
+  IconNotebook,
+  IconSparkles,
 } from "@tabler/icons-react";
+
 
 export function WlsAdminMenu({ activeTab, setActiveTab }) {
   return (
@@ -148,6 +151,24 @@ export function WlsAdminMenu({ activeTab, setActiveTab }) {
           </Menu.Item>
           <Menu.Divider />
           <Menu.Item
+            onClick={() => setActiveTab(AppTab.QURAN_EXPLORER)}
+            leftSection={
+              <IconSparkles size={16} color="var(--mantine-color-grape-6)" />
+            }
+          >
+            Quran Sticky Notes Explorer
+          </Menu.Item>
+          <Menu.Divider />
+          <Menu.Item
+            onClick={() => setActiveTab(AppTab.QURAN_NOTEBOOK)}
+            leftSection={
+              <IconNotebook size={16} color="var(--mantine-color-indigo-6)" />
+            }
+          >
+            Quran Lecture Index Notebook
+          </Menu.Item>
+          <Menu.Divider />
+          <Menu.Item
             onClick={() => setActiveTab(AppTab.QURAN_TREE)}
             leftSection={
               <IconSitemap size={16} color="var(--mantine-color-emerald-6)" />
@@ -155,6 +176,7 @@ export function WlsAdminMenu({ activeTab, setActiveTab }) {
           >
             Quran Morphology Tree
           </Menu.Item>
+
         </Menu.Dropdown>
       </Menu>
     </Group>

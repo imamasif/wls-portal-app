@@ -22,7 +22,9 @@ import {
   IconCircleCheck,
   IconDatabase,
   IconSparkles,
+  IconNotebook,
 } from "@tabler/icons-react";
+
 
 
 export function SuperUserMenu({ activeTab, setActiveTab }) {
@@ -251,6 +253,15 @@ export function SuperUserMenu({ activeTab, setActiveTab }) {
           </Menu.Item>
           <Menu.Divider />
           <Menu.Item
+            onClick={() => setActiveTab(AppTab.QURAN_NOTEBOOK)}
+            leftSection={
+              <IconNotebook size={16} color="var(--mantine-color-indigo-6)" />
+            }
+          >
+            Quran Lecture Index Notebook
+          </Menu.Item>
+          <Menu.Divider />
+          <Menu.Item
             onClick={() => setActiveTab(AppTab.AYAT_MANAGER)}
             leftSection={
               <IconDatabase size={16} color="var(--mantine-color-teal-6)" />
@@ -258,6 +269,7 @@ export function SuperUserMenu({ activeTab, setActiveTab }) {
           >
             Ayats Database Studio
           </Menu.Item>
+
           <Menu.Divider />
           <Menu.Item
             onClick={() => setActiveTab(AppTab.QURAN_TREE)}

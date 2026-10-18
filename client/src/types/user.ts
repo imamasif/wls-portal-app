@@ -151,5 +151,7 @@ export enum AppTab {
   QURAN_TREE = "quran-tree",
   QURAN_EXPLORER = "quran-explorer",
   AYAT_MANAGER = "ayat-manager",
+  QURAN_NOTEBOOK = "quran-notebook",
 }
+
 
