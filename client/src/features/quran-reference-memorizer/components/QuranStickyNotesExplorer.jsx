@@ -70,6 +70,13 @@ export function QuranStickyNotesExplorer({ user }) {
   const [activeVideoModal, setActiveVideoModal] = useState(null);
   const [activeMultiVideoModal, setActiveMultiVideoModal] = useState(null);
 
+  // Active Season for selected lecture in Level 3
+  const [activeSeasonIndex, setActiveSeasonIndex] = useState(0);
+
+  // Modal for Seasons/Episodes triggered from Level 2 card
+  const [seasonsModalLecture, setSeasonsModalLecture] = useState(null);
+  const [modalSeasonIndex, setModalSeasonIndex] = useState(0);
+
   // Fetch Meta Categories on mount
   useEffect(() => {
     let isMounted = true;
@@ -246,6 +253,56 @@ export function QuranStickyNotesExplorer({ user }) {
     return trimmed;
   };
 
+  // Helper for lecture name (supports string or array of strings)
+  const getLectureName = (lectureName) => {
+    if (Array.isArray(lectureName)) return lectureName[0] || "";
+    return typeof lectureName === "string" ? lectureName : "";
+  };
+
+  const getLectureAliases = (lectureName) => {
+    if (Array.isArray(lectureName)) return lectureName.slice(1);
+    return [];
+  };
+
+  // Helper to extract primary PDF booklet or study notes URL
+  const getLecturePdfUrl = (lecture) => {
+    if (!lecture) return null;
+    return (
+      lecture.pdf_link ||
+      (Array.isArray(lecture.pdf_booklet_urls) ? lecture.pdf_booklet_urls[0] : "") ||
+      lecture.pdf_url ||
+      null
+    );
+  };
+
+  // Helper to extract Seasons and Episodes list from lecture metadata
+  const getLectureSeasons = (lecture) => {
+    if (!lecture) return [];
+    if (Array.isArray(lecture.seasons) && lecture.seasons.length > 0) {
+      return lecture.seasons;
+    }
+    const fallbackUrls = [
+      ...(lecture.full_lecture_video_url ? [lecture.full_lecture_video_url] : []),
+      ...(Array.isArray(lecture.video_urls) ? lecture.video_urls : []),
+      ...(Array.isArray(lecture.youtube_urls) ? lecture.youtube_urls : []),
+      ...(lecture.video_url ? [lecture.video_url] : []),
+    ];
+    if (fallbackUrls.length > 0) {
+      return [
+        {
+          season_name: lecture.season || "Season 1",
+          year_delivered: lecture.year_delivered || "",
+          episodes: fallbackUrls.map((u, i) => ({
+            episode_number: `Part ${String(i + 1).padStart(2, "0")}`,
+            episode_title: `Full Session Recording ${i + 1}`,
+            episode_url: u,
+          })),
+        },
+      ];
+    }
+    return [];
+  };
+
   // Filtered categories
   const filteredCategories = useMemo(() => {
     if (!filterQuery) return metaCategories;
@@ -298,6 +355,42 @@ export function QuranStickyNotesExplorer({ user }) {
       );
     });
   }, [selectedLecture, filterQuery]);
+
+  // Seasons and Episodes for the currently selected lecture (Level 3)
+  const selectedLectureSeasons = useMemo(() => {
+    return getLectureSeasons(selectedLecture);
+  }, [selectedLecture]);
+
+  const currentSeasonObj = useMemo(() => {
+    if (selectedLectureSeasons.length === 0) return null;
+    const idx = Math.min(activeSeasonIndex, selectedLectureSeasons.length - 1);
+    return selectedLectureSeasons[idx] || selectedLectureSeasons[0];
+  }, [selectedLectureSeasons, activeSeasonIndex]);
+
+  const selectedLectureEpisodes = useMemo(() => {
+    if (!currentSeasonObj) return [];
+    return Array.isArray(currentSeasonObj.episodes) ? currentSeasonObj.episodes : [];
+  }, [currentSeasonObj]);
+
+  const selectedLecturePdfUrl = useMemo(() => {
+    return getLecturePdfUrl(selectedLecture);
+  }, [selectedLecture]);
+
+  // Seasons and Episodes for the standalone seasons modal (triggered from Level 2)
+  const modalLectureSeasons = useMemo(() => {
+    return getLectureSeasons(seasonsModalLecture);
+  }, [seasonsModalLecture]);
+
+  const modalCurrentSeason = useMemo(() => {
+    if (modalLectureSeasons.length === 0) return null;
+    const idx = Math.min(modalSeasonIndex, modalLectureSeasons.length - 1);
+    return modalLectureSeasons[idx] || modalLectureSeasons[0];
+  }, [modalLectureSeasons, modalSeasonIndex]);
+
+  const modalEpisodesList = useMemo(() => {
+    if (!modalCurrentSeason) return [];
+    return Array.isArray(modalCurrentSeason.episodes) ? modalCurrentSeason.episodes : [];
+  }, [modalCurrentSeason]);
 
   return (
     <Container size="xl" py="lg">
@@ -523,7 +616,7 @@ export function QuranStickyNotesExplorer({ user }) {
                         </Group>
 
                         <Text fw={700} size="sm" c="dark.8">
-                          {Array.isArray(occ.lecture_name) ? occ.lecture_name[0] : occ.lecture_name}
+                          {getLectureName(occ.lecture_name)}
                         </Text>
 
                         {occ.arabic_text && (
@@ -557,7 +650,7 @@ export function QuranStickyNotesExplorer({ user }) {
                                 leftSection={<IconBrandYoutube size={14} />}
                                 onClick={() =>
                                   setActiveVideoModal({
-                                    title: `${Array.isArray(occ.lecture_name) ? occ.lecture_name[0] : occ.lecture_name} - Surah ${occ.surah_number}:${occ.ayat_number}`,
+                                    title: `${getLectureName(occ.lecture_name)} - Surah ${occ.surah_number}:${occ.ayat_number}`,
                                     url: occVideos[0],
                                   })
                                 }
@@ -588,7 +681,7 @@ export function QuranStickyNotesExplorer({ user }) {
                               }
                               onClick={() =>
                                 setActiveMultiVideoModal({
-                                  title: `${Array.isArray(occ.lecture_name) ? occ.lecture_name[0] : occ.lecture_name} - Surah ${occ.surah_number}:${occ.ayat_number}`,
+                                  title: `${getLectureName(occ.lecture_name)} - Surah ${occ.surah_number}:${occ.ayat_number}`,
                                   videos: occVideos,
                                   verse: occ,
                                 })
@@ -655,7 +748,7 @@ export function QuranStickyNotesExplorer({ user }) {
                   ➔
                 </Text>
                 <Button variant="filled" color="grape" size="xs" leftSection={<IconBook size={15} />}>
-                  {Array.isArray(selectedLecture.lecture_name) ? selectedLecture.lecture_name[0] : selectedLecture.lecture_name} (
+                  {getLectureName(selectedLecture.lecture_name)} (
                   {selectedLecture.ayat_references ? selectedLecture.ayat_references.length : 0} ayats)
                 </Button>
               </>
@@ -816,6 +909,12 @@ export function QuranStickyNotesExplorer({ user }) {
                     const palette = STICKY_COLORS[(idx + 2) % STICKY_COLORS.length];
                     const count = lec.total_ayats || lec.ayat_count || (lec.ayat_references ? lec.ayat_references.length : 0);
                     const rotation = idx % 2 === 0 ? "1deg" : "-1deg";
+                    const lecPdfUrl = getLecturePdfUrl(lec);
+                    const lecSeasons = getLectureSeasons(lec);
+                    const totalEpisodes = lecSeasons.reduce(
+                      (sum, s) => sum + (Array.isArray(s.episodes) ? s.episodes.length : 0),
+                      0
+                    );
 
                     return (
                       <div
@@ -829,6 +928,7 @@ export function QuranStickyNotesExplorer({ user }) {
                         }}
                         onClick={() => {
                           setSelectedLecture(lec);
+                          setActiveSeasonIndex(0);
                           setLevel("VERSES");
                           setFilterQuery("");
                         }}
@@ -848,16 +948,55 @@ export function QuranStickyNotesExplorer({ user }) {
                           </Group>
 
                           <Text fw={700} size="md" style={{ lineHeight: 1.3, marginBottom: 4, color: palette.text }}>
-                            {Array.isArray(lec.lecture_name) ? lec.lecture_name[0] : lec.lecture_name}
+                            {getLectureName(lec.lecture_name)}
                           </Text>
-                          {Array.isArray(lec.lecture_name) && lec.lecture_name.length > 1 && (
+                          {getLectureAliases(lec.lecture_name).length > 0 && (
                             <Text size="xs" c="dimmed" fs="italic" mb={4}>
-                              AKA: {lec.lecture_name.slice(1).join(", ")}
+                              AKA: {getLectureAliases(lec.lecture_name).join(", ")}
                             </Text>
                           )}
                         </div>
 
-                        <div style={{ borderTop: `1px dashed ${palette.border}`, paddingTop: 12, marginTop: 12 }}>
+                        {/* Quick Action Badges for PDF Booklet & Video Seasons */}
+                        {(lecPdfUrl || totalEpisodes > 0) && (
+                          <Group gap="xs" my={6} wrap="wrap">
+                            {lecPdfUrl && (
+                              <Button
+                                size="compact-xs"
+                                variant="light"
+                                color="teal"
+                                leftSection={<IconFileText size={12} />}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  window.open(lecPdfUrl, "_blank", "noopener,noreferrer");
+                                }}
+                                styles={{ root: { fontSize: 11, height: 22 } }}
+                              >
+                                PDF Booklet
+                              </Button>
+                            )}
+                            {totalEpisodes > 0 && (
+                              <Button
+                                size="compact-xs"
+                                variant="light"
+                                color="indigo"
+                                leftSection={<IconPlayerPlay size={12} fill="currentColor" />}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSeasonsModalLecture(lec);
+                                  setModalSeasonIndex(0);
+                                }}
+                                styles={{ root: { fontSize: 11, height: 22 } }}
+                              >
+                                {lecSeasons.length > 1
+                                  ? `${lecSeasons.length} Seasons`
+                                  : `${totalEpisodes} Episodes`}
+                              </Button>
+                            )}
+                          </Group>
+                        )}
+
+                        <div style={{ borderTop: `1px dashed ${palette.border}`, paddingTop: 12, marginTop: 8 }}>
                           <Group justify="space-between">
                             <Badge size="sm" color="teal" variant="filled">
                               {count} Cited Ayats
@@ -892,7 +1031,7 @@ export function QuranStickyNotesExplorer({ user }) {
                   </ActionIcon>
                   <div>
                     <Text fw={700} size="md" c="dark.7">
-                      📜 Verses in: {Array.isArray(selectedLecture.lecture_name) ? selectedLecture.lecture_name[0] : selectedLecture.lecture_name} ({currentVerses.length} ayats)
+                      📜 Verses in: {getLectureName(selectedLecture.lecture_name)} ({currentVerses.length} ayats)
                     </Text>
                     <Text size="xs" c="dimmed">
                       {selectedCategory.category_name} • Year: {selectedLecture.year_delivered || "N/A"}
@@ -900,6 +1039,251 @@ export function QuranStickyNotesExplorer({ user }) {
                   </div>
                 </Group>
               </Group>
+
+              {/* Lecture Overview & Media Showcase (Seasons, Episodes & PDF Booklet) */}
+              <Paper
+                p="md"
+                radius="md"
+                withBorder
+                mb="xl"
+                style={{
+                  background: "#ffffff",
+                  boxShadow: "0 6px 20px rgba(0, 0, 0, 0.05)",
+                  border: "1px solid #e2e8f0",
+                }}
+              >
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+                    gap: "20px",
+                  }}
+                >
+                  {/* Left Column: Lecture Info, PDF Booklet, and Full Stream */}
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "space-between",
+                      borderRight: "1px solid #f1f5f9",
+                      paddingRight: "16px",
+                    }}
+                  >
+                    <div>
+                      <Group justify="space-between" align="flex-start" mb="xs">
+                        <Badge size="md" color="indigo" variant="filled">
+                          Lecture #{selectedLecture.lecture_id || 1}
+                        </Badge>
+                        {selectedLecture.year_delivered && (
+                          <Badge size="sm" color="gray" variant="light">
+                            Delivered: {selectedLecture.year_delivered}
+                          </Badge>
+                        )}
+                      </Group>
+
+                      <Title order={3} style={{ color: "#0f172a", fontWeight: 700, lineHeight: 1.3, marginBottom: 6 }}>
+                        {getLectureName(selectedLecture.lecture_name)}
+                      </Title>
+
+                      {getLectureAliases(selectedLecture.lecture_name).length > 0 && (
+                        <Group gap={6} mb="sm" wrap="wrap">
+                          <Text size="xs" c="dimmed" fw={700}>
+                            Also Known As:
+                          </Text>
+                          {getLectureAliases(selectedLecture.lecture_name).map((alias, aIdx) => (
+                            <Badge key={aIdx} size="xs" variant="light" color="indigo">
+                              {alias}
+                            </Badge>
+                          ))}
+                        </Group>
+                      )}
+
+                      <Group gap="xs" mt="xs" mb="md" wrap="wrap">
+                        <Badge color="teal" variant="light" size="sm" leftSection={<IconBook size={12} />}>
+                          {currentVerses.length} Cited Ayats
+                        </Badge>
+                        <Badge color="violet" variant="light" size="sm" leftSection={<IconListDetails size={12} />}>
+                          {selectedLectureSeasons.length} Season(s) •{" "}
+                          {selectedLectureSeasons.reduce(
+                            (sum, s) => sum + (Array.isArray(s.episodes) ? s.episodes.length : 0),
+                            0
+                          )}{" "}
+                          Episodes
+                        </Badge>
+                        <Badge color="blue" variant="outline" size="sm">
+                          {selectedCategory.category_name}
+                        </Badge>
+                      </Group>
+                    </div>
+
+                    <Stack gap="xs" mt="sm">
+                      {/* PDF Booklet Button */}
+                      {selectedLecturePdfUrl ? (
+                        <Button
+                          color="teal"
+                          variant="filled"
+                          leftSection={<IconFileText size={16} />}
+                          onClick={() => window.open(selectedLecturePdfUrl, "_blank", "noopener,noreferrer")}
+                          style={{
+                            backgroundColor: "#059669",
+                            boxShadow: "0 4px 12px rgba(5, 150, 105, 0.25)",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {selectedLecture.pdf_title || "View PDF Booklet & Notes"}
+                        </Button>
+                      ) : (
+                        <Paper p="xs" radius="sm" style={{ background: "#f8fafc", border: "1px dashed #cbd5e1" }}>
+                          <Text size="xs" c="dimmed" ta="center">
+                            📄 PDF Booklet being digitized for this lecture
+                          </Text>
+                        </Paper>
+                      )}
+
+                      {/* Stream Full Lecture Button if available */}
+                      {(() => {
+                        const fullVideoUrl =
+                          selectedLecture.full_lecture_video_url ||
+                          (Array.isArray(selectedLecture.video_urls) ? selectedLecture.video_urls[0] : "") ||
+                          (Array.isArray(selectedLecture.youtube_urls) ? selectedLecture.youtube_urls[0] : "") ||
+                          selectedLecture.video_url;
+
+                        if (!fullVideoUrl) return null;
+
+                        return (
+                          <Button
+                            color="red"
+                            variant="light"
+                            leftSection={<IconPlayerPlay size={16} />}
+                            onClick={() =>
+                              setActiveVideoModal({
+                                title: `${getLectureName(selectedLecture.lecture_name)} - Full Recording`,
+                                url: fullVideoUrl,
+                              })
+                            }
+                          >
+                            Stream Full Lecture Video
+                          </Button>
+                        );
+                      })()}
+                    </Stack>
+                  </div>
+
+                  {/* Right Column: Season & Episodes Viewer */}
+                  <div>
+                    <Group justify="space-between" align="center" mb="xs">
+                      <Group gap={6}>
+                        <IconVideo size={18} color="#4f46e5" />
+                        <Text size="sm" fw={700} c="dark.8">
+                          Seasons & Video Episodes
+                        </Text>
+                      </Group>
+
+                      {/* Season Switcher if multiple seasons */}
+                      {selectedLectureSeasons.length > 1 ? (
+                        <Group gap={4}>
+                          {selectedLectureSeasons.map((s, sIdx) => {
+                            const isCurrent = activeSeasonIndex === sIdx;
+                            return (
+                              <Button
+                                key={sIdx}
+                                size="compact-xs"
+                                radius="xl"
+                                variant={isCurrent ? "filled" : "light"}
+                                color="indigo"
+                                onClick={() => setActiveSeasonIndex(sIdx)}
+                                style={{ fontSize: 11, fontWeight: 700 }}
+                              >
+                                {s.season_name || `Season ${sIdx + 1}`}
+                              </Button>
+                            );
+                          })}
+                        </Group>
+                      ) : selectedLectureSeasons.length === 1 ? (
+                        <Badge size="xs" variant="light" color="indigo">
+                          {selectedLectureSeasons[0].season_name || "Season 1"}
+                        </Badge>
+                      ) : null}
+                    </Group>
+
+                    <Text size="xs" c="dimmed" mb="xs">
+                      {currentSeasonObj
+                        ? `${currentSeasonObj.season_name || "Season 1"} • ${selectedLectureEpisodes.length} episodes available`
+                        : "Episodes and recorded parts in this lecture series:"}
+                    </Text>
+
+                    {selectedLectureEpisodes.length === 0 ? (
+                      <Paper p="md" radius="md" withBorder ta="center" style={{ background: "#f8fafc" }}>
+                        <Text size="xs" c="dimmed">
+                          No video episodes uploaded yet for this lecture.
+                        </Text>
+                      </Paper>
+                    ) : (
+                      <Stack gap={6} style={{ maxHeight: 240, overflowY: "auto", paddingRight: 4 }}>
+                        {selectedLectureEpisodes.map((ep, idx) => (
+                          <Paper
+                            key={ep.id || idx}
+                            p="xs"
+                            radius="md"
+                            withBorder
+                            onClick={() => {
+                              const epUrl = ep.episode_url || ep.videoUrl || ep.video_url;
+                              if (epUrl) {
+                                setActiveVideoModal({
+                                  title: `${getLectureName(selectedLecture.lecture_name)} - ${ep.episode_title || ep.title || `Episode ${idx + 1}`}`,
+                                  url: epUrl,
+                                });
+                              }
+                            }}
+                            style={{
+                              cursor: "pointer",
+                              background: idx === 0 ? "#eef2ff" : "#ffffff",
+                              borderColor: idx === 0 ? "#818cf8" : "#e2e8f0",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              padding: "8px 12px",
+                              transition: "all 0.15s ease",
+                            }}
+                          >
+                            <Group gap="xs" style={{ flex: 1, minWidth: 0 }}>
+                              <div
+                                style={{
+                                  width: 24,
+                                  height: 24,
+                                  borderRadius: "50%",
+                                  backgroundColor: "#4f46e5",
+                                  color: "white",
+                                  fontSize: 11,
+                                  fontWeight: 800,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {idx + 1}
+                              </div>
+                              <div style={{ minWidth: 0, flex: 1 }}>
+                                <Text size="xs" fw={700} lineClamp={1}>
+                                  {ep.episode_title || ep.title || ep.episode_number || `Episode ${idx + 1}`}
+                                </Text>
+                                <Text size="10px" c="dimmed">
+                                  {ep.episode_number ? `${ep.episode_number} • ` : ""}
+                                  {ep.duration || "Watch Episode"}
+                                </Text>
+                              </div>
+                            </Group>
+                            <ActionIcon size="sm" variant="light" color="indigo">
+                              <IconPlayerPlay size={13} fill="currentColor" />
+                            </ActionIcon>
+                          </Paper>
+                        ))}
+                      </Stack>
+                    )}
+                  </div>
+                </div>
+              </Paper>
 
               {currentVerses.length === 0 ? (
                 <Paper p="xl" ta="center" withBorder radius="md">
@@ -1063,7 +1447,7 @@ export function QuranStickyNotesExplorer({ user }) {
                               leftSection={<IconBrandYoutube size={15} />}
                               onClick={() =>
                                 setActiveVideoModal({
-                                  title: `${Array.isArray(selectedLecture.lecture_name) ? selectedLecture.lecture_name[0] : selectedLecture.lecture_name} - Surah ${verse.surah_number}:${verse.ayat_number}`,
+                                  title: `${getLectureName(selectedLecture.lecture_name)} - Surah ${verse.surah_number}:${verse.ayat_number}`,
                                   url: videoList[0],
                                 })
                               }
@@ -1084,7 +1468,7 @@ export function QuranStickyNotesExplorer({ user }) {
                               }
                               onClick={() =>
                                 setActiveMultiVideoModal({
-                                  title: `${Array.isArray(selectedLecture.lecture_name) ? selectedLecture.lecture_name[0] : selectedLecture.lecture_name} - Surah ${verse.surah_number}:${verse.ayat_number}`,
+                                  title: `${getLectureName(selectedLecture.lecture_name)} - Surah ${verse.surah_number}:${verse.ayat_number}`,
                                   videos: videoList,
                                   verse,
                                 })
@@ -1104,56 +1488,108 @@ export function QuranStickyNotesExplorer({ user }) {
         </>
       )}
 
-      {/* Video Player Modal */}
+      {/* Video Player Modal with Native Embed & Timestamp Support */}
       <Modal
         opened={!!activeVideoModal}
         onClose={() => setActiveVideoModal(null)}
         title={
           <Group gap="xs">
             <IconBrandYoutube size={20} color="red" />
-            <Text fw={600} size="sm">
+            <Text fw={700} size="sm">
               {activeVideoModal?.title}
             </Text>
           </Group>
         }
-        size="lg"
+        size="xl"
         centered
+        radius="lg"
       >
         {activeVideoModal && (
           <div>
             {getEmbedUrl(activeVideoModal.url)?.includes("youtube.com") ? (
-              <div style={{ position: "relative", paddingBottom: "56.25%", height: 0, overflow: "hidden" }}>
+              <div
+                style={{
+                  position: "relative",
+                  paddingBottom: "56.25%",
+                  height: 0,
+                  overflow: "hidden",
+                  borderRadius: "8px",
+                  backgroundColor: "#000",
+                }}
+              >
                 <iframe
                   src={getEmbedUrl(activeVideoModal.url)}
                   title={activeVideoModal.title}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
                   style={{
                     position: "absolute",
                     top: 0,
                     left: 0,
                     width: "100%",
                     height: "100%",
-                    borderRadius: 8,
+                    borderRadius: "8px",
                     border: "none",
                   }}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
                 />
               </div>
             ) : (
-              <Stack gap="md" align="center" py="lg">
-                <Text size="sm">This clip can be viewed at:</Text>
+              <Paper p="xl" radius="md" withBorder ta="center" style={{ background: "#f8fafc" }}>
+                <Stack gap="md" align="center">
+                  <IconVideo size={40} color="#4f46e5" />
+                  <div>
+                    <Text fw={600} size="sm">
+                      Streaming Video Episode
+                    </Text>
+                    <Text size="xs" c="dimmed" mt={4} style={{ maxWidth: 450 }}>
+                      This video is hosted on an external media server:
+                    </Text>
+                    <Text size="xs" fw={500} c="indigo" mt={2} lineClamp={1}>
+                      {activeVideoModal.url}
+                    </Text>
+                  </div>
+                  <Button
+                    component="a"
+                    href={activeVideoModal.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    color="indigo"
+                    size="sm"
+                    leftSection={<IconExternalLink size={16} />}
+                  >
+                    Open Video in New Tab
+                  </Button>
+                </Stack>
+              </Paper>
+            )}
+
+            {/* Modal Footer Controls */}
+            <Group justify="space-between" align="center" mt="md">
+              <Text size="xs" c="dimmed" lineClamp={1} style={{ maxWidth: 420 }}>
+                {activeVideoModal.url}
+              </Text>
+              <Group gap="xs">
                 <Button
                   component="a"
                   href={activeVideoModal.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  color="red"
-                  leftSection={<IconExternalLink size={16} />}
+                  size="xs"
+                  variant="default"
+                  leftSection={<IconExternalLink size={14} />}
                 >
-                  Open External Video
+                  Open in New Tab
                 </Button>
-              </Stack>
-            )}
+                <Button
+                  size="xs"
+                  color="gray"
+                  variant="light"
+                  onClick={() => setActiveVideoModal(null)}
+                >
+                  Close
+                </Button>
+              </Group>
+            </Group>
           </div>
         )}
       </Modal>
@@ -1237,6 +1673,127 @@ export function QuranStickyNotesExplorer({ user }) {
                 </Paper>
               );
             })}
+          </Stack>
+        )}
+      </Modal>
+
+      {/* Dedicated Seasons & Episodes Modal (Triggered from Level 2 Cards) */}
+      <Modal
+        opened={!!seasonsModalLecture}
+        onClose={() => setSeasonsModalLecture(null)}
+        title={
+          seasonsModalLecture && (
+            <Group gap="xs">
+              <IconVideo size={20} color="#4f46e5" />
+              <div>
+                <Text fw={700} size="sm">
+                  {getLectureName(seasonsModalLecture.lecture_name)}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  Seasons & Episodes Breakdown
+                </Text>
+              </div>
+            </Group>
+          )
+        }
+        size="md"
+        centered
+        radius="md"
+      >
+        {seasonsModalLecture && (
+          <Stack gap="sm">
+            {modalLectureSeasons.length > 1 && (
+              <Group gap="xs">
+                {modalLectureSeasons.map((s, sIdx) => (
+                  <Button
+                    key={sIdx}
+                    size="xs"
+                    radius="xl"
+                    variant={modalSeasonIndex === sIdx ? "filled" : "light"}
+                    color="indigo"
+                    onClick={() => setModalSeasonIndex(sIdx)}
+                  >
+                    {s.season_name || `Season ${sIdx + 1}`}
+                  </Button>
+                ))}
+              </Group>
+            )}
+
+            <Text size="xs" c="dimmed">
+              {modalCurrentSeason?.season_name || "Season 1"} • {modalEpisodesList.length} Episodes available:
+            </Text>
+
+            {modalEpisodesList.length === 0 ? (
+              <Paper p="md" radius="md" withBorder ta="center" style={{ background: "#f8fafc" }}>
+                <Text size="xs" c="dimmed">
+                  No video episodes available for this season.
+                </Text>
+              </Paper>
+            ) : (
+              <Stack gap="xs" style={{ maxHeight: 380, overflowY: "auto" }}>
+                {modalEpisodesList.map((ep, idx) => (
+                  <Paper
+                    key={ep.id || idx}
+                    p="sm"
+                    radius="md"
+                    withBorder
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 12,
+                    }}
+                  >
+                    <Group gap="sm" style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          width: 26,
+                          height: 26,
+                          borderRadius: "50%",
+                          backgroundColor: "#4f46e5",
+                          color: "white",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: 11,
+                          fontWeight: 800,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {idx + 1}
+                      </div>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <Text size="xs" fw={700} lineClamp={1}>
+                          {ep.episode_title || ep.title || `Episode ${idx + 1}`}
+                        </Text>
+                        <Text size="10px" c="dimmed">
+                          {ep.episode_number || "Episode"}
+                        </Text>
+                      </div>
+                    </Group>
+
+                    <Button
+                      size="compact-xs"
+                      color="indigo"
+                      variant="light"
+                      leftSection={<IconPlayerPlay size={12} fill="currentColor" />}
+                      onClick={() => {
+                        const epUrl = ep.episode_url || ep.videoUrl || ep.video_url;
+                        if (epUrl) {
+                          setActiveVideoModal({
+                            title: `${getLectureName(seasonsModalLecture.lecture_name)} - ${ep.episode_title || ep.title || `Episode ${idx + 1}`}`,
+                            url: epUrl,
+                          });
+                          setSeasonsModalLecture(null);
+                        }
+                      }}
+                    >
+                      Play
+                    </Button>
+                  </Paper>
+                ))}
+              </Stack>
+            )}
           </Stack>
         )}
       </Modal>
