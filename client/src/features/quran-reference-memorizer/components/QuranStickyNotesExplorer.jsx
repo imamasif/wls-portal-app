@@ -253,6 +253,42 @@ export function QuranStickyNotesExplorer({ user }) {
     return trimmed;
   };
 
+  /**
+   * Converts any YouTube URL (embed, watch, or youtu.be) into a direct YouTube watch URL
+   * with clean timestamp parameter (?t=...s) so users can open and play it directly on YouTube
+   * even if third-party website embedding has been restricted by the video owner.
+   */
+  const getYouTubeWatchUrl = (url) => {
+    if (!url || typeof url !== "string") return url;
+    const trimmed = url.trim();
+
+    try {
+      let videoId = "";
+      let startTime = "";
+
+      if (trimmed.includes("youtube.com/embed/")) {
+        const urlObj = new URL(trimmed.includes("://") ? trimmed : `https://${trimmed}`);
+        videoId = urlObj.pathname.split("/embed/")[1]?.split("/")[0]?.split("?")[0] || "";
+        startTime = urlObj.searchParams.get("start") || urlObj.searchParams.get("t") || "";
+      } else if (trimmed.includes("youtube.com/watch")) {
+        const urlObj = new URL(trimmed.includes("://") ? trimmed : `https://${trimmed}`);
+        videoId = urlObj.searchParams.get("v") || "";
+        startTime = urlObj.searchParams.get("start") || urlObj.searchParams.get("t") || "";
+      } else if (trimmed.includes("youtu.be/")) {
+        const urlObj = new URL(trimmed.includes("://") ? trimmed : `https://${trimmed}`);
+        videoId = urlObj.pathname.replace(/^\//, "").split("?")[0] || "";
+        startTime = urlObj.searchParams.get("start") || urlObj.searchParams.get("t") || "";
+      }
+
+      if (videoId) {
+        const cleanStart = startTime ? String(startTime).replace("s", "") : "";
+        return `https://www.youtube.com/watch?v=${videoId}${cleanStart ? `&t=${cleanStart}s` : ""}`;
+      }
+    } catch (_) {}
+
+    return trimmed;
+  };
+
   // Helper for lecture name (supports string or array of strings)
   const getLectureName = (lectureName) => {
     if (Array.isArray(lectureName)) return lectureName[0] || "";
@@ -1563,6 +1599,41 @@ export function QuranStickyNotesExplorer({ user }) {
               </Paper>
             )}
 
+            {/* If YouTube, provide direct fallback note and button */}
+            {getEmbedUrl(activeVideoModal.url)?.includes("youtube.com") && (
+              <Paper
+                p="xs"
+                radius="md"
+                mt="sm"
+                style={{
+                  background: "#fef2f2",
+                  border: "1px solid rgba(220, 38, 38, 0.3)",
+                }}
+              >
+                <Group justify="space-between" align="center" wrap="wrap" gap="xs">
+                  <div style={{ flex: 1, minWidth: 240 }}>
+                    <Text size="xs" fw={700} c="red.8">
+                      Playback Restricted by Video Owner?
+                    </Text>
+                    <Text size="11px" c="dimmed">
+                      If YouTube says <i>"Playback on other websites has been disabled by the video owner"</i>, click here to watch directly on YouTube at this exact timestamp segment. (Channel owners can enable this under YouTube Studio ➔ Show more ➔ License ➔ "Allow embedding").
+                    </Text>
+                  </div>
+                  <Button
+                    component="a"
+                    href={getYouTubeWatchUrl(activeVideoModal.url)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    color="red"
+                    size="xs"
+                    leftSection={<IconBrandYoutube size={15} />}
+                  >
+                    Watch on YouTube
+                  </Button>
+                </Group>
+              </Paper>
+            )}
+
             {/* Modal Footer Controls */}
             <Group justify="space-between" align="center" mt="md">
               <Text size="xs" c="dimmed" lineClamp={1} style={{ maxWidth: 420 }}>
@@ -1571,14 +1642,15 @@ export function QuranStickyNotesExplorer({ user }) {
               <Group gap="xs">
                 <Button
                   component="a"
-                  href={activeVideoModal.url}
+                  href={getYouTubeWatchUrl(activeVideoModal.url)}
                   target="_blank"
                   rel="noopener noreferrer"
                   size="xs"
-                  variant="default"
-                  leftSection={<IconExternalLink size={14} />}
+                  color="red"
+                  variant="light"
+                  leftSection={<IconBrandYoutube size={14} />}
                 >
-                  Open in New Tab
+                  Open on YouTube
                 </Button>
                 <Button
                   size="xs"
