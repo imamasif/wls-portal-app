@@ -68,6 +68,7 @@ export function QuranStickyNotesExplorer({ user }) {
 
   // Active video modal
   const [activeVideoModal, setActiveVideoModal] = useState(null);
+  const [activeMultiVideoModal, setActiveMultiVideoModal] = useState(null);
 
   // Fetch Meta Categories on mount
   useEffect(() => {
@@ -130,17 +131,119 @@ export function QuranStickyNotesExplorer({ user }) {
     setLookupError("");
   };
 
-  // Helper to extract embeddable video URL
+  // Extract all video URLs attached to a verse/occurrence
+  const getAyatVideoList = (verse) => {
+    if (!verse) return [];
+    const list = [];
+    const add = (v) => {
+      if (!v) return;
+      if (Array.isArray(v)) {
+        v.forEach((x) => {
+          if (typeof x === "string") {
+            const trimmed = x.trim();
+            if (trimmed && !list.includes(trimmed)) list.push(trimmed);
+          }
+        });
+      } else if (typeof v === "string") {
+        const trimmed = v.trim();
+        if (trimmed && !list.includes(trimmed)) list.push(trimmed);
+      }
+    };
+
+    add(verse.video_urls);
+    add(verse.youtube_urls);
+    add(verse.youtube_urls_eng);
+    add(verse.video_urls_eng);
+    add(verse.youtube_url_eng);
+    add(verse.video_url_eng);
+    add(verse.youtube_urls_urdu);
+    add(verse.video_urls_urdu);
+    add(verse.youtube_url_urdu);
+    add(verse.video_url_urdu);
+    add(verse.video_url);
+    add(verse.youtube_url);
+    return list;
+  };
+
+  // Helper to extract video timestamps for badges (e.g. 1:40 - 5:20)
+  const parseVideoTimestamps = (url) => {
+    if (!url || typeof url !== "string") return null;
+    try {
+      const urlObj = new URL(url.includes("://") ? url : `https://${url}`);
+      const start = urlObj.searchParams.get("start") || urlObj.searchParams.get("t");
+      const end = urlObj.searchParams.get("end");
+
+      if (!start && !end) return null;
+
+      const formatSec = (s) => {
+        const num = parseInt(String(s).replace("s", ""), 10);
+        if (isNaN(num)) return null;
+        const m = Math.floor(num / 60);
+        const sec = num % 60;
+        return `${m}:${String(sec).padStart(2, "0")}`;
+      };
+
+      const startFormatted = start ? formatSec(start) : null;
+      const endFormatted = end ? formatSec(end) : null;
+
+      if (startFormatted && endFormatted) {
+        return `${startFormatted} - ${endFormatted}`;
+      }
+      if (startFormatted) {
+        return `Starts at ${startFormatted}`;
+      }
+      if (endFormatted) {
+        return `Ends at ${endFormatted}`;
+      }
+    } catch (_) {}
+    return null;
+  };
+
+  // Helper to extract embeddable video URL natively supporting start & end timestamps
   const getEmbedUrl = (url) => {
-    if (!url) return null;
-    if (url.includes("youtube.com/watch?v=")) {
-      return url.replace("watch?v=", "embed/");
+    if (!url || typeof url !== "string") return null;
+    const trimmed = url.trim();
+
+    if (trimmed.includes("youtube.com/embed/")) {
+      return trimmed;
     }
-    if (url.includes("youtu.be/")) {
-      const id = url.split("youtu.be/")[1]?.split("?")[0];
-      return `https://www.youtube.com/embed/${id}`;
+
+    if (trimmed.includes("youtube.com/watch")) {
+      try {
+        const urlObj = new URL(trimmed);
+        const vId = urlObj.searchParams.get("v");
+        if (vId) {
+          urlObj.searchParams.delete("v");
+          const t = urlObj.searchParams.get("t");
+          if (t && !urlObj.searchParams.has("start")) {
+            const seconds = parseInt(t.replace("s", ""), 10);
+            if (!isNaN(seconds)) urlObj.searchParams.set("start", seconds);
+            urlObj.searchParams.delete("t");
+          }
+          const qs = urlObj.searchParams.toString();
+          return `https://www.youtube.com/embed/${vId}${qs ? `?${qs}` : ""}`;
+        }
+      } catch (_) {}
     }
-    return url;
+
+    if (trimmed.includes("youtu.be/")) {
+      try {
+        const urlObj = new URL(trimmed);
+        const vId = urlObj.pathname.replace(/^\//, "");
+        if (vId) {
+          const t = urlObj.searchParams.get("t");
+          if (t && !urlObj.searchParams.has("start")) {
+            const seconds = parseInt(t.replace("s", ""), 10);
+            if (!isNaN(seconds)) urlObj.searchParams.set("start", seconds);
+            urlObj.searchParams.delete("t");
+          }
+          const qs = urlObj.searchParams.toString();
+          return `https://www.youtube.com/embed/${vId}${qs ? `?${qs}` : ""}`;
+        }
+      } catch (_) {}
+    }
+
+    return trimmed;
   };
 
   // Filtered categories
@@ -442,22 +545,59 @@ export function QuranStickyNotesExplorer({ user }) {
                           </Text>
                         )}
 
-                        {(occ.video_url_eng || occ.video_url_urdu) && (
-                          <Button
-                            size="compact-xs"
-                            variant="light"
-                            color="red"
-                            leftSection={<IconBrandYoutube size={14} />}
-                            onClick={() =>
-                              setActiveVideoModal({
-                                title: `${Array.isArray(occ.lecture_name) ? occ.lecture_name[0] : occ.lecture_name} - Surah ${occ.surah_number}:${occ.ayat_number}`,
-                                url: occ.video_url_eng || occ.video_url_urdu,
-                              })
-                            }
-                          >
-                            Watch Clip
-                          </Button>
-                        )}
+                        {(() => {
+                          const occVideos = getAyatVideoList(occ);
+                          if (occVideos.length === 0) return null;
+                          if (occVideos.length === 1) {
+                            return (
+                              <Button
+                                size="compact-xs"
+                                variant="light"
+                                color="red"
+                                leftSection={<IconBrandYoutube size={14} />}
+                                onClick={() =>
+                                  setActiveVideoModal({
+                                    title: `${Array.isArray(occ.lecture_name) ? occ.lecture_name[0] : occ.lecture_name} - Surah ${occ.surah_number}:${occ.ayat_number}`,
+                                    url: occVideos[0],
+                                  })
+                                }
+                              >
+                                Watch Clip
+                              </Button>
+                            );
+                          }
+                          return (
+                            <Button
+                              size="compact-xs"
+                              variant="filled"
+                              color="red"
+                              leftSection={<IconBrandYoutube size={14} />}
+                              rightSection={
+                                <span
+                                  style={{
+                                    background: "white",
+                                    color: "#dc2626",
+                                    borderRadius: 10,
+                                    padding: "1px 5px",
+                                    fontSize: 9,
+                                    fontWeight: 800,
+                                  }}
+                                >
+                                  {occVideos.length}
+                                </span>
+                              }
+                              onClick={() =>
+                                setActiveMultiVideoModal({
+                                  title: `${Array.isArray(occ.lecture_name) ? occ.lecture_name[0] : occ.lecture_name} - Surah ${occ.surah_number}:${occ.ayat_number}`,
+                                  videos: occVideos,
+                                  verse: occ,
+                                })
+                              }
+                            >
+                              Clips
+                            </Button>
+                          );
+                        })()}
                       </Paper>
                     ))}
                   </div>
@@ -777,12 +917,7 @@ export function QuranStickyNotesExplorer({ user }) {
                 >
                   {currentVerses.map((verse, idx) => {
                     const palette = STICKY_COLORS[idx % STICKY_COLORS.length];
-                    const videoUrl =
-                      verse.video_url_eng ||
-                      verse.youtube_url_eng ||
-                      verse.video_url_urdu ||
-                      verse.youtube_url_urdu ||
-                      verse.video_url;
+                    const videoList = getAyatVideoList(verse);
 
                     return (
                       <Card
@@ -915,7 +1050,11 @@ export function QuranStickyNotesExplorer({ user }) {
 
                         {/* Video Clip CTA */}
                         <div style={{ marginTop: 14, paddingTop: 10, borderTop: `1px dashed ${palette.border}` }}>
-                          {videoUrl ? (
+                          {videoList.length === 0 ? (
+                            <Text size="xs" c="dimmed" ta="center">
+                              No video clip attached
+                            </Text>
+                          ) : videoList.length === 1 ? (
                             <Button
                               fullWidth
                               size="xs"
@@ -925,16 +1064,34 @@ export function QuranStickyNotesExplorer({ user }) {
                               onClick={() =>
                                 setActiveVideoModal({
                                   title: `${Array.isArray(selectedLecture.lecture_name) ? selectedLecture.lecture_name[0] : selectedLecture.lecture_name} - Surah ${verse.surah_number}:${verse.ayat_number}`,
-                                  url: videoUrl,
+                                  url: videoList[0],
                                 })
                               }
                             >
                               Watch Video Clip
                             </Button>
                           ) : (
-                            <Text size="xs" c="dimmed" ta="center">
-                              No video clip attached
-                            </Text>
+                            <Button
+                              fullWidth
+                              size="xs"
+                              color="red"
+                              variant="filled"
+                              leftSection={<IconBrandYoutube size={15} />}
+                              rightSection={
+                                <Badge size="xs" color="yellow" variant="filled" style={{ color: "#000", fontWeight: 800 }}>
+                                  {videoList.length} Clips
+                                </Badge>
+                              }
+                              onClick={() =>
+                                setActiveMultiVideoModal({
+                                  title: `${Array.isArray(selectedLecture.lecture_name) ? selectedLecture.lecture_name[0] : selectedLecture.lecture_name} - Surah ${verse.surah_number}:${verse.ayat_number}`,
+                                  videos: videoList,
+                                  verse,
+                                })
+                              }
+                            >
+                              Watch Video Clips
+                            </Button>
                           )}
                         </div>
                       </Card>
@@ -998,6 +1155,89 @@ export function QuranStickyNotesExplorer({ user }) {
               </Stack>
             )}
           </div>
+        )}
+      </Modal>
+
+      {/* Multi-Video Picker Modal */}
+      <Modal
+        opened={!!activeMultiVideoModal}
+        onClose={() => setActiveMultiVideoModal(null)}
+        title={
+          <Group gap="xs">
+            <IconBrandYoutube size={20} color="red" />
+            <div>
+              <Text fw={700} size="sm">
+                {activeMultiVideoModal?.title}
+              </Text>
+              <Text size="xs" c="dimmed">
+                {activeMultiVideoModal?.videos?.length || 0} Video Clips available for this verse
+              </Text>
+            </div>
+          </Group>
+        }
+        size="md"
+        centered
+        radius="md"
+      >
+        {activeMultiVideoModal && (
+          <Stack gap="sm">
+            <Text size="xs" c="dimmed">
+              Select a clip to open the player. Timestamps indicate designated start and stop segments.
+            </Text>
+
+            {activeMultiVideoModal.videos.map((url, idx) => {
+              const timeRange = parseVideoTimestamps(url);
+              return (
+                <Paper
+                  key={idx}
+                  p="sm"
+                  withBorder
+                  radius="md"
+                  style={{
+                    background: "#f8fafc",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 12,
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <Group gap="xs" mb={2}>
+                      <Badge size="sm" color="red" variant="light">
+                        Clip {idx + 1}
+                      </Badge>
+                      {timeRange && (
+                        <Badge size="xs" color="blue" variant="outline">
+                          ⏱ {timeRange}
+                        </Badge>
+                      )}
+                    </Group>
+                    <Text size="11px" c="dimmed" lineClamp={1} style={{ wordBreak: "break-all" }}>
+                      {url}
+                    </Text>
+                  </div>
+
+                  <Button
+                    size="xs"
+                    color="red"
+                    variant="light"
+                    leftSection={<IconBrandYoutube size={14} />}
+                    onClick={() => {
+                      const vidUrl = url;
+                      const mTitle = `${activeMultiVideoModal.title} (Clip ${idx + 1})`;
+                      setActiveMultiVideoModal(null);
+                      setActiveVideoModal({
+                        title: mTitle,
+                        url: vidUrl,
+                      });
+                    }}
+                  >
+                    Play
+                  </Button>
+                </Paper>
+              );
+            })}
+          </Stack>
         )}
       </Modal>
     </Container>
