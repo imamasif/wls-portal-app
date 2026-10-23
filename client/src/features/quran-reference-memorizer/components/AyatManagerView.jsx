@@ -23,9 +23,11 @@ import {
   Tabs,
   Divider,
   Alert,
+  Accordion,
 } from "@mantine/core";
 import {
   IconPlus,
+  IconMinus,
   IconPencil,
   IconTrash,
   IconSearch,
@@ -69,6 +71,8 @@ const INITIAL_FORM = {
   video_url_urdu: "",
   youtube_url_urdu: "",
   facebook_url_urdu: "",
+  video_urls_text: "",
+  video_urls: [],
   ayat_image_eng_url: "",
   ayat_image_urdu_url: "",
   ayat_image_hindi_url: "",
@@ -166,13 +170,25 @@ export function AyatManagerView({ user }) {
     });
   }, [metaCategories]);
 
+  const formatLectureLabel = (l, catName) => {
+    const names = Array.isArray(l.lecture_name)
+      ? l.lecture_name
+      : l.lecture_name
+      ? [l.lecture_name]
+      : [];
+    const primary = names[0] || `Lecture ${l.lecture_id}`;
+    const aliasStr = names.length > 1 ? ` (AKA: ${names.slice(1).join(", ")})` : "";
+    const suffix = catName ? ` (${catName})` : ` (Lec ${l.lecture_id})`;
+    return `${primary}${aliasStr}${suffix}`;
+  };
+
   // Filter Lectures based on selected category in Filter bar
   const filterLectureOptions = useMemo(() => {
     if (!selectedFilterCategory) {
       return metaCategories.flatMap((c) =>
         (c.lectures || []).map((l) => ({
           value: String(l._id || l.id || l.lecture_id),
-          label: `${l.lecture_name} (${c.category_name})`,
+          label: formatLectureLabel(l, c.category_name),
         }))
       );
     }
@@ -182,7 +198,7 @@ export function AyatManagerView({ user }) {
     if (!cat) return [];
     return (cat.lectures || []).map((l) => ({
       value: String(l._id || l.id || l.lecture_id),
-      label: `${l.lecture_name} (Lec ${l.lecture_id})`,
+      label: formatLectureLabel(l),
     }));
   }, [selectedFilterCategory, metaCategories]);
 
@@ -192,7 +208,7 @@ export function AyatManagerView({ user }) {
       return metaCategories.flatMap((c) =>
         (c.lectures || []).map((l) => ({
           value: String(l._id || l.id || l.lecture_id),
-          label: `${l.lecture_name} (${c.category_name})`,
+          label: formatLectureLabel(l, c.category_name),
         }))
       );
     }
@@ -204,7 +220,7 @@ export function AyatManagerView({ user }) {
     if (!cat) return [];
     return (cat.lectures || []).map((l) => ({
       value: String(l._id || l.id || l.lecture_id),
-      label: `${l.lecture_name} (Lec ${l.lecture_id})`,
+      label: formatLectureLabel(l),
     }));
   }, [formData.category_id_ref, metaCategories]);
 
@@ -233,6 +249,7 @@ export function AyatManagerView({ user }) {
     setFormData({
       ...INITIAL_FORM,
       category_id_ref: selectedFilterCategory || (metaCategories[0] ? String(metaCategories[0]._id || metaCategories[0].category_id) : ""),
+      video_urls: [""],
     });
     setFormError("");
     setModalMode("CREATE");
@@ -241,6 +258,21 @@ export function AyatManagerView({ user }) {
 
   // Open Edit Modal
   const handleOpenEdit = (item) => {
+    // Gather all existing video URLs
+    const rawUrls = [];
+    if (Array.isArray(item.video_urls)) rawUrls.push(...item.video_urls);
+    if (Array.isArray(item.youtube_urls)) rawUrls.push(...item.youtube_urls);
+    if (item.video_url) rawUrls.push(item.video_url);
+    if (item.youtube_url) rawUrls.push(item.youtube_url);
+    if (item.video_url_eng) rawUrls.push(item.video_url_eng);
+    if (item.youtube_url_eng) rawUrls.push(item.youtube_url_eng);
+    if (item.video_url_urdu) rawUrls.push(item.video_url_urdu);
+    if (item.youtube_url_urdu) rawUrls.push(item.youtube_url_urdu);
+
+    const initialUrls = Array.from(
+      new Set(rawUrls.map((u) => (typeof u === "string" ? u.trim() : "")).filter(Boolean))
+    );
+
     setFormData({
       category_id_ref: String(item.category_id_ref || ""),
       lecture_id: String(item.lecture_id || ""),
@@ -262,6 +294,8 @@ export function AyatManagerView({ user }) {
       video_url_urdu: item.video_url_urdu || "",
       youtube_url_urdu: item.youtube_url_urdu || "",
       facebook_url_urdu: item.facebook_url_urdu || "",
+      video_urls_text: initialUrls.join("\n"),
+      video_urls: initialUrls.length > 0 ? initialUrls : [""],
       ayat_image_eng_url: item.ayat_image_eng_url || "",
       ayat_image_urdu_url: item.ayat_image_urdu_url || "",
       ayat_image_hindi_url: item.ayat_image_hindi_url || "",
@@ -269,6 +303,30 @@ export function AyatManagerView({ user }) {
     setFormError("");
     setCurrentEditingId(item._id);
     setModalMode("EDIT");
+  };
+
+  // Video URL dynamic row handlers (+ / -)
+  const handleVideoUrlChange = (index, value) => {
+    setFormData((prev) => {
+      const list = [...(prev.video_urls || [""])];
+      list[index] = value;
+      return { ...prev, video_urls: list };
+    });
+  };
+
+  const handleAddVideoUrl = () => {
+    setFormData((prev) => ({
+      ...prev,
+      video_urls: [...(prev.video_urls || [""]), ""],
+    }));
+  };
+
+  const handleRemoveVideoUrl = (index) => {
+    setFormData((prev) => {
+      const list = [...(prev.video_urls || [""])];
+      list.splice(index, 1);
+      return { ...prev, video_urls: list.length > 0 ? list : [""] };
+    });
   };
 
   // Auto-Fetch text from Quran API proxy
@@ -311,12 +369,40 @@ export function AyatManagerView({ user }) {
     setIsSubmitting(true);
     setFormError("");
 
+    const cleanVideos = (formData.video_urls || [])
+      .map((s) => (typeof s === "string" ? s.trim() : ""))
+      .filter(Boolean);
+
+    const extraUrls = (formData.video_urls_text || "")
+      .split(/[\n,]/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    const consolidatedVideos = Array.from(
+      new Set([
+        ...cleanVideos,
+        ...extraUrls,
+        ...(formData.video_url_eng ? [formData.video_url_eng.trim()] : []),
+        ...(formData.youtube_url_eng ? [formData.youtube_url_eng.trim()] : []),
+        ...(formData.video_url_urdu ? [formData.video_url_urdu.trim()] : []),
+        ...(formData.youtube_url_urdu ? [formData.youtube_url_urdu.trim()] : []),
+      ])
+    ).filter(Boolean);
+
+    const payload = {
+      ...formData,
+      video_urls: consolidatedVideos,
+      youtube_urls: consolidatedVideos,
+      video_url: consolidatedVideos[0] || "",
+      youtube_url: consolidatedVideos[0] || "",
+    };
+
     try {
       if (modalMode === "CREATE") {
-        await createAyat(formData);
+        await createAyat(payload);
         setSuccessNotice("New Ayat reference successfully added!");
       } else if (modalMode === "EDIT" && currentEditingId) {
-        await updateAyat(currentEditingId, formData);
+        await updateAyat(currentEditingId, payload);
         setSuccessNotice("Ayat reference successfully updated!");
       }
 
@@ -556,7 +642,9 @@ export function AyatManagerView({ user }) {
 
                       <Table.Td>
                         <Text size="xs" fw={600} c="dark.7" lineClamp={1}>
-                          {item.lecture_name || `Lecture ID: ${item.lecture_id}`}
+                          {Array.isArray(item.lecture_name)
+                            ? item.lecture_name[0]
+                            : item.lecture_name || `Lecture ID: ${item.lecture_id}`}
                         </Text>
                         <Text size="xs" c="dimmed" lineClamp={1}>
                           {item.category_name || "Category Ref"}
@@ -577,10 +665,10 @@ export function AyatManagerView({ user }) {
                       <Table.Td>
                         <Group gap={4}>
                           {hasVideo && (
-                            <Tooltip label="Video clip linked">
-                              <Badge size="xs" color="red" variant="light">
+                            <Tooltip label={item.video_urls?.length > 1 ? `${item.video_urls.length} video links attached` : "Video clip linked"}>
+                              <Badge size="xs" color="red" variant={item.video_urls?.length > 1 ? "filled" : "light"}>
                                 <IconBrandYoutube size={11} style={{ marginRight: 2 }} />
-                                Video
+                                {item.video_urls?.length > 1 ? `${item.video_urls.length} Videos` : "Video"}
                               </Badge>
                             </Tooltip>
                           )}
@@ -882,48 +970,122 @@ export function AyatManagerView({ user }) {
           )}
 
           {/* 7. Video Links Section */}
-          <Divider label="Video & Clip Links" labelPosition="center" my="xs" />
-          <Group grow>
-            <TextInput
-              label="English Video URL"
-              placeholder="https://..."
-              value={formData.video_url_eng}
-              onChange={(e) => setFormData((prev) => ({ ...prev, video_url_eng: e.target.value }))}
-            />
-            <TextInput
-              label="English YouTube URL"
-              placeholder="https://youtube.com/..."
-              value={formData.youtube_url_eng}
-              onChange={(e) => setFormData((prev) => ({ ...prev, youtube_url_eng: e.target.value }))}
-            />
-            <TextInput
-              label="English Facebook URL"
-              placeholder="https://facebook.com/..."
-              value={formData.facebook_url_eng}
-              onChange={(e) => setFormData((prev) => ({ ...prev, facebook_url_eng: e.target.value }))}
-            />
-          </Group>
+          <Divider label="YouTube & Video Links (Multiple Clips Supported)" labelPosition="center" my="xs" />
 
-          <Group grow>
-            <TextInput
-              label="Urdu Video URL"
-              placeholder="https://..."
-              value={formData.video_url_urdu}
-              onChange={(e) => setFormData((prev) => ({ ...prev, video_url_urdu: e.target.value }))}
-            />
-            <TextInput
-              label="Urdu YouTube URL"
-              placeholder="https://youtube.com/..."
-              value={formData.youtube_url_urdu}
-              onChange={(e) => setFormData((prev) => ({ ...prev, youtube_url_urdu: e.target.value }))}
-            />
-            <TextInput
-              label="Urdu Facebook URL"
-              placeholder="https://facebook.com/..."
-              value={formData.facebook_url_urdu}
-              onChange={(e) => setFormData((prev) => ({ ...prev, facebook_url_urdu: e.target.value }))}
-            />
-          </Group>
+          <Stack gap="xs">
+            <Group justify="space-between" align="center">
+              <Text size="xs" fw={700} c="dark.7">
+                Ayat Video Links ({formData.video_urls?.length || 0}):
+              </Text>
+              <Button
+                size="compact-xs"
+                variant="light"
+                color="teal"
+                leftSection={<IconPlus size={13} />}
+                onClick={handleAddVideoUrl}
+              >
+                Add Video Link
+              </Button>
+            </Group>
+
+            <Text size="xs" c="dimmed">
+              Add one or more YouTube or Video URLs. YouTube links with timestamps (e.g. <code>start=130&end=590</code> or <code>/embed/...</code>) play smoothly in modals. Use (+) or (-) to add and remove links.
+            </Text>
+
+            {(formData.video_urls || [""]).map((url, idx) => (
+              <Group key={idx} align="center" gap="xs">
+                <Badge size="sm" variant="light" color="red" style={{ minWidth: 64, textAlign: "center" }}>
+                  Clip {idx + 1}
+                </Badge>
+                <TextInput
+                  placeholder="https://www.youtube.com/watch?v=... or https://www.youtube.com/embed/... (with start & end)"
+                  value={url}
+                  onChange={(e) => handleVideoUrlChange(idx, e.target.value)}
+                  style={{ flex: 1 }}
+                  size="xs"
+                />
+                <ActionIcon
+                  color="red"
+                  variant="subtle"
+                  size="sm"
+                  onClick={() => handleRemoveVideoUrl(idx)}
+                  disabled={(formData.video_urls || []).length <= 1 && !url}
+                  title="Remove this video link (-)"
+                >
+                  <IconMinus size={16} />
+                </ActionIcon>
+                <ActionIcon
+                  color="teal"
+                  variant="subtle"
+                  size="sm"
+                  onClick={handleAddVideoUrl}
+                  title="Add another video link (+)"
+                >
+                  <IconPlus size={16} />
+                </ActionIcon>
+              </Group>
+            ))}
+          </Stack>
+
+          {/* Optional overrides: Facebook / Specific Language */}
+          <Accordion variant="separated" radius="md" mt="xs">
+            <Accordion.Item value="overrides">
+              <Accordion.Control>
+                <Text size="xs" fw={600} c="dimmed">
+                  Optional: English / Urdu Facebook & Platform-Specific URL Overrides
+                </Text>
+              </Accordion.Control>
+              <Accordion.Panel>
+                <Group grow mb="xs">
+                  <TextInput
+                    label="English Video URL"
+                    placeholder="https://..."
+                    size="xs"
+                    value={formData.video_url_eng}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, video_url_eng: e.target.value }))}
+                  />
+                  <TextInput
+                    label="English YouTube URL"
+                    placeholder="https://youtube.com/..."
+                    size="xs"
+                    value={formData.youtube_url_eng}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, youtube_url_eng: e.target.value }))}
+                  />
+                  <TextInput
+                    label="English Facebook URL"
+                    placeholder="https://facebook.com/..."
+                    size="xs"
+                    value={formData.facebook_url_eng}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, facebook_url_eng: e.target.value }))}
+                  />
+                </Group>
+
+                <Group grow>
+                  <TextInput
+                    label="Urdu Video URL"
+                    placeholder="https://..."
+                    size="xs"
+                    value={formData.video_url_urdu}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, video_url_urdu: e.target.value }))}
+                  />
+                  <TextInput
+                    label="Urdu YouTube URL"
+                    placeholder="https://youtube.com/..."
+                    size="xs"
+                    value={formData.youtube_url_urdu}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, youtube_url_urdu: e.target.value }))}
+                  />
+                  <TextInput
+                    label="Urdu Facebook URL"
+                    placeholder="https://facebook.com/..."
+                    size="xs"
+                    value={formData.facebook_url_urdu}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, facebook_url_urdu: e.target.value }))}
+                  />
+                </Group>
+              </Accordion.Panel>
+            </Accordion.Item>
+          </Accordion>
 
           {/* 8. Image URLs */}
           <Divider label="Ayat Card Image URLs" labelPosition="center" my="xs" />

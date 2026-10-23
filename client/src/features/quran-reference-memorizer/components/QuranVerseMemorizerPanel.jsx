@@ -640,7 +640,7 @@ export default function QuranVerseMemorizerPanel() {
           const lNum = b.lecture_id ?? b.lectureId ?? b.id;
           const uniqueId = String(b._id || b.id || `cat_${catId}_lec_${lNum}`);
           const lName =
-            b.lecture_name ?? b.lectureName ?? b.name ?? `Lecture ${lNum}`;
+            (Array.isArray(b.lecture_name) ? b.lecture_name[0] : b.lecture_name) ?? b.lectureName ?? b.name ?? `Lecture ${lNum}`;
           const count =
             b.ayat_count ??
             b.total_ayats ??

@@ -1,4 +1,5 @@
 // server/src/features/ayats/ayats.req.js
+import { normalizeAyatVideos } from "./ayats.res.js";
 
 export class CreateAyatReq {
   constructor(data) {
@@ -16,11 +17,20 @@ export class CreateAyatReq {
     this.points_notes_hindi = String(data.points_notes_hindi || "").trim();
     this.quest_answer = Boolean(data.quest_answer);
     this.question_text = String(data.question_text || "").trim();
-    this.video_url_eng = String(data.video_url_eng || "").trim();
-    this.youtube_url_eng = String(data.youtube_url_eng || "").trim();
+
+    const vNorm = normalizeAyatVideos(data);
+    this.video_urls = vNorm.video_urls;
+    this.youtube_urls = vNorm.youtube_urls;
+    this.youtube_urls_eng = vNorm.youtube_urls_eng;
+    this.video_urls_eng = vNorm.video_urls_eng;
+    this.youtube_urls_urdu = vNorm.youtube_urls_urdu;
+    this.video_urls_urdu = vNorm.video_urls_urdu;
+    this.video_url_eng = vNorm.video_url_eng;
+    this.youtube_url_eng = vNorm.youtube_url_eng;
+    this.video_url_urdu = vNorm.video_url_urdu;
+    this.youtube_url_urdu = vNorm.youtube_url_urdu;
+
     this.facebook_url_eng = String(data.facebook_url_eng || "").trim();
-    this.video_url_urdu = String(data.video_url_urdu || "").trim();
-    this.youtube_url_urdu = String(data.youtube_url_urdu || "").trim();
     this.facebook_url_urdu = String(data.facebook_url_urdu || "").trim();
     this.ayat_image_eng_url = String(data.ayat_image_eng_url || "").trim();
     this.ayat_image_urdu_url = String(data.ayat_image_urdu_url || "").trim();
@@ -46,11 +56,33 @@ export class UpdateAyatReq {
     if (data.points_notes_hindi !== undefined) this.points_notes_hindi = String(data.points_notes_hindi || "").trim();
     if (data.quest_answer !== undefined) this.quest_answer = Boolean(data.quest_answer);
     if (data.question_text !== undefined) this.question_text = String(data.question_text || "").trim();
-    if (data.video_url_eng !== undefined) this.video_url_eng = String(data.video_url_eng || "").trim();
-    if (data.youtube_url_eng !== undefined) this.youtube_url_eng = String(data.youtube_url_eng || "").trim();
+
+    if (
+      data.video_urls !== undefined ||
+      data.youtube_urls !== undefined ||
+      data.youtube_urls_eng !== undefined ||
+      data.video_urls_eng !== undefined ||
+      data.youtube_urls_urdu !== undefined ||
+      data.video_urls_urdu !== undefined ||
+      data.video_url_eng !== undefined ||
+      data.youtube_url_eng !== undefined ||
+      data.video_url_urdu !== undefined ||
+      data.youtube_url_urdu !== undefined
+    ) {
+      const vNorm = normalizeAyatVideos(data);
+      this.video_urls = vNorm.video_urls;
+      this.youtube_urls = vNorm.youtube_urls;
+      this.youtube_urls_eng = vNorm.youtube_urls_eng;
+      this.video_urls_eng = vNorm.video_urls_eng;
+      this.youtube_urls_urdu = vNorm.youtube_urls_urdu;
+      this.video_urls_urdu = vNorm.video_urls_urdu;
+      this.video_url_eng = vNorm.video_url_eng;
+      this.youtube_url_eng = vNorm.youtube_url_eng;
+      this.video_url_urdu = vNorm.video_url_urdu;
+      this.youtube_url_urdu = vNorm.youtube_url_urdu;
+    }
+
     if (data.facebook_url_eng !== undefined) this.facebook_url_eng = String(data.facebook_url_eng || "").trim();
-    if (data.video_url_urdu !== undefined) this.video_url_urdu = String(data.video_url_urdu || "").trim();
-    if (data.youtube_url_urdu !== undefined) this.youtube_url_urdu = String(data.youtube_url_urdu || "").trim();
     if (data.facebook_url_urdu !== undefined) this.facebook_url_urdu = String(data.facebook_url_urdu || "").trim();
     if (data.ayat_image_eng_url !== undefined) this.ayat_image_eng_url = String(data.ayat_image_eng_url || "").trim();
     if (data.ayat_image_urdu_url !== undefined) this.ayat_image_urdu_url = String(data.ayat_image_urdu_url || "").trim();

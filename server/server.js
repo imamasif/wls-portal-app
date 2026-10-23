@@ -36,7 +36,14 @@ app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
-connectDB();
+connectDB().then(async () => {
+  try {
+    const { runLectureMigration } = await import("./src/scripts/migrate_lecture_names.js");
+    await runLectureMigration();
+  } catch (mErr) {
+    console.warn("Auto-migration note:", mErr.message);
+  }
+});
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "OK", timestamp: new Date().toISOString() });

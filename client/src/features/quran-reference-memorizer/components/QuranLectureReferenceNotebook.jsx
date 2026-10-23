@@ -20,11 +20,30 @@ import {
   Box,
   Divider,
   Table,
-  Pagination,
   SegmentedControl,
   SimpleGrid,
   useMantineColorScheme,
 } from "@mantine/core";
+import {
+  Play,
+  FileText,
+  Heart,
+  Layers,
+  BookOpen,
+  Search,
+  X,
+  Sun,
+  Moon,
+  Share2,
+  Bookmark,
+  CheckCircle,
+  ExternalLink,
+  ChevronRight,
+  Sparkles,
+  Volume2,
+  List,
+  Download,
+} from "lucide-react";
 import {
   IconBook,
   IconSearch,
@@ -36,9 +55,6 @@ import {
   IconChevronRight,
   IconBrandYoutube,
   IconExternalLink,
-  IconFolder,
-  IconListDetails,
-  IconLayersLinked,
   IconEye,
   IconArrowsSort,
   IconSortAscending,
@@ -65,6 +81,169 @@ const CATEGORY_PALETTES = [
   "#0284c7", // Sky
 ];
 
+/**
+ * Normalizes all possible video sources on an ayat into a clean array of unique string URLs.
+ */
+export function getAyatVideoList(verse) {
+  if (!verse) return [];
+  const list = [];
+  const add = (v) => {
+    if (!v) return;
+    if (Array.isArray(v)) {
+      v.forEach((x) => {
+        if (typeof x === "string") {
+          const trimmed = x.trim();
+          if (trimmed && !list.includes(trimmed)) list.push(trimmed);
+        }
+      });
+    } else if (typeof v === "string") {
+      const trimmed = v.trim();
+      if (trimmed && !list.includes(trimmed)) list.push(trimmed);
+    }
+  };
+
+  add(verse.video_urls);
+  add(verse.youtube_urls);
+  add(verse.youtube_urls_eng);
+  add(verse.video_urls_eng);
+  add(verse.youtube_url_eng);
+  add(verse.video_url_eng);
+  add(verse.youtube_urls_urdu);
+  add(verse.video_urls_urdu);
+  add(verse.youtube_url_urdu);
+  add(verse.video_url_urdu);
+  add(verse.video_url);
+  add(verse.youtube_url);
+
+  return list;
+}
+
+/**
+ * Parses user input searching for verse reference or range:
+ * - SurahNumber:ayatnumber (e.g. "2:53", "02:53", "Surah 2:53")
+ * - Surah#:ayatno-ayatnumber (Range, e.g. "2:50-60", "02:50-02:60", "2: 50 - 60")
+ */
+export function parseVerseSearch(query = "") {
+  if (!query || typeof query !== "string") return null;
+  const trimmed = query.trim();
+  const regex = /^(?:surah\s*)?(\d+)\s*:\s*(\d+)(?:\s*-\s*(?:(?:surah\s*)?\d+\s*:\s*)?(\d+))?$/i;
+  const match = trimmed.match(regex);
+  if (!match) return null;
+  const surah = parseInt(match[1], 10);
+  const startAyat = parseInt(match[2], 10);
+  const endAyat = match[3] ? parseInt(match[3], 10) : null;
+  return {
+    surah,
+    startAyat,
+    endAyat: endAyat !== null ? endAyat : startAyat,
+    isRange: endAyat !== null && endAyat !== startAyat,
+  };
+}
+
+/**
+ * Parses YouTube start and end timestamps from URL for friendly display
+ */
+export function parseVideoTimestamps(url) {
+  if (!url || typeof url !== "string") return null;
+  try {
+    const urlObj = new URL(url.includes("://") ? url : `https://${url}`);
+    const start = urlObj.searchParams.get("start") || urlObj.searchParams.get("t");
+    const end = urlObj.searchParams.get("end");
+
+    if (!start && !end) return null;
+
+    const formatSec = (s) => {
+      const num = parseInt(String(s).replace("s", ""), 10);
+      if (isNaN(num)) return null;
+      const m = Math.floor(num / 60);
+      const sec = num % 60;
+      return `${m}:${String(sec).padStart(2, "0")}`;
+    };
+
+    const startFormatted = start ? formatSec(start) : null;
+    const endFormatted = end ? formatSec(end) : null;
+
+    if (startFormatted && endFormatted) {
+      return `${startFormatted} - ${endFormatted}`;
+    }
+    if (startFormatted) {
+      return `Starts at ${startFormatted}`;
+    }
+    if (endFormatted) {
+      return `Ends at ${endFormatted}`;
+    }
+  } catch (_) {}
+  return null;
+}
+
+/**
+ * Converts any YouTube URL to an embed URL that natively respects start & end query parameters.
+ */
+export function getEmbedUrl(url) {
+  if (!url || typeof url !== "string") return null;
+  const trimmed = url.trim();
+
+  // If already a YouTube embed URL, preserve query params (start, end, etc.)
+  if (trimmed.includes("youtube.com/embed/")) {
+    return trimmed;
+  }
+
+  // Handle standard youtube.com/watch?v=...
+  if (trimmed.includes("youtube.com/watch")) {
+    try {
+      const urlObj = new URL(trimmed);
+      const vId = urlObj.searchParams.get("v");
+      if (vId) {
+        urlObj.searchParams.delete("v");
+        // Convert t=130s to start=130 if start is not specified
+        const t = urlObj.searchParams.get("t");
+        if (t && !urlObj.searchParams.has("start")) {
+          const seconds = parseInt(t.replace("s", ""), 10);
+          if (!isNaN(seconds)) urlObj.searchParams.set("start", seconds);
+          urlObj.searchParams.delete("t");
+        }
+        const qs = urlObj.searchParams.toString();
+        return `https://www.youtube.com/embed/${vId}${qs ? `?${qs}` : ""}`;
+      }
+    } catch (_) {}
+  }
+
+  // Handle youtu.be/VIDEO_ID
+  if (trimmed.includes("youtu.be/")) {
+    try {
+      const urlObj = new URL(trimmed);
+      const vId = urlObj.pathname.replace(/^\//, "");
+      if (vId) {
+        const t = urlObj.searchParams.get("t");
+        if (t && !urlObj.searchParams.has("start")) {
+          const seconds = parseInt(t.replace("s", ""), 10);
+          if (!isNaN(seconds)) urlObj.searchParams.set("start", seconds);
+          urlObj.searchParams.delete("t");
+        }
+        const qs = urlObj.searchParams.toString();
+        return `https://www.youtube.com/embed/${vId}${qs ? `?${qs}` : ""}`;
+      }
+    } catch (_) {}
+  }
+
+  return trimmed;
+}
+
+export const getLectureName = (lectureName) => {
+  if (Array.isArray(lectureName)) return lectureName[0] || "";
+  return typeof lectureName === "string" ? lectureName : "";
+};
+
+export const getLectureAliases = (lectureName) => {
+  if (Array.isArray(lectureName)) return lectureName.slice(1);
+  return [];
+};
+
+export const getLectureAllNames = (lectureName) => {
+  if (Array.isArray(lectureName)) return lectureName.filter(Boolean);
+  return lectureName ? [lectureName] : [];
+};
+
 export function QuranLectureReferenceNotebook({ user }) {
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
   const isDark = colorScheme === "dark";
@@ -80,6 +259,12 @@ export function QuranLectureReferenceNotebook({ user }) {
   const [activeCategoryIndex, setActiveCategoryIndex] = useState(0);
   const [activeLectureIndex, setActiveLectureIndex] = useState(0);
 
+  // Active Season inside the active lecture
+  const [activeSeasonIndex, setActiveSeasonIndex] = useState(0);
+
+  // Liked Lectures map
+  const [likedMap, setLikedMap] = useState({});
+
   // View Mode: "NOTEBOOK" (Category & Lecture Notebook) or "CONCORDANCE" (114-Chapter Sequence)
   const [viewMode, setViewMode] = useState("NOTEBOOK");
 
@@ -88,17 +273,26 @@ export function QuranLectureReferenceNotebook({ user }) {
   const [filterSurah, setFilterSurah] = useState("");
   const [filterAyat, setFilterAyat] = useState("");
 
-  // Excel-like Grid Sorting: "SURAH_ASC" | "SURAH_DESC" | "AYAT_ASC" | "AYAT_DESC" | "SURAH_THEN_AYAT"
+  // Excel-like Grid Sorting
   const [sortField, setSortField] = useState("SURAH_THEN_AYAT");
 
   // Page Flip Animation state
   const [isFlipping, setIsFlipping] = useState(false);
 
-  // Modal inspection state
+  // Modal inspection states
   const [activeAyatModal, setActiveAyatModal] = useState(null);
   const [isFetchingLiveArabic, setIsFetchingLiveArabic] = useState(false);
   const [liveArabicText, setLiveArabicText] = useState("");
+
+  // Active Video Player Modal: { title, url }
   const [activeVideoModal, setActiveVideoModal] = useState(null);
+
+  // Multi-Video Picker Modal (for ayats with multiple youtube/video links)
+  const [activeMultiVideoModal, setActiveMultiVideoModal] = useState(null);
+
+  // Pop Action Modal for orbital buttons: 'pdf' | 'episodes' | 'verses'
+  const [activeActionModal, setActiveActionModal] = useState(null);
+  const [actionModalLecture, setActionModalLecture] = useState(null);
 
   // Fetch Meta Categories on mount
   useEffect(() => {
@@ -149,6 +343,83 @@ export function QuranLectureReferenceNotebook({ user }) {
     const clamped = Math.min(activeLectureIndex, activeLectures.length - 1);
     return activeLectures[clamped] || null;
   }, [activeLectures, activeLectureIndex]);
+
+  // Reset active season when lecture changes
+  useEffect(() => {
+    setActiveSeasonIndex(0);
+  }, [activeLectureIndex, activeCategoryIndex]);
+
+  // Seasons list from DB
+  const seasonsList = useMemo(() => {
+    if (!activeLecture) return [];
+    if (Array.isArray(activeLecture.seasons) && activeLecture.seasons.length > 0) {
+      return activeLecture.seasons;
+    }
+    // Fallback: check video URLs or full lecture video url
+    const fallbackUrls = [
+      ...(activeLecture.full_lecture_video_url ? [activeLecture.full_lecture_video_url] : []),
+      ...(Array.isArray(activeLecture.video_urls) ? activeLecture.video_urls : []),
+      ...(Array.isArray(activeLecture.youtube_urls) ? activeLecture.youtube_urls : []),
+    ];
+    if (fallbackUrls.length > 0) {
+      return [
+        {
+          season_name: activeLecture.season || "Season 1",
+          year_delivered: activeLecture.year_delivered || "",
+          episodes: fallbackUrls.map((u, i) => ({
+            episode_number: `Part ${String(i + 1).padStart(2, "0")}`,
+            episode_title: `Full Session Recording ${i + 1}`,
+            episode_url: u,
+          })),
+        },
+      ];
+    }
+    return [];
+  }, [activeLecture]);
+
+  const currentSeason = useMemo(() => {
+    if (seasonsList.length === 0) return null;
+    const idx = Math.min(activeSeasonIndex, seasonsList.length - 1);
+    return seasonsList[idx] || seasonsList[0];
+  }, [seasonsList, activeSeasonIndex]);
+
+  const episodesList = useMemo(() => {
+    if (!currentSeason) return [];
+    return Array.isArray(currentSeason.episodes) ? currentSeason.episodes : [];
+  }, [currentSeason]);
+
+  // Handle Like toggle
+  const handleLikeToggle = (id, e) => {
+    if (e) e.stopPropagation();
+    setLikedMap((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  // Open orbital action modal
+  const openActionModal = (type, lecture, e) => {
+    if (e) e.stopPropagation();
+    if (type === "video") {
+      // Find the first valid video URL from DB
+      const firstEpUrl =
+        (lecture.seasons && lecture.seasons[0]?.episodes?.[0]?.episode_url) ||
+        lecture.full_lecture_video_url ||
+        (Array.isArray(lecture.video_urls) ? lecture.video_urls[0] : "") ||
+        (Array.isArray(lecture.youtube_urls) ? lecture.youtube_urls[0] : "") ||
+        lecture.video_url ||
+        "";
+      if (firstEpUrl) {
+        setActiveVideoModal({
+          title: `Lecture ${lecture.lecture_id}: ${getLectureName(lecture.lecture_name)}`,
+          url: firstEpUrl,
+        });
+      } else {
+        setActionModalLecture(lecture);
+        setActiveActionModal("episodes");
+      }
+      return;
+    }
+    setActionModalLecture(lecture);
+    setActiveActionModal(type);
+  };
 
   // Handle Language Tag Change
   const handleLanguageChange = (lang) => {
@@ -206,7 +477,7 @@ export function QuranLectureReferenceNotebook({ user }) {
 
   const hasActiveFilters = searchQuery || filterSurah || filterAyat;
 
-  // STRICT VALIDATION: Filter out Surah 0 and Ayat 0 (and dummy rows)
+  // STRICT VALIDATION: Filter out Surah 0 and Ayat 0
   const isValidQuranicVerse = (a) => {
     const s = Number(a.surah_number);
     const ay = Number(a.ayat_number);
@@ -215,7 +486,7 @@ export function QuranLectureReferenceNotebook({ user }) {
 
   // Filter & Sort helper
   const processAndSortAyats = (rawList) => {
-    // 1. Strict Quranic verse validation (removes Surah 0 & Ayat 0)
+    // 1. Strict Quranic verse validation
     let list = rawList.filter(isValidQuranicVerse);
 
     // 2. Filter by Surah
@@ -228,30 +499,51 @@ export function QuranLectureReferenceNotebook({ user }) {
       list = list.filter((a) => Number(a.ayat_number) === Number(filterAyat));
     }
 
-    // 4. Keyword Search
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
-      list = list.filter((a) => {
-        const sName = (a.surah_name || "").toLowerCase();
-        const eng = (a.english_translation || "").toLowerCase();
-        const urdu = (a.urdu_translation || "").toLowerCase();
-        const arab = (a.arabic_text || "").toLowerCase();
-        const notes = (a.points_notes_eng || a.points_notes_urdu || a.points_notes || "").toLowerCase();
-        const qText = (a.question_text || "").toLowerCase();
-        const sNum = String(a.surah_number);
-        const aNum = String(a.ayat_number);
+    // 4. Check for SurahNumber:ayatnumber or Range Search Query
+    const verseSearch = parseVerseSearch(searchQuery);
 
-        return (
-          sName.includes(q) ||
-          eng.includes(q) ||
-          urdu.includes(q) ||
-          arab.includes(q) ||
-          notes.includes(q) ||
-          qText.includes(q) ||
-          sNum === q ||
-          aNum === q
-        );
+    if (verseSearch) {
+      const minA = Math.min(verseSearch.startAyat, verseSearch.endAyat);
+      const maxA = Math.max(verseSearch.startAyat, verseSearch.endAyat);
+      list = list.filter((a) => {
+        const s = Number(a.surah_number);
+        const ay = Number(a.ayat_number);
+        return s === verseSearch.surah && ay >= minA && ay <= maxA;
       });
+    } else if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      const activeLecNames = activeLecture ? getLectureAllNames(activeLecture.lecture_name) : [];
+      const matchesActiveLecTitle = activeLecNames.some((n) => n.toLowerCase().includes(q));
+
+      // If active lecture title matches search term, keep all verses in this lecture!
+      if (!matchesActiveLecTitle) {
+        list = list.filter((a) => {
+          const sName = (a.surah_name || "").toLowerCase();
+          const eng = (a.english_translation || "").toLowerCase();
+          const urdu = (a.urdu_translation || "").toLowerCase();
+          const arab = (a.arabic_text || "").toLowerCase();
+          const notes = (a.points_notes_eng || a.points_notes_urdu || a.points_notes || "").toLowerCase();
+          const qText = (a.question_text || "").toLowerCase();
+          const sNum = String(a.surah_number);
+          const aNum = String(a.ayat_number);
+
+          // Support matching lecture aliases if attached
+          const aLecNames = getLectureAllNames(a.lecture_name || a.lecture_names);
+          const matchesLec = aLecNames.some((n) => n.toLowerCase().includes(q));
+
+          return (
+            sName.includes(q) ||
+            eng.includes(q) ||
+            urdu.includes(q) ||
+            arab.includes(q) ||
+            notes.includes(q) ||
+            qText.includes(q) ||
+            matchesLec ||
+            sNum === q ||
+            aNum === q
+          );
+        });
+      }
     }
 
     // 5. Excel-Style Sorting
@@ -277,7 +569,6 @@ export function QuranLectureReferenceNotebook({ user }) {
         if (ayA !== ayB) return ayB - ayA;
         return sA - sB;
       }
-      // Default: SURAH_THEN_AYAT (ascending)
       if (sA !== sB) return sA - sB;
       return ayA - ayB;
     });
@@ -292,7 +583,7 @@ export function QuranLectureReferenceNotebook({ user }) {
     return processAndSortAyats(raw);
   }, [activeLecture, filterSurah, filterAyat, searchQuery, sortField]);
 
-  // 114-Chapter Sequence Concordance (strictly 1 to 114, NO Surah 0)
+  // 114-Chapter Sequence Concordance (strictly 1 to 114)
   const chapterConcordance = useMemo(() => {
     const verseMap = new Map();
 
@@ -304,7 +595,6 @@ export function QuranLectureReferenceNotebook({ user }) {
       lectures.forEach((lec) => {
         const ayats = lec.ayat_references || [];
         ayats.forEach((ayat) => {
-          // Strictly exclude Surah 0 and Ayat 0
           if (!isValidQuranicVerse(ayat)) return;
 
           const key = `${ayat.surah_number}:${ayat.ayat_number}`;
@@ -323,6 +613,7 @@ export function QuranLectureReferenceNotebook({ user }) {
               points_notes_urdu: ayat.points_notes_urdu || "",
               question_text: ayat.question_text || "",
               quest_answer: ayat.quest_answer || false,
+              video_urls: getAyatVideoList(ayat),
               video_url_eng: ayat.video_url_eng || ayat.youtube_url_eng || "",
               video_url_urdu: ayat.video_url_urdu || ayat.youtube_url_urdu || "",
               occurrences: [],
@@ -330,20 +621,20 @@ export function QuranLectureReferenceNotebook({ user }) {
           }
 
           const existing = verseMap.get(key);
+          const vList = getAyatVideoList(ayat);
           existing.occurrences.push({
             category_id: String(cat._id || cat.category_id),
             category_name: cat.category_name,
             language: catLang,
             lecture_id: String(lec._id || lec.lecture_id),
             lecture_number: lec.lecture_id,
-            lecture_name: lec.lecture_name,
+            lecture_name: getLectureName(lec.lecture_name),
+            lecture_names: getLectureAllNames(lec.lecture_name),
+            season: lec.season || "",
+            episode: lec.episode || "",
             year_delivered: lec.year_delivered,
-            video_url:
-              ayat.video_url_eng ||
-              ayat.youtube_url_eng ||
-              ayat.video_url_urdu ||
-              ayat.youtube_url_urdu ||
-              "",
+            video_url: vList[0] || "",
+            video_urls: vList,
             points_notes:
               ayat.points_notes_eng || ayat.points_notes_urdu || ayat.points_notes || "",
           });
@@ -377,7 +668,6 @@ export function QuranLectureReferenceNotebook({ user }) {
     setActiveAyatModal(verse);
     setLiveArabicText(verse.arabic_text || "");
 
-    // Fetch live Arabic Uthmani text from Quran API proxy for authentic rendering
     if (verse.surah_number && verse.ayat_number) {
       setIsFetchingLiveArabic(true);
       try {
@@ -394,19 +684,6 @@ export function QuranLectureReferenceNotebook({ user }) {
         setIsFetchingLiveArabic(false);
       }
     }
-  };
-
-  // Helper to extract embeddable video URL
-  const getEmbedUrl = (url) => {
-    if (!url) return null;
-    if (url.includes("youtube.com/watch?v=")) {
-      return url.replace("watch?v=", "embed/");
-    }
-    if (url.includes("youtu.be/")) {
-      const id = url.split("youtu.be/")[1]?.split("?")[0];
-      return `https://www.youtube.com/embed/${id}`;
-    }
-    return url;
   };
 
   // Format verse reference as Surah#:Ayat# e.g. 02:15, 02:127
@@ -439,7 +716,48 @@ export function QuranLectureReferenceNotebook({ user }) {
           transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
 
-        /* Interactive Lecture Tab Ready-to-be-Clicked State */
+        /* Floating Orbital Action Icon Container */
+        .lecture-chip-wrapper {
+          position: relative;
+          display: inline-block;
+        }
+        .lecture-orbital-bar {
+          position: absolute;
+          top: -38px;
+          left: 50%;
+          transform: translateX(-50%) scale(0.75);
+          opacity: 0;
+          pointer-events: none;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+          z-index: 50;
+        }
+        .lecture-chip-wrapper:hover .lecture-orbital-bar {
+          opacity: 1;
+          pointer-events: auto;
+          transform: translateX(-50%) translateY(-6px) scale(1);
+        }
+        .orbital-btn {
+          width: 30px;
+          height: 30px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          border: none;
+          cursor: pointer;
+          box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+          transition: transform 0.18s ease, filter 0.18s ease;
+        }
+        .orbital-btn:hover {
+          transform: scale(1.22);
+          filter: brightness(1.15);
+        }
+
+        /* Interactive Lecture Tab Chip */
         .lecture-binder-tab {
           transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
           border: 1px solid #d1d5db;
@@ -455,13 +773,13 @@ export function QuranLectureReferenceNotebook({ user }) {
           color: #4338ca !important;
         }
         .lecture-binder-tab.active {
-          background: #4f46e5 !important;
+          background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%) !important;
           color: #ffffff !important;
           border-color: #4338ca !important;
-          box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+          box-shadow: 0 4px 14px rgba(79, 70, 229, 0.45);
         }
 
-        /* Excel-like Grid Rows with Light Color Changing Hover Appeal */
+        /* Excel-like Grid Rows */
         .excel-row {
           transition: background-color 0.15s ease, transform 0.15s ease;
           cursor: pointer;
@@ -486,7 +804,7 @@ export function QuranLectureReferenceNotebook({ user }) {
           vertical-align: middle;
         }
 
-        /* Typography */
+        /* Calligraphy */
         .arabic-calligraphy {
           font-family: 'Amiri', 'Traditional Arabic', 'Scheherazade New', 'Lateef', serif;
           direction: rtl;
@@ -528,7 +846,7 @@ export function QuranLectureReferenceNotebook({ user }) {
               </Badge>
             </Group>
             <Text size="xs" c="dimmed">
-              Choose Language Tag ➔ Pick Category ➔ Select Lecture ➔ Browse Tabular Verses with Live Quran API.
+              Choose Language Tag ➔ Pick Category ➔ Select Lecture ➔ Browse Tabular Verses with Live Quran API & Video Clips.
             </Text>
           </div>
         </Group>
@@ -559,7 +877,7 @@ export function QuranLectureReferenceNotebook({ user }) {
       {/* Top Aligned Search, Filter & Language Tags Bar */}
       <Paper p="sm" radius="lg" withBorder mb="lg" shadow="xs" style={{ background: isDark ? "#25262b" : "#ffffff" }}>
         <Group justify="space-between" align="flex-end" wrap="wrap" gap="sm">
-          {/* Prominent Language Tags (Bold Black & Yellow Highlight for active language as requested) */}
+          {/* Prominent Language Tags */}
           <div>
             <Text size="11px" fw={700} c="dimmed" mb={4}>
               SELECT LANGUAGE:
@@ -593,8 +911,9 @@ export function QuranLectureReferenceNotebook({ user }) {
             </Group>
           </div>
 
+          {/* Search Input: Supports SurahNumber:ayatnumber (e.g. 2:53) or Range (e.g. 2:50-60) */}
           <TextInput
-            placeholder="Search keyword, surah, translation, notes..."
+            placeholder="Search keyword, or Surah#:Ayat# (e.g. 2:53 or 2:50-60)..."
             leftSection={<IconSearch size={15} color="var(--mantine-color-dimmed)" />}
             rightSection={
               searchQuery ? (
@@ -605,7 +924,7 @@ export function QuranLectureReferenceNotebook({ user }) {
             }
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            style={{ minWidth: 230, flex: 1.5 }}
+            style={{ minWidth: 260, flex: 1.5 }}
             radius="md"
             size="xs"
           />
@@ -621,21 +940,21 @@ export function QuranLectureReferenceNotebook({ user }) {
               setFilterSurah(val || "");
               setFilterAyat("");
             }}
-            style={{ width: 180 }}
+            style={{ width: 175 }}
             radius="md"
             size="xs"
           />
 
           <Select
             label="Ayat Filter"
-            placeholder={filterSurah ? "Ayat..." : "Pick Surah first"}
+            placeholder={filterSurah ? "Ayat..." : "Pick Surah"}
             disabled={!filterSurah}
             data={filterAyatOptions}
             clearable
             searchable
             value={filterAyat}
             onChange={(val) => setFilterAyat(val || "")}
-            style={{ width: 110 }}
+            style={{ width: 105 }}
             radius="md"
             size="xs"
           />
@@ -651,7 +970,7 @@ export function QuranLectureReferenceNotebook({ user }) {
             ]}
             value={sortField}
             onChange={(val) => setSortField(val || "SURAH_THEN_AYAT")}
-            style={{ width: 185 }}
+            style={{ width: 180 }}
             radius="md"
             size="xs"
           />
@@ -680,7 +999,7 @@ export function QuranLectureReferenceNotebook({ user }) {
               minHeight: 650,
             }}
           >
-            {/* Top Binder Tabs (Lectures) */}
+            {/* Top Binder Tabs (Lectures with Floating Orbital Action Icons) */}
             {viewMode === "NOTEBOOK" && (
               <Group
                 justify="space-between"
@@ -691,7 +1010,7 @@ export function QuranLectureReferenceNotebook({ user }) {
                   background: isDark ? "#141517" : "#f8fafc",
                 }}
               >
-                <Group gap="xs" style={{ flexWrap: "wrap", flex: 1 }}>
+                <Group gap="sm" style={{ flexWrap: "wrap", flex: 1, padding: "8px 0" }}>
                   {activeLectures.length === 0 ? (
                     <Text size="xs" c="dimmed">
                       No lectures found in this category.
@@ -703,40 +1022,138 @@ export function QuranLectureReferenceNotebook({ user }) {
                         lec.ayat_count ||
                         (lec.ayat_references ? lec.ayat_references.filter(isValidQuranicVerse).length : 0);
                       const isSelected = activeLectureIndex === idx;
+                      const isLiked = !!likedMap[lec._id || lec.lecture_id];
 
                       return (
-                        <button
-                          key={lec._id || idx}
-                          type="button"
-                          className={`lecture-binder-tab ${isSelected ? "active" : ""}`}
-                          onClick={() => handleLectureChange(idx)}
-                          style={{
-                            padding: "6px 14px",
-                            borderRadius: "20px",
-                            fontSize: "12px",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "8px",
-                            cursor: "pointer",
-                            outline: "none",
-                          }}
-                        >
-                          <span style={{ fontWeight: isSelected ? 800 : 600 }}>
-                            Lec {lec.lecture_id}: {lec.lecture_name}
-                          </span>
-                          <span
+                        <div key={lec._id || idx} className="lecture-chip-wrapper">
+                          {/* FLOATING ACTION ORBITAL POPOVER ICONS ON HOVER */}
+                          <div className="lecture-orbital-bar">
+                            {/* Watch Video Button */}
+                            <button
+                              type="button"
+                              onClick={(e) => openActionModal("video", lec, e)}
+                              title="Watch Lecture Video"
+                              className="orbital-btn"
+                              style={{ backgroundColor: "#dc2626" }}
+                            >
+                              <Play size={13} fill="currentColor" style={{ marginLeft: 2 }} />
+                            </button>
+
+                            {/* View PDF Button */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const pUrl =
+                                  lec.pdf_link ||
+                                  (Array.isArray(lec.pdf_booklet_urls) ? lec.pdf_booklet_urls[0] : "") ||
+                                  lec.pdf_url;
+                                if (pUrl) {
+                                  window.open(pUrl, "_blank", "noopener,noreferrer");
+                                } else {
+                                  openActionModal("pdf", lec, e);
+                                }
+                              }}
+                              title="View PDF Booklet & Notes"
+                              className="orbital-btn"
+                              style={{ backgroundColor: "#059669" }}
+                            >
+                              <FileText size={13} />
+                            </button>
+
+                            {/* Linked Quran Verses Button */}
+                            <button
+                              type="button"
+                              onClick={(e) => openActionModal("verses", lec, e)}
+                              title={`View ${count} Quran Verses`}
+                              className="orbital-btn"
+                              style={{ backgroundColor: "#d97706" }}
+                            >
+                              <BookOpen size={13} />
+                            </button>
+
+                            {/* Seasons & Episodes Button */}
+                            <button
+                              type="button"
+                              onClick={(e) => openActionModal("episodes", lec, e)}
+                              title="Seasons & Episodes Breakdown"
+                              className="orbital-btn"
+                              style={{ backgroundColor: "#4f46e5" }}
+                            >
+                              <Layers size={13} />
+                            </button>
+
+                            {/* Like / Bookmark Toggle */}
+                            <button
+                              type="button"
+                              onClick={(e) => handleLikeToggle(lec._id || lec.lecture_id, e)}
+                              title={isLiked ? "Unlike" : "Like Lecture"}
+                              className="orbital-btn"
+                              style={{ backgroundColor: isLiked ? "#db2777" : "#475569" }}
+                            >
+                              <Heart size={13} fill={isLiked ? "currentColor" : "none"} />
+                            </button>
+                          </div>
+
+                          {/* The Pill / Chip Button */}
+                          <button
+                            type="button"
+                            className={`lecture-binder-tab ${isSelected ? "active" : ""}`}
+                            onClick={() => handleLectureChange(idx)}
                             style={{
-                              background: isSelected ? "rgba(255,255,255,0.25)" : "#e2e8f0",
-                              color: isSelected ? "#ffffff" : "#475569",
-                              padding: "2px 7px",
-                              borderRadius: "10px",
-                              fontSize: "10px",
-                              fontWeight: 700,
+                              padding: "6px 14px",
+                              borderRadius: "20px",
+                              fontSize: "12px",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "8px",
+                              cursor: "pointer",
+                              outline: "none",
                             }}
                           >
-                            {count} ayats
-                          </span>
-                        </button>
+                            <span style={{ fontWeight: isSelected ? 800 : 600 }}>
+                              Lec {lec.lecture_id}: {getLectureName(lec.lecture_name)}
+                            </span>
+                            {getLectureAliases(lec.lecture_name).length > 0 && (
+                              <span
+                                title={`Also known as: ${getLectureAliases(lec.lecture_name).join(", ")}`}
+                                style={{
+                                  fontSize: "9px",
+                                  background: isSelected ? "rgba(255,255,255,0.25)" : isDark ? "rgba(99,102,241,0.25)" : "#e0e7ff",
+                                  color: isSelected ? "#ffffff" : "#4338ca",
+                                  padding: "1px 5px",
+                                  borderRadius: "6px",
+                                  fontWeight: 700,
+                                }}
+                              >
+                                AKA: {getLectureAliases(lec.lecture_name)[0]}
+                              </span>
+                            )}
+                            <span
+                              style={{
+                                background: isSelected ? "rgba(255,255,255,0.25)" : "#e2e8f0",
+                                color: isSelected ? "#ffffff" : "#475569",
+                                padding: "2px 7px",
+                                borderRadius: "10px",
+                                fontSize: "10px",
+                                fontWeight: 700,
+                              }}
+                            >
+                              {count} ayats
+                            </span>
+
+                            {isLiked && (
+                              <span
+                                style={{
+                                  width: 6,
+                                  height: 6,
+                                  borderRadius: "50%",
+                                  backgroundColor: "#ec4899",
+                                }}
+                              />
+                            )}
+                          </button>
+                        </div>
                       );
                     })
                   )}
@@ -767,7 +1184,7 @@ export function QuranLectureReferenceNotebook({ user }) {
                 style={{
                   flex: 1,
                   padding: "20px 24px",
-                  maxHeight: 580,
+                  maxHeight: 720,
                   overflowY: "auto",
                 }}
               >
@@ -780,13 +1197,317 @@ export function QuranLectureReferenceNotebook({ user }) {
                   </Stack>
                 ) : (
                   <>
-                    {/* Location Breadcrumb Bar on Paper */}
+                    {/* SELECTED LECTURE SHOWCASE DASHBOARD (Before the Ayat Grid) */}
+                    {activeCategory && activeLecture && viewMode === "NOTEBOOK" && (
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+                          gap: "16px",
+                          marginBottom: "20px",
+                        }}
+                      >
+                        {/* Main Lecture Info Card (Left) */}
+                        <Paper
+                          p="md"
+                          radius="lg"
+                          withBorder
+                          style={{
+                            gridColumn: "span 2",
+                            background: isDark ? "#141517" : "#ffffff",
+                            boxShadow: "0 4px 16px rgba(0,0,0,0.04)",
+                            display: "flex",
+                            flexDirection: "column",
+                            justifyContent: "space-between",
+                          }}
+                        >
+                          <div>
+                            <Group justify="space-between" align="flex-start" mb="sm">
+                              <div>
+                                <Group gap={6} mb={4}>
+                                  <Text size="11px" fw={700} c="indigo.6" tt="uppercase" style={{ letterSpacing: 0.5 }}>
+                                    {activeCategory.category_name}
+                                  </Text>
+                                  <Text size="11px" c="dimmed">•</Text>
+                                  <Badge size="xs" variant="light" color="indigo">
+                                    {currentSeason ? currentSeason.season_name : "Lecture Series"}
+                                  </Badge>
+                                  {activeLecture.year_delivered && (
+                                    <>
+                                      <Text size="11px" c="dimmed">•</Text>
+                                      <Text size="11px" c="dimmed">
+                                        Year {activeLecture.year_delivered}
+                                      </Text>
+                                    </>
+                                  )}
+                                </Group>
+
+                                <Title order={3} style={{ fontWeight: 800, fontSize: "1.3rem", color: isDark ? "#ffffff" : "#1e293b" }}>
+                                  Lec {activeLecture.lecture_id}: {getLectureName(activeLecture.lecture_name)}
+                                </Title>
+                                {getLectureAliases(activeLecture.lecture_name).length > 0 && (
+                                  <Group gap={6} mt={6}>
+                                    <Text size="xs" c="dimmed" fw={700}>
+                                      Also Known As:
+                                    </Text>
+                                    {getLectureAliases(activeLecture.lecture_name).map((alias, aIdx) => (
+                                      <Badge key={aIdx} size="sm" variant="light" color="indigo">
+                                        {alias}
+                                      </Badge>
+                                    ))}
+                                  </Group>
+                                )}
+                              </div>
+
+                              <Group gap="xs">
+                                {/* Like button */}
+                                <Button
+                                  size="xs"
+                                  radius="xl"
+                                  variant={likedMap[activeLecture._id || activeLecture.lecture_id] ? "light" : "default"}
+                                  color={likedMap[activeLecture._id || activeLecture.lecture_id] ? "pink" : "gray"}
+                                  leftSection={
+                                    <Heart
+                                      size={14}
+                                      fill={likedMap[activeLecture._id || activeLecture.lecture_id] ? "currentColor" : "none"}
+                                    />
+                                  }
+                                  onClick={(e) => handleLikeToggle(activeLecture._id || activeLecture.lecture_id, e)}
+                                >
+                                  {likedMap[activeLecture._id || activeLecture.lecture_id] ? "Liked" : "Like"}
+                                </Button>
+
+                                {/* PDF Booklet / Notes Button */}
+                                <Button
+                                  size="xs"
+                                  radius="xl"
+                                  color="teal"
+                                  variant="filled"
+                                  leftSection={<FileText size={14} />}
+                                  onClick={() => {
+                                    const pdfUrl =
+                                      activeLecture.pdf_link ||
+                                      (Array.isArray(activeLecture.pdf_booklet_urls) ? activeLecture.pdf_booklet_urls[0] : "") ||
+                                      activeLecture.pdf_url;
+                                    if (pdfUrl) {
+                                      window.open(pdfUrl, "_blank", "noopener,noreferrer");
+                                    } else {
+                                      openActionModal("pdf", activeLecture);
+                                    }
+                                  }}
+                                  style={{
+                                    backgroundColor: "#059669",
+                                    boxShadow: "0 4px 12px rgba(5, 150, 105, 0.35)",
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  {activeLecture.pdf_link || activeLecture.pdf_booklet_urls?.length ? "View PDF Booklet" : "Lecture Notes & PDF"}
+                                </Button>
+                              </Group>
+                            </Group>
+
+                            {/* Lecture Stats Badges */}
+                            <Group gap="xs" mt="md">
+                              <Badge color="blue" variant="light" size="sm" leftSection={<BookOpen size={12} />}>
+                                {currentLectureVerses.length} Quran Verses Linked
+                              </Badge>
+                              <Badge color="violet" variant="light" size="sm" leftSection={<Layers size={12} />}>
+                                {seasonsList.length} Season(s) • {episodesList.length} Episodes
+                              </Badge>
+                              {activeLecture.year_delivered && (
+                                <Badge color="gray" variant="light" size="sm">
+                                  Year: {activeLecture.year_delivered}
+                                </Badge>
+                              )}
+                            </Group>
+                          </div>
+
+                          {/* Full lecture video quick link if available */}
+                          {(activeLecture.full_lecture_video_url || (activeLecture.video_urls && activeLecture.video_urls.length > 0)) && (
+                            <Group justify="space-between" align="center" mt="md" p="xs" style={{ background: isDark ? "#1e1f23" : "#f8fafc", borderRadius: 8 }}>
+                              <Text size="xs" c="dimmed">
+                                Full lecture recording is available to watch:
+                              </Text>
+                              <Button
+                                size="compact-xs"
+                                color="red"
+                                variant="light"
+                                leftSection={<Play size={11} fill="currentColor" />}
+                                onClick={() => {
+                                  const vUrl =
+                                    activeLecture.full_lecture_video_url ||
+                                    (activeLecture.video_urls && activeLecture.video_urls[0]) ||
+                                    "";
+                                  if (vUrl) {
+                                    setActiveVideoModal({
+                                      title: `${getLectureName(activeLecture.lecture_name)} - Full Recording`,
+                                      url: vUrl,
+                                    });
+                                  }
+                                }}
+                              >
+                                Stream Full Lecture
+                              </Button>
+                            </Group>
+                          )}
+                        </Paper>
+
+                        {/* Season & Episodes List Panel (Right) */}
+                        <Paper
+                          p="md"
+                          radius="lg"
+                          withBorder
+                          style={{
+                            background: isDark ? "#141517" : "#ffffff",
+                            boxShadow: "0 4px 16px rgba(0,0,0,0.04)",
+                            display: "flex",
+                            flexDirection: "column",
+                            justifyContent: "space-between",
+                          }}
+                        >
+                          <div>
+                            <Group justify="space-between" align="center" mb={8}>
+                              <Group gap={6}>
+                                <List size={16} color="#4f46e5" />
+                                <Text size="sm" fw={800}>Season & Episodes</Text>
+                              </Group>
+
+                              {/* Season Selector / Badges if multiple seasons */}
+                              {seasonsList.length > 1 ? (
+                                <Group gap={4}>
+                                  {seasonsList.map((s, sIdx) => {
+                                    const isCurrent = activeSeasonIndex === sIdx;
+                                    return (
+                                      <Button
+                                        key={sIdx}
+                                        size="compact-xs"
+                                        radius="xl"
+                                        variant={isCurrent ? "filled" : "light"}
+                                        color="indigo"
+                                        onClick={() => setActiveSeasonIndex(sIdx)}
+                                        style={{ fontSize: 10, fontWeight: 700 }}
+                                      >
+                                        {s.season_name || `Season ${sIdx + 1}`}
+                                      </Button>
+                                    );
+                                  })}
+                                </Group>
+                              ) : seasonsList.length === 1 ? (
+                                <Badge size="xs" variant="light" color="indigo">
+                                  {seasonsList[0].season_name || "Season 1"}
+                                </Badge>
+                              ) : null}
+                            </Group>
+
+                            <Text size="11px" c="dimmed" mb="xs">
+                              {currentSeason
+                                ? `${currentSeason.season_name} • ${episodesList.length} episodes available`
+                                : "Episodes and recorded parts in this lecture series:"}
+                            </Text>
+
+                            {episodesList.length === 0 ? (
+                              <Paper p="sm" radius="md" withBorder ta="center" style={{ background: isDark ? "#1e1f23" : "#f8fafc" }}>
+                                <Text size="xs" c="dimmed">
+                                  No video episodes uploaded yet for this lecture.
+                                </Text>
+                              </Paper>
+                            ) : (
+                              <Stack gap={6} style={{ maxHeight: 220, overflowY: "auto", paddingRight: 4 }}>
+                                {episodesList.map((ep, idx) => (
+                                  <Paper
+                                    key={ep.id || idx}
+                                    p="xs"
+                                    radius="md"
+                                    withBorder
+                                    onClick={() => {
+                                      const epUrl = ep.episode_url || ep.videoUrl || ep.video_url;
+                                      if (epUrl) {
+                                        setActiveVideoModal({
+                                          title: `${getLectureName(activeLecture.lecture_name)} - ${ep.episode_title || ep.title || `Episode ${idx + 1}`}`,
+                                          url: epUrl,
+                                        });
+                                      }
+                                    }}
+                                    style={{
+                                      cursor: "pointer",
+                                      background: idx === 0 ? (isDark ? "#1e1b4b33" : "#eef2ff") : "transparent",
+                                      borderColor: idx === 0 ? "#6366f1" : undefined,
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "space-between",
+                                      padding: "7px 10px",
+                                      transition: "all 0.15s ease",
+                                    }}
+                                    className="hover:scale-[1.01]"
+                                  >
+                                    <Group gap="xs" style={{ flex: 1, minWidth: 0 }}>
+                                      <div
+                                        style={{
+                                          width: 22,
+                                          height: 22,
+                                          borderRadius: "50%",
+                                          backgroundColor: "#4f46e5",
+                                          color: "white",
+                                          fontSize: 10,
+                                          fontWeight: 800,
+                                          display: "flex",
+                                          alignItems: "center",
+                                          justifyContent: "center",
+                                          flexShrink: 0,
+                                        }}
+                                      >
+                                        {idx + 1}
+                                      </div>
+                                      <div style={{ minWidth: 0, flex: 1 }}>
+                                        <Text size="xs" fw={700} lineClamp={1} style={{ maxWidth: 200 }}>
+                                          {ep.episode_title || ep.title || ep.episode_number || `Episode ${idx + 1}`}
+                                        </Text>
+                                        <Text size="9px" c="dimmed">
+                                          {ep.episode_number ? `${ep.episode_number} • ` : ""}
+                                          {ep.duration || "Watch Episode"}
+                                        </Text>
+                                      </div>
+                                    </Group>
+                                    <ActionIcon size="sm" variant="subtle" color="indigo">
+                                      <Play size={13} fill="currentColor" />
+                                    </ActionIcon>
+                                  </Paper>
+                                ))}
+                              </Stack>
+                            )}
+                          </div>
+
+                          {/* Pro Tip Box */}
+                          <Paper
+                            p="xs"
+                            radius="md"
+                            mt="xs"
+                            style={{
+                              background: isDark ? "#1e1f23" : "#f0fdf4",
+                              border: `1px solid ${isDark ? "#2c2e33" : "#bbf7d0"}`,
+                            }}
+                          >
+                            <Group gap={6} mb={2}>
+                              <Sparkles size={13} color="#059669" />
+                              <Text size="10px" fw={800} c="teal.8">
+                                Pro Tip
+                              </Text>
+                            </Group>
+                            <Text size="10px" c="dimmed" style={{ lineHeight: 1.4 }}>
+                              Hover any chip at the top to pop out quick video, PDF, or episode controls directly!
+                            </Text>
+                          </Paper>
+                        </Paper>
+                      </div>
+                    )}
+
+                    {/* Section Header: Key Quranic References */}
                     {activeCategory && activeLecture && viewMode === "NOTEBOOK" && (
                       <Paper
                         p="xs"
                         px="md"
                         radius="md"
-                        mb="md"
+                        mb="sm"
                         style={{
                           background: isDark ? "#2d3748" : "#f1f5f9",
                           borderLeft: "4px solid #facc15",
@@ -794,17 +1515,9 @@ export function QuranLectureReferenceNotebook({ user }) {
                       >
                         <Group justify="space-between" align="center">
                           <Group gap="xs">
-                            <Badge color="yellow" variant="filled" style={{ color: "#000", fontWeight: 800 }}>
-                              {activeLanguage.toUpperCase()}
-                            </Badge>
-                            <Text size="sm" fw={700} c={isDark ? "white" : "dark.8"}>
-                              Category: {activeCategory.category_name}
-                            </Text>
-                            <Text size="sm" c="dimmed">
-                              ➔
-                            </Text>
-                            <Text size="sm" fw={700} c="indigo.6">
-                              Lecture {activeLecture.lecture_id}: {activeLecture.lecture_name}
+                            <BookOpen size={16} color="#4f46e5" />
+                            <Text size="xs" fw={800} tt="uppercase" c={isDark ? "white" : "dark.8"} style={{ letterSpacing: 0.5 }}>
+                              Key Quranic References in this Lecture
                             </Text>
                           </Group>
 
@@ -821,8 +1534,13 @@ export function QuranLectureReferenceNotebook({ user }) {
                         {currentLectureVerses.length === 0 ? (
                           <Paper p="xl" ta="center" radius="md" withBorder>
                             <Text size="sm" c="dimmed">
-                              No Quran verses cited in this lecture matching the active filters.
+                              No Quran verses cited in this lecture matching the active filters or search query.
                             </Text>
+                            {parseVerseSearch(searchQuery) && (
+                              <Text size="xs" c="indigo" mt="xs" fw={600}>
+                                Tip: Try switching to the "📜 114-Surah Sequence" tab above to locate this verse across all lectures!
+                              </Text>
+                            )}
                           </Paper>
                         ) : (
                           <div style={{ overflowX: "auto", borderRadius: 8, border: "1px solid #cbd5e1" }}>
@@ -852,18 +1570,13 @@ export function QuranLectureReferenceNotebook({ user }) {
                                   </Table.Th>
                                   <Table.Th style={{ minWidth: 160 }}>Arabic Preview</Table.Th>
                                   <Table.Th style={{ minWidth: 220 }}>Translation Preview</Table.Th>
-                                  <Table.Th style={{ width: 85, whiteSpace: "nowrap" }}>Clip</Table.Th>
-                                  <Table.Th style={{ width: 90, textAlign: "center", whiteSpace: "nowrap" }}>Details</Table.Th>
+                                  <Table.Th style={{ width: 110, whiteSpace: "nowrap", textAlign: "center" }}>Video Clip(s)</Table.Th>
+                                  <Table.Th style={{ width: 85, textAlign: "center", whiteSpace: "nowrap" }}>Details</Table.Th>
                                 </Table.Tr>
                               </Table.Thead>
                               <Table.Tbody>
                                 {currentLectureVerses.map((verse, idx) => {
-                                  const videoUrl =
-                                    verse.video_url_eng ||
-                                    verse.youtube_url_eng ||
-                                    verse.video_url_urdu ||
-                                    verse.youtube_url_urdu ||
-                                    verse.video_url;
+                                  const videoList = getAyatVideoList(verse);
 
                                   return (
                                     <Table.Tr
@@ -873,7 +1586,7 @@ export function QuranLectureReferenceNotebook({ user }) {
                                         handleOpenAyatModal({
                                           ...verse,
                                           category_name: activeCategory?.category_name,
-                                          lecture_name: activeLecture?.lecture_name,
+                                          lecture_name: getLectureName(activeLecture?.lecture_name),
                                         })
                                       }
                                     >
@@ -915,26 +1628,60 @@ export function QuranLectureReferenceNotebook({ user }) {
                                         </Text>
                                       </Table.Td>
 
-                                      <Table.Td onClick={(e) => e.stopPropagation()} style={{ whiteSpace: "nowrap", width: "1%" }}>
-                                        {videoUrl ? (
+                                      {/* Video Clip(s) Column: 1 Video or Multi-Videos Dialogue */}
+                                      <Table.Td onClick={(e) => e.stopPropagation()} style={{ whiteSpace: "nowrap", width: "1%", textAlign: "center" }}>
+                                        {videoList.length === 0 ? (
+                                          <Text size="10px" c="dimmed">
+                                            -
+                                          </Text>
+                                        ) : videoList.length === 1 ? (
                                           <Button
                                             size="compact-xs"
                                             color="red"
                                             variant="light"
-                                            leftSection={<IconBrandYoutube size={13} />}
+                                            leftSection={<Play size={11} fill="currentColor" />}
                                             onClick={() =>
                                               setActiveVideoModal({
-                                                title: `${activeLecture.lecture_name} - Surah ${verse.surah_number}:${verse.ayat_number}`,
-                                                url: videoUrl,
+                                                title: `${getLectureName(activeLecture.lecture_name)} - Surah ${verse.surah_number}:${verse.ayat_number}`,
+                                                url: videoList[0],
                                               })
                                             }
                                           >
                                             Clip
                                           </Button>
                                         ) : (
-                                          <Text size="10px" c="dimmed">
-                                            -
-                                          </Text>
+                                          /* MULTI-VIDEO LINK ICON & DIALOGUE TRIGGER */
+                                          <Button
+                                            size="compact-xs"
+                                            color="red"
+                                            variant="filled"
+                                            leftSection={<Play size={11} fill="currentColor" />}
+                                            rightSection={
+                                              <span
+                                                style={{
+                                                  background: "white",
+                                                  color: "#dc2626",
+                                                  borderRadius: 10,
+                                                  padding: "1px 5px",
+                                                  fontSize: 9,
+                                                  fontWeight: 800,
+                                                }}
+                                              >
+                                                {videoList.length}
+                                              </span>
+                                            }
+                                            onClick={() =>
+                                              setActiveMultiVideoModal({
+                                                title: `${getLectureName(activeLecture.lecture_name)} - Surah ${formatVerseRef(verse.surah_number, verse.ayat_number)}`,
+                                                videos: videoList,
+                                                verse,
+                                              })
+                                            }
+                                            title={`Click to pick from ${videoList.length} video links`}
+                                            style={{ boxShadow: "0 2px 8px rgba(220, 38, 38, 0.3)" }}
+                                          >
+                                            Clips
+                                          </Button>
                                         )}
                                       </Table.Td>
 
@@ -958,7 +1705,7 @@ export function QuranLectureReferenceNotebook({ user }) {
                       </div>
                     )}
 
-                    {/* MODE 2: 114-CHAPTER SEQUENCE CONCORDANCE (Strictly Surah 1 to 114, NO Surah 0) */}
+                    {/* MODE 2: 114-CHAPTER SEQUENCE CONCORDANCE */}
                     {viewMode === "CONCORDANCE" && (
                       <Stack gap="lg">
                         {chapterConcordance.length === 0 ? (
@@ -1001,66 +1748,123 @@ export function QuranLectureReferenceNotebook({ user }) {
                                       <Table.Th style={{ minWidth: 160 }}>Arabic Preview</Table.Th>
                                       <Table.Th style={{ minWidth: 200 }}>Translation</Table.Th>
                                       <Table.Th>Cited in Lectures & Categories</Table.Th>
-                                      <Table.Th style={{ width: 90, textAlign: "center" }}>Details</Table.Th>
+                                      <Table.Th style={{ width: 100, textAlign: "center" }}>Video(s)</Table.Th>
+                                      <Table.Th style={{ width: 85, textAlign: "center" }}>Details</Table.Th>
                                     </Table.Tr>
                                   </Table.Thead>
                                   <Table.Tbody>
-                                    {ch.verses.map((v, vIdx) => (
-                                      <Table.Tr key={vIdx} className="excel-row" onClick={() => handleOpenAyatModal(v)}>
-                                        <Table.Td style={{ whiteSpace: "nowrap", width: "1%" }}>
-                                          <Badge
-                                            size="sm"
-                                            color="indigo"
-                                            variant="filled"
-                                            style={{
-                                              fontFamily: "monospace",
-                                              fontWeight: 800,
-                                              fontSize: 12,
-                                              letterSpacing: "0.5px",
-                                              padding: "4px 8px",
-                                            }}
-                                            title={`${ch.surah_name || `Surah ${ch.surah_number}`}, Ayat ${v.ayat_number}`}
-                                          >
-                                            {formatVerseRef(ch.surah_number, v.ayat_number)}
-                                          </Badge>
-                                        </Table.Td>
+                                    {ch.verses.map((v, vIdx) => {
+                                      const vList = getAyatVideoList(v);
 
-                                        <Table.Td>
-                                          <Text className="arabic-calligraphy" style={{ fontSize: 13, color: "#065f46" }} lineClamp={1}>
-                                            {v.arabic_text || "Click to fetch Arabic..."}
-                                          </Text>
-                                        </Table.Td>
+                                      return (
+                                        <Table.Tr key={vIdx} className="excel-row" onClick={() => handleOpenAyatModal(v)}>
+                                          <Table.Td style={{ whiteSpace: "nowrap", width: "1%" }}>
+                                            <Badge
+                                              size="sm"
+                                              color="indigo"
+                                              variant="filled"
+                                              style={{
+                                                fontFamily: "monospace",
+                                                fontWeight: 800,
+                                                fontSize: 12,
+                                                letterSpacing: "0.5px",
+                                                padding: "4px 8px",
+                                              }}
+                                              title={`${ch.surah_name || `Surah ${ch.surah_number}`}, Ayat ${v.ayat_number}`}
+                                            >
+                                              {formatVerseRef(ch.surah_number, v.ayat_number)}
+                                            </Badge>
+                                          </Table.Td>
 
-                                        <Table.Td>
-                                          <Text size="xs" c="dark.6" lineClamp={1}>
-                                            {v.english_translation || v.urdu_translation}
-                                          </Text>
-                                        </Table.Td>
+                                          <Table.Td>
+                                            <Text className="arabic-calligraphy" style={{ fontSize: 13, color: "#065f46" }} lineClamp={1}>
+                                              {v.arabic_text || "Click to fetch Arabic..."}
+                                            </Text>
+                                          </Table.Td>
 
-                                        <Table.Td>
-                                          <Group gap={6} wrap="wrap">
-                                            {v.occurrences.map((occ, oIdx) => (
-                                              <Badge
-                                                key={oIdx}
-                                                size="xs"
-                                                color={occ.language === "urdu" ? "green" : "blue"}
+                                          <Table.Td>
+                                            <Text size="xs" c="dark.6" lineClamp={1}>
+                                              {v.english_translation || v.urdu_translation}
+                                            </Text>
+                                          </Table.Td>
+
+                                          <Table.Td>
+                                            <Group gap={6} wrap="wrap">
+                                              {v.occurrences.map((occ, oIdx) => (
+                                                <Badge
+                                                  key={oIdx}
+                                                  size="xs"
+                                                  color={occ.language === "urdu" ? "green" : "blue"}
+                                                  variant="light"
+                                                  style={{ textTransform: "none", fontWeight: 600 }}
+                                                  title={`${occ.category_name} - ${getLectureName(occ.lecture_name) || `Lecture ${occ.lecture_number}`}`}
+                                                >
+                                                  {occ.category_name} - {getLectureName(occ.lecture_name) || `Lecture ${occ.lecture_number}`}
+                                                </Badge>
+                                              ))}
+                                            </Group>
+                                          </Table.Td>
+
+                                          {/* Concordance Video Column */}
+                                          <Table.Td onClick={(e) => e.stopPropagation()} style={{ textAlign: "center", whiteSpace: "nowrap" }}>
+                                            {vList.length === 0 ? (
+                                              <Text size="10px" c="dimmed">-</Text>
+                                            ) : vList.length === 1 ? (
+                                              <Button
+                                                size="compact-xs"
+                                                color="red"
                                                 variant="light"
-                                                style={{ textTransform: "none", fontWeight: 600 }}
-                                                title={`${occ.category_name} - ${occ.lecture_name || `Lecture ${occ.lecture_number}`}`}
+                                                leftSection={<Play size={10} fill="currentColor" />}
+                                                onClick={() =>
+                                                  setActiveVideoModal({
+                                                    title: `Surah ${v.surah_number}:${v.ayat_number} Clip`,
+                                                    url: vList[0],
+                                                  })
+                                                }
                                               >
-                                                {occ.category_name} - {occ.lecture_name || `Lecture ${occ.lecture_number}`}
-                                              </Badge>
-                                            ))}
-                                          </Group>
-                                        </Table.Td>
+                                                Clip
+                                              </Button>
+                                            ) : (
+                                              <Button
+                                                size="compact-xs"
+                                                color="red"
+                                                variant="filled"
+                                                leftSection={<Play size={10} fill="currentColor" />}
+                                                rightSection={
+                                                  <span
+                                                    style={{
+                                                      background: "white",
+                                                      color: "#dc2626",
+                                                      borderRadius: 8,
+                                                      padding: "1px 4px",
+                                                      fontSize: 8,
+                                                      fontWeight: 800,
+                                                    }}
+                                                  >
+                                                    {vList.length}
+                                                  </span>
+                                                }
+                                                onClick={() =>
+                                                  setActiveMultiVideoModal({
+                                                    title: `Surah ${formatVerseRef(v.surah_number, v.ayat_number)} Video Clips`,
+                                                    videos: vList,
+                                                    verse: v,
+                                                  })
+                                                }
+                                              >
+                                                Clips
+                                              </Button>
+                                            )}
+                                          </Table.Td>
 
-                                        <Table.Td style={{ textAlign: "center" }}>
-                                          <Button size="compact-xs" variant="subtle" color="blue" rightSection={<IconEye size={12} />}>
-                                            View
-                                          </Button>
-                                        </Table.Td>
-                                      </Table.Tr>
-                                    ))}
+                                          <Table.Td style={{ textAlign: "center" }}>
+                                            <Button size="compact-xs" variant="subtle" color="blue" rightSection={<IconEye size={12} />}>
+                                              View
+                                            </Button>
+                                          </Table.Td>
+                                        </Table.Tr>
+                                      );
+                                    })}
                                   </Table.Tbody>
                                 </Table>
                               </div>
@@ -1073,7 +1877,7 @@ export function QuranLectureReferenceNotebook({ user }) {
                 )}
               </Box>
 
-              {/* Right Side Ribbons (Notice Tags for Categories of Selected Language) */}
+              {/* Right Side Ribbons (Categories of Selected Language) */}
               <Box
                 style={{
                   width: 215,
@@ -1084,7 +1888,7 @@ export function QuranLectureReferenceNotebook({ user }) {
                   flexDirection: "column",
                   gap: 8,
                   overflowY: "auto",
-                  maxHeight: 580,
+                  maxHeight: 720,
                 }}
               >
                 <Text size="10px" fw={800} c="dimmed" tt="uppercase" px="xs" style={{ letterSpacing: 1 }}>
@@ -1168,7 +1972,7 @@ export function QuranLectureReferenceNotebook({ user }) {
       >
         {activeAyatModal && (
           <Stack gap="sm">
-            {/* Arabic Text Display (Automatically verified & loaded from Quran API) */}
+            {/* Arabic Text Display */}
             <Paper p="md" radius="md" style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", position: "relative" }}>
               <Group justify="space-between" mb={6}>
                 <Badge size="xs" color="teal" variant="light">
@@ -1237,131 +2041,427 @@ export function QuranLectureReferenceNotebook({ user }) {
               </Paper>
             )}
 
-            {/* If viewed in Concordance mode, show all occurrences */}
-            {activeAyatModal.occurrences && activeAyatModal.occurrences.length > 0 && (
-              <div>
-                <Text size="xs" fw={700} c="dimmed" mb={4}>
-                  Occurrences in Lectures ({activeAyatModal.occurrences.length}):
-                </Text>
-                <SimpleGrid cols={1} spacing={4}>
-                  {activeAyatModal.occurrences.map((occ, oIdx) => (
-                    <Paper key={oIdx} p="xs" withBorder radius="xs" style={{ background: "#f8fafc" }}>
-                      <Group justify="space-between">
-                        <div>
-                          <Text size="xs" fw={700} c="dark.8">
-                            {occ.category_name} - {occ.lecture_name || `Lecture ${occ.lecture_number}`}
-                          </Text>
-                          {occ.year_delivered && (
-                            <Text size="10px" c="dimmed">
-                              Year: {occ.year_delivered}
-                            </Text>
-                          )}
-                        </div>
-
-                        {occ.video_url && (
-                          <Button
-                            size="compact-xs"
-                            color="red"
-                            variant="light"
-                            leftSection={<IconBrandYoutube size={12} />}
-                            onClick={() =>
-                              setActiveVideoModal({
-                                title: `${occ.lecture_name} - Surah ${activeAyatModal.surah_number}:${activeAyatModal.ayat_number}`,
-                                url: occ.video_url,
-                              })
-                            }
-                          >
-                            Watch Clip
-                          </Button>
-                        )}
-                      </Group>
-                    </Paper>
-                  ))}
-                </SimpleGrid>
-              </div>
-            )}
-
-            {/* Single Lecture Video Clip CTA */}
-            {!activeAyatModal.occurrences &&
-              (activeAyatModal.video_url_eng ||
-                activeAyatModal.youtube_url_eng ||
-                activeAyatModal.video_url_urdu ||
-                activeAyatModal.youtube_url_urdu ||
-                activeAyatModal.video_url) && (
-                <Button
-                  fullWidth
-                  color="red"
-                  variant="filled"
-                  leftSection={<IconBrandYoutube size={16} />}
-                  onClick={() =>
-                    setActiveVideoModal({
-                      title: `${activeAyatModal.lecture_name || "Lecture"} - Surah ${activeAyatModal.surah_number}:${activeAyatModal.ayat_number}`,
-                      url:
-                        activeAyatModal.video_url_eng ||
-                        activeAyatModal.youtube_url_eng ||
-                        activeAyatModal.video_url_urdu ||
-                        activeAyatModal.youtube_url_urdu ||
-                        activeAyatModal.video_url,
-                    })
-                  }
-                >
-                  Watch Lecture Video Clip
-                </Button>
-              )}
+            {/* Video Clips Section */}
+            {(() => {
+              const vList = getAyatVideoList(activeAyatModal);
+              if (vList.length === 0) return null;
+              if (vList.length === 1) {
+                return (
+                  <Button
+                    fullWidth
+                    color="red"
+                    variant="filled"
+                    leftSection={<Play size={14} fill="currentColor" />}
+                    onClick={() =>
+                      setActiveVideoModal({
+                        title: `${getLectureName(activeAyatModal.lecture_name) || "Lecture"} - Surah ${activeAyatModal.surah_number}:${activeAyatModal.ayat_number}`,
+                        url: vList[0],
+                      })
+                    }
+                  >
+                    Watch Lecture Video Clip
+                  </Button>
+                );
+              }
+              return (
+                <div>
+                  <Text size="xs" fw={700} c="dimmed" mb={4}>
+                    Linked Video Clips ({vList.length}):
+                  </Text>
+                  <Stack gap={4}>
+                    {vList.map((url, i) => {
+                      const timeRange = parseVideoTimestamps(url);
+                      return (
+                        <Paper key={i} p="xs" withBorder radius="xs" style={{ background: "#f8fafc" }}>
+                          <Group justify="space-between">
+                            <div>
+                              <Group gap={6}>
+                                <Text size="xs" fw={700}>
+                                  Clip {i + 1}
+                                </Text>
+                                {timeRange && (
+                                  <Badge size="xs" color="blue" variant="light">
+                                    ⏱ {timeRange}
+                                  </Badge>
+                                )}
+                              </Group>
+                              <Text size="10px" c="dimmed" lineClamp={1} style={{ maxWidth: 300 }}>
+                                {url}
+                              </Text>
+                            </div>
+                            <Button
+                              size="compact-xs"
+                              color="red"
+                              variant="light"
+                              leftSection={<Play size={11} fill="currentColor" />}
+                              onClick={() =>
+                                setActiveVideoModal({
+                                  title: `${getLectureName(activeAyatModal.lecture_name) || "Lecture"} - Surah ${activeAyatModal.surah_number}:${activeAyatModal.ayat_number} (Clip ${i + 1})`,
+                                  url,
+                                })
+                              }
+                            >
+                              Watch
+                            </Button>
+                          </Group>
+                        </Paper>
+                      );
+                    })}
+                  </Stack>
+                </div>
+              );
+            })()}
           </Stack>
         )}
       </Modal>
 
-      {/* VIDEO PLAYER MODAL */}
+      {/* MULTI-VIDEO CLIP SELECTOR MODAL (Styled like Season Episodes) */}
+      <Modal
+        opened={!!activeMultiVideoModal}
+        onClose={() => setActiveMultiVideoModal(null)}
+        title={
+          activeMultiVideoModal && (
+            <Group gap="xs">
+              <Badge color="red" size="md" variant="filled">
+                {activeMultiVideoModal.videos.length} Video Clips
+              </Badge>
+              <Text fw={700} size="sm">
+                {activeMultiVideoModal.title}
+              </Text>
+            </Group>
+          )
+        }
+        size="md"
+        centered
+        radius="lg"
+      >
+        {activeMultiVideoModal && (
+          <Stack gap="sm">
+            <Text size="xs" c="dimmed">
+              Multiple video explanations are linked for this verse. Select any clip to play:
+            </Text>
+
+            <Stack gap="xs">
+              {activeMultiVideoModal.videos.map((url, idx) => {
+                const timeRange = parseVideoTimestamps(url);
+
+                return (
+                  <Paper
+                    key={idx}
+                    p="sm"
+                    radius="md"
+                    withBorder
+                    style={{
+                      cursor: "pointer",
+                      transition: "all 0.15s ease",
+                    }}
+                    className="hover:border-red-400 hover:bg-red-50/20"
+                    onClick={() => {
+                      setActiveVideoModal({
+                        title: `${activeMultiVideoModal.title} - Clip ${idx + 1}${timeRange ? ` (${timeRange})` : ""}`,
+                        url,
+                      });
+                      setActiveMultiVideoModal(null);
+                    }}
+                  >
+                    <Group justify="space-between" align="center">
+                      <Group gap="sm" style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: "50%",
+                            backgroundColor: "#fee2e2",
+                            color: "#dc2626",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontWeight: 800,
+                            fontSize: 11,
+                            flexShrink: 0,
+                          }}
+                        >
+                          {idx + 1}
+                        </div>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <Group gap={6} align="center">
+                            <Text size="xs" fw={700}>
+                              Video Clip {idx + 1}
+                            </Text>
+                            {timeRange && (
+                              <Badge size="xs" color="blue" variant="light">
+                                ⏱ {timeRange}
+                              </Badge>
+                            )}
+                          </Group>
+                          <Text size="10px" c="dimmed" lineClamp={1}>
+                            {url}
+                          </Text>
+                        </div>
+                      </Group>
+
+                      <Button
+                        size="compact-xs"
+                        color="red"
+                        variant="filled"
+                        leftSection={<Play size={11} fill="currentColor" />}
+                      >
+                        Play
+                      </Button>
+                    </Group>
+                  </Paper>
+                );
+              })}
+            </Stack>
+          </Stack>
+        )}
+      </Modal>
+
+      {/* POP ACTION MODALS: PDF / EPISODES / VERSES */}
+      <Modal
+        opened={!!activeActionModal && !!actionModalLecture}
+        onClose={() => {
+          setActiveActionModal(null);
+          setActionModalLecture(null);
+        }}
+        title={
+          actionModalLecture && (
+            <Group gap="xs">
+              {activeActionModal === "pdf" && <FileText size={18} color="#059669" />}
+              {activeActionModal === "verses" && <BookOpen size={18} color="#d97706" />}
+              {activeActionModal === "episodes" && <Layers size={18} color="#4f46e5" />}
+              <Text fw={700} size="sm">
+                Lec {actionModalLecture.lecture_id}: {getLectureName(actionModalLecture.lecture_name)}
+              </Text>
+            </Group>
+          )
+        }
+        size="lg"
+        centered
+        radius="lg"
+      >
+        {actionModalLecture && (
+          <div>
+            {/* 1. PDF Material Modal */}
+            {activeActionModal === "pdf" && (
+              <Stack gap="md" ta="center" py="md">
+                <div
+                  style={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: 16,
+                    backgroundColor: "#d1fae5",
+                    color: "#059669",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    margin: "0 auto",
+                  }}
+                >
+                  <FileText size={30} />
+                </div>
+                <div>
+                  <Title order={4}>
+                    {actionModalLecture.pdf_title || `${getLectureName(actionModalLecture.lecture_name)} - Study Notes`}
+                  </Title>
+                  <Text size="xs" c="dimmed" mt={4}>
+                    Official Lecture Transcripts, Notes & Quranic Ayat Indices
+                  </Text>
+                </div>
+                <Group justify="center" mt="sm">
+                  {actionModalLecture.pdf_link || (Array.isArray(actionModalLecture.pdf_booklet_urls) && actionModalLecture.pdf_booklet_urls.length > 0) ? (
+                    <Button
+                      color="teal"
+                      radius="xl"
+                      leftSection={<Download size={15} />}
+                      onClick={() => {
+                        const pdfUrl =
+                          actionModalLecture.pdf_link ||
+                          (Array.isArray(actionModalLecture.pdf_booklet_urls) ? actionModalLecture.pdf_booklet_urls[0] : "");
+                        window.open(pdfUrl, "_blank", "noopener,noreferrer");
+                      }}
+                    >
+                      Open PDF Booklet
+                    </Button>
+                  ) : (
+                    <Badge color="gray" size="md">
+                      PDF Booklet being digitized
+                    </Badge>
+                  )}
+                </Group>
+              </Stack>
+            )}
+
+            {/* 2. Linked Verses Modal */}
+            {activeActionModal === "verses" && (
+              <Stack gap="xs" style={{ maxHeight: 420, overflowY: "auto", paddingRight: 4 }}>
+                <Text size="xs" c="dimmed" mb={4}>
+                  All {actionModalLecture.ayat_references?.length || 0} Quranic Verses Cited in this Lecture:
+                </Text>
+                {(actionModalLecture.ayat_references || []).map((verse, vIdx) => (
+                  <Paper key={vIdx} p="sm" radius="md" withBorder style={{ background: "#f8fafc" }}>
+                    <Group justify="space-between" mb={4}>
+                      <Badge color="indigo" size="sm" variant="filled">
+                        Ayat {formatVerseRef(verse.surah_number, verse.ayat_number)}
+                      </Badge>
+                      <Text size="xs" fw={700} c="dimmed">
+                        {verse.surah_name}
+                      </Text>
+                    </Group>
+                    <Text size="xs" c="dark.7" fs="italic">
+                      "{verse.english_translation || verse.urdu_translation || "Quranic verse reference"}"
+                    </Text>
+                  </Paper>
+                ))}
+              </Stack>
+            )}
+
+            {/* 3. Seasons & Episodes Breakdown Modal */}
+            {activeActionModal === "episodes" && (
+              <Stack gap="xs">
+                <Text size="xs" c="dimmed">
+                  Season Episodes & Topic Parts:
+                </Text>
+
+                <Stack gap="xs" style={{ maxHeight: 380, overflowY: "auto" }}>
+                  {(actionModalLecture.seasons && actionModalLecture.seasons.length > 0
+                    ? actionModalLecture.seasons.flatMap((s) =>
+                        (s.episodes || []).map((ep) => ({ ...ep, season_name: s.season_name }))
+                      )
+                    : (actionModalLecture.episodes || [])
+                  ).map((ep, idx) => (
+                    <Paper key={ep.id || idx} p="sm" radius="md" withBorder>
+                      <Group justify="space-between" align="center">
+                        <Group gap="sm" style={{ flex: 1, minWidth: 0 }}>
+                          <div
+                            style={{
+                              width: 26,
+                              height: 26,
+                              borderRadius: "50%",
+                              backgroundColor: "#4f46e5",
+                              color: "white",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: 11,
+                              fontWeight: 800,
+                              flexShrink: 0,
+                            }}
+                          >
+                            {idx + 1}
+                          </div>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <Text size="xs" fw={700} lineClamp={1}>
+                              {ep.episode_title || ep.title || `Episode ${idx + 1}`}
+                            </Text>
+                            <Text size="10px" c="dimmed">
+                              {ep.season_name ? `${ep.season_name} • ` : ""}
+                              {ep.episode_number || ep.duration || "Episode"}
+                            </Text>
+                          </div>
+                        </Group>
+
+                        <Button
+                          size="compact-xs"
+                          color="indigo"
+                          variant="light"
+                          leftSection={<Play size={11} fill="currentColor" />}
+                          onClick={() => {
+                            const epUrl = ep.episode_url || ep.videoUrl || ep.video_url;
+                            if (epUrl) {
+                              setActiveVideoModal({
+                                title: `${getLectureName(actionModalLecture.lecture_name)} - ${ep.episode_title || ep.title || `Episode ${idx + 1}`}`,
+                                url: epUrl,
+                              });
+                              setActiveActionModal(null);
+                            }
+                          }}
+                        >
+                          Play
+                        </Button>
+                      </Group>
+                    </Paper>
+                  ))}
+                </Stack>
+              </Stack>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      {/* VIDEO PLAYER MODAL WITH NATIVE YOUTUBE IFRAME & START/END TIMESTAMP SUPPORT */}
       <Modal
         opened={!!activeVideoModal}
         onClose={() => setActiveVideoModal(null)}
         title={
           <Group gap="xs">
             <IconBrandYoutube size={20} color="red" />
-            <Text fw={600} size="sm">
+            <Text fw={700} size="sm">
               {activeVideoModal?.title}
             </Text>
           </Group>
         }
-        size="lg"
+        size="xl"
         centered
+        radius="lg"
       >
         {activeVideoModal && (
           <div>
-            {getEmbedUrl(activeVideoModal.url)?.includes("youtube.com") ? (
-              <div style={{ position: "relative", paddingBottom: "56.25%", height: 0, overflow: "hidden" }}>
-                <iframe
-                  src={getEmbedUrl(activeVideoModal.url)}
-                  title={activeVideoModal.title}
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    width: "100%",
-                    height: "100%",
-                    borderRadius: 8,
-                    border: "none",
-                  }}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              </div>
-            ) : (
-              <Stack gap="md" align="center" py="lg">
-                <Text size="sm">External video resource:</Text>
+            {/* 16:9 Responsive Video Iframe (Natively supports ?start=...&end=... parameters) */}
+            <div
+              style={{
+                position: "relative",
+                paddingBottom: "56.25%",
+                height: 0,
+                overflow: "hidden",
+                borderRadius: "8px",
+                backgroundColor: "#000",
+              }}
+            >
+              <iframe
+                src={getEmbedUrl(activeVideoModal.url)}
+                title={activeVideoModal.title}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  height: "100%",
+                  borderRadius: "8px",
+                  border: "none",
+                }}
+              />
+            </div>
+
+            {/* Video Footer info and external link */}
+            <Group justify="space-between" align="center" mt="md">
+              <Text size="xs" c="dimmed" lineClamp={1} style={{ maxWidth: 450 }}>
+                {activeVideoModal.url}
+              </Text>
+              <Group gap="xs">
                 <Button
                   component="a"
                   href={activeVideoModal.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  color="red"
-                  leftSection={<IconExternalLink size={16} />}
+                  size="xs"
+                  variant="default"
+                  leftSection={<IconExternalLink size={14} />}
                 >
-                  Open External Video
+                  Open in New Tab
                 </Button>
-              </Stack>
-            )}
+                <Button
+                  size="xs"
+                  color="gray"
+                  variant="light"
+                  onClick={() => setActiveVideoModal(null)}
+                >
+                  Close
+                </Button>
+              </Group>
+            </Group>
           </div>
         )}
       </Modal>

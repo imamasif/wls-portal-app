@@ -1,5 +1,17 @@
 // server/src/features/ayats/ayats.schema.js
 
+const videoUrlFieldType = {
+  anyOf: [
+    { type: "string" },
+    { type: "array", items: { type: "string" } },
+  ],
+};
+
+const stringArrayFieldType = {
+  type: "array",
+  items: { type: "string" },
+};
+
 export const createAyatSchema = {
   type: "object",
   properties: {
@@ -17,12 +29,18 @@ export const createAyatSchema = {
     points_notes_hindi: { type: "string" },
     quest_answer: { type: "boolean" },
     question_text: { type: "string" },
-    video_url_eng: { type: "string" },
-    youtube_url_eng: { type: "string" },
+    video_url_eng: videoUrlFieldType,
+    youtube_url_eng: videoUrlFieldType,
     facebook_url_eng: { type: "string" },
-    video_url_urdu: { type: "string" },
-    youtube_url_urdu: { type: "string" },
+    video_url_urdu: videoUrlFieldType,
+    youtube_url_urdu: videoUrlFieldType,
     facebook_url_urdu: { type: "string" },
+    video_urls: stringArrayFieldType,
+    youtube_urls: stringArrayFieldType,
+    youtube_urls_eng: stringArrayFieldType,
+    youtube_urls_urdu: stringArrayFieldType,
+    video_urls_eng: stringArrayFieldType,
+    video_urls_urdu: stringArrayFieldType,
     ayat_image_eng_url: { type: "string" },
     ayat_image_urdu_url: { type: "string" },
     ayat_image_hindi_url: { type: "string" },
@@ -48,12 +66,18 @@ export const updateAyatSchema = {
     points_notes_hindi: { type: "string" },
     quest_answer: { type: "boolean" },
     question_text: { type: "string" },
-    video_url_eng: { type: "string" },
-    youtube_url_eng: { type: "string" },
+    video_url_eng: videoUrlFieldType,
+    youtube_url_eng: videoUrlFieldType,
     facebook_url_eng: { type: "string" },
-    video_url_urdu: { type: "string" },
-    youtube_url_urdu: { type: "string" },
+    video_url_urdu: videoUrlFieldType,
+    youtube_url_urdu: videoUrlFieldType,
     facebook_url_urdu: { type: "string" },
+    video_urls: stringArrayFieldType,
+    youtube_urls: stringArrayFieldType,
+    youtube_urls_eng: stringArrayFieldType,
+    youtube_urls_urdu: stringArrayFieldType,
+    video_urls_eng: stringArrayFieldType,
+    video_urls_urdu: stringArrayFieldType,
     ayat_image_eng_url: { type: "string" },
     ayat_image_urdu_url: { type: "string" },
     ayat_image_hindi_url: { type: "string" },

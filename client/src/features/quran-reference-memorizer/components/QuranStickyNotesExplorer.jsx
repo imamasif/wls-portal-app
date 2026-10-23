@@ -161,9 +161,12 @@ export function QuranStickyNotesExplorer({ user }) {
     if (!filterQuery) return lectures;
     const q = filterQuery.toLowerCase();
     return lectures.filter((lec) => {
-      const name = (lec.lecture_name || "").toLowerCase();
+      const names = Array.isArray(lec.lecture_name)
+        ? lec.lecture_name
+        : [lec.lecture_name || ""];
+      const matchesName = names.some((n) => String(n).toLowerCase().includes(q));
       const year = String(lec.year_delivered || "").toLowerCase();
-      return name.includes(q) || year.includes(q);
+      return matchesName || year.includes(q);
     });
   }, [selectedCategory, filterQuery]);
 
@@ -417,7 +420,7 @@ export function QuranStickyNotesExplorer({ user }) {
                         </Group>
 
                         <Text fw={700} size="sm" c="dark.8">
-                          {occ.lecture_name}
+                          {Array.isArray(occ.lecture_name) ? occ.lecture_name[0] : occ.lecture_name}
                         </Text>
 
                         {occ.arabic_text && (
@@ -447,7 +450,7 @@ export function QuranStickyNotesExplorer({ user }) {
                             leftSection={<IconBrandYoutube size={14} />}
                             onClick={() =>
                               setActiveVideoModal({
-                                title: `${occ.lecture_name} - Surah ${occ.surah_number}:${occ.ayat_number}`,
+                                title: `${Array.isArray(occ.lecture_name) ? occ.lecture_name[0] : occ.lecture_name} - Surah ${occ.surah_number}:${occ.ayat_number}`,
                                 url: occ.video_url_eng || occ.video_url_urdu,
                               })
                             }
@@ -512,7 +515,7 @@ export function QuranStickyNotesExplorer({ user }) {
                   ➔
                 </Text>
                 <Button variant="filled" color="grape" size="xs" leftSection={<IconBook size={15} />}>
-                  {selectedLecture.lecture_name} (
+                  {Array.isArray(selectedLecture.lecture_name) ? selectedLecture.lecture_name[0] : selectedLecture.lecture_name} (
                   {selectedLecture.ayat_references ? selectedLecture.ayat_references.length : 0} ayats)
                 </Button>
               </>
@@ -704,9 +707,14 @@ export function QuranStickyNotesExplorer({ user }) {
                             )}
                           </Group>
 
-                          <Text fw={700} size="md" style={{ lineHeight: 1.3, marginBottom: 8, color: palette.text }}>
-                            {lec.lecture_name}
+                          <Text fw={700} size="md" style={{ lineHeight: 1.3, marginBottom: 4, color: palette.text }}>
+                            {Array.isArray(lec.lecture_name) ? lec.lecture_name[0] : lec.lecture_name}
                           </Text>
+                          {Array.isArray(lec.lecture_name) && lec.lecture_name.length > 1 && (
+                            <Text size="xs" c="dimmed" fs="italic" mb={4}>
+                              AKA: {lec.lecture_name.slice(1).join(", ")}
+                            </Text>
+                          )}
                         </div>
 
                         <div style={{ borderTop: `1px dashed ${palette.border}`, paddingTop: 12, marginTop: 12 }}>
@@ -744,7 +752,7 @@ export function QuranStickyNotesExplorer({ user }) {
                   </ActionIcon>
                   <div>
                     <Text fw={700} size="md" c="dark.7">
-                      📜 Verses in: {selectedLecture.lecture_name} ({currentVerses.length} ayats)
+                      📜 Verses in: {Array.isArray(selectedLecture.lecture_name) ? selectedLecture.lecture_name[0] : selectedLecture.lecture_name} ({currentVerses.length} ayats)
                     </Text>
                     <Text size="xs" c="dimmed">
                       {selectedCategory.category_name} • Year: {selectedLecture.year_delivered || "N/A"}
@@ -916,7 +924,7 @@ export function QuranStickyNotesExplorer({ user }) {
                               leftSection={<IconBrandYoutube size={15} />}
                               onClick={() =>
                                 setActiveVideoModal({
-                                  title: `${selectedLecture.lecture_name} - Surah ${verse.surah_number}:${verse.ayat_number}`,
+                                  title: `${Array.isArray(selectedLecture.lecture_name) ? selectedLecture.lecture_name[0] : selectedLecture.lecture_name} - Surah ${verse.surah_number}:${verse.ayat_number}`,
                                   url: videoUrl,
                                 })
                               }

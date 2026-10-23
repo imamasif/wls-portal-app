@@ -6,8 +6,9 @@ import {
   LectureModel,
   AyatModel,
 } from "./categoryLectures.model.js";
+import { normalizeAyatVideos } from "../ayats/ayats.res.js";
 
-const ajv = new Ajv({ allErrors: true });
+const ajv = new Ajv({ allErrors: true, allowUnionTypes: true });
 const validate = ajv.compile(categoryValidationSchema);
 
 export class CategoryLecturesUsecase {
@@ -32,13 +33,39 @@ export class CategoryLecturesUsecase {
 
       if (payload.lectures && payload.lectures.length > 0) {
         for (const l of payload.lectures) {
-          // 2. Create and save the Lecture (Child of Category)
+          const rawVideoUrls = Array.isArray(l.video_urls)
+            ? l.video_urls
+            : Array.isArray(l.videoUrls)
+            ? l.videoUrls
+            : l.video_url
+            ? [l.video_url]
+            : [];
+
+          const rawLectureNames = Array.isArray(l.lecture_name)
+            ? l.lecture_name
+            : typeof l.lecture_name === "string" && l.lecture_name.trim()
+            ? [l.lecture_name.trim()]
+            : [];
+
           const lectureData = {
             category_id_ref: savedCategory._id,
             lecture_id: l.lecture_id,
-            lecture_name: l.lecture_name,
+            lecture_name: rawLectureNames,
             language: l.language || "eng",
             year_delivered: l.year_delivered || "",
+            season: l.season || "",
+            episode: l.episode || "",
+            video_url: l.video_url || l.videoUrl || (rawVideoUrls[0] || ""),
+            video_urls: rawVideoUrls,
+            youtube_urls: l.youtube_urls || [],
+            facebook_urls: l.facebook_urls || [],
+            full_lecture_video_url: l.full_lecture_video_url || "",
+            seasons: l.seasons || [],
+            episodes: l.episodes || l.episodesList || [],
+            pdf_link: l.pdf_link || (Array.isArray(l.pdf_booklet_urls) ? l.pdf_booklet_urls[0] : "") || l.pdf_url || "",
+            pdf_booklet_urls: l.pdf_booklet_urls || [],
+            pdf_url: l.pdf_url || l.pdfUrl || "",
+            pdf_title: l.pdf_title || l.pdfTitle || "",
             total_ayats: l.ayat_references ? l.ayat_references.length : 0,
           };
 
@@ -46,10 +73,14 @@ export class CategoryLecturesUsecase {
 
           // 3. Create and save Ayats (Child of Lecture)
           if (l.ayat_references && l.ayat_references.length > 0) {
-            const ayatDocuments = l.ayat_references.map((a) => ({
-              ...a,
-              lecture_id: savedLecture._id,
-            }));
+            const ayatDocuments = l.ayat_references.map((a) => {
+              const norm = normalizeAyatVideos(a);
+              return {
+                ...a,
+                ...norm,
+                lecture_id: savedLecture._id,
+              };
+            });
             await AyatModel.insertMany(ayatDocuments);
           }
         }
@@ -94,9 +125,37 @@ export class CategoryLecturesUsecase {
           } catch (_) {}
         }
         const ayats = await AyatModel.find({ $or: orAyats }).lean();
+        const enrichedAyats = ayats.map((a) => {
+          const norm = normalizeAyatVideos(a);
+          return {
+            ...a,
+            ...norm,
+          };
+        });
+        const rawVideoUrls = Array.isArray(lecture.video_urls)
+          ? lecture.video_urls
+          : Array.isArray(lecture.videoUrls)
+          ? lecture.videoUrls
+          : lecture.video_url
+          ? [lecture.video_url]
+          : [];
+
         return {
           ...lecture,
-          ayat_references: ayats,
+          season: lecture.season || "",
+          episode: lecture.episode || "",
+          video_url: lecture.video_url || lecture.videoUrl || (rawVideoUrls[0] || ""),
+          video_urls: rawVideoUrls,
+          youtube_urls: lecture.youtube_urls || [],
+          facebook_urls: lecture.facebook_urls || [],
+          full_lecture_video_url: lecture.full_lecture_video_url || "",
+          seasons: lecture.seasons || [],
+          episodes: lecture.episodes || lecture.episodesList || [],
+          pdf_link: lecture.pdf_link || (Array.isArray(lecture.pdf_booklet_urls) ? lecture.pdf_booklet_urls[0] : "") || lecture.pdf_url || "",
+          pdf_booklet_urls: lecture.pdf_booklet_urls || [],
+          pdf_url: lecture.pdf_url || lecture.pdfUrl || "",
+          pdf_title: lecture.pdf_title || lecture.pdfTitle || "",
+          ayat_references: enrichedAyats,
         };
       }),
     );
@@ -150,6 +209,22 @@ export class CategoryLecturesUsecase {
                 $or: orAyats,
               }).lean();
 
+              const enrichedAyats = ayats.map((a) => {
+                const norm = normalizeAyatVideos(a);
+                return {
+                  ...a,
+                  ...norm,
+                };
+              });
+
+              const rawVideoUrls = Array.isArray(lecture.video_urls)
+                ? lecture.video_urls
+                : Array.isArray(lecture.videoUrls)
+                ? lecture.videoUrls
+                : lecture.video_url
+                ? [lecture.video_url]
+                : [];
+
               return {
                 _id: String(lecture._id),
                 id: String(lecture._id),
@@ -157,10 +232,24 @@ export class CategoryLecturesUsecase {
                 category_id_ref: String(cat._id),
                 lecture_id: lecture.lecture_id,
                 lecture_name: lecture.lecture_name,
-                year_delivered: lecture.year_delivered,
-                ayat_count: ayats.length,
-                total_ayats: ayats.length,
-                ayat_references: ayats,
+                language: lecture.language || cat.language || "eng",
+                year_delivered: lecture.year_delivered || "",
+                season: lecture.season || "",
+                episode: lecture.episode || "",
+                video_url: lecture.video_url || lecture.videoUrl || (rawVideoUrls[0] || ""),
+                video_urls: rawVideoUrls,
+                youtube_urls: lecture.youtube_urls || [],
+                facebook_urls: lecture.facebook_urls || [],
+                full_lecture_video_url: lecture.full_lecture_video_url || "",
+                seasons: lecture.seasons || [],
+                episodes: lecture.episodes || lecture.episodesList || [],
+                pdf_link: lecture.pdf_link || (Array.isArray(lecture.pdf_booklet_urls) ? lecture.pdf_booklet_urls[0] : "") || lecture.pdf_url || "",
+                pdf_booklet_urls: lecture.pdf_booklet_urls || [],
+                pdf_url: lecture.pdf_url || lecture.pdfUrl || "",
+                pdf_title: lecture.pdf_title || lecture.pdfTitle || "",
+                ayat_count: enrichedAyats.length,
+                total_ayats: enrichedAyats.length,
+                ayat_references: enrichedAyats,
               };
             }),
           );
