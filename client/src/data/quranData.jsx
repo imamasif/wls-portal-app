@@ -196,9 +196,7 @@ const Header = ({ useLiveApi, setUseLiveApi, score, streak, accuracyRate }) => {
           }`}
         >
           <Globe className="w-3.5 h-3.5" />
-          <span>
-            {useLiveApi ? "Live Quran API (Active)" : "Preset Verses"}
-          </span>
+          <span>{useLiveApi ? "Live Quran API (Active)" : ""}</span>
         </button>
 
         <div className="bg-white/90 border border-stone-200 px-3 py-1.5 rounded-xl shadow-2xs flex items-center gap-2 transform rotate-1">
@@ -543,11 +541,20 @@ export default function QuranMemorizer() {
     setShowHint(false);
     setIsPlayingAudio(false);
 
-    const randomVerseId = Math.floor(Math.random() * 6236) + 1;
-
     try {
+      const apiBase = import.meta.env.VITE_API_BASE_URL || "";
+      const randomRes = await fetch(`${apiBase}/api/quran/random-verse`);
+      if (randomRes.ok) {
+        const randomJson = await randomRes.json();
+        if (randomJson.code === 200 && randomJson.data) {
+          setCurrentAyah(randomJson.data);
+          return;
+        }
+      }
+
+      const randomVerseId = Math.floor(Math.random() * 6236) + 1;
       const response = await fetch(
-        `https://api.alquran.cloud/v1/ayah/${randomVerseId}/editions/quran-uthmani,en.sahih,ar.alafasy`,
+        `${apiBase}/api/quran/ayah/${randomVerseId}/editions/quran-uthmani,en.sahih,ar.alafasy`,
       );
 
       if (!response.ok) {

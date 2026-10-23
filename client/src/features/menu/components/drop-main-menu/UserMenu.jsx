@@ -14,7 +14,10 @@ import {
   IconBook,
   IconSitemap,
   IconChartBar,
+  IconNotebook,
+  IconSparkles,
 } from "@tabler/icons-react";
+
 
 export function UserMenu({ activeTab, setActiveTab }) {
   return (
@@ -114,7 +117,24 @@ export function UserMenu({ activeTab, setActiveTab }) {
             Quran Reference Memorizer
           </Menu.Item>
           <Menu.Divider />
-
+          <Menu.Item
+            onClick={() => setActiveTab(AppTab.QURAN_EXPLORER)}
+            leftSection={
+              <IconSparkles size={16} color="var(--mantine-color-grape-6)" />
+            }
+          >
+            Quran Sticky Notes Explorer
+          </Menu.Item>
+          <Menu.Divider />
+          <Menu.Item
+            onClick={() => setActiveTab(AppTab.QURAN_NOTEBOOK)}
+            leftSection={
+              <IconNotebook size={16} color="var(--mantine-color-indigo-6)" />
+            }
+          >
+            Quran Lecture Index Notebook
+          </Menu.Item>
+          <Menu.Divider />
           <Menu.Item
             onClick={() => setActiveTab(AppTab.QURAN_TREE)}
             leftSection={
@@ -123,6 +143,7 @@ export function UserMenu({ activeTab, setActiveTab }) {
           >
             Quran Morphology Tree
           </Menu.Item>
+
         </Menu.Dropdown>
       </Menu>
     </Group>

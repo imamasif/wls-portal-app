@@ -1,20 +1,15 @@
-export const UserRole = {
-  SUPER_USER: "SUPER_USER",
-  WLS_ADMIN: "WLS_ADMIN",
-  USER: "USER",
-};
+export {
+  USER_ROLES,
+  UserRole,
+  ASSESSMENT_STATUSES,
+  AssessmentStatus,
+  CONCLUSION_STATUSES,
+  ConclusionStatus,
+  WLS_SESSION_STATUSES,
+  WlsSessionStatus,
+  QUESTION_TYPES,
+  QuestionType,
+  QUESTION_TYPE_VALUES,
+  isSuperUserRole,
+} from "../../common/constants/enums.js";
 
-export const AssessmentStatus = {
-  PENDING: "PENDING",
-  SUBMITTED: "SUBMITTED",
-  UNDER_REVIEW: "UNDER_REVIEW",
-  PARTIAL_SAVED: "PARTIAL_SAVED",
-  REVIEWED: "REVIEWED",
-  COMPLETED: "COMPLETED",
-};
-
-export const isSuperUserRole = (role) => {
-  if (!role) return false;
-  const upper = String(role).toUpperCase();
-  return upper === UserRole.SUPER_USER || upper === UserRole.WLS_ADMIN;
-};

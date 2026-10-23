@@ -24,6 +24,9 @@ import universityRoutes from "./src/features/universities/index.js";
 import courseProgressRoutes from "./src/features/universities/course-progress/index.js";
 import attendanceController from "./src/features/wls-attendance-monitoring/index.js";
 import categoryLecturesRoutes from "./src/features/category-lectures/index.js";
+import { quranRoutes } from "./src/features/quran/index.js";
+import ayatsRoutes from "./src/features/ayats/index.js";
+
 
 const app = express();
 
@@ -33,7 +36,14 @@ app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
-connectDB();
+connectDB().then(async () => {
+  try {
+    const { runLectureMigration } = await import("./src/scripts/migrate_lecture_names.js");
+    await runLectureMigration();
+  } catch (mErr) {
+    console.warn("Auto-migration note:", mErr.message);
+  }
+});
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "OK", timestamp: new Date().toISOString() });
@@ -55,6 +65,9 @@ app.use("/api/quiz-submissions", quizSubmissionRoutes);
 app.use("/api/universities", universityRoutes);
 app.use("/api/universities/course-progress", courseProgressRoutes);
 app.use("/api/category-lectures", categoryLecturesRoutes);
+app.use("/api/quran", quranRoutes);
+app.use("/api/ayats", ayatsRoutes);
+
 
 // 3. Seed Route
 app.post("/api/seed", async (req, res) => {

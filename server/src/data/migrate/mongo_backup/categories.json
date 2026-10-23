@@ -1,0 +1,218 @@
+[
+  {
+    "_id": "6ac7e7644f6dc255a8101172",
+    "source": "IIPC Canada",
+    "compiler": "Muhammad Shaikh",
+    "category_id": 1,
+    "category_name": "Identify your God",
+    "language": "eng",
+    "total_lectures": 2
+  },
+  {
+    "_id": "6ac7e7644f6dc255a8101173",
+    "source": "IIPC Canada",
+    "compiler": "Muhammad Shaikh",
+    "category_id": 101,
+    "category_name": "Apnay Khuda ko pehchano",
+    "language": "urdu",
+    "total_lectures": 12
+  },
+  {
+    "_id": "6ac7e7644f6dc255a8101174",
+    "source": "IIPC Canada",
+    "compiler": "Muhammad Shaikh",
+    "category_id": 201,
+    "category_name": "Apnay Khuda ko pehchano",
+    "language": "hindi",
+    "total_lectures": 7
+  },
+  {
+    "_id": "6ac7e7644f6dc255a8101175",
+    "source": "IIPC Canada",
+    "compiler": "Muhammad Shaikh",
+    "category_id": 2,
+    "category_name": "Chosen Personalities",
+    "language": "eng",
+    "total_lectures": 7
+  },
+  {
+    "_id": "6ac7e7644f6dc255a8101176",
+    "source": "IIPC Canada",
+    "compiler": "Muhammad Shaikh",
+    "category_id": 102,
+    "category_name": "Chuni hui shakhsiyat",
+    "language": "urdu",
+    "total_lectures": 12
+  },
+  {
+    "_id": "6ac7e7644f6dc255a8101177",
+    "source": "IIPC Canada",
+    "compiler": "Muhammad Shaikh",
+    "category_id": 202,
+    "category_name": "Chuni hui shakhsiyat",
+    "language": "hindi",
+    "total_lectures": 7
+  },
+  {
+    "_id": "6ac7e7644f6dc255a8101178",
+    "source": "IIPC Canada",
+    "compiler": "Muhammad Shaikh",
+    "category_id": 3,
+    "category_name": "Book of Allah",
+    "language": "eng",
+    "total_lectures": 12
+  },
+  {
+    "_id": "6ac7e7644f6dc255a8101179",
+    "source": "IIPC Canada",
+    "compiler": "Muhammad Shaikh",
+    "category_id": 103,
+    "category_name": "Allah ki kitab",
+    "language": "urdu",
+    "total_lectures": 16
+  },
+  {
+    "_id": "6ac7e7644f6dc255a810117a",
+    "source": "IIPC Canada",
+    "compiler": "Muhammad Shaikh",
+    "category_id": 203,
+    "category_name": "Allah ki kitab",
+    "language": "hindi",
+    "total_lectures": 11
+  },
+  {
+    "_id": "6ac7e7644f6dc255a810117b",
+    "source": "IIPC Canada",
+    "compiler": "Muhammad Shaikh",
+    "category_id": 4,
+    "category_name": "Know Yourself",
+    "language": "eng",
+    "total_lectures": 10
+  },
+  {
+    "_id": "6ac7e7644f6dc255a810117c",
+    "source": "IIPC Canada",
+    "compiler": "Muhammad Shaikh",
+    "category_id": 104,
+    "category_name": "Apni Pehchan",
+    "language": "urdu",
+    "total_lectures": 11
+  },
+  {
+    "_id": "6ac7e7644f6dc255a810117d",
+    "source": "IIPC Canada",
+    "compiler": "Muhammad Shaikh",
+    "category_id": 204,
+    "category_name": "Apni Pehchan",
+    "language": "hindi",
+    "total_lectures": 9
+  },
+  {
+    "_id": "6ac7e7644f6dc255a810117e",
+    "source": "IIPC Canada",
+    "compiler": "Muhammad Shaikh",
+    "category_id": 5,
+    "category_name": "Family Life",
+    "language": "eng",
+    "total_lectures": 6
+  },
+  {
+    "_id": "6ac7e7644f6dc255a810117f",
+    "source": "IIPC Canada",
+    "compiler": "Muhammad Shaikh",
+    "category_id": 105,
+    "category_name": "Gharelo Zindagi",
+    "language": "urdu",
+    "total_lectures": 6
+  },
+  {
+    "_id": "6ac7e7644f6dc255a8101180",
+    "source": "IIPC Canada",
+    "compiler": "Muhammad Shaikh",
+    "category_id": 205,
+    "category_name": "Gharelo Zindagi",
+    "language": "hindi",
+    "total_lectures": 6
+  },
+  {
+    "_id": "6ac7e7644f6dc255a8101181",
+    "source": "IIPC Canada",
+    "compiler": "Muhammad Shaikh",
+    "category_id": 6,
+    "category_name": "How to Manage Money",
+    "language": "eng",
+    "total_lectures": 3
+  },
+  {
+    "_id": "6ac7e7644f6dc255a8101182",
+    "source": "IIPC Canada",
+    "compiler": "Muhammad Shaikh",
+    "category_id": 106,
+    "category_name": "Maal ka istamal",
+    "language": "urdu",
+    "total_lectures": 4
+  },
+  {
+    "_id": "6ac7e7644f6dc255a8101183",
+    "source": "IIPC Canada",
+    "compiler": "Muhammad Shaikh",
+    "category_id": 206,
+    "category_name": "Maal ka istamal",
+    "language": "hindi",
+    "total_lectures": 3
+  },
+  {
+    "_id": "6ac7e7644f6dc255a8101184",
+    "source": "IIPC Canada",
+    "compiler": "Muhammad Shaikh",
+    "category_id": 7,
+    "category_name": "Direction of Belief",
+    "language": "eng",
+    "total_lectures": 13
+  },
+  {
+    "_id": "6ac7e7644f6dc255a8101185",
+    "source": "IIPC Canada",
+    "compiler": "Muhammad Shaikh",
+    "category_id": 107,
+    "category_name": "Iman ki simt",
+    "language": "urdu",
+    "total_lectures": 14
+  },
+  {
+    "_id": "6ac7e7644f6dc255a8101186",
+    "source": "IIPC Canada",
+    "compiler": "Muhammad Shaikh",
+    "category_id": 207,
+    "category_name": "Iman ki simt",
+    "language": "hindi",
+    "total_lectures": 13
+  },
+  {
+    "_id": "6ac7e7644f6dc255a8101187",
+    "source": "IIPC Canada",
+    "compiler": "Muhammad Shaikh",
+    "category_id": 8,
+    "category_name": "Govern ourselves by the governing verses",
+    "language": "eng",
+    "total_lectures": 9
+  },
+  {
+    "_id": "6ac7e7644f6dc255a8101188",
+    "source": "IIPC Canada",
+    "compiler": "Muhammad Shaikh",
+    "category_id": 108,
+    "category_name": "Ahkam wali ayat se apny uper Hakomat",
+    "language": "urdu",
+    "total_lectures": 10
+  },
+  {
+    "_id": "6ac7e7644f6dc255a8101189",
+    "source": "IIPC Canada",
+    "compiler": "Muhammad Shaikh",
+    "category_id": 208,
+    "category_name": "Ahkam wali ayat se apny uper Hakomat",
+    "language": "hindi",
+    "total_lectures": 8
+  }
+]

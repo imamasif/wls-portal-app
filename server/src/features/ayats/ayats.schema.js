@@ -1,0 +1,86 @@
+// server/src/features/ayats/ayats.schema.js
+
+const videoUrlFieldType = {
+  anyOf: [
+    { type: "string" },
+    { type: "array", items: { type: "string" } },
+  ],
+};
+
+const stringArrayFieldType = {
+  type: "array",
+  items: { type: "string" },
+};
+
+export const createAyatSchema = {
+  type: "object",
+  properties: {
+    category_id_ref: { type: ["string", "number"] },
+    lecture_id: { type: ["string", "number"] },
+    surah_number: { type: "number", minimum: 1, maximum: 114 },
+    surah_name: { type: "string" },
+    ayat_number: { type: "number", minimum: 1 },
+    arabic_text: { type: "string" },
+    english_translation: { type: "string" },
+    urdu_translation: { type: "string" },
+    hindi_translation: { type: "string" },
+    points_notes_eng: { type: "string" },
+    points_notes_urdu: { type: "string" },
+    points_notes_hindi: { type: "string" },
+    quest_answer: { type: "boolean" },
+    question_text: { type: "string" },
+    video_url_eng: videoUrlFieldType,
+    youtube_url_eng: videoUrlFieldType,
+    facebook_url_eng: { type: "string" },
+    video_url_urdu: videoUrlFieldType,
+    youtube_url_urdu: videoUrlFieldType,
+    facebook_url_urdu: { type: "string" },
+    video_urls: stringArrayFieldType,
+    youtube_urls: stringArrayFieldType,
+    youtube_urls_eng: stringArrayFieldType,
+    youtube_urls_urdu: stringArrayFieldType,
+    video_urls_eng: stringArrayFieldType,
+    video_urls_urdu: stringArrayFieldType,
+    ayat_image_eng_url: { type: "string" },
+    ayat_image_urdu_url: { type: "string" },
+    ayat_image_hindi_url: { type: "string" },
+  },
+  required: ["lecture_id", "surah_number", "ayat_number"],
+  additionalProperties: true,
+};
+
+export const updateAyatSchema = {
+  type: "object",
+  properties: {
+    category_id_ref: { type: ["string", "number"] },
+    lecture_id: { type: ["string", "number"] },
+    surah_number: { type: "number", minimum: 1, maximum: 114 },
+    surah_name: { type: "string" },
+    ayat_number: { type: "number", minimum: 1 },
+    arabic_text: { type: "string" },
+    english_translation: { type: "string" },
+    urdu_translation: { type: "string" },
+    hindi_translation: { type: "string" },
+    points_notes_eng: { type: "string" },
+    points_notes_urdu: { type: "string" },
+    points_notes_hindi: { type: "string" },
+    quest_answer: { type: "boolean" },
+    question_text: { type: "string" },
+    video_url_eng: videoUrlFieldType,
+    youtube_url_eng: videoUrlFieldType,
+    facebook_url_eng: { type: "string" },
+    video_url_urdu: videoUrlFieldType,
+    youtube_url_urdu: videoUrlFieldType,
+    facebook_url_urdu: { type: "string" },
+    video_urls: stringArrayFieldType,
+    youtube_urls: stringArrayFieldType,
+    youtube_urls_eng: stringArrayFieldType,
+    youtube_urls_urdu: stringArrayFieldType,
+    video_urls_eng: stringArrayFieldType,
+    video_urls_urdu: stringArrayFieldType,
+    ayat_image_eng_url: { type: "string" },
+    ayat_image_urdu_url: { type: "string" },
+    ayat_image_hindi_url: { type: "string" },
+  },
+  additionalProperties: true,
+};

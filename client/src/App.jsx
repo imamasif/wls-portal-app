@@ -24,7 +24,12 @@ import { WlsAttendanceMonitoringPanel } from "./features/wls-attendance-monitori
 import { WlsClassAttendancePanel } from "./features/wls-attendance-monitoring/components/WlsClassAttendancePanel";
 import { StickyNotesPanel } from "./features/sticky-notes/components/StickyNotesPanel";
 import QuranVerseMemorizerPanel from "./features/quran-reference-memorizer/components/QuranVerseMemorizerPanel";
+import { QuranStickyNotesExplorer } from "./features/quran-reference-memorizer/components/QuranStickyNotesExplorer";
+import { AyatManagerView } from "./features/quran-reference-memorizer/components/AyatManagerView";
+import { QuranLectureReferenceNotebook } from "./features/quran-reference-memorizer/components/QuranLectureReferenceNotebook";
 import { SuperUserAssessmentOverview } from "./features/wls-assessment/components/SuperUserAssessmentOverview";
+
+
 
 import {
   QuizListScreen,
@@ -168,7 +173,18 @@ export default function App() {
           {activeTab === AppTab.QURAN_MEMORIZER && (
             <QuranVerseMemorizerPanel user={user} />
           )}
+          {activeTab === AppTab.QURAN_EXPLORER && (
+            <QuranStickyNotesExplorer user={user} />
+          )}
+          {activeTab === AppTab.QURAN_NOTEBOOK && (
+            <QuranLectureReferenceNotebook user={user} />
+          )}
+          {activeTab === AppTab.AYAT_MANAGER && isSuperAdmin && (
+            <AyatManagerView user={user} />
+          )}
         </Container>
+
+
       </MainLayout>
     </MantineProvider>
   );

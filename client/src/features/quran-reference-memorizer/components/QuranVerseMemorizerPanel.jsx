@@ -1,16 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import {
-  Container,
-  Stack,
-  Group,
-  Text,
-  Button,
-} from "@mantine/core";
-import {
-  IconBookmark,
-  IconRefresh,
-  IconFilter,
-} from "@tabler/icons-react";
+import { Container, Stack, Group, Text, Button } from "@mantine/core";
+import { IconBookmark, IconRefresh, IconFilter } from "@tabler/icons-react";
 import {
   ChevronDown,
   Check,
@@ -33,7 +23,7 @@ import QuranHeader from "./Quran-Header";
 import VerseCard from "./VerseCard";
 import QuizControls from "./QuizControls";
 
-import { fetchRandomVerse } from "../api/quranApi";
+import { fetchRandomVerse, enrichAyahEditions } from "../api/quranApi";
 import { fetchCategoryLecturesMeta } from "../api/categoryLecturesApi";
 import { SURAH_LIST, LOCAL_PRESET_AYAT } from "../../../data/quranData";
 
@@ -254,24 +244,6 @@ const customStyles = `
       inset 0 2px 5px rgba(0, 0, 0, 0.35);
   }
 
-  /* Live Preview Cards */
-  .apple-lecture-card {
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(220, 226, 236, 0.85);
-    border-radius: 16px;
-    padding: 12px 16px;
-    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.02);
-  }
-
-  .apple-lecture-card:hover {
-    background: #ffffff;
-    box-shadow: 0 8px 22px rgba(0, 122, 255, 0.08);
-    transform: translateY(-2px);
-    border-color: rgba(0, 122, 255, 0.35);
-  }
-
   /* Badge Pill */
   .apple-pill {
     padding: 3px 9px;
@@ -311,7 +283,10 @@ const CustomMultiSelect = ({
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (containerRef.current && !containerRef.current.contains(event.target)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target)
+      ) {
         setIsOpen(false);
       }
     };
@@ -321,7 +296,8 @@ const CustomMultiSelect = ({
 
   const filteredOptions = useMemo(() => {
     return options.filter((opt) => {
-      const text = `${opt.label || ""} ${opt.title || ""} ${opt.instructor || ""} ${opt.categoryName || ""}`.toLowerCase();
+      const text =
+        `${opt.label || ""} ${opt.title || ""} ${opt.instructor || ""} ${opt.categoryName || ""}`.toLowerCase();
       return text.includes(searchQuery.toLowerCase());
     });
   }, [options, searchQuery]);
@@ -417,7 +393,9 @@ const CustomMultiSelect = ({
               overflow: "hidden",
             }}
           >
-            {Icon && <Icon size={18} color="#007AFF" style={{ flexShrink: 0 }} />}
+            {Icon && (
+              <Icon size={18} color="#007AFF" style={{ flexShrink: 0 }} />
+            )}
 
             {selectedObjects.length === 0 ? (
               <span
@@ -541,7 +519,9 @@ const CustomMultiSelect = ({
                       >
                         {option.label || option.title}
                       </div>
-                      {(option.instructor || option.categoryName || option.duration) && (
+                      {(option.instructor ||
+                        option.categoryName ||
+                        option.duration) && (
                         <div
                           style={{
                             fontSize: 11,
@@ -611,29 +591,33 @@ export default function QuranVerseMemorizerPanel() {
     });
   }, []);
 
-  // Compute unique and valid English categories
+  // Compute unique and valid categories (including both English and Urdu with ayats)
   const availableCategoryOptions = useMemo(() => {
     if (!Array.isArray(metaCategories)) return [];
     const list = [];
     metaCategories.forEach((cat) => {
       const lang = (cat.language || "eng").toLowerCase();
-      if (lang === "eng") {
-        const catId = String(cat.category_id ?? cat.categoryId ?? cat._id);
-        const catName =
-          cat.category_name ?? cat.categoryName ?? `Category ${catId}`;
-        const totalLectures =
-          cat.total_lectures ?? (cat.lectures ? cat.lectures.length : 0);
-        list.push({
-          id: catId,
-          _id: String(cat._id || catId),
-          label: catName,
-          title: catName,
-          icon: "📁",
-          instructor: `${totalLectures} lectures`,
-          duration: `${totalLectures} lectures`,
-          totalLectures,
-        });
-      }
+      const catId = String(cat.category_id ?? cat.categoryId ?? cat._id);
+      const catName =
+        cat.category_name ?? cat.categoryName ?? `Category ${catId}`;
+      const totalLectures =
+        cat.total_lectures ?? (cat.lectures ? cat.lectures.length : 0);
+
+      if (totalLectures === 0 && (!cat.lectures || cat.lectures.length === 0))
+        return;
+
+      const langTag = lang === "urdu" ? " [Urdu]" : "";
+      list.push({
+        id: catId,
+        _id: String(cat._id || catId),
+        label: `${catName}${langTag}`,
+        title: `${catName}${langTag}`,
+        language: lang,
+        icon: lang === "urdu" ? "📗" : "📁",
+        instructor: `${totalLectures} lectures (${lang.toUpperCase()})`,
+        duration: `${totalLectures} lectures`,
+        totalLectures,
+      });
     });
     return list;
   }, [metaCategories]);
@@ -646,12 +630,9 @@ export default function QuranVerseMemorizerPanel() {
 
     metaCategories.forEach((cat) => {
       const lang = (cat.language || "eng").toLowerCase();
-      if (lang !== "eng") return;
-
       const catId = String(cat.category_id ?? cat.categoryId ?? cat._id);
       const isCategorySelected =
-        selectedCategoryIds.length === 0 ||
-        selectedCategoryIds.includes(catId);
+        selectedCategoryIds.length === 0 || selectedCategoryIds.includes(catId);
 
       if (isCategorySelected) {
         const booklets = cat.booklets || cat.lectures || [];
@@ -659,26 +640,28 @@ export default function QuranVerseMemorizerPanel() {
           const lNum = b.lecture_id ?? b.lectureId ?? b.id;
           const uniqueId = String(b._id || b.id || `cat_${catId}_lec_${lNum}`);
           const lName =
-            b.lecture_name ?? b.lectureName ?? b.name ?? `Lecture ${lNum}`;
+            (Array.isArray(b.lecture_name) ? b.lecture_name[0] : b.lecture_name) ?? b.lectureName ?? b.name ?? `Lecture ${lNum}`;
           const count =
             b.ayat_count ??
             b.total_ayats ??
             (b.ayat_references ? b.ayat_references.length : 0);
 
+          const langTag = lang === "urdu" ? " [Urdu]" : "";
           lectures.push({
             id: uniqueId,
             uniqueId,
             categoryId: catId,
             categoryName: cat.category_name || `Category ${catId}`,
-            title: lName,
-            label: `${lName} (${count} ayat)`,
+            language: lang,
+            title: `${lName}${langTag}`,
+            label: `${lName}${langTag} (${count} ayat)`,
             lectureNumber: lNum,
             totalAyats: count,
             duration: `${count} ayat`,
             instructor: cat.category_name || "IIPC Canada",
             year: b.year_delivered || "",
             level: `${count} ayat`,
-            icon: "📖",
+            icon: lang === "urdu" ? "📗" : "📖",
             rawLecture: b,
           });
         });
@@ -734,7 +717,7 @@ export default function QuranVerseMemorizerPanel() {
           surahNumber: ayat.surah_number,
           ayatNumber: ayat.ayat_number,
           english_translation: eng,
-          translation: eng,
+          translation: eng || urdu || hindi,
           urdu_translation: urdu,
           translationUrdu: urdu,
           hindi_translation: hindi,
@@ -743,10 +726,14 @@ export default function QuranVerseMemorizerPanel() {
             ayat.points_notes ||
             ayat.points_notes_eng ||
             ayat.points_notes_urdu ||
+            ayat.points_notes_hindi ||
             "",
           audioUrl:
             ayat.youtube_url_eng ||
+            ayat.youtube_url_urdu ||
             ayat.youtube_url ||
+            ayat.video_url_eng ||
+            ayat.video_url_urdu ||
             ayat.video_url ||
             "",
           lectureTitle: lec.title,
@@ -762,84 +749,9 @@ export default function QuranVerseMemorizerPanel() {
     setSelectedLectureIds([]);
   };
 
-  // Fetch missing translations & audio from Al-Quran Cloud API on demand
+  // Fetch missing translations & audio via backend proxy (eliminates CORS and handles failovers)
   const enrichTranslationsIfNeeded = async (ayahData) => {
-    const sNo = ayahData.surahNo || ayahData.surahNumber;
-    const aNo = ayahData.ayahNo || ayahData.ayatNumber;
-    if (!sNo || !aNo) return ayahData;
-
-    const needsArabic = !ayahData.arabic || ayahData.arabic.trim() === "";
-    const needsEng =
-      !ayahData.translation || ayahData.translation.trim() === "";
-    const needsUrdu =
-      !ayahData.translationUrdu || ayahData.translationUrdu.trim() === "";
-    const needsHindi =
-      !ayahData.translationHindi || ayahData.translationHindi.trim() === "";
-    const needsAudio = !ayahData.audioUrl;
-
-    if (!needsArabic && !needsEng && !needsUrdu && !needsHindi && !needsAudio) {
-      return ayahData;
-    }
-
-    const updated = { ...ayahData };
-
-    try {
-      const editionsList = [];
-      if (needsArabic) editionsList.push("quran-uthmani");
-      if (needsEng) editionsList.push("en.sahih");
-      if (needsUrdu) editionsList.push("ur.jalandhry");
-      if (needsHindi) editionsList.push("hi.hindi");
-      editionsList.push("ar.alafasy");
-
-      const res = await fetch(
-        `https://api.alquran.cloud/v1/ayah/${sNo}:${aNo}/editions/${editionsList.join(",")}`,
-      );
-      const json = await res.json();
-
-      if (json.code === 200 && Array.isArray(json.data)) {
-        json.data.forEach((item) => {
-          if (
-            item.edition.identifier === "quran-uthmani" &&
-            (!updated.arabic || updated.arabic.trim() === "")
-          ) {
-            updated.arabic = item.text;
-          }
-          if (
-            item.edition.identifier === "en.sahih" &&
-            (!updated.translation || updated.translation.trim() === "")
-          ) {
-            updated.english_translation = item.text;
-            updated.translation = item.text;
-          }
-          if (
-            item.edition.identifier === "ur.jalandhry" &&
-            (!updated.translationUrdu || updated.translationUrdu.trim() === "")
-          ) {
-            updated.urdu_translation = item.text;
-            updated.translationUrdu = item.text;
-          }
-          if (
-            item.edition.identifier === "hi.hindi" &&
-            (!updated.translationHindi ||
-              updated.translationHindi.trim() === "")
-          ) {
-            updated.hindi_translation = item.text;
-            updated.translationHindi = item.text;
-          }
-          if (item.edition.format === "audio" && !updated.audioUrl) {
-            updated.audioUrl = item.audio;
-          }
-        });
-      }
-
-      if (!updated.audioUrl) {
-        updated.audioUrl = `https://cdn.islamic.network/quran/audio/128/ar.alafasy/${sNo}/${aNo}.mp3`;
-      }
-    } catch (err) {
-      console.error("Error fetching missing verse editions from API:", err);
-    }
-
-    return updated;
+    return await enrichAyahEditions(ayahData);
   };
 
   const loadNextAyah = async () => {
@@ -1022,7 +934,7 @@ export default function QuranVerseMemorizerPanel() {
                   {dataSource === "live"
                     ? "Full Quran API"
                     : dataSource === "preset"
-                      ? "Preset Deck"
+                      ? ""
                       : `MongoDB Lectures (${customLectureAyatPool.length} Ayat Loaded)`}
                 </strong>
               </Text>
@@ -1060,7 +972,10 @@ export default function QuranVerseMemorizerPanel() {
 
           {/* APPLE EMBOSSED INTERACTIVE CURRICULUM STUDIO */}
           {isStudioOpen && (
-            <div className="apple-container" style={{ width: "100%", maxWidth: "100%", marginBottom: "1rem" }}>
+            <div
+              className="apple-container"
+              style={{ width: "100%", maxWidth: "100%", marginBottom: "1rem" }}
+            >
               <div className="apple-embossed-card" style={{ width: "100%" }}>
                 {/* Card Header */}
                 <div
@@ -1071,7 +986,9 @@ export default function QuranVerseMemorizerPanel() {
                     marginBottom: 20,
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div
+                    style={{ display: "flex", alignItems: "center", gap: 12 }}
+                  >
                     <div
                       style={{
                         width: 38,
@@ -1202,7 +1119,8 @@ export default function QuranVerseMemorizerPanel() {
                         padding: "4px 12px",
                       }}
                     >
-                      {customLectureAyatPool.length} Verses Ready ({displayLectures.length} Lectures)
+                      {customLectureAyatPool.length} Verses Ready (
+                      {displayLectures.length} Lectures)
                     </span>
                   </div>
 
@@ -1219,7 +1137,9 @@ export default function QuranVerseMemorizerPanel() {
                           setTimeout(() => setLaunchSuccess(false), 2500);
                         }, 400);
                       }}
-                      disabled={isLaunching || customLectureAyatPool.length === 0}
+                      disabled={
+                        isLaunching || customLectureAyatPool.length === 0
+                      }
                     >
                       {isLaunching ? (
                         <span>Preparing Practice Session...</span>
@@ -1230,7 +1150,10 @@ export default function QuranVerseMemorizerPanel() {
                         </>
                       ) : (
                         <>
-                          <span>Start Learning Session ({customLectureAyatPool.length} Verses)</span>
+                          <span>
+                            Start Learning Session (
+                            {customLectureAyatPool.length} Verses)
+                          </span>
                           <ArrowRight size={18} />
                         </>
                       )}

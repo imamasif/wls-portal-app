@@ -1,6 +1,7 @@
 export class CategoryResDto {
   constructor(data) {
     this.id = data._id;
+    this._id = data._id;
     this.source = data.source;
     this.compiler = data.compiler;
     this.language = data.language;

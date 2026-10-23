@@ -7,6 +7,12 @@ export enum UserRole {
   USER = "USER",
 }
 
+export const USER_ROLES = {
+  SUPER_USER: "SUPER_USER",
+  WLS_ADMIN: "WLS_ADMIN",
+  USER: "USER",
+} as const;
+
 export enum AssessmentStatus {
   PENDING = "PENDING",
   SUBMITTED = "SUBMITTED",
@@ -16,7 +22,51 @@ export enum AssessmentStatus {
   COMPLETED = "COMPLETED",
 }
 
-export type SessionStatus = "NEW" | "ACTIVE" | "POSTPONED" | "COMPLETED";
+export const ASSESSMENT_STATUSES = {
+  PENDING: "PENDING",
+  SUBMITTED: "SUBMITTED",
+  UNDER_REVIEW: "UNDER_REVIEW",
+  PARTIAL_SAVED: "PARTIAL_SAVED",
+  REVIEWED: "REVIEWED",
+  COMPLETED: "COMPLETED",
+} as const;
+
+export enum ConclusionStatus {
+  PENDING = "PENDING",
+  PASSED = "PASSED",
+  FAILED = "FAILED",
+}
+
+export const CONCLUSION_STATUSES = {
+  PENDING: "PENDING",
+  PASSED: "PASSED",
+  FAILED: "FAILED",
+} as const;
+
+export enum WlsSessionStatus {
+  NEW = "NEW",
+  ACTIVE = "ACTIVE",
+  INACTIVE = "INACTIVE",
+  COMPLETED = "COMPLETED",
+}
+
+export const WLS_SESSION_STATUSES = {
+  NEW: "NEW",
+  ACTIVE: "ACTIVE",
+  INACTIVE: "INACTIVE",
+  COMPLETED: "COMPLETED",
+} as const;
+
+export type SessionStatus = "NEW" | "ACTIVE" | "INACTIVE" | "POSTPONED" | "COMPLETED";
+
+export enum QuestionType {
+  SINGLE_SELECT = "SINGLE_SELECT",
+  MULTI_SELECT = "MULTI_SELECT",
+  TRUE_FALSE = "TRUE_FALSE",
+  TEXT_INPUT = "TEXT_INPUT",
+  SEQUENCE_ORDER = "SEQUENCE_ORDER",
+}
+
 
 /**
  * Social Media Link Interface
@@ -99,4 +149,9 @@ export enum AppTab {
   STICKY_NOTES = "sticky-notes",
   QURAN_MEMORIZER = "quran-memorizer",
   QURAN_TREE = "quran-tree",
+  QURAN_EXPLORER = "quran-explorer",
+  AYAT_MANAGER = "ayat-manager",
+  QURAN_NOTEBOOK = "quran-notebook",
 }
+
+
