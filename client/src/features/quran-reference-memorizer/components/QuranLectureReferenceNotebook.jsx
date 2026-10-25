@@ -43,6 +43,8 @@ import {
   Volume2,
   List,
   Download,
+  ThumbsUp,
+  Headphones,
 } from "lucide-react";
 import {
   IconBook,
@@ -80,6 +82,18 @@ const CATEGORY_PALETTES = [
   "#ea580c", // Orange
   "#0284c7", // Sky
 ];
+
+// 4 Cute Happy Reactions that pop around on circular click: Thumb, Hear, Love, Spread
+const CUTE_REACTIONS = [
+  { id: "thumb", label: "Thumb", icon: ThumbsUp, emoji: "👍", color: "#2563eb", bg: "#eff6ff", glow: "rgba(37, 99, 235, 0.4)" },
+  { id: "hear", label: "Hear", icon: Headphones, emoji: "👂", color: "#7c3aed", bg: "#f5f3ff", glow: "rgba(124, 58, 237, 0.4)" },
+  { id: "love", label: "Love", icon: Heart, emoji: "❤️", color: "#db2777", bg: "#fdf2f8", glow: "rgba(219, 39, 119, 0.4)", fill: true },
+  { id: "spread", label: "Spread", icon: Sparkles, emoji: "🌟", color: "#d97706", bg: "#fffbeb", glow: "rgba(217, 119, 6, 0.4)", fill: true },
+];
+
+// PROVISION: Ayat Images display flag
+// Set to true once server populates ayat_image_eng_url, ayat_image_urdu_url, ayat_image_hindi_url
+const SHOW_AYAT_IMAGES = false;
 
 /**
  * Normalizes all possible video sources on an ayat into a clean array of unique string URLs.
@@ -320,6 +334,12 @@ export function QuranLectureReferenceNotebook({ user }) {
   const [isFetchingLiveArabic, setIsFetchingLiveArabic] = useState(false);
   const [liveArabicText, setLiveArabicText] = useState("");
 
+  // Citations & Attached Clips Modal: { verse, citations }
+  const [activeCitationsModal, setActiveCitationsModal] = useState(null);
+
+  // Active Reaction Picker Popover lecture ID
+  const [openReactionLectureId, setOpenReactionLectureId] = useState(null);
+
   // Active Video Player Modal: { title, url }
   const [activeVideoModal, setActiveVideoModal] = useState(null);
 
@@ -424,10 +444,47 @@ export function QuranLectureReferenceNotebook({ user }) {
     return Array.isArray(currentSeason.episodes) ? currentSeason.episodes : [];
   }, [currentSeason]);
 
-  // Handle Like toggle
+  // Handle circular click to toggle popover showing 4 cute reactions (Thumb, Hear, Love, Spread)
+  const handleCircularLikeClick = (id, e) => {
+    if (e) e.stopPropagation();
+    setOpenReactionLectureId((prev) => (prev === id ? null : id));
+  };
+
+  // Choose reaction or toggle off if clicked again
+  const handleSelectReaction = (id, reaction, e) => {
+    if (e) e.stopPropagation();
+    const existing = likedMap[id];
+    if (existing && (existing.id === reaction.id || (existing === true && reaction.id === "love"))) {
+      setLikedMap((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    } else {
+      setLikedMap((prev) => ({
+        ...prev,
+        [id]: reaction,
+      }));
+    }
+    setOpenReactionLectureId(null);
+  };
+
+  // Legacy fallback toggle if needed
   const handleLikeToggle = (id, e) => {
     if (e) e.stopPropagation();
-    setLikedMap((prev) => ({ ...prev, [id]: !prev[id] }));
+    const existing = likedMap[id];
+    if (existing) {
+      setLikedMap((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    } else {
+      setLikedMap((prev) => ({
+        ...prev,
+        [id]: CUTE_REACTIONS[2], // default to love
+      }));
+    }
   };
 
   // Open orbital action modal
@@ -612,6 +669,53 @@ export function QuranLectureReferenceNotebook({ user }) {
     return list;
   };
 
+  // Global map indexing all occurrences of every verse across ALL categories & languages (English, Urdu, Hindi)
+  const verseCitationsMap = useMemo(() => {
+    const map = new Map();
+    if (!Array.isArray(metaCategories)) return map;
+
+    metaCategories.forEach((cat) => {
+      const catLang = (cat.language || "eng").toLowerCase();
+      const lectures = cat.lectures || [];
+
+      lectures.forEach((lec) => {
+        const ayats = lec.ayat_references || [];
+        ayats.forEach((ayat) => {
+          if (!isValidQuranicVerse(ayat)) return;
+          const key = `${ayat.surah_number}:${ayat.ayat_number}`;
+
+          if (!map.has(key)) {
+            map.set(key, []);
+          }
+
+          const vList = getAyatVideoList(ayat);
+          map.get(key).push({
+            category_id: String(cat._id || cat.category_id || ""),
+            category_name: cat.category_name || "General Category",
+            language: catLang,
+            lecture_id: String(lec._id || lec.lecture_id || ""),
+            lecture_number: lec.lecture_id,
+            lecture_name: getLectureName(lec.lecture_name),
+            lecture_names: getLectureAllNames(lec.lecture_name),
+            season: lec.season || "",
+            episode: lec.episode || "",
+            year_delivered: lec.year_delivered || "",
+            video_urls: vList,
+            video_url: vList[0] || "",
+            points_notes: ayat.points_notes_eng || ayat.points_notes_urdu || ayat.points_notes || "",
+            question_text: ayat.question_text || "",
+            quest_answer: ayat.quest_answer || false,
+            ayat_image_eng_url: ayat.ayat_image_eng_url || "",
+            ayat_image_urdu_url: ayat.ayat_image_urdu_url || "",
+            ayat_image_hindi_url: ayat.ayat_image_hindi_url || "",
+          });
+        });
+      });
+    });
+
+    return map;
+  }, [metaCategories]);
+
   // Verses inside current active lecture
   const currentLectureVerses = useMemo(() => {
     if (!activeLecture) return [];
@@ -701,7 +805,9 @@ export function QuranLectureReferenceNotebook({ user }) {
 
   // Click on any verse row to open Modal & fetch Arabic from Quran API proxy
   const handleOpenAyatModal = async (verse) => {
-    setActiveAyatModal(verse);
+    const cKey = `${verse.surah_number}:${verse.ayat_number}`;
+    const citations = verse.citations || verseCitationsMap.get(cKey) || [];
+    setActiveAyatModal({ ...verse, citations });
     setLiveArabicText(verse.arabic_text || "");
 
     if (verse.surah_number && verse.ayat_number) {
@@ -851,6 +957,140 @@ export function QuranLectureReferenceNotebook({ user }) {
           font-family: 'Nafees', 'Jameel Noori Nastaleeq', 'Urdu Typesetting', serif;
           direction: rtl;
           text-align: right;
+        }
+
+        /* 3D Real PDF Icon Button */
+        .pdf-3d-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 7px;
+          background: linear-gradient(180deg, #ef4444 0%, #dc2626 50%, #b91c1c 100%);
+          color: #ffffff !important;
+          font-weight: 800;
+          font-size: 12px;
+          padding: 6px 14px;
+          border-radius: 12px;
+          border: 1px solid #b91c1c;
+          border-bottom: 3.5px solid #7f1d1d;
+          box-shadow: 0 4px 10px rgba(220, 38, 38, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+          cursor: pointer;
+          transition: all 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+          user-select: none;
+          outline: none;
+        }
+        .pdf-3d-btn:hover {
+          background: linear-gradient(180deg, #f87171 0%, #ef4444 50%, #dc2626 100%);
+          box-shadow: 0 6px 14px rgba(220, 38, 38, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+          transform: translateY(-1.5px);
+        }
+        .pdf-3d-btn:active {
+          transform: translateY(2.5px);
+          border-bottom: 1px solid #7f1d1d;
+          box-shadow: 0 1px 3px rgba(220, 38, 38, 0.4), inset 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        .pdf-badge-icon {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          background: #ffffff;
+          color: #dc2626;
+          font-weight: 900;
+          font-size: 9px;
+          letter-spacing: 0.5px;
+          padding: 2px 5px;
+          border-radius: 5px;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+          line-height: 1;
+        }
+
+        /* 3D Circular Reaction Button & Cute Floating Aura Popover */
+        .circular-like-btn {
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
+          border: 1.5px solid;
+          border-bottom: 3px solid rgba(0, 0, 0, 0.18);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+          outline: none;
+          position: relative;
+          user-select: none;
+        }
+        .circular-like-btn:hover {
+          transform: translateY(-2px) scale(1.08);
+          box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15) !important;
+        }
+        .circular-like-btn:active {
+          transform: translateY(2px) scale(0.96);
+          border-bottom-width: 1px;
+        }
+
+        .reaction-aura-popover {
+          position: absolute;
+          bottom: calc(100% + 10px);
+          left: 50%;
+          transform: translateX(-50%);
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 6px 10px;
+          background: ${isDark ? "#1e1f23" : "#ffffff"};
+          border-radius: 30px;
+          box-shadow: 0 12px 28px -4px rgba(0, 0, 0, 0.3), 0 4px 8px -2px rgba(0, 0, 0, 0.15);
+          border: 1px solid ${isDark ? "#374151" : "#e2e8f0"};
+          z-index: 1000;
+          animation: popReactionIn 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes popReactionIn {
+          from {
+            opacity: 0;
+            transform: translateX(-50%) translateY(8px) scale(0.65);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0) scale(1);
+          }
+        }
+
+        .cute-reaction-btn {
+          width: 34px;
+          height: 34px;
+          border-radius: 50%;
+          border: 2px solid transparent;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+          position: relative;
+          outline: none;
+        }
+        .cute-reaction-btn:hover {
+          transform: scale(1.35) translateY(-3px) !important;
+          z-index: 10;
+        }
+        .cute-reaction-tooltip {
+          position: absolute;
+          bottom: calc(100% + 6px);
+          left: 50%;
+          transform: translateX(-50%);
+          background: rgba(0, 0, 0, 0.85);
+          color: #ffffff;
+          font-size: 10px;
+          font-weight: 700;
+          padding: 2px 7px;
+          border-radius: 6px;
+          white-space: nowrap;
+          pointer-events: none;
+          opacity: 0;
+          transition: opacity 0.15s ease;
+        }
+        .cute-reaction-btn:hover .cute-reaction-tooltip {
+          opacity: 1;
         }
       `}</style>
 
@@ -1295,31 +1535,83 @@ export function QuranLectureReferenceNotebook({ user }) {
                                 )}
                               </div>
 
-                              <Group gap="xs">
-                                {/* Like button */}
-                                <Button
-                                  size="xs"
-                                  radius="xl"
-                                  variant={likedMap[activeLecture._id || activeLecture.lecture_id] ? "light" : "default"}
-                                  color={likedMap[activeLecture._id || activeLecture.lecture_id] ? "pink" : "gray"}
-                                  leftSection={
-                                    <Heart
-                                      size={14}
-                                      fill={likedMap[activeLecture._id || activeLecture.lecture_id] ? "currentColor" : "none"}
-                                    />
-                                  }
-                                  onClick={(e) => handleLikeToggle(activeLecture._id || activeLecture.lecture_id, e)}
-                                >
-                                  {likedMap[activeLecture._id || activeLecture.lecture_id] ? "Liked" : "Like"}
-                                </Button>
+                              <Group gap="sm" align="center">
+                                {/* 3D Circular Reaction Button with 4 Cute Floating Icons */}
+                                <div style={{ position: "relative", display: "inline-block" }}>
+                                  {openReactionLectureId === (activeLecture._id || activeLecture.lecture_id) && (
+                                    <>
+                                      {/* Click outside backdrop */}
+                                      <div
+                                        style={{ position: "fixed", inset: 0, zIndex: 998 }}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setOpenReactionLectureId(null);
+                                        }}
+                                      />
+                                      {/* The 4 Cute Small Icons popping all around */}
+                                      <div className="reaction-aura-popover">
+                                        {CUTE_REACTIONS.map((r) => {
+                                          const IconComp = r.icon;
+                                          const isCurrent = likedMap[activeLecture._id || activeLecture.lecture_id]?.id === r.id;
+                                          return (
+                                            <button
+                                              key={r.id}
+                                              type="button"
+                                              className="cute-reaction-btn"
+                                              onClick={(e) => handleSelectReaction(activeLecture._id || activeLecture.lecture_id, r, e)}
+                                              title={`${r.label} (${r.emoji})`}
+                                              style={{
+                                                backgroundColor: r.bg,
+                                                color: r.color,
+                                                borderColor: isCurrent ? r.color : "transparent",
+                                                boxShadow: `0 4px 10px ${r.glow}`,
+                                                transform: isCurrent ? "scale(1.2)" : "scale(1)",
+                                              }}
+                                            >
+                                              <IconComp size={15} fill={r.fill || isCurrent ? "currentColor" : "none"} />
+                                              <span className="cute-reaction-tooltip">{r.label}</span>
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    </>
+                                  )}
 
-                                {/* PDF Booklet / Notes Button */}
-                                <Button
-                                  size="xs"
-                                  radius="xl"
-                                  color="teal"
-                                  variant="filled"
-                                  leftSection={<FileText size={14} />}
+                                  <button
+                                    type="button"
+                                    className="circular-like-btn"
+                                    onClick={(e) => handleCircularLikeClick(activeLecture._id || activeLecture.lecture_id, e)}
+                                    title={
+                                      likedMap[activeLecture._id || activeLecture.lecture_id]
+                                        ? `Reacted: ${likedMap[activeLecture._id || activeLecture.lecture_id]?.label || "Liked"} (Click to change)`
+                                        : "Click to react with love, hear, thumb, spread"
+                                    }
+                                    style={{
+                                      backgroundColor: likedMap[activeLecture._id || activeLecture.lecture_id]?.bg || (isDark ? "#2c2e33" : "#f8fafc"),
+                                      color: likedMap[activeLecture._id || activeLecture.lecture_id]?.color || (isDark ? "#94a3b8" : "#64748b"),
+                                      borderColor: likedMap[activeLecture._id || activeLecture.lecture_id]?.color || (isDark ? "#3f444e" : "#cbd5e1"),
+                                      boxShadow: likedMap[activeLecture._id || activeLecture.lecture_id]
+                                        ? `0 4px 12px ${likedMap[activeLecture._id || activeLecture.lecture_id]?.glow || "rgba(219,39,119,0.35)"}`
+                                        : "0 3px 6px rgba(0,0,0,0.06)",
+                                    }}
+                                  >
+                                    {(() => {
+                                      const rec = likedMap[activeLecture._id || activeLecture.lecture_id];
+                                      if (!rec) return <Heart size={16} />;
+                                      const IconComp = rec.icon || Heart;
+                                      return typeof IconComp === "function" ? (
+                                        <IconComp size={16} fill={rec.fill ? "currentColor" : "none"} />
+                                      ) : (
+                                        <span style={{ fontSize: 16 }}>{rec.emoji || "❤️"}</span>
+                                      );
+                                    })()}
+                                  </button>
+                                </div>
+
+                                {/* 3D Real PDF Icon Button with tactile click feel */}
+                                <button
+                                  type="button"
+                                  className="pdf-3d-btn"
                                   onClick={() => {
                                     const pdfUrl =
                                       activeLecture.pdf_link ||
@@ -1331,14 +1623,14 @@ export function QuranLectureReferenceNotebook({ user }) {
                                       openActionModal("pdf", activeLecture);
                                     }
                                   }}
-                                  style={{
-                                    backgroundColor: "#059669",
-                                    boxShadow: "0 4px 12px rgba(5, 150, 105, 0.35)",
-                                    fontWeight: 700,
-                                  }}
+                                  title="View Official PDF Booklet & Study Notes"
                                 >
-                                  {activeLecture.pdf_link || activeLecture.pdf_booklet_urls?.length ? "View PDF Booklet" : "Lecture Notes & PDF"}
-                                </Button>
+                                  <span className="pdf-badge-icon">PDF</span>
+                                  <span>
+                                    {activeLecture.pdf_link || activeLecture.pdf_booklet_urls?.length ? "PDF Booklet" : "Lecture Notes & PDF"}
+                                  </span>
+                                  <Download size={13} style={{ opacity: 0.9 }} />
+                                </button>
                               </Group>
                             </Group>
 
@@ -1604,10 +1896,9 @@ export function QuranLectureReferenceNotebook({ user }) {
                                       {!sortField && <IconArrowsSort size={12} color="#94a3b8" />}
                                     </Group>
                                   </Table.Th>
-                                  <Table.Th style={{ minWidth: 160 }}>Arabic Preview</Table.Th>
-                                  <Table.Th style={{ minWidth: 220 }}>Translation Preview</Table.Th>
+                                  <Table.Th style={{ minWidth: 280 }}>Translation Preview</Table.Th>
                                   <Table.Th style={{ width: 110, whiteSpace: "nowrap", textAlign: "center" }}>Video Clip(s)</Table.Th>
-                                  <Table.Th style={{ width: 85, textAlign: "center", whiteSpace: "nowrap" }}>Details</Table.Th>
+                                  <Table.Th style={{ width: 160, textAlign: "center", whiteSpace: "nowrap" }}>Lectures Cited & Clips</Table.Th>
                                 </Table.Tr>
                               </Table.Thead>
                               <Table.Tbody>
@@ -1618,13 +1909,16 @@ export function QuranLectureReferenceNotebook({ user }) {
                                     <Table.Tr
                                       key={verse._id || idx}
                                       className="excel-row"
-                                      onClick={() =>
+                                      onClick={() => {
+                                        const cKey = `${verse.surah_number}:${verse.ayat_number}`;
+                                        const citations = verseCitationsMap.get(cKey) || [];
                                         handleOpenAyatModal({
                                           ...verse,
+                                          citations,
                                           category_name: activeCategory?.category_name,
                                           lecture_name: getLectureName(activeLecture?.lecture_name),
-                                        })
-                                      }
+                                        });
+                                      }}
                                     >
                                       <Table.Td style={{ textAlign: "center", color: "#64748b", fontWeight: 600 }}>
                                         {idx + 1}
@@ -1649,18 +1943,8 @@ export function QuranLectureReferenceNotebook({ user }) {
                                       </Table.Td>
 
                                       <Table.Td>
-                                        <Text
-                                          className="arabic-calligraphy"
-                                          lineClamp={1}
-                                          style={{ fontSize: 14, color: "#059669" }}
-                                        >
-                                          {verse.arabic_text || "Click to fetch Arabic..."}
-                                        </Text>
-                                      </Table.Td>
-
-                                      <Table.Td>
-                                        <Text size="xs" c="dark.7" lineClamp={1}>
-                                          {verse.english_translation || verse.urdu_translation || "Click to view full translation"}
+                                        <Text size="xs" c="dark.7" lineClamp={2} style={{ lineHeight: 1.5 }}>
+                                          {verse.english_translation || verse.urdu_translation || "Click row to view full Arabic & translation"}
                                         </Text>
                                       </Table.Td>
 
@@ -1721,15 +2005,38 @@ export function QuranLectureReferenceNotebook({ user }) {
                                         )}
                                       </Table.Td>
 
-                                      <Table.Td style={{ textAlign: "center", whiteSpace: "nowrap", width: "1%" }}>
-                                        <Button
-                                          size="compact-xs"
-                                          variant="subtle"
-                                          color="blue"
-                                          rightSection={<IconEye size={12} />}
-                                        >
-                                          View
-                                        </Button>
+                                      {/* Replaces "View" with "Lectures Cited & Clips" */}
+                                      <Table.Td
+                                        onClick={(e) => e.stopPropagation()}
+                                        style={{ textAlign: "center", whiteSpace: "nowrap", width: "1%" }}
+                                      >
+                                        {(() => {
+                                          const cKey = `${verse.surah_number}:${verse.ayat_number}`;
+                                          const citations = verseCitationsMap.get(cKey) || [];
+                                          const count = citations.length || 1;
+                                          const hasUrdu = citations.some((c) => c.language === "urdu");
+                                          const hasEng = citations.some((c) => c.language === "eng");
+
+                                          return (
+                                            <Button
+                                              size="compact-xs"
+                                              variant={count > 1 ? "filled" : "light"}
+                                              color={count > 1 ? "indigo" : "blue"}
+                                              leftSection={<Layers size={11} />}
+                                              onClick={() => setActiveCitationsModal({ verse, citations })}
+                                              title={`Cited in ${count} lecture(s) across English & Urdu (Click to view lectures and clips)`}
+                                              style={{
+                                                fontWeight: 700,
+                                                fontSize: 11,
+                                                borderRadius: 12,
+                                                boxShadow: count > 1 ? "0 2px 6px rgba(79, 70, 229, 0.25)" : "none",
+                                              }}
+                                            >
+                                              {count} {count === 1 ? "Lecture" : "Lectures"}
+                                              {hasEng && hasUrdu ? " (Eng & Urdu)" : hasUrdu ? " (Urdu)" : ""}
+                                            </Button>
+                                          );
+                                        })()}
                                       </Table.Td>
                                     </Table.Tr>
                                   );
@@ -1781,11 +2088,10 @@ export function QuranLectureReferenceNotebook({ user }) {
                                   <Table.Thead>
                                     <Table.Tr>
                                       <Table.Th style={{ minWidth: 120, width: "1%", whiteSpace: "nowrap" }}>Surah# : Ayat#</Table.Th>
-                                      <Table.Th style={{ minWidth: 160 }}>Arabic Preview</Table.Th>
-                                      <Table.Th style={{ minWidth: 200 }}>Translation</Table.Th>
+                                      <Table.Th style={{ minWidth: 260 }}>Translation</Table.Th>
                                       <Table.Th>Cited in Lectures & Categories</Table.Th>
                                       <Table.Th style={{ width: 100, textAlign: "center" }}>Video(s)</Table.Th>
-                                      <Table.Th style={{ width: 85, textAlign: "center" }}>Details</Table.Th>
+                                      <Table.Th style={{ width: 110, textAlign: "center", whiteSpace: "nowrap" }}>Citations</Table.Th>
                                     </Table.Tr>
                                   </Table.Thead>
                                   <Table.Tbody>
@@ -1813,13 +2119,7 @@ export function QuranLectureReferenceNotebook({ user }) {
                                           </Table.Td>
 
                                           <Table.Td>
-                                            <Text className="arabic-calligraphy" style={{ fontSize: 13, color: "#065f46" }} lineClamp={1}>
-                                              {v.arabic_text || "Click to fetch Arabic..."}
-                                            </Text>
-                                          </Table.Td>
-
-                                          <Table.Td>
-                                            <Text size="xs" c="dark.6" lineClamp={1}>
+                                            <Text size="xs" c="dark.6" lineClamp={2} style={{ lineHeight: 1.5 }}>
                                               {v.english_translation || v.urdu_translation}
                                             </Text>
                                           </Table.Td>
@@ -1893,9 +2193,17 @@ export function QuranLectureReferenceNotebook({ user }) {
                                             )}
                                           </Table.Td>
 
-                                          <Table.Td style={{ textAlign: "center" }}>
-                                            <Button size="compact-xs" variant="subtle" color="blue" rightSection={<IconEye size={12} />}>
-                                              View
+                                          <Table.Td style={{ textAlign: "center", whiteSpace: "nowrap", width: "1%" }} onClick={(e) => e.stopPropagation()}>
+                                            <Button
+                                              size="compact-xs"
+                                              variant="light"
+                                              color="indigo"
+                                              leftSection={<Layers size={11} />}
+                                              onClick={() => setActiveCitationsModal({ verse: v, citations: v.occurrences })}
+                                              title="View cited lectures & video clips"
+                                              style={{ fontWeight: 700, fontSize: 11 }}
+                                            >
+                                              {v.occurrences.length} {v.occurrences.length === 1 ? "Lecture" : "Lectures"}
                                             </Button>
                                           </Table.Td>
                                         </Table.Tr>
@@ -1916,20 +2224,26 @@ export function QuranLectureReferenceNotebook({ user }) {
               {/* Right Side Ribbons (Categories of Selected Language) */}
               <Box
                 style={{
-                  width: 215,
+                  width: 235,
                   borderLeft: isDark ? "1px solid #2c2e33" : "1px solid #eef2f6",
-                  padding: "16px 0px 16px 10px",
+                  padding: "16px 6px 16px 16px",
                   background: isDark ? "#141517" : "#fafafa",
                   display: "flex",
                   flexDirection: "column",
-                  gap: 8,
+                  gap: 10,
                   overflowY: "auto",
                   maxHeight: 720,
+                  overflowX: "visible",
                 }}
               >
-                <Text size="10px" fw={800} c="dimmed" tt="uppercase" px="xs" style={{ letterSpacing: 1 }}>
-                  {activeLanguage.toUpperCase()} CATEGORIES
-                </Text>
+                <Group justify="space-between" px="xs" mb={2}>
+                  <Text size="10px" fw={800} c="dimmed" tt="uppercase" style={{ letterSpacing: 1 }}>
+                    {activeLanguage.toUpperCase()} CATEGORIES
+                  </Text>
+                  <Badge size="xs" variant="light" color="indigo" style={{ fontSize: 9 }}>
+                    {languageCategories.length}
+                  </Badge>
+                </Group>
 
                 {languageCategories.length === 0 ? (
                   <Text size="xs" c="dimmed" px="xs">
@@ -1947,33 +2261,69 @@ export function QuranLectureReferenceNotebook({ user }) {
                         onClick={() => handleCategoryChange(idx)}
                         style={{
                           position: "relative",
-                          backgroundColor: isSelected ? catColor : `${catColor}cc`,
+                          background: isSelected
+                            ? `linear-gradient(180deg, rgba(255,255,255,0.48) 0%, rgba(255,255,255,0.12) 35%, rgba(0,0,0,0.15) 65%, rgba(0,0,0,0.5) 100%), ${catColor}`
+                            : `${catColor}b5`,
                           color: "white",
-                          padding: "8px 10px",
-                          fontSize: 11,
-                          fontWeight: 700,
+                          padding: isSelected ? "10px 14px 10px 14px" : "7px 10px 7px 10px",
+                          fontSize: isSelected ? 12 : 10.5,
+                          fontWeight: isSelected ? 900 : 600,
                           cursor: "pointer",
                           clipPath: "polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 6px 50%)",
-                          filter: isSelected ? "drop-shadow(2px 4px 6px rgba(0,0,0,0.3))" : "none",
-                          transform: isSelected ? "translateX(-6px)" : "none",
-                          transition: "all 0.18s ease",
+                          boxShadow: isSelected
+                            ? "inset 0 2.5px 2px rgba(255,255,255,0.9), inset 0 -3px 3px rgba(0,0,0,0.55), inset 3px 0 2px rgba(255,255,255,0.4)"
+                            : "inset 0 1px 0 rgba(255,255,255,0.25)",
+                          filter: isSelected
+                            ? "drop-shadow(-8px 6px 14px rgba(0,0,0,0.55)) drop-shadow(0 0 6px rgba(255,255,255,0.4))"
+                            : "drop-shadow(1px 2px 3px rgba(0,0,0,0.12))",
+                          transform: isSelected ? "translateX(-14px) scale(1.08)" : "translateX(0) scale(0.97)",
+                          opacity: isSelected ? 1 : 0.82,
+                          zIndex: isSelected ? 30 : 1,
+                          transition: "all 0.22s cubic-bezier(0.16, 1, 0.3, 1)",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "space-between",
                         }}
                         title={cat.category_name}
                       >
-                        <span
+                        <Group gap={6} wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
+                          {isSelected && (
+                            <span
+                              style={{
+                                width: 7,
+                                height: 7,
+                                borderRadius: "50%",
+                                background: "#facc15",
+                                boxShadow: "0 0 8px #facc15",
+                                flexShrink: 0,
+                              }}
+                            />
+                          )}
+                          <span
+                            style={{
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              maxWidth: isSelected ? 135 : 120,
+                              textShadow: isSelected ? "0 1px 2px rgba(0,0,0,0.6)" : "none",
+                            }}
+                          >
+                            {cat.category_name}
+                          </span>
+                        </Group>
+
+                        <Badge
+                          size="xs"
+                          variant={isSelected ? "filled" : "white"}
+                          color={isSelected ? "yellow" : "dark"}
                           style={{
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            maxWidth: 130,
+                            marginRight: 6,
+                            fontSize: isSelected ? 10 : 9,
+                            fontWeight: 900,
+                            color: isSelected ? "#000000" : undefined,
+                            boxShadow: isSelected ? "0 2px 6px rgba(0,0,0,0.3)" : "none",
                           }}
                         >
-                          {cat.category_name}
-                        </span>
-                        <Badge size="xs" variant="white" color="dark" style={{ marginRight: 6, fontSize: 9 }}>
                           {lecCount}
                         </Badge>
                       </Box>
@@ -2077,6 +2427,128 @@ export function QuranLectureReferenceNotebook({ user }) {
               </Paper>
             )}
 
+            {/* PROVISION: Ayat Images (English, Urdu, Hindi) - Kept hidden for now until server images updated */}
+            {SHOW_AYAT_IMAGES && Boolean(activeAyatModal.ayat_image_eng_url || activeAyatModal.ayat_image_urdu_url || activeAyatModal.ayat_image_hindi_url) && (
+              <Paper p="sm" radius="md" withBorder style={{ background: isDark ? "#141517" : "#f8fafc" }}>
+                <Group justify="space-between" mb="xs">
+                  <Text size="xs" fw={700} c="dimmed">
+                    🖼️ Ayat Slide Image:
+                  </Text>
+                  <Badge size="xs" color="indigo" variant="light">Visual Reference</Badge>
+                </Group>
+                <Tabs defaultValue="eng_img" color="indigo" radius="sm">
+                  <Tabs.List mb="xs">
+                    {activeAyatModal.ayat_image_eng_url && <Tabs.Tab value="eng_img">English Image</Tabs.Tab>}
+                    {activeAyatModal.ayat_image_urdu_url && <Tabs.Tab value="urdu_img">Urdu Image</Tabs.Tab>}
+                    {activeAyatModal.ayat_image_hindi_url && <Tabs.Tab value="hindi_img">Hindi Image</Tabs.Tab>}
+                  </Tabs.List>
+                  {activeAyatModal.ayat_image_eng_url && (
+                    <Tabs.Panel value="eng_img">
+                      <div style={{ textAlign: "center", borderRadius: 8, overflow: "hidden", background: "#000" }}>
+                        <img
+                          src={activeAyatModal.ayat_image_eng_url}
+                          alt="Ayat English Slide"
+                          style={{ maxWidth: "100%", maxHeight: 360, objectFit: "contain" }}
+                        />
+                      </div>
+                    </Tabs.Panel>
+                  )}
+                  {activeAyatModal.ayat_image_urdu_url && (
+                    <Tabs.Panel value="urdu_img">
+                      <div style={{ textAlign: "center", borderRadius: 8, overflow: "hidden", background: "#000" }}>
+                        <img
+                          src={activeAyatModal.ayat_image_urdu_url}
+                          alt="Ayat Urdu Slide"
+                          style={{ maxWidth: "100%", maxHeight: 360, objectFit: "contain" }}
+                        />
+                      </div>
+                    </Tabs.Panel>
+                  )}
+                  {activeAyatModal.ayat_image_hindi_url && (
+                    <Tabs.Panel value="hindi_img">
+                      <div style={{ textAlign: "center", borderRadius: 8, overflow: "hidden", background: "#000" }}>
+                        <img
+                          src={activeAyatModal.ayat_image_hindi_url}
+                          alt="Ayat Hindi Slide"
+                          style={{ maxWidth: "100%", maxHeight: 360, objectFit: "contain" }}
+                        />
+                      </div>
+                    </Tabs.Panel>
+                  )}
+                </Tabs>
+              </Paper>
+            )}
+
+            {/* Cited in Lectures & Categories (Both English & Urdu) */}
+            {(() => {
+              const cKey = `${activeAyatModal.surah_number}:${activeAyatModal.ayat_number}`;
+              const citations = activeAyatModal.citations || verseCitationsMap.get(cKey) || [];
+              if (citations.length === 0) return null;
+
+              return (
+                <Paper p="sm" radius="md" withBorder style={{ background: isDark ? "#141517" : "#f8fafc", borderColor: isDark ? "#2c2e33" : "#e2e8f0" }}>
+                  <Group justify="space-between" mb="xs">
+                    <Group gap={6}>
+                      <Layers size={14} color="#4f46e5" />
+                      <Text size="xs" fw={800} c={isDark ? "white" : "dark.8"}>
+                        Cited in {citations.length} Lecture{citations.length === 1 ? "" : "s"} across Categories (English & Urdu):
+                      </Text>
+                    </Group>
+                    <Badge size="xs" color="indigo" variant="light">
+                      Lectures & Clips
+                    </Badge>
+                  </Group>
+
+                  <Stack gap="xs" style={{ maxHeight: 220, overflowY: "auto", paddingRight: 4 }}>
+                    {citations.map((cite, cIdx) => {
+                      const isEnglish = cite.language === "eng";
+                      const isUrdu = cite.language === "urdu";
+                      const langLabel = isEnglish ? "English" : isUrdu ? "Urdu" : cite.language;
+                      const langColor = isEnglish ? "blue" : isUrdu ? "green" : "orange";
+
+                      return (
+                        <Paper key={cIdx} p="xs" radius="sm" withBorder style={{ background: isDark ? "#1e1f23" : "#ffffff" }}>
+                          <Group justify="space-between" align="center" wrap="nowrap">
+                            <div style={{ minWidth: 0, flex: 1 }}>
+                              <Group gap={6} mb={2}>
+                                <Badge size="xs" color={langColor} variant="filled" style={{ fontSize: 9 }}>
+                                  {isEnglish ? "📘" : isUrdu ? "📗" : "📙"} {langLabel}
+                                </Badge>
+                                <Text size="10px" fw={700} c="dimmed">
+                                  {cite.category_name}
+                                </Text>
+                              </Group>
+                              <Text size="xs" fw={700} lineClamp={1}>
+                                Lec {cite.lecture_number}: {cite.lecture_name}
+                              </Text>
+                            </div>
+
+                            {cite.video_urls && cite.video_urls.length > 0 && (
+                              <Button
+                                size="compact-xs"
+                                color="red"
+                                variant="light"
+                                leftSection={<Play size={10} fill="currentColor" />}
+                                onClick={() =>
+                                  setActiveVideoModal({
+                                    title: `${cite.lecture_name} - Surah ${activeAyatModal.surah_number}:${activeAyatModal.ayat_number}`,
+                                    url: cite.video_urls[0],
+                                  })
+                                }
+                                style={{ flexShrink: 0 }}
+                              >
+                                Play Clip
+                              </Button>
+                            )}
+                          </Group>
+                        </Paper>
+                      );
+                    })}
+                  </Stack>
+                </Paper>
+              );
+            })()}
+
             {/* Video Clips Section */}
             {(() => {
               const vList = getAyatVideoList(activeAyatModal);
@@ -2147,6 +2619,165 @@ export function QuranLectureReferenceNotebook({ user }) {
                 </div>
               );
             })()}
+          </Stack>
+        )}
+      </Modal>
+
+      {/* CITATIONS & ATTACHED CLIPS MODAL (Shows in which lectures this verse came in English & Urdu) */}
+      <Modal
+        opened={!!activeCitationsModal}
+        onClose={() => setActiveCitationsModal(null)}
+        title={
+          activeCitationsModal && (
+            <Group gap="xs">
+              <Badge color="indigo" size="md" variant="filled" style={{ fontFamily: "monospace", fontWeight: 800 }}>
+                {formatVerseRef(activeCitationsModal.verse.surah_number, activeCitationsModal.verse.ayat_number)}
+              </Badge>
+              <Text fw={800} size="sm">
+                {activeCitationsModal.verse.surah_name || `Surah ${activeCitationsModal.verse.surah_number}`} — Cited in {activeCitationsModal.citations.length} Lecture{activeCitationsModal.citations.length === 1 ? "" : "s"}
+              </Text>
+            </Group>
+          )
+        }
+        size="lg"
+        centered
+        radius="lg"
+      >
+        {activeCitationsModal && (
+          <Stack gap="md">
+            {/* Translation Banner */}
+            <Paper p="sm" radius="md" style={{ background: isDark ? "#1f2937" : "#f1f5f9" }}>
+              <Text size="xs" fw={700} c="dimmed" mb={2}>
+                TRANSLATION REFERENCE:
+              </Text>
+              <Text size="xs" c={isDark ? "gray.2" : "dark.8"} style={{ lineHeight: 1.5 }}>
+                "{activeCitationsModal.verse.english_translation || activeCitationsModal.verse.urdu_translation || "Quranic verse"}"
+              </Text>
+            </Paper>
+
+            <Text size="xs" fw={700} c="dimmed">
+              ALL LECTURES & ATTACHED VIDEO CLIPS CITING THIS AYAT ({activeCitationsModal.citations.length}):
+            </Text>
+
+            <Stack gap="sm" style={{ maxHeight: 440, overflowY: "auto", paddingRight: 4 }}>
+              {activeCitationsModal.citations.map((cite, cIdx) => {
+                const isEnglish = cite.language === "eng";
+                const isUrdu = cite.language === "urdu";
+                const isHindi = cite.language === "hindi";
+                const langLabel = isEnglish ? "English" : isUrdu ? "Urdu" : isHindi ? "Hindi" : cite.language;
+                const langBadgeColor = isEnglish ? "blue" : isUrdu ? "green" : "orange";
+
+                return (
+                  <Paper
+                    key={cIdx}
+                    p="sm"
+                    radius="md"
+                    withBorder
+                    style={{
+                      background: isDark ? "#141517" : "#ffffff",
+                      borderColor: isDark ? "#374151" : "#e2e8f0",
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+                    }}
+                  >
+                    {/* Header: Category & Language Badges */}
+                    <Group justify="space-between" align="flex-start" mb="xs">
+                      <div>
+                        <Group gap={6} mb={3}>
+                          <Badge size="xs" color={langBadgeColor} variant="filled">
+                            {isEnglish ? "📘" : isUrdu ? "📗" : "📙"} {langLabel}
+                          </Badge>
+                          <Badge size="xs" color="gray" variant="light">
+                            {cite.category_name}
+                          </Badge>
+                          {cite.season && (
+                            <Badge size="xs" color="violet" variant="outline">
+                              {cite.season}
+                            </Badge>
+                          )}
+                          {cite.year_delivered && (
+                            <Text size="10px" c="dimmed">
+                              Yr {cite.year_delivered}
+                            </Text>
+                          )}
+                        </Group>
+                        <Text size="sm" fw={800} c={isDark ? "white" : "dark.8"}>
+                          Lecture {cite.lecture_number}: {cite.lecture_name}
+                        </Text>
+                        {cite.lecture_names?.length > 1 && (
+                          <Text size="10px" c="dimmed">
+                            AKA: {cite.lecture_names.slice(1).join(", ")}
+                          </Text>
+                        )}
+                      </div>
+
+                      {/* Jump button */}
+                      <Button
+                        size="compact-xs"
+                        variant="subtle"
+                        color="indigo"
+                        rightSection={<ChevronRight size={12} />}
+                        onClick={() => {
+                          handleLanguageChange(cite.language);
+                          const catIdx = metaCategories
+                            .filter((c) => (c.language || "eng").toLowerCase() === cite.language)
+                            .findIndex((c) => String(c._id || c.category_id) === cite.category_id || c.category_name === cite.category_name);
+                          if (catIdx !== -1) {
+                            setTimeout(() => {
+                              setActiveCategoryIndex(catIdx);
+                              const lecList = metaCategories.filter((c) => (c.language || "eng").toLowerCase() === cite.language)[catIdx]?.lectures || [];
+                              const lIdx = lecList.findIndex((l) => String(l._id || l.lecture_id) === cite.lecture_id || l.lecture_id === cite.lecture_number);
+                              if (lIdx !== -1) setActiveLectureIndex(lIdx);
+                            }, 220);
+                          }
+                          setActiveCitationsModal(null);
+                        }}
+                      >
+                        Open in Notebook
+                      </Button>
+                    </Group>
+
+                    {/* Attached Video Clips */}
+                    {cite.video_urls && cite.video_urls.length > 0 && (
+                      <Box mt="xs" p="xs" style={{ background: isDark ? "#1e1b4b22" : "#f8fafc", borderRadius: 8 }}>
+                        <Text size="11px" fw={700} c="red.8" mb={4}>
+                          Attached Video Clip(s):
+                        </Text>
+                        <Group gap="xs" wrap="wrap">
+                          {cite.video_urls.map((vUrl, vI) => {
+                            const ts = parseVideoTimestamps(vUrl);
+                            return (
+                              <Button
+                                key={vI}
+                                size="compact-xs"
+                                color="red"
+                                variant="filled"
+                                leftSection={<Play size={10} fill="currentColor" />}
+                                onClick={() =>
+                                  setActiveVideoModal({
+                                    title: `${cite.lecture_name} - Surah ${activeCitationsModal.verse.surah_number}:${activeCitationsModal.verse.ayat_number} (Clip ${vI + 1})`,
+                                    url: vUrl,
+                                  })
+                                }
+                                style={{ fontWeight: 700 }}
+                              >
+                                Play Clip {cite.video_urls.length > 1 ? `${vI + 1}` : ""} {ts ? `(${ts})` : ""}
+                              </Button>
+                            );
+                          })}
+                        </Group>
+                      </Box>
+                    )}
+
+                    {/* Notes or Questions if present */}
+                    {cite.points_notes && (
+                      <Text size="xs" c="dimmed" mt={6} style={{ fontStyle: "italic" }}>
+                        Notes: {cite.points_notes}
+                      </Text>
+                    )}
+                  </Paper>
+                );
+              })}
+            </Stack>
           </Stack>
         )}
       </Modal>
