@@ -669,10 +669,10 @@ export function QuranLectureReferenceNotebook({ user }) {
     return list;
   };
 
-  // Global map indexing all occurrences of every verse across ALL categories & languages (English, Urdu, Hindi)
+  // Global map indexing all unique occurrences of every verse merged by Lecture across Categories & languages
   const verseCitationsMap = useMemo(() => {
-    const map = new Map();
-    if (!Array.isArray(metaCategories)) return map;
+    const rawMap = new Map();
+    if (!Array.isArray(metaCategories)) return new Map();
 
     metaCategories.forEach((cat) => {
       const catLang = (cat.language || "eng").toLowerCase();
@@ -684,36 +684,79 @@ export function QuranLectureReferenceNotebook({ user }) {
           if (!isValidQuranicVerse(ayat)) return;
           const key = `${ayat.surah_number}:${ayat.ayat_number}`;
 
-          if (!map.has(key)) {
-            map.set(key, []);
+          if (!rawMap.has(key)) {
+            rawMap.set(key, new Map());
           }
 
+          const verseLecturesMap = rawMap.get(key);
+          const lecKey = `${catLang}_${String(cat._id || cat.category_id || "")}_${String(lec._id || lec.lecture_id || "")}`;
           const vList = getAyatVideoList(ayat);
-          map.get(key).push({
-            category_id: String(cat._id || cat.category_id || ""),
-            category_name: cat.category_name || "General Category",
-            language: catLang,
-            lecture_id: String(lec._id || lec.lecture_id || ""),
-            lecture_number: lec.lecture_id,
-            lecture_name: getLectureName(lec.lecture_name),
-            lecture_names: getLectureAllNames(lec.lecture_name),
-            season: lec.season || "",
-            episode: lec.episode || "",
-            year_delivered: lec.year_delivered || "",
-            video_urls: vList,
-            video_url: vList[0] || "",
-            points_notes: ayat.points_notes_eng || ayat.points_notes_urdu || ayat.points_notes || "",
-            question_text: ayat.question_text || "",
-            quest_answer: ayat.quest_answer || false,
-            ayat_image_eng_url: ayat.ayat_image_eng_url || "",
-            ayat_image_urdu_url: ayat.ayat_image_urdu_url || "",
-            ayat_image_hindi_url: ayat.ayat_image_hindi_url || "",
-          });
+
+          if (!verseLecturesMap.has(lecKey)) {
+            verseLecturesMap.set(lecKey, {
+              category_id: String(cat._id || cat.category_id || ""),
+              category_name: cat.category_name || "General Category",
+              language: catLang,
+              lecture_id: String(lec._id || lec.lecture_id || ""),
+              lecture_number: lec.lecture_id,
+              lecture_name: getLectureName(lec.lecture_name),
+              lecture_names: getLectureAllNames(lec.lecture_name),
+              season: lec.season || "",
+              episode: lec.episode || "",
+              year_delivered: lec.year_delivered || "",
+              video_urls: [...vList],
+              video_url: vList[0] || "",
+              notesList: ayat.points_notes_eng || ayat.points_notes_urdu || ayat.points_notes ? [ayat.points_notes_eng || ayat.points_notes_urdu || ayat.points_notes] : [],
+              questionsList: ayat.question_text ? [ayat.question_text] : [],
+              points_notes: ayat.points_notes_eng || ayat.points_notes_urdu || ayat.points_notes || "",
+              question_text: ayat.question_text || "",
+              quest_answer: ayat.quest_answer || false,
+              ayat_image_eng_url: ayat.ayat_image_eng_url || "",
+              ayat_image_urdu_url: ayat.ayat_image_urdu_url || "",
+              ayat_image_hindi_url: ayat.ayat_image_hindi_url || "",
+            });
+          } else {
+            // MERGE into existing lecture citation (show lecture ONCE, combine all clips)
+            const existing = verseLecturesMap.get(lecKey);
+
+            // Merge video URLs avoiding duplicates
+            vList.forEach((u) => {
+              if (u && !existing.video_urls.includes(u)) {
+                existing.video_urls.push(u);
+              }
+            });
+            if (!existing.video_url && existing.video_urls.length > 0) {
+              existing.video_url = existing.video_urls[0];
+            }
+
+            // Merge notes
+            const n = ayat.points_notes_eng || ayat.points_notes_urdu || ayat.points_notes;
+            if (n && !existing.notesList.includes(n)) {
+              existing.notesList.push(n);
+              existing.points_notes = existing.notesList.join(" • ");
+            }
+
+            // Merge questions
+            if (ayat.question_text && !existing.questionsList.includes(ayat.question_text)) {
+              existing.questionsList.push(ayat.question_text);
+              existing.question_text = existing.questionsList.join(" • ");
+            }
+
+            // Merge images if missing
+            if (!existing.ayat_image_eng_url && ayat.ayat_image_eng_url) existing.ayat_image_eng_url = ayat.ayat_image_eng_url;
+            if (!existing.ayat_image_urdu_url && ayat.ayat_image_urdu_url) existing.ayat_image_urdu_url = ayat.ayat_image_urdu_url;
+            if (!existing.ayat_image_hindi_url && ayat.ayat_image_hindi_url) existing.ayat_image_hindi_url = ayat.ayat_image_hindi_url;
+          }
         });
       });
     });
 
-    return map;
+    const resultMap = new Map();
+    rawMap.forEach((lecMap, verseKey) => {
+      resultMap.set(verseKey, Array.from(lecMap.values()));
+    });
+
+    return resultMap;
   }, [metaCategories]);
 
   // Verses inside current active lecture
@@ -762,22 +805,34 @@ export function QuranLectureReferenceNotebook({ user }) {
 
           const existing = verseMap.get(key);
           const vList = getAyatVideoList(ayat);
-          existing.occurrences.push({
-            category_id: String(cat._id || cat.category_id),
-            category_name: cat.category_name,
-            language: catLang,
-            lecture_id: String(lec._id || lec.lecture_id),
-            lecture_number: lec.lecture_id,
-            lecture_name: getLectureName(lec.lecture_name),
-            lecture_names: getLectureAllNames(lec.lecture_name),
-            season: lec.season || "",
-            episode: lec.episode || "",
-            year_delivered: lec.year_delivered,
-            video_url: vList[0] || "",
-            video_urls: vList,
-            points_notes:
-              ayat.points_notes_eng || ayat.points_notes_urdu || ayat.points_notes || "",
-          });
+          const lecKey = `${catLang}_${String(cat._id || cat.category_id)}_${String(lec._id || lec.lecture_id)}`;
+          const existingOcc = existing.occurrences.find((o) => o.key === lecKey);
+
+          if (!existingOcc) {
+            existing.occurrences.push({
+              key: lecKey,
+              category_id: String(cat._id || cat.category_id),
+              category_name: cat.category_name,
+              language: catLang,
+              lecture_id: String(lec._id || lec.lecture_id),
+              lecture_number: lec.lecture_id,
+              lecture_name: getLectureName(lec.lecture_name),
+              lecture_names: getLectureAllNames(lec.lecture_name),
+              season: lec.season || "",
+              episode: lec.episode || "",
+              year_delivered: lec.year_delivered,
+              video_url: vList[0] || "",
+              video_urls: [...vList],
+              points_notes:
+                ayat.points_notes_eng || ayat.points_notes_urdu || ayat.points_notes || "",
+            });
+          } else {
+            vList.forEach((u) => {
+              if (u && !existingOcc.video_urls.includes(u)) {
+                existingOcc.video_urls.push(u);
+              }
+            });
+          }
         });
       });
     });
@@ -2523,22 +2578,31 @@ export function QuranLectureReferenceNotebook({ user }) {
                               </Text>
                             </div>
 
+                            {/* Attached Video Clips for this Lecture */}
                             {cite.video_urls && cite.video_urls.length > 0 && (
-                              <Button
-                                size="compact-xs"
-                                color="red"
-                                variant="light"
-                                leftSection={<Play size={10} fill="currentColor" />}
-                                onClick={() =>
-                                  setActiveVideoModal({
-                                    title: `${cite.lecture_name} - Surah ${activeAyatModal.surah_number}:${activeAyatModal.ayat_number}`,
-                                    url: cite.video_urls[0],
-                                  })
-                                }
-                                style={{ flexShrink: 0 }}
-                              >
-                                Play Clip
-                              </Button>
+                              <Group gap={6} wrap="wrap">
+                                {cite.video_urls.map((vUrl, vI) => {
+                                  const ts = parseVideoTimestamps(vUrl);
+                                  return (
+                                    <Button
+                                      key={vI}
+                                      size="compact-xs"
+                                      color="red"
+                                      variant={cite.video_urls.length > 1 ? "filled" : "light"}
+                                      leftSection={<Play size={10} fill="currentColor" />}
+                                      onClick={() =>
+                                        setActiveVideoModal({
+                                          title: `${cite.lecture_name} - Surah ${activeAyatModal.surah_number}:${activeAyatModal.ayat_number} ${cite.video_urls.length > 1 ? `(Clip ${vI + 1})` : ""}`,
+                                          url: vUrl,
+                                        })
+                                      }
+                                      style={{ flexShrink: 0, fontWeight: 700 }}
+                                    >
+                                      {cite.video_urls.length === 1 ? "Play Clip" : `Clip ${vI + 1}`} {ts ? `(${ts})` : ""}
+                                    </Button>
+                                  );
+                                })}
+                              </Group>
                             )}
                           </Group>
                         </Paper>
@@ -2546,77 +2610,6 @@ export function QuranLectureReferenceNotebook({ user }) {
                     })}
                   </Stack>
                 </Paper>
-              );
-            })()}
-
-            {/* Video Clips Section */}
-            {(() => {
-              const vList = getAyatVideoList(activeAyatModal);
-              if (vList.length === 0) return null;
-              if (vList.length === 1) {
-                return (
-                  <Button
-                    fullWidth
-                    color="red"
-                    variant="filled"
-                    leftSection={<Play size={14} fill="currentColor" />}
-                    onClick={() =>
-                      setActiveVideoModal({
-                        title: `${getLectureName(activeAyatModal.lecture_name) || "Lecture"} - Surah ${activeAyatModal.surah_number}:${activeAyatModal.ayat_number}`,
-                        url: vList[0],
-                      })
-                    }
-                  >
-                    Watch Lecture Video Clip
-                  </Button>
-                );
-              }
-              return (
-                <div>
-                  <Text size="xs" fw={700} c="dimmed" mb={4}>
-                    Linked Video Clips ({vList.length}):
-                  </Text>
-                  <Stack gap={4}>
-                    {vList.map((url, i) => {
-                      const timeRange = parseVideoTimestamps(url);
-                      return (
-                        <Paper key={i} p="xs" withBorder radius="xs" style={{ background: "#f8fafc" }}>
-                          <Group justify="space-between">
-                            <div>
-                              <Group gap={6}>
-                                <Text size="xs" fw={700}>
-                                  Clip {i + 1}
-                                </Text>
-                                {timeRange && (
-                                  <Badge size="xs" color="blue" variant="light">
-                                    ⏱ {timeRange}
-                                  </Badge>
-                                )}
-                              </Group>
-                              <Text size="10px" c="dimmed" lineClamp={1} style={{ maxWidth: 300 }}>
-                                {url}
-                              </Text>
-                            </div>
-                            <Button
-                              size="compact-xs"
-                              color="red"
-                              variant="light"
-                              leftSection={<Play size={11} fill="currentColor" />}
-                              onClick={() =>
-                                setActiveVideoModal({
-                                  title: `${getLectureName(activeAyatModal.lecture_name) || "Lecture"} - Surah ${activeAyatModal.surah_number}:${activeAyatModal.ayat_number} (Clip ${i + 1})`,
-                                  url,
-                                })
-                              }
-                            >
-                              Watch
-                            </Button>
-                          </Group>
-                        </Paper>
-                      );
-                    })}
-                  </Stack>
-                </div>
               );
             })()}
           </Stack>
