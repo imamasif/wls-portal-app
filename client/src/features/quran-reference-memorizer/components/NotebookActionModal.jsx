@@ -10,8 +10,9 @@ import {
   Paper,
 } from "@mantine/core";
 import { FileText, BookOpen, Layers, Download, Play } from "lucide-react";
-import { getLectureName, formatVerseRef } from "./notebookUtils";
+import { getLectureName, formatVerseRef, getLectureIconUrl } from "./notebookUtils";
 import { PdfFileIcon } from "./PdfFileIcon";
+import { MediaIconBadge } from "./MediaIconBadge";
 
 export function NotebookActionModal({
   activeActionModal,
@@ -25,7 +26,13 @@ export function NotebookActionModal({
       onClose={onClose}
       title={
         actionModalLecture && (
-          <Group gap="xs">
+          <Group gap="xs" align="center">
+            <MediaIconBadge
+              src={getLectureIconUrl(actionModalLecture, actionModalLecture.language)}
+              alt={getLectureName(actionModalLecture.lecture_name)}
+              size={22}
+              type="lecture"
+            />
             {activeActionModal === "pdf" && <PdfFileIcon size={20} />}
             {activeActionModal === "verses" && <BookOpen size={18} color="#d97706" />}
             {activeActionModal === "episodes" && <Layers size={18} color="#4f46e5" />}

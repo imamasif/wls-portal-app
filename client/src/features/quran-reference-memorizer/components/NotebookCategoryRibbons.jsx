@@ -1,6 +1,7 @@
 import React from "react";
 import { Box, Group, Text, Badge } from "@mantine/core";
-import { CATEGORY_PALETTES } from "./notebookUtils";
+import { CATEGORY_PALETTES, getCategoryIconUrl } from "./notebookUtils";
+import { MediaIconBadge } from "./MediaIconBadge";
 
 export function NotebookCategoryRibbons({
   activeLanguage,
@@ -87,12 +88,18 @@ export function NotebookCategoryRibbons({
                     }}
                   />
                 )}
+                <MediaIconBadge
+                  src={getCategoryIconUrl(cat, activeLanguage)}
+                  alt={cat.category_name}
+                  size={isSelected ? 22 : 18}
+                  type="category"
+                />
                 <span
                   style={{
                     whiteSpace: "nowrap",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
-                    maxWidth: isSelected ? 135 : 120,
+                    maxWidth: isSelected ? 120 : 110,
                     textShadow: isSelected ? "0 1px 2px rgba(0,0,0,0.6)" : "none",
                   }}
                 >

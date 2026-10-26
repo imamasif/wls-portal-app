@@ -13,7 +13,9 @@ import {
   getAyatVideoList,
   getLectureName,
   formatVerseRef,
+  getCategoryIconUrl,
 } from "./notebookUtils";
+import { MediaIconBadge } from "./MediaIconBadge";
 
 export function NotebookChapterConcordanceView({
   chapterConcordance,
@@ -106,6 +108,14 @@ export function NotebookChapterConcordanceView({
                                 size="xs"
                                 color={occ.language === "urdu" ? "green" : "blue"}
                                 variant="light"
+                                leftSection={
+                                  <MediaIconBadge
+                                    src={getCategoryIconUrl({ category_name: occ.category_name }, occ.language)}
+                                    alt={occ.category_name}
+                                    size={12}
+                                    type="category"
+                                  />
+                                }
                                 style={{ textTransform: "none", fontWeight: 600 }}
                                 title={`${occ.category_name} - ${getLectureName(occ.lecture_name) || `Lecture ${occ.lecture_number}`}`}
                               >

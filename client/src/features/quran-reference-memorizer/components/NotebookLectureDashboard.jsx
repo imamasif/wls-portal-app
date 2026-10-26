@@ -23,8 +23,11 @@ import {
   getLectureName,
   getLectureAliases,
   CUTE_REACTIONS,
+  getCategoryIconUrl,
+  getLectureIconUrl,
 } from "./notebookUtils";
 import { PdfFileIcon } from "./PdfFileIcon";
+import { MediaIconBadge } from "./MediaIconBadge";
 
 export function NotebookLectureDashboard({
   activeCategory,
@@ -70,7 +73,13 @@ export function NotebookLectureDashboard({
         <div>
           <Group justify="space-between" align="flex-start" mb="sm">
             <div>
-              <Group gap={6} mb={4}>
+              <Group gap={6} mb={4} align="center">
+                <MediaIconBadge
+                  src={getCategoryIconUrl(activeCategory, activeCategory.language)}
+                  alt={activeCategory.category_name}
+                  size={20}
+                  type="category"
+                />
                 <Text size="11px" fw={700} c="indigo.6" tt="uppercase" style={{ letterSpacing: 0.5 }}>
                   {activeCategory.category_name}
                 </Text>
@@ -88,21 +97,31 @@ export function NotebookLectureDashboard({
                 )}
               </Group>
 
-              <Title order={3} style={{ fontWeight: 800, fontSize: "1.3rem", color: isDark ? "#ffffff" : "#1e293b" }}>
-                Lec {activeLecture.lecture_id}: {getLectureName(activeLecture.lecture_name)}
-              </Title>
-              {getLectureAliases(activeLecture.lecture_name).length > 0 && (
-                <Group gap={6} mt={6}>
-                  <Text size="xs" c="dimmed" fw={700}>
-                    Also Known As:
-                  </Text>
-                  {getLectureAliases(activeLecture.lecture_name).map((alias, aIdx) => (
-                    <Badge key={aIdx} size="sm" variant="light" color="indigo">
-                      {alias}
-                    </Badge>
-                  ))}
-                </Group>
-              )}
+              <Group gap="xs" align="center" wrap="nowrap">
+                <MediaIconBadge
+                  src={getLectureIconUrl(activeLecture, activeCategory.language)}
+                  alt={getLectureName(activeLecture.lecture_name)}
+                  size={36}
+                  type="lecture"
+                />
+                <div>
+                  <Title order={3} style={{ fontWeight: 800, fontSize: "1.3rem", color: isDark ? "#ffffff" : "#1e293b" }}>
+                    Lec {activeLecture.lecture_id}: {getLectureName(activeLecture.lecture_name)}
+                  </Title>
+                  {getLectureAliases(activeLecture.lecture_name).length > 0 && (
+                    <Group gap={6} mt={6}>
+                      <Text size="xs" c="dimmed" fw={700}>
+                        Also Known As:
+                      </Text>
+                      {getLectureAliases(activeLecture.lecture_name).map((alias, aIdx) => (
+                        <Badge key={aIdx} size="sm" variant="light" color="indigo">
+                          {alias}
+                        </Badge>
+                      ))}
+                    </Group>
+                  )}
+                </div>
+              </Group>
             </div>
 
             <Group gap="sm" align="center">
