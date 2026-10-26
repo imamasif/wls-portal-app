@@ -1,5 +1,39 @@
 import { normalizeAyatVideos } from "../ayats/ayats.res.js";
 
+export function normalizePdfUrls(l) {
+  if (!l) return [];
+  let items = [];
+  if (Array.isArray(l.pdf_url)) {
+    items = l.pdf_url;
+  } else if (typeof l.pdf_url === "string" && l.pdf_url.trim()) {
+    items = [{ title: l.pdf_title || "", url: l.pdf_url.trim() }];
+  } else if (l.pdf_url && typeof l.pdf_url === "object" && (l.pdf_url.url || l.pdf_url.title)) {
+    items = [l.pdf_url];
+  } else if (Array.isArray(l.pdf_booklet_urls) && l.pdf_booklet_urls.length > 0) {
+    items = l.pdf_booklet_urls;
+  } else if (typeof l.pdf_link === "string" && l.pdf_link.trim()) {
+    items = [{ title: l.pdf_title || "", url: l.pdf_link.trim() }];
+  }
+
+  return items
+    .map((item) => {
+      if (typeof item === "string" && item.trim()) {
+        return {
+          title: typeof l.pdf_title === "string" ? l.pdf_title.trim() : "",
+          url: item.trim(),
+        };
+      }
+      if (item && typeof item === "object") {
+        return {
+          title: typeof item.title === "string" ? item.title.trim() : "",
+          url: typeof item.url === "string" ? item.url.trim() : "",
+        };
+      }
+      return null;
+    })
+    .filter((item) => item && item.url);
+}
+
 export class CategoryMapper {
   static toResponse(doc) {
     const rawCategoryIcons = Array.isArray(doc.icon_url)
@@ -31,28 +65,19 @@ export class CategoryMapper {
           : l.lecture_name
           ? [l.lecture_name]
           : [];
-        const rawPdfUrls = Array.isArray(l.pdf_url)
-          ? l.pdf_url.filter(Boolean)
-          : typeof l.pdf_url === "string" && l.pdf_url.trim()
-          ? [l.pdf_url.trim()]
-          : Array.isArray(l.pdf_booklet_urls) && l.pdf_booklet_urls.length > 0
-          ? l.pdf_booklet_urls.filter(Boolean)
-          : typeof l.pdf_link === "string" && l.pdf_link.trim()
-          ? [l.pdf_link.trim()]
-          : [];
+        const rawPdfList = normalizePdfUrls(l);
+        const primaryPdf = rawPdfList[0] || { title: "", url: "" };
         const rawLectureIcons = Array.isArray(l.icon_url)
           ? l.icon_url.filter(Boolean)
           : typeof l.icon_url === "string" && l.icon_url.trim()
           ? [l.icon_url.trim()]
           : [];
-        const title = l.title || l.pdf_title || l.pdfTitle || "";
         return {
           _id: l._id,
           id: l._id,
           lecture_id: l.lecture_id,
           lecture_name: rawLectureNames,
           lecture_name_display: rawLectureNames[0] || "",
-          title,
           language: l.language,
           year_delivered: l.year_delivered || "",
           season: l.season || "",
@@ -64,10 +89,10 @@ export class CategoryMapper {
           full_lecture_video_url: l.full_lecture_video_url || "",
           seasons: l.seasons || [],
           episodes: l.episodes || l.episodesList || [],
-          pdf_url: rawPdfUrls,
-          pdf_link: rawPdfUrls[0] || "",
-          pdf_booklet_urls: rawPdfUrls,
-          pdf_title: title,
+          pdf_url: rawPdfList,
+          pdf_link: primaryPdf.url,
+          pdf_booklet_urls: rawPdfList.map((p) => p.url),
+          pdf_title: primaryPdf.title,
           icon_url: rawLectureIcons,
           total_ayats:
             l.total_ayats || (l.ayat_references ? l.ayat_references.length : 0),

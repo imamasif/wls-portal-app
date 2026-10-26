@@ -41,6 +41,14 @@ const ayatSchema = new mongoose.Schema(
   { strict: false },
 );
 
+const pdfItemSchema = new mongoose.Schema(
+  {
+    title: { type: String, default: "" },
+    url: { type: String, default: "" },
+  },
+  { _id: false },
+);
+
 const lectureSchema = new mongoose.Schema(
   {
     _id: { type: mongoose.Schema.Types.Mixed },
@@ -50,7 +58,6 @@ const lectureSchema = new mongoose.Schema(
     },
     lecture_id: { type: Number, required: true },
     lecture_name: { type: [String], required: true },
-    title: { type: String, default: "" },
     language: { type: String, default: "eng" },
     year_delivered: { type: String, default: "" },
     season: { type: String, default: "" },
@@ -62,7 +69,7 @@ const lectureSchema = new mongoose.Schema(
     full_lecture_video_url: { type: String, default: "" },
     seasons: { type: Array, default: [] },
     episodes: { type: Array, default: [] },
-    pdf_url: { type: [String], default: [] },
+    pdf_url: { type: [pdfItemSchema], default: [] },
     icon_url: { type: [String], default: [] },
     total_ayats: { type: Number, default: 0 },
   },

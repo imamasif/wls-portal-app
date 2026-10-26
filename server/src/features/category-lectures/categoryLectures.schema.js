@@ -25,7 +25,6 @@ export const categoryValidationSchema = {
               { type: "array", items: { type: "string" } },
             ],
           },
-          title: { type: "string" },
           language: { type: "string" },
           year_delivered: { type: "string" },
           season: { type: "string" },
@@ -36,7 +35,21 @@ export const categoryValidationSchema = {
           pdf_url: {
             anyOf: [
               { type: "string" },
-              { type: "array", items: { type: "string" } },
+              {
+                type: "array",
+                items: {
+                  anyOf: [
+                    { type: "string" },
+                    {
+                      type: "object",
+                      properties: {
+                        title: { type: "string" },
+                        url: { type: "string" },
+                      },
+                    },
+                  ],
+                },
+              },
             ],
           },
           pdf_title: { type: "string" },
