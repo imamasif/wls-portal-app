@@ -1,8 +1,9 @@
 import React from "react";
 import { Group, Text } from "@mantine/core";
 import { Play, FileText, BookOpen, Layers, Heart } from "lucide-react";
-import { getLectureName, getLectureAliases } from "./notebookUtils";
+import { getLectureName, getLectureAliases, getLectureIconUrl } from "./notebookUtils";
 import { PdfFileIcon } from "./PdfFileIcon";
+import { MediaIconBadge } from "./MediaIconBadge";
 
 export function NotebookLectureTabs({
   activeLectures,
@@ -127,6 +128,12 @@ export function NotebookLectureTabs({
                     outline: "none",
                   }}
                 >
+                  <MediaIconBadge
+                    src={getLectureIconUrl(lec, lec.language)}
+                    alt={getLectureName(lec.lecture_name)}
+                    size={20}
+                    type="lecture"
+                  />
                   <span style={{ fontWeight: isSelected ? 800 : 600 }}>
                     Lec {lec.lecture_id}: {getLectureName(lec.lecture_name)}
                   </span>

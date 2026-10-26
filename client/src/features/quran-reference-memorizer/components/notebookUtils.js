@@ -246,3 +246,88 @@ export const formatVerseRef = (surah, ayat) => {
   const a = String(ayat || 0).padStart(2, "0");
   return `${s}:${a}`;
 };
+
+/**
+ * PROVISION: Resolves the icon image URL for a category.
+ * Priority:
+ * 1. category.icon_url (string or array of strings)
+ * 2. Matches known category files in /iipc/{lang}/categories/
+ * 3. Sanitized fallback under /iipc/{lang}/categories/{name}.png
+ */
+export function getCategoryIconUrl(category, language = "eng") {
+  if (!category) return "";
+
+  // 1. Explicit icon_url from DB
+  const explicit = Array.isArray(category.icon_url)
+    ? category.icon_url[0]
+    : typeof category.icon_url === "string"
+    ? category.icon_url
+    : "";
+  if (explicit && explicit.trim()) {
+    return explicit.trim();
+  }
+
+  // 2. Normalized category matching under client/public/iipc/{lang}/categories
+  const name = (category.category_name || "").trim().toLowerCase();
+  const catId = Number(category.category_id || 0);
+
+  if (name.includes("identify") || name.includes("pehchano") || catId === 1 || catId === 101 || catId === 201) {
+    return "/iipc/eng/categories/02_Identify_Your_God.png";
+  }
+  if (name.includes("chosen") || name.includes("shakhsiyat") || catId === 2 || catId === 102 || catId === 202) {
+    return "/iipc/eng/categories/03_Chosen_Personalities.png";
+  }
+  if (name.includes("book of allah") || name.includes("kitab") || catId === 3 || catId === 103 || catId === 203) {
+    return "/iipc/eng/categories/06_Book_Of_Allah.png";
+  }
+  if (name.includes("know yourself") || name.includes("apni pehchan") || catId === 4 || catId === 104 || catId === 204) {
+    return "/iipc/eng/categories/05_Know_Yourself.png";
+  }
+  if (name.includes("discussion") || name.includes("family") || name.includes("gharelo") || catId === 5 || catId === 105 || catId === 205) {
+    return "/iipc/eng/categories/04_Discussions.png";
+  }
+  if (name.includes("wealth") || name.includes("money") || name.includes("maal") || catId === 6 || catId === 106 || catId === 206) {
+    return "/iipc/eng/categories/07_Use_Of_Wealth.png";
+  }
+  if (name.includes("faith") || name.includes("belief") || name.includes("iman") || catId === 7 || catId === 107 || catId === 207) {
+    return "/iipc/eng/categories/08_Direction_Of_Faith.png";
+  }
+  if (name.includes("muhammad shaikh") || name.includes("govern") || name.includes("hakomat") || catId === 8 || catId === 108 || catId === 208) {
+    return "/iipc/eng/categories/01_About_Muhammad_Shaikh.png";
+  }
+
+  const lang = (category.language || language || "eng").toLowerCase();
+  const sanitized = name.replace(/[^a-zA-Z0-9_-]/g, "_");
+  return `/iipc/${lang}/categories/${sanitized}.png`;
+}
+
+/**
+ * PROVISION: Resolves the icon image URL for a lecture.
+ * Priority:
+ * 1. lecture.icon_url (string or array of strings)
+ * 2. Assumed path under /iipc/{lang}/lectures/{lecId}_{name}.png
+ */
+export function getLectureIconUrl(lecture, language = "eng") {
+  if (!lecture) return "";
+
+  // 1. Explicit icon_url from DB
+  const explicit = Array.isArray(lecture.icon_url)
+    ? lecture.icon_url[0]
+    : typeof lecture.icon_url === "string"
+    ? lecture.icon_url
+    : "";
+  if (explicit && explicit.trim()) {
+    return explicit.trim();
+  }
+
+  // 2. Default directory resolution: /iipc/{lang}/lectures/
+  const lang = (lecture.language || language || "eng").toLowerCase();
+  const lecId = lecture.lecture_id;
+  const name = (lecture.lecture_name || "").trim().toLowerCase();
+  const sanitized = name.replace(/[^a-zA-Z0-9_-]/g, "_");
+
+  if (lecId != null) {
+    return `/iipc/${lang}/lectures/${lecId}_${sanitized}.png`;
+  }
+  return `/iipc/${lang}/lectures/${sanitized}.png`;
+}

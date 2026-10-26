@@ -40,8 +40,11 @@ import {
   getLectureAliases,
   getLectureAllNames,
   formatVerseRef,
+  getCategoryIconUrl,
+  getLectureIconUrl,
 } from "./notebookUtils";
 import { PdfFileIcon } from "./PdfFileIcon";
+import { MediaIconBadge } from "./MediaIconBadge";
 
 // Re-export utility functions & constants for seamless backward compatibility
 export {
@@ -57,7 +60,10 @@ export {
   getLectureAliases,
   getLectureAllNames,
   formatVerseRef,
+  getCategoryIconUrl,
+  getLectureIconUrl,
   PdfFileIcon,
+  MediaIconBadge,
 };
 
 export function QuranLectureReferenceNotebook({ user }) {
@@ -789,6 +795,17 @@ export function QuranLectureReferenceNotebook({ user }) {
         .pdf-doc-btn:active {
           transform: translateY(1.5px) scale(0.96);
           filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25));
+        }
+
+        /* 3D Media Icon Badges (Category & Lecture) */
+        .media-icon-badge-img,
+        .media-icon-badge-fallback {
+          transition: transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.16s ease;
+        }
+        .media-icon-badge-img:hover,
+        .media-icon-badge-fallback:hover {
+          transform: translateY(-1.5px) scale(1.08);
+          filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
         }
 
         /* 3D Real PDF Icon Button */

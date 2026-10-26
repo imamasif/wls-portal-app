@@ -13,7 +13,10 @@ import { Play, ChevronRight } from "lucide-react";
 import {
   formatVerseRef,
   parseVideoTimestamps,
+  getCategoryIconUrl,
+  getLectureIconUrl,
 } from "./notebookUtils";
+import { MediaIconBadge } from "./MediaIconBadge";
 
 export function NotebookCitationsModal({
   activeCitationsModal,
@@ -86,7 +89,19 @@ export function NotebookCitationsModal({
                         <Badge size="xs" color={langBadgeColor} variant="filled">
                           {isEnglish ? "📘" : isUrdu ? "📗" : "📙"} {langLabel}
                         </Badge>
-                        <Badge size="xs" color="gray" variant="light">
+                        <Badge
+                          size="xs"
+                          color="gray"
+                          variant="light"
+                          leftSection={
+                            <MediaIconBadge
+                              src={getCategoryIconUrl({ category_name: cite.category_name, language: cite.language }, cite.language)}
+                              alt={cite.category_name}
+                              size={14}
+                              type="category"
+                            />
+                          }
+                        >
                           {cite.category_name}
                         </Badge>
                         {cite.season && (
@@ -100,9 +115,17 @@ export function NotebookCitationsModal({
                           </Text>
                         )}
                       </Group>
-                      <Text size="sm" fw={800} c={isDark ? "white" : "dark.8"}>
-                        Lecture {cite.lecture_number}: {cite.lecture_name}
-                      </Text>
+                      <Group gap={6} align="center" wrap="nowrap">
+                        <MediaIconBadge
+                          src={getLectureIconUrl({ lecture_id: cite.lecture_number, lecture_name: cite.lecture_name, language: cite.language }, cite.language)}
+                          alt={cite.lecture_name}
+                          size={20}
+                          type="lecture"
+                        />
+                        <Text size="sm" fw={800} c={isDark ? "white" : "dark.8"}>
+                          Lecture {cite.lecture_number}: {cite.lecture_name}
+                        </Text>
+                      </Group>
                       {cite.lecture_names?.length > 1 && (
                         <Text size="10px" c="dimmed">
                           AKA: {cite.lecture_names.slice(1).join(", ")}
