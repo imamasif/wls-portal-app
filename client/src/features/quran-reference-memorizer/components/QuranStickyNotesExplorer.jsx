@@ -303,7 +303,8 @@ export function QuranStickyNotesExplorer({ user }) {
   // Helper to extract primary PDF booklet or study notes URL
   const getLecturePdfUrl = (lecture) => {
     if (!lecture) return null;
-    const urlFromArr = Array.isArray(lecture.pdf_url) ? lecture.pdf_url[0] : lecture.pdf_url;
+    const firstPdf = Array.isArray(lecture.pdf_url) ? lecture.pdf_url[0] : lecture.pdf_url;
+    const urlFromArr = typeof firstPdf === "object" ? firstPdf?.url : firstPdf;
     const urlFromBooklets = Array.isArray(lecture.pdf_booklet_urls) ? lecture.pdf_booklet_urls[0] : "";
     return (
       urlFromArr ||
@@ -1168,7 +1169,7 @@ export function QuranStickyNotesExplorer({ user }) {
                             fontWeight: 600,
                           }}
                         >
-                          {selectedLecture.title || selectedLecture.pdf_title || "View PDF Booklet & Notes"}
+                          {selectedLecture.pdf_url?.[0]?.title || selectedLecture.pdf_title || "View PDF Booklet & Notes"}
                         </Button>
                       ) : (
                         <Paper p="xs" radius="sm" style={{ background: "#f8fafc", border: "1px dashed #cbd5e1" }}>

@@ -7,6 +7,7 @@ import {
   AyatModel,
 } from "./categoryLectures.model.js";
 import { normalizeAyatVideos } from "../ayats/ayats.res.js";
+import { normalizePdfUrls } from "./categoryLectures.mapper.js";
 
 const ajv = new Ajv({ allErrors: true, allowUnionTypes: true });
 const validate = ajv.compile(categoryValidationSchema);
@@ -54,15 +55,7 @@ export class CategoryLecturesUsecase {
             ? [l.lecture_name.trim()]
             : [];
 
-          const rawPdfUrls = Array.isArray(l.pdf_url)
-            ? l.pdf_url.filter(Boolean)
-            : typeof l.pdf_url === "string" && l.pdf_url.trim()
-            ? [l.pdf_url.trim()]
-            : Array.isArray(l.pdf_booklet_urls) && l.pdf_booklet_urls.length > 0
-            ? l.pdf_booklet_urls.filter(Boolean)
-            : typeof l.pdf_link === "string" && l.pdf_link.trim()
-            ? [l.pdf_link.trim()]
-            : [];
+          const rawPdfList = normalizePdfUrls(l);
 
           const rawLectureIcons = Array.isArray(l.icon_url)
             ? l.icon_url.filter(Boolean)
@@ -70,13 +63,10 @@ export class CategoryLecturesUsecase {
             ? [l.icon_url.trim()]
             : [];
 
-          const title = l.title || l.pdf_title || l.pdfTitle || "";
-
           const lectureData = {
             category_id_ref: savedCategory._id,
             lecture_id: l.lecture_id,
             lecture_name: rawLectureNames,
-            title,
             language: l.language || "eng",
             year_delivered: l.year_delivered || "",
             season: l.season || "",
@@ -88,7 +78,7 @@ export class CategoryLecturesUsecase {
             full_lecture_video_url: l.full_lecture_video_url || "",
             seasons: l.seasons || [],
             episodes: l.episodes || l.episodesList || [],
-            pdf_url: rawPdfUrls,
+            pdf_url: rawPdfList,
             icon_url: rawLectureIcons,
             total_ayats: l.ayat_references ? l.ayat_references.length : 0,
           };
@@ -164,15 +154,8 @@ export class CategoryLecturesUsecase {
           ? [lecture.video_url]
           : [];
 
-        const rawPdfUrls = Array.isArray(lecture.pdf_url)
-          ? lecture.pdf_url.filter(Boolean)
-          : typeof lecture.pdf_url === "string" && lecture.pdf_url.trim()
-          ? [lecture.pdf_url.trim()]
-          : Array.isArray(lecture.pdf_booklet_urls) && lecture.pdf_booklet_urls.length > 0
-          ? lecture.pdf_booklet_urls.filter(Boolean)
-          : typeof lecture.pdf_link === "string" && lecture.pdf_link.trim()
-          ? [lecture.pdf_link.trim()]
-          : [];
+        const rawPdfList = normalizePdfUrls(lecture);
+        const primaryPdf = rawPdfList[0] || { title: "", url: "" };
 
         const rawLectureIcons = Array.isArray(lecture.icon_url)
           ? lecture.icon_url.filter(Boolean)
@@ -180,11 +163,8 @@ export class CategoryLecturesUsecase {
           ? [lecture.icon_url.trim()]
           : [];
 
-        const title = lecture.title || lecture.pdf_title || lecture.pdfTitle || "";
-
         return {
           ...lecture,
-          title,
           season: lecture.season || "",
           episode: lecture.episode || "",
           video_url: lecture.video_url || lecture.videoUrl || (rawVideoUrls[0] || ""),
@@ -194,10 +174,10 @@ export class CategoryLecturesUsecase {
           full_lecture_video_url: lecture.full_lecture_video_url || "",
           seasons: lecture.seasons || [],
           episodes: lecture.episodes || lecture.episodesList || [],
-          pdf_url: rawPdfUrls,
-          pdf_link: rawPdfUrls[0] || "",
-          pdf_booklet_urls: rawPdfUrls,
-          pdf_title: title,
+          pdf_url: rawPdfList,
+          pdf_link: primaryPdf.url,
+          pdf_booklet_urls: rawPdfList.map((p) => p.url),
+          pdf_title: primaryPdf.title,
           icon_url: rawLectureIcons,
           ayat_references: enrichedAyats,
         };
@@ -276,23 +256,14 @@ export class CategoryLecturesUsecase {
                 ? [lecture.video_url]
                 : [];
 
-              const rawPdfUrls = Array.isArray(lecture.pdf_url)
-                ? lecture.pdf_url.filter(Boolean)
-                : typeof lecture.pdf_url === "string" && lecture.pdf_url.trim()
-                ? [lecture.pdf_url.trim()]
-                : Array.isArray(lecture.pdf_booklet_urls) && lecture.pdf_booklet_urls.length > 0
-                ? lecture.pdf_booklet_urls.filter(Boolean)
-                : typeof lecture.pdf_link === "string" && lecture.pdf_link.trim()
-                ? [lecture.pdf_link.trim()]
-                : [];
+              const rawPdfList = normalizePdfUrls(lecture);
+              const primaryPdf = rawPdfList[0] || { title: "", url: "" };
 
               const rawLectureIcons = Array.isArray(lecture.icon_url)
                 ? lecture.icon_url.filter(Boolean)
                 : typeof lecture.icon_url === "string" && lecture.icon_url.trim()
                 ? [lecture.icon_url.trim()]
                 : [];
-
-              const title = lecture.title || lecture.pdf_title || lecture.pdfTitle || "";
 
               return {
                 _id: String(lecture._id),
@@ -301,7 +272,6 @@ export class CategoryLecturesUsecase {
                 category_id_ref: String(cat._id),
                 lecture_id: lecture.lecture_id,
                 lecture_name: lecture.lecture_name,
-                title,
                 language: lecture.language || cat.language || "eng",
                 year_delivered: lecture.year_delivered || "",
                 season: lecture.season || "",
@@ -313,10 +283,10 @@ export class CategoryLecturesUsecase {
                 full_lecture_video_url: lecture.full_lecture_video_url || "",
                 seasons: lecture.seasons || [],
                 episodes: lecture.episodes || lecture.episodesList || [],
-                pdf_url: rawPdfUrls,
-                pdf_link: rawPdfUrls[0] || "",
-                pdf_booklet_urls: rawPdfUrls,
-                pdf_title: title,
+                pdf_url: rawPdfList,
+                pdf_link: primaryPdf.url,
+                pdf_booklet_urls: rawPdfList.map((p) => p.url),
+                pdf_title: primaryPdf.title,
                 icon_url: rawLectureIcons,
                 ayat_count: enrichedAyats.length,
                 total_ayats: enrichedAyats.length,

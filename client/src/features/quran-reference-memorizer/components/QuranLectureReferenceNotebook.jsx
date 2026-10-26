@@ -1375,8 +1375,9 @@ export function QuranLectureReferenceNotebook({ user }) {
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
+                                const primaryPdf = Array.isArray(lec.pdf_url) ? lec.pdf_url[0] : lec.pdf_url;
                                 const pUrl =
-                                  (Array.isArray(lec.pdf_url) ? lec.pdf_url[0] : lec.pdf_url) ||
+                                  (typeof primaryPdf === "object" ? primaryPdf?.url : primaryPdf) ||
                                   lec.pdf_link ||
                                   (Array.isArray(lec.pdf_booklet_urls) ? lec.pdf_booklet_urls[0] : "");
                                 if (pUrl) {
@@ -1668,8 +1669,9 @@ export function QuranLectureReferenceNotebook({ user }) {
                                   type="button"
                                   className="pdf-3d-btn"
                                   onClick={() => {
+                                    const primaryPdf = Array.isArray(activeLecture.pdf_url) ? activeLecture.pdf_url[0] : activeLecture.pdf_url;
                                     const pdfUrl =
-                                      (Array.isArray(activeLecture.pdf_url) ? activeLecture.pdf_url[0] : activeLecture.pdf_url) ||
+                                      (typeof primaryPdf === "object" ? primaryPdf?.url : primaryPdf) ||
                                       activeLecture.pdf_link ||
                                       (Array.isArray(activeLecture.pdf_booklet_urls) ? activeLecture.pdf_booklet_urls[0] : "");
                                     if (pdfUrl) {
@@ -2924,36 +2926,50 @@ export function QuranLectureReferenceNotebook({ user }) {
                 </div>
                 <div>
                   <Title order={4}>
-                    {actionModalLecture.title || actionModalLecture.pdf_title || `${getLectureName(actionModalLecture.lecture_name)} - Study Notes`}
+                    {(Array.isArray(actionModalLecture.pdf_url) && actionModalLecture.pdf_url[0]?.title) ||
+                     actionModalLecture.pdf_title ||
+                     `${getLectureName(actionModalLecture.lecture_name)} - Study Notes`}
                   </Title>
                   <Text size="xs" c="dimmed" mt={4}>
                     Official Lecture Transcripts, Notes & Quranic Ayat Indices
                   </Text>
                 </div>
                 <Group justify="center" mt="sm">
-                  {actionModalLecture.pdf_link ||
-                   (Array.isArray(actionModalLecture.pdf_url) && actionModalLecture.pdf_url.length > 0) ||
-                   (typeof actionModalLecture.pdf_url === "string" && actionModalLecture.pdf_url.trim()) ||
-                   (Array.isArray(actionModalLecture.pdf_booklet_urls) && actionModalLecture.pdf_booklet_urls.length > 0) ? (
-                    <Button
-                      color="teal"
-                      radius="xl"
-                      leftSection={<Download size={15} />}
-                      onClick={() => {
-                        const pdfUrl =
-                          (Array.isArray(actionModalLecture.pdf_url) ? actionModalLecture.pdf_url[0] : actionModalLecture.pdf_url) ||
-                          actionModalLecture.pdf_link ||
-                          (Array.isArray(actionModalLecture.pdf_booklet_urls) ? actionModalLecture.pdf_booklet_urls[0] : "");
-                        window.open(pdfUrl, "_blank", "noopener,noreferrer");
-                      }}
-                    >
-                      Open PDF Booklet
-                    </Button>
-                  ) : (
-                    <Badge color="gray" size="md">
-                      PDF Booklet being digitized
-                    </Badge>
-                  )}
+                  {(() => {
+                    const rawList = Array.isArray(actionModalLecture.pdf_url)
+                      ? actionModalLecture.pdf_url
+                      : typeof actionModalLecture.pdf_url === "string" && actionModalLecture.pdf_url.trim()
+                      ? [{ title: actionModalLecture.pdf_title || "Open PDF Booklet", url: actionModalLecture.pdf_url.trim() }]
+                      : actionModalLecture.pdf_link
+                      ? [{ title: actionModalLecture.pdf_title || "Open PDF Booklet", url: actionModalLecture.pdf_link }]
+                      : Array.isArray(actionModalLecture.pdf_booklet_urls)
+                      ? actionModalLecture.pdf_booklet_urls.map((u) => ({ title: actionModalLecture.pdf_title || "Open PDF Booklet", url: u }))
+                      : [];
+
+                    const validPdfs = rawList.map((item) =>
+                      typeof item === "string" ? { title: "Open PDF Booklet", url: item } : item
+                    ).filter((p) => p && p.url);
+
+                    if (validPdfs.length === 0) {
+                      return (
+                        <Badge color="gray" size="md">
+                          PDF Booklet being digitized
+                        </Badge>
+                      );
+                    }
+
+                    return validPdfs.map((pdf, idx) => (
+                      <Button
+                        key={idx}
+                        color="teal"
+                        radius="xl"
+                        leftSection={<Download size={15} />}
+                        onClick={() => window.open(pdf.url, "_blank", "noopener,noreferrer")}
+                      >
+                        {pdf.title || (validPdfs.length > 1 ? `Open PDF Booklet ${idx + 1}` : "Open PDF Booklet")}
+                      </Button>
+                    ));
+                  })()}
                 </Group>
               </Stack>
             )}
