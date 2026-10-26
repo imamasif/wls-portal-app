@@ -41,6 +41,7 @@ import {
   getLectureAllNames,
   formatVerseRef,
 } from "./notebookUtils";
+import { PdfFileIcon } from "./PdfFileIcon";
 
 // Re-export utility functions & constants for seamless backward compatibility
 export {
@@ -56,6 +57,7 @@ export {
   getLectureAliases,
   getLectureAllNames,
   formatVerseRef,
+  PdfFileIcon,
 };
 
 export function QuranLectureReferenceNotebook({ user }) {
@@ -763,6 +765,30 @@ export function QuranLectureReferenceNotebook({ user }) {
           font-family: 'Nafees', 'Jameel Noori Nastaleeq', 'Urdu Typesetting', serif;
           direction: rtl;
           text-align: right;
+        }
+
+        /* 3D Real PDF Document SVG Icon Button */
+        .pdf-doc-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          background: transparent;
+          border: none;
+          padding: 2px;
+          cursor: pointer;
+          outline: none;
+          border-radius: 8px;
+          transition: transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.16s ease;
+          filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.18));
+          user-select: none;
+        }
+        .pdf-doc-btn:hover {
+          transform: translateY(-2.5px) scale(1.06);
+          filter: drop-shadow(0 8px 16px rgba(185, 59, 72, 0.4));
+        }
+        .pdf-doc-btn:active {
+          transform: translateY(1.5px) scale(0.96);
+          filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25));
         }
 
         /* 3D Real PDF Icon Button */

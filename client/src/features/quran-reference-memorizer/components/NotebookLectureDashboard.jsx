@@ -8,6 +8,7 @@ import {
   Button,
   Stack,
   ActionIcon,
+  Tooltip,
 } from "@mantine/core";
 import {
   Play,
@@ -23,6 +24,7 @@ import {
   getLectureAliases,
   CUTE_REACTIONS,
 } from "./notebookUtils";
+import { PdfFileIcon } from "./PdfFileIcon";
 
 export function NotebookLectureDashboard({
   activeCategory,
@@ -176,10 +178,23 @@ export function NotebookLectureDashboard({
                 </button>
               </div>
 
-              {/* 3D Real PDF Icon Button with tactile click feel */}
+              {/* Real 3D PDF Document SVG Icon Button with tactile click feel */}
+              <Tooltip
+                label={
+                  activeLecture.pdf_link ||
+                  (Array.isArray(activeLecture.pdf_url) ? activeLecture.pdf_url.length > 0 : activeLecture.pdf_url) ||
+                  activeLecture.pdf_booklet_urls?.length
+                    ? "Download / View PDF Booklet & Notes"
+                    : "PDF Booklet being digitized (Click to check)"
+                }
+                withArrow
+                position="top"
+                offset={6}
+              >
               <button
                 type="button"
-                className="pdf-3d-btn"
+                className="pdf-doc-btn"
+                aria-label="Download or View PDF Booklet"
                 onClick={() => {
                   const primaryPdf = Array.isArray(activeLecture.pdf_url) ? activeLecture.pdf_url[0] : activeLecture.pdf_url;
                   const pdfUrl =
@@ -192,16 +207,11 @@ export function NotebookLectureDashboard({
                     openActionModal("pdf", activeLecture);
                   }
                 }}
-                title="View Official PDF Booklet & Study Notes"
+                title="Download / View Official PDF Booklet & Notes"
               >
-                <span className="pdf-badge-icon">PDF</span>
-                <span>
-                  {activeLecture.pdf_link ||
-                   (Array.isArray(activeLecture.pdf_url) ? activeLecture.pdf_url.length > 0 : activeLecture.pdf_url) ||
-                   activeLecture.pdf_booklet_urls?.length ? "PDF Booklet" : "Lecture Notes & PDF"}
-                </span>
-                <Download size={13} style={{ opacity: 0.9 }} />
+                <PdfFileIcon size={42} />
               </button>
+            </Tooltip>
             </Group>
           </Group>
 
