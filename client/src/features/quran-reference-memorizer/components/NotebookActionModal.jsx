@@ -11,6 +11,7 @@ import {
 } from "@mantine/core";
 import { FileText, BookOpen, Layers, Download, Play } from "lucide-react";
 import { getLectureName, formatVerseRef } from "./notebookUtils";
+import { PdfFileIcon } from "./PdfFileIcon";
 
 export function NotebookActionModal({
   activeActionModal,
@@ -25,7 +26,7 @@ export function NotebookActionModal({
       title={
         actionModalLecture && (
           <Group gap="xs">
-            {activeActionModal === "pdf" && <FileText size={18} color="#059669" />}
+            {activeActionModal === "pdf" && <PdfFileIcon size={20} />}
             {activeActionModal === "verses" && <BookOpen size={18} color="#d97706" />}
             {activeActionModal === "episodes" && <Layers size={18} color="#4f46e5" />}
             <Text fw={700} size="sm">
@@ -48,7 +49,7 @@ export function NotebookActionModal({
                   width: 56,
                   height: 56,
                   borderRadius: 16,
-                  backgroundColor: "#d1fae5",
+                  backgroundColor: "#fee2e2",
                   color: "#059669",
                   display: "flex",
                   alignItems: "center",
@@ -56,7 +57,7 @@ export function NotebookActionModal({
                   margin: "0 auto",
                 }}
               >
-                <FileText size={30} />
+                <PdfFileIcon size={44} />
               </div>
               <div>
                 <Title order={4}>
@@ -95,9 +96,10 @@ export function NotebookActionModal({
                   return validPdfs.map((pdf, idx) => (
                     <Button
                       key={idx}
-                      color="teal"
+                      color="red"
+                      variant="light"
                       radius="xl"
-                      leftSection={<Download size={15} />}
+                      leftSection={<PdfFileIcon size={18} />}
                       onClick={() => window.open(pdf.url, "_blank", "noopener,noreferrer")}
                     >
                       {pdf.title || (validPdfs.length > 1 ? `Open PDF Booklet ${idx + 1}` : "Open PDF Booklet")}

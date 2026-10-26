@@ -2,6 +2,7 @@ import React from "react";
 import { Group, Text } from "@mantine/core";
 import { Play, FileText, BookOpen, Layers, Heart } from "lucide-react";
 import { getLectureName, getLectureAliases } from "./notebookUtils";
+import { PdfFileIcon } from "./PdfFileIcon";
 
 export function NotebookLectureTabs({
   activeLectures,
@@ -71,9 +72,9 @@ export function NotebookLectureTabs({
                     }}
                     title="View PDF Booklet & Notes"
                     className="orbital-btn"
-                    style={{ backgroundColor: "#059669" }}
+                    style={{ backgroundColor: "#b91c1c" }}
                   >
-                    <FileText size={13} />
+                    <PdfFileIcon size={14} />
                   </button>
 
                   {/* Linked Quran Verses Button */}
