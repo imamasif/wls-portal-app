@@ -6,6 +6,12 @@ export const categoryValidationSchema = {
     language: { type: "string" },
     category_id: { type: "number" },
     category_name: { type: "string" },
+    icon_url: {
+      anyOf: [
+        { type: "string" },
+        { type: "array", items: { type: "string" } },
+      ],
+    },
     total_lectures: { type: "number" },
     lectures: {
       type: "array",
@@ -19,6 +25,7 @@ export const categoryValidationSchema = {
               { type: "array", items: { type: "string" } },
             ],
           },
+          title: { type: "string" },
           language: { type: "string" },
           year_delivered: { type: "string" },
           season: { type: "string" },
@@ -26,8 +33,19 @@ export const categoryValidationSchema = {
           video_url: { type: "string" },
           video_urls: { type: "array", items: { type: "string" } },
           episodes: { type: "array" },
-          pdf_url: { type: "string" },
+          pdf_url: {
+            anyOf: [
+              { type: "string" },
+              { type: "array", items: { type: "string" } },
+            ],
+          },
           pdf_title: { type: "string" },
+          icon_url: {
+            anyOf: [
+              { type: "string" },
+              { type: "array", items: { type: "string" } },
+            ],
+          },
           total_ayats: { type: "number" },
           ayat_references: {
             type: "array",
