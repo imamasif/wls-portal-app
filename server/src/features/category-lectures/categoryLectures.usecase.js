@@ -127,7 +127,9 @@ export class CategoryLecturesUsecase {
       } catch (_) {}
     }
 
-    const lectures = await LectureModel.find({ $or: orLectures }).lean();
+    const lectures = await LectureModel.find({ $or: orLectures })
+      .sort({ lecture_id: 1 })
+      .lean();
 
     const lecturesWithAyats = await Promise.all(
       lectures.map(async (lecture) => {
@@ -138,7 +140,9 @@ export class CategoryLecturesUsecase {
             orAyats.push({ lecture_id: new mongoose.Types.ObjectId(lecStr) });
           } catch (_) {}
         }
-        const ayats = await AyatModel.find({ $or: orAyats }).lean();
+        const ayats = await AyatModel.find({ $or: orAyats })
+          .sort({ surah_number: 1, ayat_number: 1 })
+          .lean();
         const enrichedAyats = ayats.map((a) => {
           const norm = normalizeAyatVideos(a);
           return {
@@ -184,6 +188,13 @@ export class CategoryLecturesUsecase {
       }),
     );
 
+    lecturesWithAyats.sort((a, b) => {
+      const numA = Number(a.lecture_id) || 0;
+      const numB = Number(b.lecture_id) || 0;
+      if (numA !== numB) return numA - numB;
+      return String(a.lecture_name || "").localeCompare(String(b.lecture_name || ""));
+    });
+
     const rawCategoryIcons = Array.isArray(category.icon_url)
       ? category.icon_url.filter(Boolean)
       : typeof category.icon_url === "string" && category.icon_url.trim()
@@ -199,7 +210,8 @@ export class CategoryLecturesUsecase {
 
   static async getAllCategoriesData() {
     try {
-      const categories = await CategoryModel.find().lean();
+      const categories = await CategoryModel.find().sort({ category_id: 1 }).lean();
+      categories.sort((a, b) => (Number(a.category_id) || 0) - (Number(b.category_id) || 0));
       return await Promise.all(
         categories.map((cat) => this.getCategoryWithChildren(cat._id)),
       );
@@ -210,7 +222,8 @@ export class CategoryLecturesUsecase {
 
   static async getMetaCategories() {
     try {
-      const categories = await CategoryModel.find().lean();
+      const categories = await CategoryModel.find().sort({ category_id: 1 }).lean();
+      categories.sort((a, b) => (Number(a.category_id) || 0) - (Number(b.category_id) || 0));
 
       return await Promise.all(
         categories.map(async (cat) => {
@@ -224,7 +237,9 @@ export class CategoryLecturesUsecase {
 
           const lectures = await LectureModel.find({
             $or: orLectures,
-          }).lean();
+          })
+            .sort({ lecture_id: 1 })
+            .lean();
 
           const lecturesWithAyats = await Promise.all(
             lectures.map(async (lecture) => {
@@ -238,7 +253,9 @@ export class CategoryLecturesUsecase {
 
               const ayats = await AyatModel.find({
                 $or: orAyats,
-              }).lean();
+              })
+                .sort({ surah_number: 1, ayat_number: 1 })
+                .lean();
 
               const enrichedAyats = ayats.map((a) => {
                 const norm = normalizeAyatVideos(a);
@@ -294,6 +311,13 @@ export class CategoryLecturesUsecase {
               };
             }),
           );
+
+          lecturesWithAyats.sort((a, b) => {
+            const numA = Number(a.lecture_id) || 0;
+            const numB = Number(b.lecture_id) || 0;
+            if (numA !== numB) return numA - numB;
+            return String(a.lecture_name || "").localeCompare(String(b.lecture_name || ""));
+          });
 
           const rawCatIcons = Array.isArray(cat.icon_url)
             ? cat.icon_url.filter(Boolean)

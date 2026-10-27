@@ -128,7 +128,18 @@ export function QuranLectureReferenceNotebook({ user }) {
       .then((data) => {
         if (!isMounted) return;
         if (Array.isArray(data)) {
-          setMetaCategories(data);
+          const sortedData = data.map((cat) => ({
+            ...cat,
+            lectures: Array.isArray(cat.lectures)
+              ? [...cat.lectures].sort((a, b) => {
+                  const numA = Number(a.lecture_id) || 0;
+                  const numB = Number(b.lecture_id) || 0;
+                  if (numA !== numB) return numA - numB;
+                  return String(a.lecture_name || "").localeCompare(String(b.lecture_name || ""));
+                })
+              : [],
+          }));
+          setMetaCategories(sortedData);
         }
       })
       .catch((err) => console.error("Error loading categories:", err))
@@ -143,10 +154,12 @@ export function QuranLectureReferenceNotebook({ user }) {
 
   // Filter Categories by selected Language Tag
   const languageCategories = useMemo(() => {
-    return metaCategories.filter((c) => {
-      const l = (c.language || "eng").toLowerCase();
-      return l === activeLanguage.toLowerCase();
-    });
+    return metaCategories
+      .filter((c) => {
+        const l = (c.language || "eng").toLowerCase();
+        return l === activeLanguage.toLowerCase();
+      })
+      .sort((a, b) => (Number(a.category_id) || 0) - (Number(b.category_id) || 0));
   }, [metaCategories, activeLanguage]);
 
   // Current active Category
@@ -156,10 +169,15 @@ export function QuranLectureReferenceNotebook({ user }) {
     return languageCategories[clamped];
   }, [languageCategories, activeCategoryIndex]);
 
-  // Lectures for the active Category
+  // Lectures for the active Category (strictly sorted 1, 2, 3...)
   const activeLectures = useMemo(() => {
     if (!activeCategory || !Array.isArray(activeCategory.lectures)) return [];
-    return activeCategory.lectures;
+    return [...activeCategory.lectures].sort((a, b) => {
+      const numA = Number(a.lecture_id) || 0;
+      const numB = Number(b.lecture_id) || 0;
+      if (numA !== numB) return numA - numB;
+      return String(a.lecture_name || "").localeCompare(String(b.lecture_name || ""));
+    });
   }, [activeCategory]);
 
   // Current active Lecture
@@ -635,14 +653,29 @@ export function QuranLectureReferenceNotebook({ user }) {
 
   const handleJumpToLecture = (cite) => {
     handleLanguageChange(cite.language);
-    const catIdx = metaCategories
+    const targetCategories = metaCategories
       .filter((c) => (c.language || "eng").toLowerCase() === cite.language)
-      .findIndex((c) => String(c._id || c.category_id) === cite.category_id || c.category_name === cite.category_name);
+      .sort((a, b) => (Number(a.category_id) || 0) - (Number(b.category_id) || 0));
+    const catIdx = targetCategories.findIndex(
+      (c) =>
+        String(c._id || c.category_id) === String(cite.category_id) ||
+        c.category_name === cite.category_name
+    );
     if (catIdx !== -1) {
       setTimeout(() => {
         setActiveCategoryIndex(catIdx);
-        const lecList = metaCategories.filter((c) => (c.language || "eng").toLowerCase() === cite.language)[catIdx]?.lectures || [];
-        const lIdx = lecList.findIndex((l) => String(l._id || l.lecture_id) === cite.lecture_id || l.lecture_id === cite.lecture_number);
+        const rawLecList = targetCategories[catIdx]?.lectures || [];
+        const sortedLecList = [...rawLecList].sort((a, b) => {
+          const numA = Number(a.lecture_id) || 0;
+          const numB = Number(b.lecture_id) || 0;
+          if (numA !== numB) return numA - numB;
+          return String(a.lecture_name || "").localeCompare(String(b.lecture_name || ""));
+        });
+        const lIdx = sortedLecList.findIndex(
+          (l) =>
+            String(l._id || l.lecture_id) === String(cite.lecture_id) ||
+            Number(l.lecture_id) === Number(cite.lecture_number)
+        );
         if (lIdx !== -1) setActiveLectureIndex(lIdx);
       }, 220);
     }
