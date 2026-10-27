@@ -1,7 +1,7 @@
 // client/src/features/quran/api/categoryLecturesApi.js
 export const fetchCategoryLecturesMeta = async () => {
   try {
-    const response = await fetch("/api/category-lectures/meta", { cache: "no-store" });
+    const response = await fetch(`/api/category-lectures/meta?_t=${Date.now()}`, { cache: "no-store" });
     if (!response.ok) throw new Error("Failed to fetch lecture metadata");
     return await response.json();
   } catch (error) {

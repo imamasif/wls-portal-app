@@ -123,7 +123,7 @@ export function QuranLectureReferenceNotebook({ user }) {
   useEffect(() => {
     let isMounted = true;
     setIsLoading(true);
-    fetch("/api/category-lectures/meta", { cache: "no-store" })
+    fetch(`/api/category-lectures/meta?_t=${Date.now()}`, { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => {
         if (!isMounted) return;
