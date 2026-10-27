@@ -128,7 +128,12 @@ export function QuranLectureReferenceNotebook({ user }) {
       .then((data) => {
         if (!isMounted) return;
         if (Array.isArray(data)) {
-          const sortedData = data.map((cat) => ({
+          // Strictly filter out Hindi categories - only English and Urdu are supported on this page
+          const englishAndUrduOnly = data.filter((cat) => {
+            const l = (cat.language || "eng").toLowerCase();
+            return l !== "hindi" && l !== "hin";
+          });
+          const sortedData = englishAndUrduOnly.map((cat) => ({
             ...cat,
             lectures: Array.isArray(cat.lectures)
               ? [...cat.lectures].sort((a, b) => {
@@ -300,6 +305,7 @@ export function QuranLectureReferenceNotebook({ user }) {
 
   // Change Language Tab
   const handleLanguageChange = (lang) => {
+    if (!lang || lang === "hindi" || lang === "hin") return;
     if (lang === activeLanguage) return;
     setActiveLanguage(lang);
     setActiveCategoryIndex(0);
@@ -652,6 +658,7 @@ export function QuranLectureReferenceNotebook({ user }) {
   };
 
   const handleJumpToLecture = (cite) => {
+    if (!cite || cite.language === "hindi" || cite.language === "hin") return;
     handleLanguageChange(cite.language);
     const targetCategories = metaCategories
       .filter((c) => (c.language || "eng").toLowerCase() === cite.language)
