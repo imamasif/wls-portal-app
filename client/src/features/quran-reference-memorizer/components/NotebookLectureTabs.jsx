@@ -135,6 +135,7 @@ export function NotebookLectureTabs({
                     type="lecture"
                   />
                   <span style={{ fontWeight: isSelected ? 800 : 600 }}>
+                    {lec.lecture_id && !isNaN(lec.lecture_id) ? `${lec.lecture_id}. ` : ""}
                     {getLectureName(lec.lecture_name)}
                   </span>
                   {getLectureAliases(lec.lecture_name).length > 0 && (
@@ -186,6 +187,7 @@ export function NotebookLectureTabs({
         <Text size="xs" c="dimmed" fs="italic" style={{ whiteSpace: "nowrap" }}>
           Active:{" "}
           <Text span fw={800} c="indigo.6">
+            {activeLecture.lecture_id && !isNaN(activeLecture.lecture_id) ? `${activeLecture.lecture_id}. ` : ""}
             {getLectureName(activeLecture.lecture_name)}
           </Text>{" "}
           • {currentLectureVerses.length} Quran Verses

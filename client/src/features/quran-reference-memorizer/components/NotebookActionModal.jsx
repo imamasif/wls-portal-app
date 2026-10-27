@@ -37,6 +37,7 @@ export function NotebookActionModal({
             {activeActionModal === "verses" && <BookOpen size={18} color="#d97706" />}
             {activeActionModal === "episodes" && <Layers size={18} color="#4f46e5" />}
             <Text fw={700} size="sm">
+              {actionModalLecture.lecture_id && !isNaN(actionModalLecture.lecture_id) ? `${actionModalLecture.lecture_id}. ` : ""}
               {getLectureName(actionModalLecture.lecture_name)}
             </Text>
           </Group>
@@ -70,7 +71,7 @@ export function NotebookActionModal({
                 <Title order={4}>
                   {(Array.isArray(actionModalLecture.pdf_url) && actionModalLecture.pdf_url[0]?.title) ||
                    actionModalLecture.pdf_title ||
-                   `${getLectureName(actionModalLecture.lecture_name)} - Study Notes`}
+                   `${actionModalLecture.lecture_id && !isNaN(actionModalLecture.lecture_id) ? `${actionModalLecture.lecture_id}. ` : ""}${getLectureName(actionModalLecture.lecture_name)} - Study Notes`}
                 </Title>
                 <Text size="xs" c="dimmed" mt={4}>
                   Official Lecture Transcripts, Notes & Quranic Ayat Indices
