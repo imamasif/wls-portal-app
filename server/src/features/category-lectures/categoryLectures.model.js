@@ -69,7 +69,7 @@ const lectureSchema = new mongoose.Schema(
     full_lecture_video_url: { type: String, default: "" },
     seasons: { type: Array, default: [] },
     episodes: { type: Array, default: [] },
-    pdf_url: { type: [pdfItemSchema], default: [] },
+    pdf_url: { type: mongoose.Schema.Types.Mixed, default: [] },
     icon_url: { type: [String], default: [] },
     total_ayats: { type: Number, default: 0 },
   },

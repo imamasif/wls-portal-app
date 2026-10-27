@@ -60,11 +60,11 @@ export function NotebookLectureTabs({
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      const primaryPdf = Array.isArray(lec.pdf_url) ? lec.pdf_url[0] : lec.pdf_url;
+                      const primaryPdf = (Array.isArray(lec.pdf_url) && lec.pdf_url.length > 0) ? lec.pdf_url[0] : lec.pdf_url;
                       const pUrl =
                         (typeof primaryPdf === "object" ? primaryPdf?.url : primaryPdf) ||
                         lec.pdf_link ||
-                        (Array.isArray(lec.pdf_booklet_urls) ? lec.pdf_booklet_urls[0] : "");
+                        (Array.isArray(lec.pdf_booklet_urls) && lec.pdf_booklet_urls.length > 0 ? lec.pdf_booklet_urls[0] : "");
                       if (pUrl) {
                         window.open(pUrl, "_blank", "noopener,noreferrer");
                       } else {
