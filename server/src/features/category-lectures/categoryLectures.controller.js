@@ -6,6 +6,9 @@ const router = express.Router();
 
 router.get("/", async (req, res) => {
   try {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
     const data = await CategoryLecturesUsecase.getAllCategoriesData();
     res.status(200).json(CategoryMapper.toResponseList(data));
   } catch (error) {
@@ -15,6 +18,9 @@ router.get("/", async (req, res) => {
 
 router.get("/meta", async (req, res) => {
   try {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
     const meta = await CategoryLecturesUsecase.getMetaCategories();
     res.status(200).json(meta);
   } catch (error) {
