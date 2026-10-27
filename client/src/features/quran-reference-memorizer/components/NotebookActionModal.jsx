@@ -37,7 +37,7 @@ export function NotebookActionModal({
             {activeActionModal === "verses" && <BookOpen size={18} color="#d97706" />}
             {activeActionModal === "episodes" && <Layers size={18} color="#4f46e5" />}
             <Text fw={700} size="sm">
-              Lec {actionModalLecture.lecture_id}: {getLectureName(actionModalLecture.lecture_name)}
+              {getLectureName(actionModalLecture.lecture_name)}
             </Text>
           </Group>
         )

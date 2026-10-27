@@ -209,7 +209,7 @@ export function NotebookAyatDetailModal({
                               </Text>
                             </Group>
                             <Text size="xs" fw={700} lineClamp={1}>
-                              Lec {cite.lecture_number}: {cite.lecture_name}
+                              {cite.lecture_name}
                             </Text>
                           </div>
 

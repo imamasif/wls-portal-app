@@ -112,7 +112,6 @@ export function NotebookHeaderBar({
               {[
                 { id: "eng", label: "📘 English", count: metaCategories.filter((c) => (c.language || "eng").toLowerCase() === "eng").length },
                 { id: "urdu", label: "📗 Urdu", count: metaCategories.filter((c) => (c.language || "eng").toLowerCase() === "urdu").length },
-                { id: "hindi", label: "📙 Hindi", count: metaCategories.filter((c) => (c.language || "eng").toLowerCase() === "hindi").length },
               ].map((lang) => {
                 const isSelected = activeLanguage === lang.id;
                 return (

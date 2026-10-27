@@ -106,7 +106,7 @@ export function NotebookLectureDashboard({
                 />
                 <div>
                   <Title order={3} style={{ fontWeight: 800, fontSize: "1.3rem", color: isDark ? "#ffffff" : "#1e293b" }}>
-                    Lec {activeLecture.lecture_id}: {getLectureName(activeLecture.lecture_name)}
+                    {getLectureName(activeLecture.lecture_name)}
                   </Title>
                   {getLectureAliases(activeLecture.lecture_name).length > 0 && (
                     <Group gap={6} mt={6}>

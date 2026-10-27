@@ -123,7 +123,7 @@ export function NotebookCitationsModal({
                           type="lecture"
                         />
                         <Text size="sm" fw={800} c={isDark ? "white" : "dark.8"}>
-                          Lecture {cite.lecture_number}: {cite.lecture_name}
+                          {cite.lecture_name}
                         </Text>
                       </Group>
                       {cite.lecture_names?.length > 1 && (
