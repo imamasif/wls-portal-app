@@ -5,8 +5,9 @@ import {
   Text,
   Paper,
   Button,
+  Badge,
 } from "@mantine/core";
-import { IconBrandYoutube } from "@tabler/icons-react";
+import { IconBrandYoutube, IconExternalLink, IconPlayerPlay } from "@tabler/icons-react";
 import { getEmbedUrl, getYouTubeWatchUrl } from "./notebookUtils";
 
 export function NotebookVideoPlayerModal({
@@ -14,13 +15,22 @@ export function NotebookVideoPlayerModal({
   onClose,
   isDark,
 }) {
+  const url = activeVideoModal?.url || "";
+  const isYouTube = url.includes("youtube.com") || url.includes("youtu.be");
+  const isIipcTv = url.includes("iipctvstream.com");
+  const isDirectVideo = /\.(mp4|webm|ogg)(\?|$)/i.test(url);
+
   return (
     <Modal
       opened={!!activeVideoModal}
       onClose={onClose}
       title={
         <Group gap="xs">
-          <IconBrandYoutube size={20} color="red" />
+          {isYouTube ? (
+            <IconBrandYoutube size={20} color="red" />
+          ) : (
+            <IconPlayerPlay size={20} color="#4f46e5" />
+          )}
           <Text fw={700} size="sm">
             {activeVideoModal?.title}
           </Text>
@@ -32,7 +42,7 @@ export function NotebookVideoPlayerModal({
     >
       {activeVideoModal && (
         <div>
-          {/* 16:9 Responsive Video Iframe (Natively supports ?start=...&end=... parameters) */}
+          {/* Responsive Video Container */}
           <div
             style={{
               position: "relative",
@@ -43,25 +53,40 @@ export function NotebookVideoPlayerModal({
               backgroundColor: "#000",
             }}
           >
-            <iframe
-              src={getEmbedUrl(activeVideoModal.url)}
-              title={activeVideoModal.title}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                height: "100%",
-                borderRadius: "8px",
-                border: "none",
-              }}
-            />
+            {isDirectVideo ? (
+              <video
+                controls
+                src={url}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  height: "100%",
+                  borderRadius: "8px",
+                }}
+              />
+            ) : (
+              <iframe
+                src={getEmbedUrl(url)}
+                title={activeVideoModal.title}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  height: "100%",
+                  borderRadius: "8px",
+                  border: "none",
+                }}
+              />
+            )}
           </div>
 
           {/* If YouTube, provide direct fallback note and button */}
-          {getEmbedUrl(activeVideoModal.url)?.includes("youtube.com") && (
+          {isYouTube && (
             <Paper
               p="xs"
               radius="md"
@@ -77,12 +102,12 @@ export function NotebookVideoPlayerModal({
                     Playback Restricted by Video Owner?
                   </Text>
                   <Text size="11px" c="dimmed">
-                    If YouTube says <i>"Playback on other websites has been disabled by the video owner"</i>, click here to watch directly on YouTube at this exact timestamp segment. (Channel owners can enable this under YouTube Studio ➔ Show more ➔ License ➔ "Allow embedding").
+                    If YouTube says <i>"Playback on other websites has been disabled by the video owner"</i>, click here to watch directly on YouTube at this exact timestamp segment.
                   </Text>
                 </div>
                 <Button
                   component="a"
-                  href={getYouTubeWatchUrl(activeVideoModal.url)}
+                  href={getYouTubeWatchUrl(url)}
                   target="_blank"
                   rel="noopener noreferrer"
                   color="red"
@@ -95,24 +120,79 @@ export function NotebookVideoPlayerModal({
             </Paper>
           )}
 
+          {/* If IIPC TV Stream, provide direct link button */}
+          {isIipcTv && (
+            <Paper
+              p="xs"
+              radius="md"
+              mt="sm"
+              style={{
+                background: isDark ? "rgba(79, 70, 229, 0.15)" : "#eef2ff",
+                border: "1px solid rgba(79, 70, 229, 0.3)",
+              }}
+            >
+              <Group justify="space-between" align="center" wrap="wrap" gap="xs">
+                <div style={{ flex: 1, minWidth: 240 }}>
+                  <Group gap={6}>
+                    <Badge color="indigo" size="xs" variant="filled">
+                      IIPC TV Stream
+                    </Badge>
+                    <Text size="xs" fw={700} c="indigo.8">
+                      Official Lecture Recording
+                    </Text>
+                  </Group>
+                  <Text size="11px" c="dimmed" mt={2}>
+                    If your browser restricts embedding external web streams, click here to watch the full episode directly on IIPC TV.
+                  </Text>
+                </div>
+                <Button
+                  component="a"
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  color="indigo"
+                  size="xs"
+                  leftSection={<IconExternalLink size={15} />}
+                >
+                  Watch on IIPC TV
+                </Button>
+              </Group>
+            </Paper>
+          )}
+
           {/* Video Footer info and external link */}
           <Group justify="space-between" align="center" mt="md">
             <Text size="xs" c="dimmed" lineClamp={1} style={{ maxWidth: 420 }}>
-              {activeVideoModal.url}
+              {url}
             </Text>
             <Group gap="xs">
-              <Button
-                component="a"
-                href={getYouTubeWatchUrl(activeVideoModal.url)}
-                target="_blank"
-                rel="noopener noreferrer"
-                size="xs"
-                color="red"
-                variant="light"
-                leftSection={<IconBrandYoutube size={14} />}
-              >
-                Open on YouTube
-              </Button>
+              {isYouTube ? (
+                <Button
+                  component="a"
+                  href={getYouTubeWatchUrl(url)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  size="xs"
+                  color="red"
+                  variant="light"
+                  leftSection={<IconBrandYoutube size={14} />}
+                >
+                  Open on YouTube
+                </Button>
+              ) : (
+                <Button
+                  component="a"
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  size="xs"
+                  color="indigo"
+                  variant="light"
+                  leftSection={<IconExternalLink size={14} />}
+                >
+                  Open Video Link
+                </Button>
+              )}
               <Button
                 size="xs"
                 color="gray"
