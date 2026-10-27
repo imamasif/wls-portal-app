@@ -215,11 +215,13 @@ export function NotebookLectureDashboard({
                 className="pdf-doc-btn"
                 aria-label="Download or View PDF Booklet"
                 onClick={() => {
-                  const primaryPdf = Array.isArray(activeLecture.pdf_url) ? activeLecture.pdf_url[0] : activeLecture.pdf_url;
+                  const primaryPdf = (Array.isArray(activeLecture.pdf_url) && activeLecture.pdf_url.length > 0)
+                    ? activeLecture.pdf_url[0]
+                    : activeLecture.pdf_url;
                   const pdfUrl =
                     (typeof primaryPdf === "object" ? primaryPdf?.url : primaryPdf) ||
                     activeLecture.pdf_link ||
-                    (Array.isArray(activeLecture.pdf_booklet_urls) ? activeLecture.pdf_booklet_urls[0] : "");
+                    (Array.isArray(activeLecture.pdf_booklet_urls) && activeLecture.pdf_booklet_urls.length > 0 ? activeLecture.pdf_booklet_urls[0] : "");
                   if (pdfUrl) {
                     window.open(pdfUrl, "_blank", "noopener,noreferrer");
                   } else {

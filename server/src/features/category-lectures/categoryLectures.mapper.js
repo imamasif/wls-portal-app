@@ -2,36 +2,49 @@ import { normalizeAyatVideos } from "../ayats/ayats.res.js";
 
 export function normalizePdfUrls(l) {
   if (!l) return [];
-  let items = [];
-  if (Array.isArray(l.pdf_url)) {
-    items = l.pdf_url;
+  const rawCandidates = [];
+
+  if (Array.isArray(l.pdf_url) && l.pdf_url.length > 0) {
+    rawCandidates.push(...l.pdf_url);
   } else if (typeof l.pdf_url === "string" && l.pdf_url.trim()) {
-    items = [{ title: l.pdf_title || "", url: l.pdf_url.trim() }];
+    rawCandidates.push({ title: l.pdf_title || "", url: l.pdf_url.trim() });
   } else if (l.pdf_url && typeof l.pdf_url === "object" && (l.pdf_url.url || l.pdf_url.title)) {
-    items = [l.pdf_url];
-  } else if (Array.isArray(l.pdf_booklet_urls) && l.pdf_booklet_urls.length > 0) {
-    items = l.pdf_booklet_urls;
-  } else if (typeof l.pdf_link === "string" && l.pdf_link.trim()) {
-    items = [{ title: l.pdf_title || "", url: l.pdf_link.trim() }];
+    rawCandidates.push(l.pdf_url);
   }
 
-  return items
-    .map((item) => {
-      if (typeof item === "string" && item.trim()) {
-        return {
-          title: typeof l.pdf_title === "string" ? l.pdf_title.trim() : "",
-          url: item.trim(),
-        };
-      }
-      if (item && typeof item === "object") {
-        return {
-          title: typeof item.title === "string" ? item.title.trim() : "",
-          url: typeof item.url === "string" ? item.url.trim() : "",
-        };
-      }
-      return null;
-    })
-    .filter((item) => item && item.url);
+  if (Array.isArray(l.pdf_booklet_urls) && l.pdf_booklet_urls.length > 0) {
+    rawCandidates.push(...l.pdf_booklet_urls);
+  }
+
+  if (typeof l.pdf_link === "string" && l.pdf_link.trim()) {
+    rawCandidates.push({ title: l.pdf_title || "", url: l.pdf_link.trim() });
+  }
+
+  const seenUrls = new Set();
+  const result = [];
+  const defaultTitle =
+    (typeof l.pdf_title === "string" && l.pdf_title.trim()) ||
+    (Array.isArray(l.lecture_name) ? l.lecture_name[0] : (typeof l.lecture_name === "string" ? l.lecture_name : ""));
+
+  for (const item of rawCandidates) {
+    let title = "";
+    let url = "";
+
+    if (typeof item === "string" && item.trim()) {
+      title = defaultTitle;
+      url = item.trim();
+    } else if (item && typeof item === "object") {
+      title = (typeof item.title === "string" && item.title.trim()) || defaultTitle;
+      url = typeof item.url === "string" ? item.url.trim() : "";
+    }
+
+    if (url && !seenUrls.has(url)) {
+      seenUrls.add(url);
+      result.push({ title, url });
+    }
+  }
+
+  return result;
 }
 
 export class CategoryMapper {

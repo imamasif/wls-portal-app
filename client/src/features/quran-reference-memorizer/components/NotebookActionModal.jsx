@@ -78,19 +78,31 @@ export function NotebookActionModal({
               </div>
               <Group justify="center" mt="sm">
                 {(() => {
-                  const rawList = Array.isArray(actionModalLecture.pdf_url)
-                    ? actionModalLecture.pdf_url
-                    : typeof actionModalLecture.pdf_url === "string" && actionModalLecture.pdf_url.trim()
-                    ? [{ title: actionModalLecture.pdf_title || "Open PDF Booklet", url: actionModalLecture.pdf_url.trim() }]
-                    : actionModalLecture.pdf_link
-                    ? [{ title: actionModalLecture.pdf_title || "Open PDF Booklet", url: actionModalLecture.pdf_link }]
-                    : Array.isArray(actionModalLecture.pdf_booklet_urls)
-                    ? actionModalLecture.pdf_booklet_urls.map((u) => ({ title: actionModalLecture.pdf_title || "Open PDF Booklet", url: u }))
-                    : [];
+                  const candidates = [];
+                  if (Array.isArray(actionModalLecture.pdf_url) && actionModalLecture.pdf_url.length > 0) {
+                    candidates.push(...actionModalLecture.pdf_url);
+                  } else if (typeof actionModalLecture.pdf_url === "string" && actionModalLecture.pdf_url.trim()) {
+                    candidates.push({ title: actionModalLecture.pdf_title || "Open PDF Booklet", url: actionModalLecture.pdf_url.trim() });
+                  }
+                  if (actionModalLecture.pdf_link) {
+                    candidates.push({ title: actionModalLecture.pdf_title || "Open PDF Booklet", url: actionModalLecture.pdf_link });
+                  }
+                  if (Array.isArray(actionModalLecture.pdf_booklet_urls) && actionModalLecture.pdf_booklet_urls.length > 0) {
+                    actionModalLecture.pdf_booklet_urls.forEach((u) => {
+                      candidates.push({ title: actionModalLecture.pdf_title || "Open PDF Booklet", url: u });
+                    });
+                  }
 
-                  const validPdfs = rawList.map((item) =>
-                    typeof item === "string" ? { title: "Open PDF Booklet", url: item } : item
-                  ).filter((p) => p && p.url);
+                  const seenUrls = new Set();
+                  const validPdfs = [];
+                  for (const item of candidates) {
+                    const u = typeof item === "string" ? item.trim() : (typeof item?.url === "string" ? item.url.trim() : "");
+                    const t = (typeof item === "object" && item?.title) ? item.title : (actionModalLecture.pdf_title || "Open PDF Booklet");
+                    if (u && !seenUrls.has(u)) {
+                      seenUrls.add(u);
+                      validPdfs.push({ title: t, url: u });
+                    }
+                  }
 
                   if (validPdfs.length === 0) {
                     return (
