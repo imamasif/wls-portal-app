@@ -587,7 +587,11 @@ export default function QuranVerseMemorizerPanel() {
   // Fetch metadata on mount
   useEffect(() => {
     fetchCategoryLecturesMeta().then((data) => {
-      setMetaCategories(Array.isArray(data) ? data : []);
+      const filtered = (Array.isArray(data) ? data : []).filter((cat) => {
+        const l = (cat.language || "eng").toLowerCase();
+        return l !== "hindi" && l !== "hin";
+      });
+      setMetaCategories(filtered);
     });
   }, []);
 

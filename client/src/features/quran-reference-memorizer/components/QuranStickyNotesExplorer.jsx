@@ -81,12 +81,16 @@ export function QuranStickyNotesExplorer({ user }) {
   useEffect(() => {
     let isMounted = true;
     setIsLoadingCategories(true);
-    fetch("/api/category-lectures/meta")
+    fetch(`/api/category-lectures/meta?_t=${Date.now()}`, { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => {
         if (!isMounted) return;
         if (Array.isArray(data)) {
-          setMetaCategories(data);
+          const englishAndUrduOnly = data.filter((cat) => {
+            const l = (cat.language || "eng").toLowerCase();
+            return l !== "hindi" && l !== "hin";
+          });
+          setMetaCategories(englishAndUrduOnly);
         }
       })
       .catch((err) => {
@@ -353,13 +357,19 @@ export function QuranStickyNotesExplorer({ user }) {
     });
   }, [metaCategories, filterQuery]);
 
-  // Filtered lectures for current category
+  // Filtered lectures for current category (strictly ordered 1, 2, 3...)
   const currentLectures = useMemo(() => {
     if (!selectedCategory) return [];
     const lectures = selectedCategory.lectures || [];
-    if (!filterQuery) return lectures;
+    const sorted = [...lectures].sort((a, b) => {
+      const numA = Number(a.lecture_id) || 0;
+      const numB = Number(b.lecture_id) || 0;
+      if (numA !== numB) return numA - numB;
+      return String(a.lecture_name || "").localeCompare(String(b.lecture_name || ""));
+    });
+    if (!filterQuery) return sorted;
     const q = filterQuery.toLowerCase();
-    return lectures.filter((lec) => {
+    return sorted.filter((lec) => {
       const names = Array.isArray(lec.lecture_name)
         ? lec.lecture_name
         : [lec.lecture_name || ""];
