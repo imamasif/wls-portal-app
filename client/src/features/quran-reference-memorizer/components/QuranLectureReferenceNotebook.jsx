@@ -66,6 +66,42 @@ export {
   MediaIconBadge,
 };
 
+// Helper to extract a sequence number from strings like "Episode 05", "Season 2", "Part 1"
+function extractSeqNumber(str, fallback = 9999) {
+  if (!str) return fallback;
+  const match = String(str).match(/\d+/);
+  return match ? parseInt(match[0], 10) : fallback;
+}
+
+// Strictly sort episodes in sequence: Episode 01, Episode 02, Episode 03... (1, 2, 3, 4...)
+function sortEpisodesSequential(episodes = []) {
+  if (!Array.isArray(episodes)) return [];
+  return [...episodes].sort((a, b) => {
+    const numA = extractSeqNumber(a.episode_number || a.episode_title || a.title);
+    const numB = extractSeqNumber(b.episode_number || b.episode_title || b.title);
+    if (numA !== numB) return numA - numB;
+    return String(a.episode_number || a.episode_title || a.title || "").localeCompare(
+      String(b.episode_number || b.episode_title || b.title || "")
+    );
+  });
+}
+
+// Strictly sort seasons in sequence: Season 1, Season 2... and each season's episodes
+function sortSeasonsSequential(seasons = []) {
+  if (!Array.isArray(seasons)) return [];
+  return [...seasons]
+    .sort((a, b) => {
+      const numA = extractSeqNumber(a.season_name);
+      const numB = extractSeqNumber(b.season_name);
+      if (numA !== numB) return numA - numB;
+      return String(a.season_name || "").localeCompare(String(b.season_name || ""));
+    })
+    .map((s) => ({
+      ...s,
+      episodes: sortEpisodesSequential(s.episodes || []),
+    }));
+}
+
 export function QuranLectureReferenceNotebook({ user }) {
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
   const isDark = colorScheme === "dark";
@@ -136,12 +172,18 @@ export function QuranLectureReferenceNotebook({ user }) {
           const sortedData = englishAndUrduOnly.map((cat) => ({
             ...cat,
             lectures: Array.isArray(cat.lectures)
-              ? [...cat.lectures].sort((a, b) => {
-                  const numA = Number(a.lecture_id) || 0;
-                  const numB = Number(b.lecture_id) || 0;
-                  if (numA !== numB) return numA - numB;
-                  return String(a.lecture_name || "").localeCompare(String(b.lecture_name || ""));
-                })
+              ? [...cat.lectures]
+                  .sort((a, b) => {
+                    const numA = Number(a.lecture_id) || 0;
+                    const numB = Number(b.lecture_id) || 0;
+                    if (numA !== numB) return numA - numB;
+                    return String(a.lecture_name || "").localeCompare(String(b.lecture_name || ""));
+                  })
+                  .map((lec) => ({
+                    ...lec,
+                    seasons: sortSeasonsSequential(lec.seasons || []),
+                    episodes: sortEpisodesSequential(lec.episodes || []),
+                  }))
               : [],
           }));
           setMetaCategories(sortedData);
@@ -192,11 +234,11 @@ export function QuranLectureReferenceNotebook({ user }) {
     return activeLectures[clamped];
   }, [activeLectures, activeLectureIndex]);
 
-  // Seasons list for the active lecture
+  // Seasons list for the active lecture (Strictly ordered Season 1, 2, 3...)
   const seasonsList = useMemo(() => {
     if (!activeLecture) return [];
     if (Array.isArray(activeLecture.seasons) && activeLecture.seasons.length > 0) {
-      return activeLecture.seasons;
+      return sortSeasonsSequential(activeLecture.seasons);
     }
     // Fallback if episodes or single video urls present
     const fallbackUrls = [
@@ -209,7 +251,7 @@ export function QuranLectureReferenceNotebook({ user }) {
       return [
         {
           season_name: activeLecture.season || "Season 1",
-          episodes: activeLecture.episodes,
+          episodes: sortEpisodesSequential(activeLecture.episodes),
         },
       ];
     }
@@ -219,8 +261,8 @@ export function QuranLectureReferenceNotebook({ user }) {
           season_name: activeLecture.season || "Season 1",
           episodes: fallbackUrls.map((u, i) => ({
             id: `ep_${i + 1}`,
-            episode_number: `Part ${i + 1}`,
-            title: `Part ${i + 1}`,
+            episode_number: `Episode ${i + 1}`,
+            title: `Episode ${i + 1}`,
             episode_url: u,
           })),
         },
@@ -236,9 +278,10 @@ export function QuranLectureReferenceNotebook({ user }) {
     return seasonsList[idx];
   }, [seasonsList, activeSeasonIndex]);
 
+  // Episodes list for the active season (Strictly ordered Episode 01, Episode 02, 3, 4...)
   const episodesList = useMemo(() => {
     if (!currentSeason) return [];
-    return Array.isArray(currentSeason.episodes) ? currentSeason.episodes : [];
+    return sortEpisodesSequential(Array.isArray(currentSeason.episodes) ? currentSeason.episodes : []);
   }, [currentSeason]);
 
   // Handle circular like click (opens cute reaction aura popover)
@@ -281,26 +324,34 @@ export function QuranLectureReferenceNotebook({ user }) {
   // Open Pop Action Modal
   const openActionModal = (type, lecture, e) => {
     if (e && e.stopPropagation) e.stopPropagation();
+    const sortedLecture = lecture
+      ? {
+          ...lecture,
+          seasons: sortSeasonsSequential(lecture.seasons || []),
+          episodes: sortEpisodesSequential(lecture.episodes || []),
+        }
+      : lecture;
+
     if (type === "video") {
       const firstEpUrl =
-        (lecture.seasons && lecture.seasons[0]?.episodes?.[0]?.episode_url) ||
-        (lecture.episodes && lecture.episodes[0]?.episode_url) ||
-        lecture.full_lecture_video_url ||
-        (lecture.video_urls && lecture.video_urls[0]) ||
-        lecture.video_url;
+        (sortedLecture.seasons && sortedLecture.seasons[0]?.episodes?.[0]?.episode_url) ||
+        (sortedLecture.episodes && sortedLecture.episodes[0]?.episode_url) ||
+        sortedLecture.full_lecture_video_url ||
+        (sortedLecture.video_urls && sortedLecture.video_urls[0]) ||
+        sortedLecture.video_url;
       if (firstEpUrl) {
         setActiveVideoModal({
-          title: `${getLectureName(lecture.lecture_name)} - Recording`,
+          title: `${getLectureName(sortedLecture.lecture_name)} - Recording`,
           url: firstEpUrl,
         });
       } else {
         setActiveActionModal("episodes");
-        setActionModalLecture(lecture);
+        setActionModalLecture(sortedLecture);
       }
       return;
     }
     setActiveActionModal(type);
-    setActionModalLecture(lecture);
+    setActionModalLecture(sortedLecture);
   };
 
   // Change Language Tab
@@ -712,67 +763,192 @@ export function QuranLectureReferenceNotebook({ user }) {
           transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
 
-        /* Floating Orbital Action Icon Container */
-        .lecture-chip-wrapper {
+        /* Container for top chips */
+        .lecture-tabs-container {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          align-items: center;
+          padding: 12px 16px;
           position: relative;
+          z-index: 10;
+        }
+
+        /* 1. Fixed Slot (Preserves layout dimensions so nothing shifts below) */
+        .lecture-chip-slot {
+          position: relative;
+          height: 38px; /* Fixed height matching default compact state */
           display: inline-block;
         }
-        .lecture-orbital-bar {
-          position: absolute;
-          top: -38px;
-          left: 50%;
-          transform: translateX(-50%) scale(0.75);
-          opacity: 0;
+
+        /* Ghost element in document flow to set the exact natural width of the slot */
+        .lecture-chip-ghost {
+          visibility: hidden;
           pointer-events: none;
+          height: 38px;
+          white-space: nowrap;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 6px 14px;
+        }
+
+        /* 2. Compact Default State (Single line, space-saving) */
+        .lecture-chip-card {
+          position: absolute;
+          top: 0;
+          left: 0;
+          white-space: nowrap;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          height: 38px;
+          width: 100%;
+          min-width: 100%;
+          padding: 6px 14px;
+          background: ${isDark ? "#1e1f23" : "#ffffff"};
+          border: 1px solid ${isDark ? "#374151" : "#e2e8f0"};
+          border-radius: 20px;
+          cursor: pointer;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+          transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+          transform-origin: top left;
+          z-index: 1;
+          outline: none;
+        }
+
+        /* Main Content Area */
+        .chip-main-content {
           display: flex;
           align-items: center;
           gap: 6px;
-          transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-          z-index: 50;
-        }
-        .lecture-chip-wrapper:hover .lecture-orbital-bar {
-          opacity: 1;
-          pointer-events: auto;
-          transform: translateX(-50%) translateY(-6px) scale(1);
-        }
-        .orbital-btn {
-          width: 30px;
-          height: 30px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: white;
-          border: none;
-          cursor: pointer;
-          box-shadow: 0 4px 10px rgba(0,0,0,0.25);
-          transition: transform 0.18s ease, filter 0.18s ease;
-        }
-        .orbital-btn:hover {
-          transform: scale(1.22);
-          filter: brightness(1.15);
         }
 
-        /* Interactive Lecture Tab Chip */
-        .lecture-binder-tab {
-          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-          border: 1px solid #d1d5db;
-          cursor: pointer;
-          background: #ffffff;
-          color: #374151;
+        /* Compact Title Typography */
+        .chip-title {
+          font-size: 0.875rem; /* 14px */
+          font-weight: 600;
+          color: ${isDark ? "#f1f5f9" : "#1e293b"};
+          line-height: 1.2;
         }
-        .lecture-binder-tab:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 6px 14px rgba(79, 70, 229, 0.22);
-          border-color: #4f46e5 !important;
-          background: linear-gradient(180deg, #ffffff 0%, #eef2ff 100%) !important;
-          color: #4338ca !important;
+
+        /* Compact AKA Badge */
+        .chip-aka-badge {
+          font-size: 0.7rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          background: ${isDark ? "rgba(99, 102, 241, 0.2)" : "#eef2ff"};
+          color: ${isDark ? "#a5b4fc" : "#4f46e5"};
+          padding: 2px 8px;
+          border-radius: 10px;
+          line-height: 1.2;
+          display: inline-block;
         }
-        .lecture-binder-tab.active {
-          background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%) !important;
+
+        /* Compact Ayats Badge */
+        .chip-ayats-badge {
+          display: flex;
+          align-items: center;
+          gap: 3px;
+          font-size: 0.75rem;
+          font-weight: 600;
+          color: ${isDark ? "#cbd5e1" : "#475569"};
+          background: ${isDark ? "#2d3139" : "#f1f5f9"};
+          padding: 2px 8px;
+          border-radius: 12px;
+          line-height: 1.2;
+        }
+
+        .star-icon {
+          color: #f59e0b;
+          font-size: 0.75rem;
+        }
+
+        /* ------------------------------------------------------------- */
+        /* 3. HOVER STATE: Pop-Out Expansion (Without Pushing Other UI)  */
+        /* ------------------------------------------------------------- */
+        .lecture-chip-card:hover {
+          z-index: 100; /* Float above all other chips and lower sections */
+          height: auto;
+          min-height: 72px;
+          padding: 12px 18px;
+          border-radius: 16px;
+          background: ${isDark ? "#25272e" : "#ffffff"};
+          border-color: ${isDark ? "#6366f1" : "#cbd5e1"};
+          box-shadow: 0 14px 30px -4px rgba(0, 0, 0, 0.18), 0 4px 10px -2px rgba(0, 0, 0, 0.08);
+          transform: translateY(-4px) scale(1.05); /* Smooth pop-out lift */
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+          width: max-content;
+        }
+
+        /* Main content stacks on hover */
+        .lecture-chip-card:hover .chip-main-content {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 4px;
+        }
+
+        /* Large High-Legibility Title on Hover */
+        .lecture-chip-card:hover .chip-title {
+          font-size: 1.15rem; /* ~18px for clear reading without glasses */
+          font-weight: 800;
+          color: ${isDark ? "#ffffff" : "#0f172a"};
+          display: block;
+        }
+
+        /* Expanded AKA Sub-Badge on Hover */
+        .lecture-chip-card:hover .chip-aka-badge {
+          font-size: 0.8rem;
+          font-weight: 800;
+          padding: 4px 12px;
+          background: ${isDark ? "rgba(99, 102, 241, 0.35)" : "#e0e7ff"};
+          color: ${isDark ? "#c7d2fe" : "#3730a3"};
+          border-radius: 8px;
+        }
+
+        /* Prominent Ayats Badge on Hover */
+        .lecture-chip-card:hover .chip-ayats-badge {
+          font-size: 0.95rem;
+          font-weight: 700;
+          color: ${isDark ? "#f8fafc" : "#1e293b"};
+          background: ${isDark ? "#1e1f23" : "#f8fafc"};
+          border: 1px solid ${isDark ? "#374151" : "#e2e8f0"};
+          padding: 6px 12px;
+          border-radius: 10px;
+        }
+
+        .lecture-chip-card:hover .star-icon {
+          font-size: 1rem;
+        }
+
+        /* 4. Active Selected State */
+        .lecture-chip-card.active {
+          background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%) !important;
+          border-color: #3730a3 !important;
+          box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);
+        }
+
+        .lecture-chip-card.active .chip-title {
           color: #ffffff !important;
-          border-color: #4338ca !important;
-          box-shadow: 0 4px 14px rgba(79, 70, 229, 0.45);
+        }
+
+        .lecture-chip-card.active .chip-aka-badge {
+          background: rgba(255, 255, 255, 0.2) !important;
+          color: #ffffff !important;
+        }
+
+        .lecture-chip-card.active .chip-ayats-badge {
+          background: rgba(255, 255, 255, 0.15) !important;
+          color: #ffffff !important;
+        }
+
+        .lecture-chip-card.active:hover {
+          background: linear-gradient(135deg, #4338ca 0%, #3730a3 100%) !important;
+          box-shadow: 0 14px 30px -4px rgba(79, 70, 229, 0.5) !important;
         }
 
         /* Excel-like Grid Rows */
