@@ -2,10 +2,10 @@
   "name": "wls-portal-backend",
   "version": "1.0.0",
   "type": "module",
-  "main": "src/app.js",
+  "main": "server.js",
   "scripts": {
-    "start": "tsx src/app.js",
-    "dev": "tsx watch src/app.js",
+    "start": "tsx server.js",
+    "dev": "tsx watch server.js",
     "seed": "tsx src/data/seeders/seedWlsData.js",
     "seedmaster": "tsx src/data/seeders/seedMasterData.js",
     "seeddata": "tsx src/data/seeders/seedData.js",
@@ -26,7 +26,8 @@
     "googleapis": "^178.0.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.24.4",
-    "multer": "^2.3.0"
+    "multer": "^2.3.0",
+    "nodemailer": "^10.3.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.3",
