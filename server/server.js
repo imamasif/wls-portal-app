@@ -38,6 +38,12 @@ app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
 connectDB().then(async () => {
   try {
+    await UserModel.syncIndexes();
+    console.log("MongoDB indexes synchronized (including email unique index).");
+  } catch (idxErr) {
+    console.warn("Index sync warning:", idxErr.message);
+  }
+  try {
     const { runLectureMigration } = await import("./src/scripts/migrate_lecture_names.js");
     await runLectureMigration();
   } catch (mErr) {

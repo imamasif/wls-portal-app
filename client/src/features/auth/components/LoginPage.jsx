@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Paper, 
   TextInput, 
@@ -6,19 +6,23 @@ import {
   Button, 
   Title, 
   Text, 
-  Container, 
   Stack, 
   Group, 
   Box,
   Notification
 } from '@mantine/core';
-import { IconLock, IconCheck, IconX, IconMail, IconUserPlus } from '@tabler/icons-react';
+import { IconLock, IconCheck, IconX, IconMail } from '@tabler/icons-react';
 import { useAuth } from '../../../context/AuthContext';
-import { RegisterPage } from './RegisterPage'; // Import your consistent RegisterPage
+import { RegisterPage } from './RegisterPage';
+import { ForgotPasswordView } from './ForgotPasswordView';
+import { ResetPasswordView } from './ResetPasswordView';
 
 export function LoginPage({ onSuccess }) {
   const { login } = useAuth();
-  const [isRegistering, setIsRegistering] = useState(false);
+  
+  // Views: 'login' | 'register' | 'forgot' | 'reset'
+  const [view, setView] = useState('login');
+  const [activeResetToken, setActiveResetToken] = useState('');
 
   // Login Form State
   const [email, setEmail] = useState('');
@@ -28,39 +32,101 @@ export function LoginPage({ onSuccess }) {
   const [errorMsg, setErrorMsg] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
 
+  // Check URL on load for resetToken
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('resetToken') || params.get('token');
+    if (token) {
+      setActiveResetToken(token);
+      setView('reset');
+    }
+  }, []);
+
   const handleSignIn = async (e) => {
     e.preventDefault();
     setErrorMsg(null);
     setLoading(true);
 
     try {
-      const success = await login({ email, password });
-      if (success !== false) {
+      const cleanEmail = email.trim().toLowerCase();
+      const res = await login({ email: cleanEmail, password });
+      if (res && res.success !== false) {
         setSuccessMsg('Signed in successfully! Redirecting...');
-        setTimeout(() => onSuccess && onSuccess(), 1000);
+        setTimeout(() => onSuccess && onSuccess(), 800);
       } else {
         setErrorMsg('Invalid email or password.');
       }
     } catch (err) {
-      setErrorMsg('Server error connecting to authentication service.');
+      setErrorMsg(err.message || 'Invalid email or password.');
     } finally {
       setLoading(false);
     }
   };
 
-  // If user clicked register, render the standalone RegisterPage component directly
-  if (isRegistering) {
+  // Render Register View
+  if (view === 'register') {
     return (
       <RegisterPage 
-        onSwitchToLogin={() => { setIsRegistering(false); setErrorMsg(null); setSuccessMsg(null); }} 
+        onSwitchToLogin={() => { 
+          setView('login'); 
+          setErrorMsg(null); 
+          setSuccessMsg(null); 
+        }} 
         onSuccess={onSuccess} 
       />
     );
   }
 
+  // Render Forgot Password View
+  if (view === 'forgot') {
+    return (
+      <ForgotPasswordView
+        onBackToLogin={() => {
+          setView('login');
+          setErrorMsg(null);
+          setSuccessMsg(null);
+        }}
+        onOpenResetToken={(token) => {
+          setActiveResetToken(token);
+          setView('reset');
+          setErrorMsg(null);
+          setSuccessMsg(null);
+        }}
+      />
+    );
+  }
+
+  // Render Reset Password View
+  if (view === 'reset') {
+    return (
+      <ResetPasswordView
+        token={activeResetToken}
+        onBackToLogin={() => {
+          // Clean token from URL
+          if (window.history.replaceState) {
+            const cleanUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, cleanUrl);
+          }
+          setView('login');
+          setErrorMsg(null);
+          setSuccessMsg(null);
+        }}
+        onResetSuccess={() => {
+          if (window.history.replaceState) {
+            const cleanUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, cleanUrl);
+          }
+          setView('login');
+          setSuccessMsg('Password reset successfully! You can now log in with your new password.');
+        }}
+      />
+    );
+  }
+
+  // Render Standard Sign In View
   return (
-<Box maw={900} w="100%" mx="auto" my={40}>
-        <Paper 
+    <Box maw={900} w="100%" mx="auto" my={40}>
+      <Paper 
         radius="lg" 
         p={40} 
         withBorder 
@@ -97,7 +163,7 @@ export function LoginPage({ onSuccess }) {
         )}
 
         {successMsg && (
-          <Notification icon={<IconCheck size={16} />} color="green" mb="lg">
+          <Notification icon={<IconCheck size={16} />} color="teal" mb="lg" onClose={() => setSuccessMsg(null)}>
             {successMsg}
           </Notification>
         )}
@@ -114,13 +180,32 @@ export function LoginPage({ onSuccess }) {
               onChange={(e) => setEmail(e.target.value)}
             />
 
-            <PasswordInput
-              label="Password"
-              placeholder="Your password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <Box>
+              <Group justify="space-between" mb={4}>
+                <Text component="label" size="sm" fw={500} c="#1e293b">
+                  Password
+                </Text>
+                <Text 
+                  size="xs" 
+                  c="teal.7" 
+                  fw={600} 
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                  onClick={() => { 
+                    setView('forgot'); 
+                    setErrorMsg(null); 
+                    setSuccessMsg(null); 
+                  }}
+                >
+                  Forgot password?
+                </Text>
+              </Group>
+              <PasswordInput
+                placeholder="Your password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </Box>
 
             <Button 
               type="submit" 
@@ -144,7 +229,11 @@ export function LoginPage({ onSuccess }) {
                 c="teal.7" 
                 fw={600} 
                 style={{ cursor: 'pointer', textDecoration: 'underline' }}
-                onClick={() => { setIsRegistering(true); setErrorMsg(null); setSuccessMsg(null); }}
+                onClick={() => { 
+                  setView('register'); 
+                  setErrorMsg(null); 
+                  setSuccessMsg(null); 
+                }}
               >
                 Register now
               </Text>

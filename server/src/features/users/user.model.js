@@ -27,6 +27,8 @@ const UserSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   password: { type: String, required: true, select: false },
+  resetPasswordToken: { type: String, select: false },
+  resetPasswordExpires: { type: Date, select: false },
   role: { 
     type: String, 
     enum: ['SUPER_USER', 'WLS_ADMIN', 'USER'],
@@ -60,9 +62,13 @@ const UserSchema = new mongoose.Schema({
   auditTrail: [AuditTrailSchema]
 }, { timestamps: true });
 
-// --- ADD THIS PRE-SAVE HOOK ---
+// --- PRE-SAVE HOOK: SECURE HASHING & DOUBLE-HASHING GUARD ---
 UserSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
+  // Prevent double hashing if the password is already a valid bcrypt hash ($2a$, $2b$, or $2y$)
+  if (typeof this.password === 'string' && /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/.test(this.password)) {
+    return next();
+  }
   try {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
