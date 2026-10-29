@@ -1,198 +1,83 @@
 import React from "react";
-import { Group, Text } from "@mantine/core";
-import { Play, FileText, BookOpen, Layers, Heart } from "lucide-react";
-import { getLectureName, getLectureAliases, getLectureIconUrl } from "./notebookUtils";
-import { PdfFileIcon } from "./PdfFileIcon";
-import { MediaIconBadge } from "./MediaIconBadge";
+import { getLectureName, getLectureAliases } from "./notebookUtils";
 
 export function NotebookLectureTabs({
-  activeLectures,
-  activeLectureIndex,
+  activeLectures = [],
+  activeLectureIndex = 0,
   onLectureChange,
-  activeLecture,
-  currentLectureVerses,
-  likedMap,
-  onLikeToggle,
-  openActionModal,
-  isDark,
+  isDark = false,
 }) {
   return (
-    <Group
-      justify="space-between"
-      px="md"
-      py="xs"
-      style={{
-        borderBottom: isDark ? "1px solid #2c2e33" : "1px solid #eef2f6",
-        background: isDark ? "#141517" : "#f8fafc",
-      }}
-    >
-      <Group gap="sm" style={{ flexWrap: "wrap", flex: 1, padding: "8px 0" }}>
-        {activeLectures.length === 0 ? (
-          <Text size="xs" c="dimmed">
-            No lectures found in this category.
-          </Text>
-        ) : (
-          activeLectures.map((lec, idx) => {
-            const count =
-              lec.total_ayats ||
-              lec.ayat_count ||
-              (lec.ayat_references ? lec.ayat_references.length : 0);
-            const isSelected = activeLectureIndex === idx;
-            const isLiked = !!likedMap[lec._id || lec.lecture_id];
+    <div className={`lecture-tabs-container ${isDark ? "dark-mode" : ""}`}>
+      {activeLectures.length === 0 ? (
+        <span style={{ fontSize: "12px", color: "#64748b", fontStyle: "italic", padding: "8px 12px" }}>
+          No lectures found in this category.
+        </span>
+      ) : (
+        activeLectures.map((lecture, idx) => {
+          const isActive = idx === activeLectureIndex;
+          const title = getLectureName(lecture.lecture_name) || lecture.title || "";
+          const aliases = getLectureAliases(lecture.lecture_name);
+          const rawAka = lecture.aka || lecture.lecture_alias;
+          const akaText = rawAka
+            ? (String(rawAka).toUpperCase().startsWith("AKA:") ? rawAka : `AKA: ${rawAka}`)
+            : (aliases.length > 0 ? `AKA: ${aliases[0]}` : null);
 
-            return (
-              <div key={lec._id || idx} className="lecture-chip-wrapper">
-                {/* FLOATING ACTION ORBITAL POPOVER ICONS ON HOVER */}
-                <div className="lecture-orbital-bar">
-                  {/* Watch Video Button */}
-                  <button
-                    type="button"
-                    onClick={(e) => openActionModal("video", lec, e)}
-                    title="Watch Lecture Video"
-                    className="orbital-btn"
-                    style={{ backgroundColor: "#dc2626" }}
-                  >
-                    <Play size={13} fill="currentColor" style={{ marginLeft: 2 }} />
-                  </button>
+          const ayatsCount =
+            lecture.ayat_references?.length ||
+            lecture.ayats_count ||
+            lecture.total_ayats ||
+            lecture.ayat_count ||
+            0;
 
-                  {/* View PDF Button */}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const primaryPdf = (Array.isArray(lec.pdf_url) && lec.pdf_url.length > 0) ? lec.pdf_url[0] : lec.pdf_url;
-                      const pUrl =
-                        (typeof primaryPdf === "object" ? primaryPdf?.url : primaryPdf) ||
-                        lec.pdf_link ||
-                        (Array.isArray(lec.pdf_booklet_urls) && lec.pdf_booklet_urls.length > 0 ? lec.pdf_booklet_urls[0] : "");
-                      if (pUrl) {
-                        window.open(pUrl, "_blank", "noopener,noreferrer");
-                      } else {
-                        openActionModal("pdf", lec, e);
-                      }
-                    }}
-                    title="View PDF Booklet & Notes"
-                    className="orbital-btn"
-                    style={{ backgroundColor: "#b91c1c" }}
-                  >
-                    <PdfFileIcon size={14} />
-                  </button>
+          const lecNumber =
+            lecture.lecture_id && !isNaN(lecture.lecture_id)
+              ? `${lecture.lecture_id}. `
+              : `${idx + 1}. `;
+          const fullTitle = `${lecNumber}${title}`;
 
-                  {/* Linked Quran Verses Button */}
-                  <button
-                    type="button"
-                    onClick={(e) => openActionModal("verses", lec, e)}
-                    title={`View ${count} Quran Verses`}
-                    className="orbital-btn"
-                    style={{ backgroundColor: "#d97706" }}
-                  >
-                    <BookOpen size={13} />
-                  </button>
+          return (
+            /* Parent container preserves fixed grid/inline slot so layout never shifts */
+            <div key={lecture._id || lecture.id || idx} className="lecture-chip-slot">
+              {/* Invisible ghost element in document flow to set the exact natural width of the slot */}
+              <div className="lecture-chip-ghost" aria-hidden="true">
+                <div className="chip-main-content">
+                  <span className="chip-title">{fullTitle}</span>
+                  {akaText && <span className="chip-aka-badge">{akaText}</span>}
+                </div>
+                <div className="chip-ayats-badge">
+                  <span className="star-icon">★</span>
+                  <span>{ayatsCount} ayats</span>
+                </div>
+              </div>
 
-                  {/* Seasons & Episodes Button */}
-                  <button
-                    type="button"
-                    onClick={(e) => openActionModal("episodes", lec, e)}
-                    title="Seasons & Episodes Breakdown"
-                    className="orbital-btn"
-                    style={{ backgroundColor: "#4f46e5" }}
-                  >
-                    <Layers size={13} />
-                  </button>
+              {/* Interactive card with absolute positioning & pop-out hover */}
+              <button
+                type="button"
+                onClick={() => onLectureChange(idx)}
+                className={`lecture-chip-card ${isActive ? "active" : ""}`}
+                title={fullTitle}
+              >
+                {/* Main Content Area */}
+                <div className="chip-main-content">
+                  <span className="chip-title">{fullTitle}</span>
 
-                  {/* Like / Bookmark Toggle */}
-                  <button
-                    type="button"
-                    onClick={(e) => onLikeToggle(lec._id || lec.lecture_id, e)}
-                    title={isLiked ? "Unlike" : "Like Lecture"}
-                    className="orbital-btn"
-                    style={{ backgroundColor: isLiked ? "#db2777" : "#475569" }}
-                  >
-                    <Heart size={13} fill={isLiked ? "currentColor" : "none"} />
-                  </button>
+                  {/* Sub-label badge (Revealed fully on hover or active) */}
+                  {akaText && (
+                    <span className="chip-aka-badge">{akaText}</span>
+                  )}
                 </div>
 
-                {/* The Pill / Chip Button */}
-                <button
-                  type="button"
-                  className={`lecture-binder-tab ${isSelected ? "active" : ""}`}
-                  onClick={() => onLectureChange(idx)}
-                  style={{
-                    padding: "6px 14px",
-                    borderRadius: "20px",
-                    fontSize: "12px",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    cursor: "pointer",
-                    outline: "none",
-                  }}
-                >
-                  <MediaIconBadge
-                    src={getLectureIconUrl(lec, lec.language)}
-                    alt={getLectureName(lec.lecture_name)}
-                    size={20}
-                    type="lecture"
-                  />
-                  <span style={{ fontWeight: isSelected ? 800 : 600 }}>
-                    {lec.lecture_id && !isNaN(lec.lecture_id) ? `${lec.lecture_id}. ` : ""}
-                    {getLectureName(lec.lecture_name)}
-                  </span>
-                  {getLectureAliases(lec.lecture_name).length > 0 && (
-                    <span
-                      title={`Also known as: ${getLectureAliases(lec.lecture_name).join(", ")}`}
-                      style={{
-                        fontSize: "9px",
-                        background: isSelected ? "rgba(255,255,255,0.25)" : isDark ? "rgba(99,102,241,0.25)" : "#e0e7ff",
-                        color: isSelected ? "#ffffff" : "#4338ca",
-                        padding: "1px 5px",
-                        borderRadius: "6px",
-                        fontWeight: 700,
-                      }}
-                    >
-                      AKA: {getLectureAliases(lec.lecture_name)[0]}
-                    </span>
-                  )}
-                  <span
-                    style={{
-                      background: isSelected ? "rgba(255,255,255,0.25)" : "#e2e8f0",
-                      color: isSelected ? "#ffffff" : "#475569",
-                      padding: "2px 7px",
-                      borderRadius: "10px",
-                      fontSize: "10px",
-                      fontWeight: 700,
-                    }}
-                  >
-                    {count} ayats
-                  </span>
-
-                  {isLiked && (
-                    <span
-                      style={{
-                        width: 6,
-                        height: 6,
-                        borderRadius: "50%",
-                        backgroundColor: "#ec4899",
-                      }}
-                    />
-                  )}
-                </button>
-              </div>
-            );
-          })
-        )}
-      </Group>
-
-      {activeLecture && (
-        <Text size="xs" c="dimmed" fs="italic" style={{ whiteSpace: "nowrap" }}>
-          Active:{" "}
-          <Text span fw={800} c="indigo.6">
-            {activeLecture.lecture_id && !isNaN(activeLecture.lecture_id) ? `${activeLecture.lecture_id}. ` : ""}
-            {getLectureName(activeLecture.lecture_name)}
-          </Text>{" "}
-          • {currentLectureVerses.length} Quran Verses
-        </Text>
+                {/* Ayats Count Badge */}
+                <div className="chip-ayats-badge">
+                  <span className="star-icon">★</span>
+                  <span>{ayatsCount} ayats</span>
+                </div>
+              </button>
+            </div>
+          );
+        })
       )}
-    </Group>
+    </div>
   );
 }
