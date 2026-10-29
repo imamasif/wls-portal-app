@@ -218,14 +218,18 @@ router.post("/forgot-password", async (req, res) => {
     );
     await user.save();
 
-    // Determine client URL
-    const clientOrigin =
-      req.headers.origin ||
-      req.headers.referer?.replace(/\/$/, "") ||
+    // Determine client URL (prioritizes explicitly configured CLIENT_URL, fallback to request origin)
+    let rawOrigin =
       process.env.CLIENT_URL ||
+      req.headers.origin ||
+      req.headers.referer ||
       "http://localhost:5173";
-    const cleanOrigin = clientOrigin.replace(/\/$/, "");
-    const resetUrl = `${cleanOrigin}/?resetToken=${rawToken}`;
+
+    rawOrigin = String(rawOrigin).trim().replace(/\/+$/, "");
+    if (!rawOrigin.startsWith("http://") && !rawOrigin.startsWith("https://")) {
+      rawOrigin = `https://${rawOrigin}`;
+    }
+    const resetUrl = `${rawOrigin}/?resetToken=${rawToken}`;
 
     // Send email via email service
     const emailResult = await sendPasswordResetEmail({
