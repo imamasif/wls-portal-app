@@ -21,6 +21,7 @@ import {
   IconSitemap,
   IconNotebook,
   IconSparkles,
+  IconCalendarHeart,
 } from "@tabler/icons-react";
 
 
@@ -35,6 +36,17 @@ export function WlsAdminMenu({ activeTab, setActiveTab }) {
         size="xs"
       >
         Dashboard
+      </Button>
+
+      {/* IIPC Events Direct Button */}
+      <Button
+        variant={activeTab === AppTab.USER_EVENTS || activeTab === AppTab.IIPC_EVENTS ? "filled" : "subtle"}
+        color="violet"
+        leftSection={<IconCalendarHeart size={18} />}
+        onClick={() => setActiveTab(AppTab.IIPC_EVENTS)}
+        size="xs"
+      >
+        IIPC-EVENTS
       </Button>
 
       {/* WLS Management Dropdown */}

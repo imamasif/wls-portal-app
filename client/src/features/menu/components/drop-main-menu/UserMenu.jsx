@@ -16,6 +16,7 @@ import {
   IconChartBar,
   IconNotebook,
   IconSparkles,
+  IconHeartHandshake,
 } from "@tabler/icons-react";
 
 
@@ -30,6 +31,17 @@ export function UserMenu({ activeTab, setActiveTab }) {
         size="xs"
       >
         Dashboard
+      </Button>
+
+      {/* Direct My Reports Button */}
+      <Button
+        variant={activeTab === AppTab.USER_EVENTS ? "filled" : "subtle"}
+        color="violet"
+        leftSection={<IconHeartHandshake size={18} />}
+        onClick={() => setActiveTab(AppTab.USER_EVENTS)}
+        size="xs"
+      >
+        IIPC Events & Pledges
       </Button>
 
       {/* Direct My Reports Button */}
