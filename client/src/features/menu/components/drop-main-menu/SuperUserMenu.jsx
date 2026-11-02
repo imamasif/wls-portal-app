@@ -23,6 +23,7 @@ import {
   IconDatabase,
   IconSparkles,
   IconNotebook,
+  IconCalendarHeart,
 } from "@tabler/icons-react";
 
 
@@ -38,6 +39,17 @@ export function SuperUserMenu({ activeTab, setActiveTab }) {
         size="xs"
       >
         Dashboard
+      </Button>
+
+      {/* IIPC-EVENTS Super User Direct Access */}
+      <Button
+        variant={activeTab === AppTab.IIPC_EVENTS ? "filled" : "subtle"}
+        color="violet"
+        leftSection={<IconCalendarHeart size={18} />}
+        onClick={() => setActiveTab(AppTab.IIPC_EVENTS)}
+        size="xs"
+      >
+        IIPC-EVENTS
       </Button>
 
       {/* WLS Management Dropdown */}
@@ -145,6 +157,14 @@ export function SuperUserMenu({ activeTab, setActiveTab }) {
             }
           >
             Menu Permissions
+          </Menu.Item>
+          <Menu.Item
+            onClick={() => setActiveTab(AppTab.IIPC_EVENTS)}
+            leftSection={
+              <IconCalendarHeart size={16} color="var(--mantine-color-violet-6)" />
+            }
+          >
+            IIPC-EVENTS
           </Menu.Item>
           <Menu.Item
             onClick={() => setActiveTab(AppTab.WHATSAPP_GROUPS)}

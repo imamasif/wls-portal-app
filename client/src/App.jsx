@@ -28,6 +28,7 @@ import { QuranStickyNotesExplorer } from "./features/quran-reference-memorizer/c
 import { AyatManagerView } from "./features/quran-reference-memorizer/components/AyatManagerView";
 import { QuranLectureReferenceNotebook } from "./features/quran-reference-memorizer/components/QuranLectureReferenceNotebook";
 import { SuperUserAssessmentOverview } from "./features/wls-assessment/components/SuperUserAssessmentOverview";
+import { IipcEventsSuperUserPanel, IipcEventsUserView } from "./features/iipc-events";
 
 
 
@@ -114,7 +115,7 @@ export default function App() {
             <WlsReportingDashboard currentUser={user} />
           )}
           {activeTab === AppTab.NOTIFICATIONS && (
-            <NotificationPanel user={user} />
+            <NotificationPanel user={user} setActiveTab={setActiveTab} />
           )}
           {activeTab === AppTab.EDIT_PROFILE && (
             <EditProfileCard
@@ -181,6 +182,12 @@ export default function App() {
           )}
           {activeTab === AppTab.AYAT_MANAGER && isSuperAdmin && (
             <AyatManagerView user={user} />
+          )}
+          {activeTab === AppTab.IIPC_EVENTS && isSuperAdmin && (
+            <IipcEventsSuperUserPanel user={user} />
+          )}
+          {(activeTab === AppTab.USER_EVENTS || (activeTab === AppTab.IIPC_EVENTS && !isSuperAdmin)) && (
+            <IipcEventsUserView user={user} />
           )}
         </Container>
 

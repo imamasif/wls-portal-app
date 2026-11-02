@@ -1,5 +1,7 @@
 // src/features/notifications/components/NotificationPanel.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import { AppTab } from "@/types/user";
 import {
   Box,
   Title,
@@ -28,7 +30,7 @@ import {
   IconBook,
 } from "@tabler/icons-react";
 
-export function NotificationPanel({ notifications = [] }) {
+export function NotificationPanel({ notifications = [], user, setActiveTab }) {
   const defaultNotifications = [
     {
       id: 1,
@@ -73,6 +75,35 @@ export function NotificationPanel({ notifications = [] }) {
     notifications.length > 0 ? notifications : defaultNotifications,
   );
   const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    const fetchUserNotifications = async () => {
+      const uId = user?.id || user?._id;
+      if (!uId) return;
+      try {
+        const res = await axios.get(`/api/notifications/user/${uId}`);
+        if (Array.isArray(res.data) && res.data.length > 0) {
+          const mapped = res.data.map((n) => ({
+            id: n.id || n._id,
+            title: n.title,
+            message: n.message,
+            date: n.createdAt ? new Date(n.createdAt).toLocaleString() : "",
+            type: n.type || "ALERT",
+            badge: n.metadata?.projectTitle ? "Donation Appeal" : "Announcement",
+            link: n.actionUrl ? "#" : null,
+            image: null,
+            pinned: n.priority === "HIGH" || n.priority === "URGENT",
+            metadata: n.metadata,
+            actionUrl: n.actionUrl,
+          }));
+          setItems(mapped);
+        }
+      } catch (err) {
+        console.warn("Failed to fetch user notifications:", err.message);
+      }
+    };
+    fetchUserNotifications();
+  }, [user]);
 
   const handleTogglePin = (id) => {
     setItems((prev) =>
@@ -240,7 +271,16 @@ export function NotificationPanel({ notifications = [] }) {
                   <Text size="xs" c="dimmed">
                     {n.date}
                   </Text>
-                  {n.link && (
+                  {n.metadata?.eventId || n.actionUrl === "iipc-events" ? (
+                    <Button
+                      size="xs"
+                      variant="filled"
+                      color="teal"
+                      onClick={() => setActiveTab && setActiveTab(AppTab.USER_EVENTS)}
+                    >
+                      View Appeal & Pledge
+                    </Button>
+                  ) : n.link && (
                     <Button
                       component="a"
                       // href={n.link}
