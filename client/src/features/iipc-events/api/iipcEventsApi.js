@@ -86,4 +86,16 @@ export const iipcEventsApi = {
     const res = await axios.get("/api/users");
     return res.data;
   },
+
+  // Fetch institutional banking and donation payment channels
+  getPaymentChannels: async () => {
+    const res = await axios.get(`${API_BASE}/channels`);
+    return res.data;
+  },
+
+  // Public pledge submission (unauthenticated visitors)
+  createPublicDonation: async (payload) => {
+    const res = await axios.post(`${API_BASE}/public/pledge`, payload);
+    return res.data;
+  },
 };

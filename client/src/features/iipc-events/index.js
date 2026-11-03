@@ -8,3 +8,6 @@ export * from "./components/AddPledgeModal";
 export * from "./components/MarkPaymentModal";
 export * from "./components/SubmitProofModal";
 export * from "./components/EventReportSection";
+export * from "./components/DonationPaymentCards";
+export * from "./components/ShareCampaignModal";
+export * from "./components/PublicEventDonationPage";

@@ -12,6 +12,12 @@ import {
 
 const router = express.Router();
 
+// Payment / Banking Channels (Defined before /:id)
+router.get("/channels", IipcEventsController.getAllPaymentChannels);
+
+// Public donation pledge without login
+router.post("/public/pledge", IipcEventsController.createPublicDonation);
+
 // Events CRUD
 router.get("/", IipcEventsController.getAllEvents);
 router.post("/", validateSchema(createEventSchema), IipcEventsController.createEvent);

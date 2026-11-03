@@ -1,5 +1,9 @@
 import mongoose from "mongoose";
-import { IipcEventModel, IipcDonationModel } from "./iipcEvents.model.js";
+import {
+  IipcEventModel,
+  IipcDonationModel,
+  IipcPaymentChannelModel,
+} from "./iipcEvents.model.js";
 import { UserModel } from "../users/user.model.js";
 import { NotificationModel } from "../notifications/notification.model.js";
 import { IipcEventsMapper } from "./iipcEvents.mapper.js";
@@ -530,5 +534,182 @@ export class IipcEventsUseCase {
     });
 
     return IipcEventsMapper.toReportResDTO(event, summary, donations);
+  }
+
+  /**
+   * Seed default institutional banking and donation channels if empty
+   */
+  static async seedDefaultPaymentChannelsIfEmpty() {
+    const count = await IipcPaymentChannelModel.countDocuments();
+    if (count > 0) return;
+
+    const defaultChannels = [
+      {
+        name: "TD Canada Trust Bank",
+        title: "Bank Wire / Direct Transfer",
+        channelType: "BANK_TRANSFER",
+        bankName: "TD (Toronto Dominion) Canada Trust Bank",
+        accountName: "International Islamic Propagation Centre Canada",
+        accountNumber: "5235155",
+        swiftCode: "TDOMCATTTOR",
+        iban: "026009593",
+        transitNumber: "02219",
+        institutionNumber: "004",
+        branchNumber: "221",
+        abaRouting: "026009593",
+        branchAddress: "5001 19th Street, Unit 500, Red Deer, AB T4R 3R1, CANADA",
+        instructions:
+          "Should you wish to make a donation by bank transfer please use the banking details above. For US Donors please use ABA: 026009593. Kindly use 'PayPal' & 'CanadaHelps' only if donating via Credit Card. For all other transfers please use Bank transfer.",
+        logoUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/TD_Bank_logo.svg/320px-TD_Bank_logo.svg.png",
+        currencies: ["CAD", "USD"],
+        craNumber: "80654 8632 RR0001",
+        isActive: true,
+        sortOrder: 1,
+      },
+      {
+        name: "Interac E-Transfer",
+        title: "Interac E-Transfer (Auto-Deposit)",
+        channelType: "E_TRANSFER",
+        email: "accounts@iipccanada.com",
+        instructions:
+          "Send direct Interac e-Transfer to accounts@iipccanada.com from your banking app. Auto-deposit is enabled. Please mention project name in message.",
+        logoUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Interac_Logo.svg/320px-Interac_Logo.svg.png",
+        currencies: ["CAD"],
+        craNumber: "80654 8632 RR0001",
+        isActive: true,
+        sortOrder: 2,
+      },
+      {
+        name: "PayPal Giving Fund",
+        title: "PayPal & Credit Card",
+        channelType: "PAYPAL",
+        url: "https://www.paypal.com/CA/fundraiser/charity/3971665",
+        instructions:
+          "If you don't have a PayPal account, you can donate directly with your Credit Card via the PayPal Giving Fund. No fees charged by PayPal.",
+        logoUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/PayPal.svg/320px-PayPal.svg.png",
+        currencies: ["CAD", "USD", "GBP", "EUR"],
+        craNumber: "80654 8632 RR0001",
+        isActive: true,
+        sortOrder: 3,
+      },
+      {
+        name: "CanadaHelps.org",
+        title: "CanadaHelps Tax-Deductible Donation",
+        channelType: "CANADA_HELPS",
+        url: "https://www.canadahelps.org/en/dn/29287",
+        instructions:
+          "Donate safely via CanadaHelps.org using Credit Card, PayPal, or Google Pay. Instant official CRA tax receipt issued directly to your email.",
+        logoUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/CanadaHelps_logo.svg/320px-CanadaHelps_logo.svg.png",
+        currencies: ["CAD", "USD"],
+        craNumber: "80654 8632 RR0001",
+        isActive: true,
+        sortOrder: 4,
+      },
+      {
+        name: "IIPC Official Website",
+        title: "IIPC Canada Official Portal",
+        channelType: "WEBSITE",
+        url: "https://iipccanada.com/donate/",
+        instructions:
+          "Visit the official IIPC Canada donation portal to contribute to our ongoing worldwide da'wah and community welfare appeals.",
+        logoUrl: "/iipc-logo1.png",
+        currencies: ["CAD", "USD", "GBP", "EUR", "PKR"],
+        craNumber: "80654 8632 RR0001",
+        isActive: true,
+        sortOrder: 5,
+      },
+    ];
+
+    await IipcPaymentChannelModel.insertMany(defaultChannels);
+  }
+
+  /**
+   * Retrieve all active institutional payment channels
+   */
+  static async getAllPaymentChannels() {
+    await this.seedDefaultPaymentChannelsIfEmpty();
+    return await IipcPaymentChannelModel.find({ isActive: true })
+      .sort({ sortOrder: 1 })
+      .lean();
+  }
+
+  /**
+   * Public Pledge: unauthenticated donation submission from shared campaign links
+   */
+  static async createPublicDonation(dto) {
+    if (!dto.eventId || !mongoose.Types.ObjectId.isValid(dto.eventId)) {
+      throw new Error("Invalid or missing Event ID.");
+    }
+
+    const event = await IipcEventModel.findById(dto.eventId);
+    if (!event) throw new Error("Selected project / event does not exist.");
+
+    const cleanEmail = (dto.donorEmail || "").toLowerCase().trim();
+    if (!cleanEmail) {
+      throw new Error("Email is required to confirm your donation pledge.");
+    }
+
+    let user = await UserModel.findOne({ email: cleanEmail });
+    if (!user) {
+      const fullName =
+        dto.donorName ||
+        `${dto.firstName || ""} ${dto.lastName || ""}`.trim() ||
+        cleanEmail.split("@")[0] ||
+        "Online Donor";
+
+      user = await UserModel.create({
+        name: fullName,
+        email: cleanEmail,
+        password: "DefaultPledge123!",
+        role: "USER",
+        phone: dto.phone || "",
+        phones: dto.phone
+          ? [{ number: dto.phone, type: "Mobile", isPrimary: true }]
+          : [],
+        city: "Canada",
+        country: "Canada",
+        isActive: true,
+        createdBy: "Public Campaign Share",
+        auditTrail: [
+          {
+            action: "USER_CREATED_VIA_PUBLIC_PLEDGE",
+            performedBy: "Public Visitor",
+            performedAt: new Date(),
+            details: `Auto-registered through shared campaign link for: ${event.title}`,
+          },
+        ],
+      });
+    } else if (dto.phone && !user.phone) {
+      user.phone = dto.phone;
+      await user.save();
+    }
+
+    const pledgeAmount = Number(dto.pledgeAmount) || 0;
+    const receivedAmount = Number(dto.receivedAmount) || 0;
+
+    const donationDoc = new IipcDonationModel({
+      eventId: event._id,
+      userId: user._id,
+      donorName: user.name,
+      donorEmail: user.email,
+      pledgeAmount,
+      currency: dto.currency || event.currency || "CAD",
+      receivedAmount,
+      receivedCurrency: dto.currency || event.currency || "CAD",
+      status: receivedAmount >= pledgeAmount && pledgeAmount > 0 ? "RECEIVED" : "PLEDGED",
+      comments: dto.comments || "Registered via public campaign page",
+      paymentMethod: dto.paymentMethod || "PUBLIC_SHARE",
+      paymentProofUrl: dto.paymentProofUrl || "",
+      receivedDate: receivedAmount > 0 ? new Date() : null,
+      addedBy: user._id,
+    });
+
+    const savedDonation = await donationDoc.save();
+    const populated = await IipcDonationModel.findById(savedDonation._id)
+      .populate("userId", "name email")
+      .populate("eventId", "title targetAmount currency")
+      .lean();
+
+    return IipcEventsMapper.toDonationResDTO(populated);
   }
 }

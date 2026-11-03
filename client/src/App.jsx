@@ -28,7 +28,11 @@ import { QuranStickyNotesExplorer } from "./features/quran-reference-memorizer/c
 import { AyatManagerView } from "./features/quran-reference-memorizer/components/AyatManagerView";
 import { QuranLectureReferenceNotebook } from "./features/quran-reference-memorizer/components/QuranLectureReferenceNotebook";
 import { SuperUserAssessmentOverview } from "./features/wls-assessment/components/SuperUserAssessmentOverview";
-import { IipcEventsSuperUserPanel, IipcEventsUserView } from "./features/iipc-events";
+import {
+  IipcEventsSuperUserPanel,
+  IipcEventsUserView,
+  PublicEventDonationPage,
+} from "./features/iipc-events";
 
 
 
@@ -45,6 +49,18 @@ export default function App() {
     user ? AppTab.DASHBOARD : AppTab.LOGIN,
   );
   const [selectedQuizForEdit, setSelectedQuizForEdit] = useState(null);
+
+  // Check if URL has public campaign link parameter (?event=... or ?eventId=...)
+  const getPublicEventIdFromUrl = () => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("event") || params.get("eventId") || params.get("appeal") || null;
+    } catch {
+      return null;
+    }
+  };
+
+  const [publicEventId, setPublicEventId] = useState(getPublicEventIdFromUrl());
 
   useEffect(() => {
     if (!user) setActiveTab(AppTab.LOGIN);
@@ -63,6 +79,16 @@ export default function App() {
   };
 
   if (!user) {
+    if (publicEventId) {
+      return (
+        <MantineProvider defaultColorScheme="light">
+          <PublicEventDonationPage
+            eventId={publicEventId}
+            onGoToLogin={() => setPublicEventId(null)}
+          />
+        </MantineProvider>
+      );
+    }
     return (
       <MantineProvider defaultColorScheme="light">
         <Container size="lg" py={80}>
