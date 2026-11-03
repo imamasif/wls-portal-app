@@ -24,8 +24,10 @@ import {
   IconChartBar,
   IconHeartHandshake,
   IconZoomIn,
+  IconShare,
 } from "@tabler/icons-react";
 import { formatCurrency, getCurrencySymbol } from "../currencyUtils";
+import { ShareCampaignModal } from "./ShareCampaignModal";
 
 export function ProjectCard({
   project,
@@ -37,6 +39,7 @@ export function ProjectCard({
   onUserPledge,
 }) {
   const [selectedPhoto, setSelectedPhoto] = useState(null);
+  const [shareModalOpened, setShareModalOpened] = useState(false);
 
   const summary = project.summary || {};
   const target = project.targetAmount || 0;
@@ -278,6 +281,18 @@ export function ProjectCard({
 
         {/* Action Buttons */}
         <Stack gap="xs" mt="md">
+          {/* Share Button (Available for all) */}
+          <Button
+            size="xs"
+            color="teal"
+            variant="outline"
+            leftSection={<IconShare size={14} />}
+            onClick={() => setShareModalOpened(true)}
+            fullWidth
+          >
+            Share Campaign Link
+          </Button>
+
           {isSuperUser ? (
             <>
               <Group grow gap="xs">
@@ -352,6 +367,13 @@ export function ProjectCard({
           <Image src={selectedPhoto} radius="md" />
         </Modal>
       )}
+
+      {/* Share Campaign Modal */}
+      <ShareCampaignModal
+        opened={shareModalOpened}
+        onClose={() => setShareModalOpened(false)}
+        project={project}
+      />
     </>
   );
 }

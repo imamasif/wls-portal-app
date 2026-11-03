@@ -155,3 +155,126 @@ export const IipcEventModel =
 export const IipcDonationModel =
   mongoose.models.IipcDonation ||
   mongoose.model("IipcDonation", IipcDonationSchema);
+
+// Schema for Donation Banking & Payment Channels
+const IipcPaymentChannelSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    channelType: {
+      type: String,
+      enum: [
+        "BANK_TRANSFER",
+        "E_TRANSFER",
+        "PAYPAL",
+        "CANADA_HELPS",
+        "WEBSITE",
+        "OTHER",
+      ],
+      default: "BANK_TRANSFER",
+      index: true,
+    },
+    bankName: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    accountName: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    accountNumber: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    swiftCode: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    iban: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    transitNumber: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    institutionNumber: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    branchNumber: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    abaRouting: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    branchAddress: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    email: {
+      type: String,
+      default: "",
+      trim: true,
+      lowercase: true,
+    },
+    url: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    instructions: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    logoUrl: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    currencies: {
+      type: [String],
+      default: ["CAD", "USD"],
+    },
+    craNumber: {
+      type: String,
+      default: "80654 8632 RR0001",
+      trim: true,
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+      index: true,
+    },
+    sortOrder: {
+      type: Number,
+      default: 1,
+    },
+  },
+  { timestamps: true }
+);
+
+export const IipcPaymentChannelModel =
+  mongoose.models.IipcPaymentChannel ||
+  mongoose.model("IipcPaymentChannel", IipcPaymentChannelSchema);

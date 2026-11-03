@@ -133,6 +133,26 @@ export class IipcEventsController {
     }
   }
 
+  static async getAllPaymentChannels(req, res) {
+    try {
+      const channels = await IipcEventsUseCase.getAllPaymentChannels();
+      return res.status(200).json(channels);
+    } catch (err) {
+      console.error("Error in getAllPaymentChannels:", err);
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  static async createPublicDonation(req, res) {
+    try {
+      const donation = await IipcEventsUseCase.createPublicDonation(req.body);
+      return res.status(201).json(donation);
+    } catch (err) {
+      console.error("Error in createPublicDonation:", err);
+      return res.status(400).json({ error: err.message });
+    }
+  }
+
   static async getEventReport(req, res) {
     try {
       const { id } = req.params;

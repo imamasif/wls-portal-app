@@ -33,10 +33,13 @@ import {
   IconSparkles,
   IconClock,
   IconUsers,
+  IconShare,
 } from "@tabler/icons-react";
 import { iipcEventsApi } from "../api/iipcEventsApi";
 import { CURRENCIES, getCurrencySymbol, formatCurrency } from "../currencyUtils";
 import { SubmitProofModal } from "./SubmitProofModal";
+import { DonationPaymentCards } from "./DonationPaymentCards";
+import { ShareCampaignModal } from "./ShareCampaignModal";
 
 export function IipcEventsUserView({ user }) {
   const [events, setEvents] = useState([]);
@@ -54,9 +57,10 @@ export function IipcEventsUserView({ user }) {
   const [userDonations, setUserDonations] = useState([]);
   const [projectDonations, setProjectDonations] = useState([]);
 
-  // Modal for submitting proof
+  // Modals
   const [proofModalOpened, setProofModalOpened] = useState(false);
   const [selectedDonationForProof, setSelectedDonationForProof] = useState(null);
+  const [shareModalOpened, setShareModalOpened] = useState(false);
   const [zoomPhoto, setZoomPhoto] = useState(null);
 
   useEffect(() => {
@@ -231,9 +235,22 @@ export function IipcEventsUserView({ user }) {
                 Support charitable causes, lodge your pledge commitment, and submit transfer proofs.
               </Text>
             </div>
-            <Badge size="lg" color="teal.1" c="teal.9" variant="filled">
-              {events.length} Active Campaigns
-            </Badge>
+            <Group gap="xs">
+              <Badge size="lg" color="teal.1" c="teal.9" variant="filled">
+                {events.length} Active Campaigns
+              </Badge>
+              {selectedEvent && (
+                <Button
+                  color="teal.1"
+                  c="teal.9"
+                  size="xs"
+                  leftSection={<IconShare size={14} />}
+                  onClick={() => setShareModalOpened(true)}
+                >
+                  Share Appeal
+                </Button>
+              )}
+            </Group>
           </Group>
         </Paper>
 
@@ -284,9 +301,20 @@ export function IipcEventsUserView({ user }) {
                     </Text>
                   </Group>
                 </div>
-                <Badge size="lg" color="teal" variant="filled">
-                  {selectedEvent.status}
-                </Badge>
+                <Group gap="xs">
+                  <Badge size="lg" color="teal" variant="filled">
+                    {selectedEvent.status}
+                  </Badge>
+                  <Button
+                    size="xs"
+                    color="teal"
+                    variant="light"
+                    leftSection={<IconShare size={14} />}
+                    onClick={() => setShareModalOpened(true)}
+                  >
+                    Share Appeal Link
+                  </Button>
+                </Group>
               </Group>
 
               {/* Description */}
@@ -576,6 +604,22 @@ export function IipcEventsUserView({ user }) {
               </form>
             </Paper>
 
+            {/* COOL WHITE REACT MANTINE CARDS: BANKING & PAYMENT DETAILS */}
+            <div>
+              <Group justify="space-between" align="center" mb="sm">
+                <div>
+                  <Title order={3} c="dark.9">
+                    Ways to Send Your Donation
+                  </Title>
+                  <Text size="sm" c="dimmed">
+                    Official banking accounts & online donation channels for International Islamic Propagation Centre Canada
+                  </Text>
+                </div>
+              </Group>
+
+              <DonationPaymentCards />
+            </div>
+
             {/* Community Donors Sequence Table */}
             {projectDonations.length > 0 && (
               <Paper p="lg" radius="md" withBorder>
@@ -657,6 +701,13 @@ export function IipcEventsUserView({ user }) {
         }}
         onSave={handleSaveProof}
         donation={selectedDonationForProof}
+      />
+
+      {/* Share Campaign Modal */}
+      <ShareCampaignModal
+        opened={shareModalOpened}
+        onClose={() => setShareModalOpened(false)}
+        project={selectedEvent}
       />
 
       {/* Snap Zoom Modal */}
