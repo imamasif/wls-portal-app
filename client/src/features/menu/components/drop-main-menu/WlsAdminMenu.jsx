@@ -22,8 +22,8 @@ import {
   IconNotebook,
   IconSparkles,
   IconCalendarHeart,
+  IconCategory,
 } from "@tabler/icons-react";
-
 
 export function WlsAdminMenu({ activeTab, setActiveTab }) {
   return (
@@ -36,17 +36,6 @@ export function WlsAdminMenu({ activeTab, setActiveTab }) {
         size="xs"
       >
         Dashboard
-      </Button>
-
-      {/* IIPC Events Direct Button */}
-      <Button
-        variant={activeTab === AppTab.USER_EVENTS || activeTab === AppTab.IIPC_EVENTS ? "filled" : "subtle"}
-        color="violet"
-        leftSection={<IconCalendarHeart size={18} />}
-        onClick={() => setActiveTab(AppTab.IIPC_EVENTS)}
-        size="xs"
-      >
-        IIPC-EVENTS
       </Button>
 
       {/* WLS Management Dropdown */}
@@ -63,7 +52,6 @@ export function WlsAdminMenu({ activeTab, setActiveTab }) {
           </Button>
         </Menu.Target>
         <Menu.Dropdown>
-          {/* Point to wls-mgmt */}
           <Menu.Item
             onClick={() => setActiveTab(AppTab.WLS_SESSION)}
             leftSection={
@@ -82,7 +70,6 @@ export function WlsAdminMenu({ activeTab, setActiveTab }) {
             Attendance Monitoring
           </Menu.Item>
 
-          {/* Added Class Attendance for Admins */}
           <Menu.Item
             onClick={() => setActiveTab(AppTab.WLS_CLASS_ATTENDANCE)}
             leftSection={
@@ -142,8 +129,6 @@ export function WlsAdminMenu({ activeTab, setActiveTab }) {
           </Button>
         </Menu.Target>
         <Menu.Dropdown>
-          {/* ... other admin links ... */}
-
           <Menu.Item
             onClick={() => setActiveTab(AppTab.STICKY_NOTES)}
             leftSection={
@@ -188,7 +173,31 @@ export function WlsAdminMenu({ activeTab, setActiveTab }) {
           >
             Quran Morphology Tree
           </Menu.Item>
+        </Menu.Dropdown>
+      </Menu>
 
+      {/* Miscellaneous Dropdown */}
+      <Menu shadow="md" width={220} trigger="hover">
+        <Menu.Target>
+          <Button
+            variant={activeTab === AppTab.IIPC_EVENTS || activeTab === AppTab.USER_EVENTS ? "filled" : "subtle"}
+            color="violet"
+            leftSection={<IconCategory size={18} />}
+            rightSection={<IconChevronDown size={14} />}
+            size="xs"
+          >
+            Miscellaneous
+          </Button>
+        </Menu.Target>
+        <Menu.Dropdown>
+          <Menu.Item
+            onClick={() => setActiveTab(AppTab.IIPC_EVENTS)}
+            leftSection={
+              <IconCalendarHeart size={16} color="var(--mantine-color-violet-6)" />
+            }
+          >
+            IIPC-EVENTS
+          </Menu.Item>
         </Menu.Dropdown>
       </Menu>
     </Group>

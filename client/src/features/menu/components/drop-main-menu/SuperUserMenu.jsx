@@ -24,9 +24,8 @@ import {
   IconSparkles,
   IconNotebook,
   IconCalendarHeart,
+  IconCategory,
 } from "@tabler/icons-react";
-
-
 
 export function SuperUserMenu({ activeTab, setActiveTab }) {
   return (
@@ -39,17 +38,6 @@ export function SuperUserMenu({ activeTab, setActiveTab }) {
         size="xs"
       >
         Dashboard
-      </Button>
-
-      {/* IIPC-EVENTS Super User Direct Access */}
-      <Button
-        variant={activeTab === AppTab.IIPC_EVENTS ? "filled" : "subtle"}
-        color="violet"
-        leftSection={<IconCalendarHeart size={18} />}
-        onClick={() => setActiveTab(AppTab.IIPC_EVENTS)}
-        size="xs"
-      >
-        IIPC-EVENTS
       </Button>
 
       {/* WLS Management Dropdown */}
@@ -115,7 +103,7 @@ export function SuperUserMenu({ activeTab, setActiveTab }) {
             Assessments & Grading
           </Menu.Item>
           <Menu.Divider />
-          {/* NEW: Explicit Super User Completion Portal */}
+          {/* Explicit Super User Completion Portal */}
           <Menu.Item
             onClick={() => setActiveTab(AppTab.ASSESSMENT_OVERVIEW)}
             leftSection={
@@ -157,14 +145,6 @@ export function SuperUserMenu({ activeTab, setActiveTab }) {
             }
           >
             Menu Permissions
-          </Menu.Item>
-          <Menu.Item
-            onClick={() => setActiveTab(AppTab.IIPC_EVENTS)}
-            leftSection={
-              <IconCalendarHeart size={16} color="var(--mantine-color-violet-6)" />
-            }
-          >
-            IIPC-EVENTS
           </Menu.Item>
           <Menu.Item
             onClick={() => setActiveTab(AppTab.WHATSAPP_GROUPS)}
@@ -299,7 +279,31 @@ export function SuperUserMenu({ activeTab, setActiveTab }) {
           >
             Quran Morphology Tree
           </Menu.Item>
+        </Menu.Dropdown>
+      </Menu>
 
+      {/* Miscellaneous Dropdown */}
+      <Menu shadow="md" width={220} trigger="hover">
+        <Menu.Target>
+          <Button
+            variant={activeTab === AppTab.IIPC_EVENTS ? "filled" : "subtle"}
+            color="violet"
+            leftSection={<IconCategory size={18} />}
+            rightSection={<IconChevronDown size={14} />}
+            size="xs"
+          >
+            Miscellaneous
+          </Button>
+        </Menu.Target>
+        <Menu.Dropdown>
+          <Menu.Item
+            onClick={() => setActiveTab(AppTab.IIPC_EVENTS)}
+            leftSection={
+              <IconCalendarHeart size={16} color="var(--mantine-color-violet-6)" />
+            }
+          >
+            IIPC-EVENTS
+          </Menu.Item>
         </Menu.Dropdown>
       </Menu>
     </Group>
