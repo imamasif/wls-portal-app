@@ -17,8 +17,8 @@ import {
   IconNotebook,
   IconSparkles,
   IconHeartHandshake,
+  IconCategory,
 } from "@tabler/icons-react";
-
 
 export function UserMenu({ activeTab, setActiveTab }) {
   return (
@@ -31,17 +31,6 @@ export function UserMenu({ activeTab, setActiveTab }) {
         size="xs"
       >
         Dashboard
-      </Button>
-
-      {/* Direct My Reports Button */}
-      <Button
-        variant={activeTab === AppTab.USER_EVENTS ? "filled" : "subtle"}
-        color="violet"
-        leftSection={<IconHeartHandshake size={18} />}
-        onClick={() => setActiveTab(AppTab.USER_EVENTS)}
-        size="xs"
-      >
-        IIPC Events & Pledges
       </Button>
 
       {/* Direct My Reports Button */}
@@ -155,7 +144,31 @@ export function UserMenu({ activeTab, setActiveTab }) {
           >
             Quran Morphology Tree
           </Menu.Item>
+        </Menu.Dropdown>
+      </Menu>
 
+      {/* Miscellaneous Dropdown Menu for Users */}
+      <Menu shadow="md" width={240} trigger="hover">
+        <Menu.Target>
+          <Button
+            variant={activeTab === AppTab.USER_EVENTS ? "filled" : "subtle"}
+            color="violet"
+            leftSection={<IconCategory size={18} />}
+            rightSection={<IconChevronDown size={14} />}
+            size="xs"
+          >
+            Miscellaneous
+          </Button>
+        </Menu.Target>
+        <Menu.Dropdown>
+          <Menu.Item
+            onClick={() => setActiveTab(AppTab.USER_EVENTS)}
+            leftSection={
+              <IconHeartHandshake size={16} color="var(--mantine-color-violet-6)" />
+            }
+          >
+            IIPC Events & Pledges
+          </Menu.Item>
         </Menu.Dropdown>
       </Menu>
     </Group>
