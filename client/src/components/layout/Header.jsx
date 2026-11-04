@@ -10,15 +10,23 @@ import {
   Button,
   Menu,
   Divider,
+  Burger,
 } from "@mantine/core";
 import { IconBell, IconPencil, IconLogout } from "@tabler/icons-react";
 
-export function Header({ user, setActiveTab, logout, notificationCount = 3 }) {
+export function Header({
+  user,
+  setActiveTab,
+  logout,
+  notificationCount = 3,
+  mobileOpened = false,
+  onToggleMobile = () => {},
+}) {
   return (
     <Box
       component="header"
-      px={{ base: "md", sm: "xl" }}
-      py={6} // Reduced vertical padding to close the gap between header and navigation
+      px={{ base: "xs", sm: "md", md: "xl" }}
+      py={6}
       bg="white"
       style={{
         display: "flex",
@@ -26,22 +34,34 @@ export function Header({ user, setActiveTab, logout, notificationCount = 3 }) {
         alignItems: "center",
         width: "100%",
         boxSizing: "border-box",
-        flexWrap: "wrap",
-        gap: "12px",
+        flexWrap: "nowrap",
+        gap: "8px",
         borderBottom: "1px solid var(--mantine-color-gray-2)",
+        height: "100%",
       }}
     >
-      {/* Left Section: Logo & Uniform Bold Title with Canada Flag Touch */}
-      <Group gap="md" align="center" wrap="nowrap" style={{ minWidth: 0 }}>
+      {/* Left Section: Mobile Burger + Logo + Uniform Bold Title */}
+      <Group gap={{ base: "xs", sm: "md" }} align="center" wrap="nowrap" style={{ minWidth: 0, flexShrink: 1 }}>
+        {/* Mobile / Tablet Burger Navigation Toggle */}
+        {user && (
+          <Burger
+            opened={mobileOpened}
+            onClick={onToggleMobile}
+            hiddenFrom="md"
+            size="sm"
+            aria-label="Toggle navigation menu"
+          />
+        )}
+
         <Box
           style={{
-            height: "54px", // Compacted logo container slightly to match leaner header
-            width: "54px",
+            height: "46px",
+            width: "46px",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             backgroundColor: "#ffffff",
-            borderRadius: "12px",
+            borderRadius: "10px",
             border: "1px solid var(--mantine-color-gray-2)",
             boxShadow:
               "0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04)",
@@ -60,13 +80,13 @@ export function Header({ user, setActiveTab, logout, notificationCount = 3 }) {
             }}
           />
         </Box>
-        <Box style={{ minWidth: 0 }}>
+        <Box style={{ minWidth: 0, overflow: "hidden" }}>
           {/* Main Title Row */}
           <div
             style={{
               display: "flex",
               alignItems: "center",
-              gap: "8px",
+              gap: "6px",
               whiteSpace: "nowrap",
             }}
           >
@@ -133,6 +153,7 @@ export function Header({ user, setActiveTab, logout, notificationCount = 3 }) {
               size="md"
               fw={700}
               c="dark.9"
+              visibleFrom="xs"
               style={{ margin: 0, lineHeight: 1.2, paddingLeft: "4px" }}
             >
               Learning Portal
@@ -142,6 +163,7 @@ export function Header({ user, setActiveTab, logout, notificationCount = 3 }) {
           <Text
             size="xs"
             fw={600}
+            visibleFrom="sm"
             style={{
               background: "linear-gradient(45deg, #12b886, #228be6)",
               WebkitBackgroundClip: "text",
@@ -156,7 +178,7 @@ export function Header({ user, setActiveTab, logout, notificationCount = 3 }) {
 
       {/* Right Section: Conditional User Controls */}
       {user ? (
-        <Group gap="sm" align="center" wrap="nowrap">
+        <Group gap="xs" align="center" wrap="nowrap" style={{ flexShrink: 0 }}>
           <Box
             style={{
               position: "relative",
@@ -198,12 +220,13 @@ export function Header({ user, setActiveTab, logout, notificationCount = 3 }) {
 
           <Menu shadow="md" width={220} position="bottom-end">
             <Menu.Target>
-              <Group gap="xs" style={{ cursor: "pointer" }}>
+              <Group gap="xs" style={{ cursor: "pointer" }} wrap="nowrap">
                 <Badge
                   color="cyan"
                   variant="light"
                   size="sm"
                   radius="xl"
+                  visibleFrom="xs"
                   styles={{
                     root: {
                       fontWeight: 700,
@@ -256,7 +279,7 @@ export function Header({ user, setActiveTab, logout, notificationCount = 3 }) {
           </Menu>
         </Group>
       ) : (
-        <Group gap="sm">
+        <Group gap="xs" wrap="nowrap">
           <Button
             variant="default"
             size="xs"

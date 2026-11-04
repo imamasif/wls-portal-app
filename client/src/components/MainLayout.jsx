@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { AppShell, Box } from "@mantine/core";
 import { useAuth } from "../context/AuthContext";
 import { UserRole } from "../types/user";
@@ -8,11 +8,13 @@ import { WlsAdminMenu } from "../features/menu/components/drop-main-menu/WlsAdmi
 import { UserMenu } from "../features/menu/components/drop-main-menu/UserMenu";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { MobileNavigationDrawer } from "@/components/layout/MobileNavigationDrawer";
 
 export function MainLayout({ children, activeTab, setActiveTab }) {
   const { user, logout } = useAuth();
-  const activeRole = (user?.role || "").toUpperCase();
+  const [mobileOpened, setMobileOpened] = useState(false);
 
+  const activeRole = (user?.role || "").toUpperCase();
   const isSuperAdmin = activeRole === UserRole.SUPER_USER;
   const isWlsAdmin = isSuperAdmin || activeRole === UserRole.WLS_ADMIN;
 
@@ -21,7 +23,11 @@ export function MainLayout({ children, activeTab, setActiveTab }) {
   }
 
   return (
-    <AppShell header={{ height: 96 }} footer={{ height: 38 }} padding="xs">
+    <AppShell
+      header={{ height: { base: 60, md: 96 } }}
+      footer={{ height: 38 }}
+      padding={{ base: "xs", sm: "sm" }}
+    >
       {/* AppShell Header */}
       <AppShell.Header
         style={{
@@ -36,10 +42,13 @@ export function MainLayout({ children, activeTab, setActiveTab }) {
           setActiveTab={setActiveTab}
           logout={logout}
           notificationCount={3}
+          mobileOpened={mobileOpened}
+          onToggleMobile={() => setMobileOpened((o) => !o)}
         />
 
-        {/* Bottom Row: Navigation Menus */}
+        {/* Bottom Row: Navigation Menus (Desktop & Large Screens) */}
         <Box
+          visibleFrom="md"
           style={{
             paddingLeft: "16px",
             paddingRight: "16px",
@@ -60,13 +69,23 @@ export function MainLayout({ children, activeTab, setActiveTab }) {
         </Box>
       </AppShell.Header>
 
+      {/* Mobile & Tablet Slide-out Drawer */}
+      <MobileNavigationDrawer
+        opened={mobileOpened}
+        onClose={() => setMobileOpened(false)}
+        user={user}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        logout={logout}
+        notificationCount={3}
+      />
+
       {/* Main Content Area styled for vertical equilibrium */}
       <AppShell.Main
         style={{
           display: "flex",
           flexDirection: "column",
-          justifyContent: "center",
-          minHeight: "calc(100vh - 134px)", // Subtracts header (96) and footer (38) heights
+          minHeight: "calc(100vh - var(--app-shell-header-offset, 96px) - var(--app-shell-footer-offset, 38px))",
           boxSizing: "border-box",
         }}
       >

@@ -6,32 +6,36 @@ export function Footer() {
   return (
     <Box
       component="footer"
-      px="xl"
+      px={{ base: "xs", sm: "md", md: "xl" }}
       style={{
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
         width: "100%",
         boxSizing: "border-box",
-        height: "38px", // Reduced height to trim bottom whitespace while keeping text/flag sizes 100% intact
+        height: "38px",
         backgroundColor: "var(--mantine-color-white)",
         borderTop: "1px solid var(--mantine-color-gray-2)",
+        flexWrap: "nowrap",
       }}
     >
       <div
         style={{
           display: "flex",
           alignItems: "center",
-          gap: "8px",
-          fontSize: "14px",
+          gap: "6px",
+          fontSize: "13px",
           color: "var(--mantine-color-dimmed)",
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
         }}
       >
         <span
           style={{
             color: "var(--mantine-color-teal-7)",
             fontWeight: 900,
-            fontSize: "28px",
+            fontSize: "24px",
             lineHeight: "1",
             display: "inline-block",
             transform: "translateY(1px)",
@@ -74,22 +78,22 @@ export function Footer() {
           </svg>
         </span>
         <span style={{ fontWeight: 400 }}>
-          Learning Portal. All rights reserved.
+          Learning Portal
         </span>
       </div>
 
-      <Group gap="sm" align="center">
-        <Text size="sm" c="dimmed" fw={600}>
+      <Group gap="xs" align="center" visibleFrom="xs" wrap="nowrap">
+        <Text size="xs" c="dimmed" fw={600}>
           Canada
         </Text>
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 900 450"
           style={{
-            width: "40px",
-            height: "24px",
-            borderRadius: "3px",
-            boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+            width: "32px",
+            height: "19px",
+            borderRadius: "2px",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
             display: "block",
           }}
         >
