@@ -741,7 +741,7 @@ export function QuranLectureReferenceNotebook({ user }) {
   };
 
   return (
-    <Container size="xl" py="lg">
+    <Container size="xl" py={{ base: "xs", sm: "md", md: "lg" }} px={{ base: 4, sm: "xs", md: "md" }} style={{ maxWidth: "100%", width: "100%", overflowX: "hidden" }}>
       <style>{`
         /* 3D Notebook Canvas */
         .notebook-wrapper {
@@ -754,6 +754,7 @@ export function QuranLectureReferenceNotebook({ user }) {
           flex-direction: row;
           border-radius: 20px;
           overflow: hidden;
+          max-width: 100%;
           background: ${isDark ? "#1a1b1e" : "#f8fafc"};
           box-shadow: 
             0 25px 60px -15px rgba(0, 0, 0, 0.35),
@@ -761,6 +762,17 @@ export function QuranLectureReferenceNotebook({ user }) {
             0 0 0 1px ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"},
             inset 0 2px 0 rgba(255, 255, 255, 0.85);
           transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .notebook-middle-body {
+          flex-direction: row;
+        }
+        @media (max-width: 991px) {
+          .notebook-middle-body {
+            flex-direction: column-reverse !important;
+          }
+          .notebook-book-3d {
+            border-radius: 12px;
+          }
         }
 
         /* Container for top chips */
@@ -772,6 +784,24 @@ export function QuranLectureReferenceNotebook({ user }) {
           padding: 12px 16px;
           position: relative;
           z-index: 10;
+          max-width: 100%;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+        @media (max-width: 600px) {
+          .lecture-tabs-container {
+            flex-wrap: nowrap !important;
+            padding: 8px 10px;
+          }
+        }
+        .lecture-chip-slot {
+          max-width: 100%;
+        }
+        .lecture-chip-card {
+          max-width: 100%;
+        }
+        .lecture-chip-ghost {
+          max-width: 100%;
         }
 
         /* 1. Fixed Slot (Preserves layout dimensions so nothing shifts below) */
@@ -1213,19 +1243,22 @@ export function QuranLectureReferenceNotebook({ user }) {
             )}
 
             {/* Middle Page Body */}
-            <Box
+            <Box className="notebook-middle-body"
               style={{
                 flex: 1,
                 display: "flex",
-                flexDirection: "row",
+                maxWidth: "100%",
+                overflowX: "hidden",
                 position: "relative",
               }}
             >
               <Box
                 style={{
                   flex: 1,
-                  padding: "20px 24px",
+                  padding: "16px 18px",
                   maxHeight: 720,
+                  minWidth: 0,
+                  maxWidth: "100%",
                   overflowY: "auto",
                 }}
               >

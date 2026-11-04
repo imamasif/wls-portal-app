@@ -51,7 +51,7 @@ export function NotebookLectureDashboard({
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+        gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))",
         gap: "16px",
         marginBottom: "20px",
       }}
@@ -62,7 +62,7 @@ export function NotebookLectureDashboard({
         radius="lg"
         withBorder
         style={{
-          gridColumn: "span 2",
+          minWidth: 0,
           background: isDark ? "#141517" : "#ffffff",
           boxShadow: "0 4px 16px rgba(0,0,0,0.04)",
           display: "flex",
@@ -71,7 +71,7 @@ export function NotebookLectureDashboard({
         }}
       >
         <div>
-          <Group justify="space-between" align="flex-start" mb="sm">
+          <Group justify="space-between" align="flex-start" mb="sm" wrap="wrap" gap="sm">
             <div>
               <Group gap={6} mb={4} align="center">
                 <MediaIconBadge
@@ -97,7 +97,7 @@ export function NotebookLectureDashboard({
                 )}
               </Group>
 
-              <Group gap="xs" align="center" wrap="nowrap">
+              <Group gap="xs" align="center" wrap="wrap">
                 <MediaIconBadge
                   src={getLectureIconUrl(activeLecture, activeCategory.language)}
                   alt={getLectureName(activeLecture.lecture_name)}
