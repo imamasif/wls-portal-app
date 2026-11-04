@@ -4,6 +4,7 @@ import { Box } from "@mantine/core";
 export function NotebookSpine() {
   return (
     <Box
+      visibleFrom="md"
       style={{
         width: 60,
         background: "linear-gradient(180deg, #cbd5e1 0%, #94a3b8 100%)",
@@ -15,6 +16,7 @@ export function NotebookSpine() {
         padding: "20px 0",
         boxShadow: "inset -5px 0 10px rgba(0,0,0,0.12)",
         zIndex: 10,
+        flexShrink: 0,
       }}
     >
       {[...Array(9)].map((_, i) => (

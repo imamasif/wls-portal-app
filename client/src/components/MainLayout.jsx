@@ -35,6 +35,7 @@ export function MainLayout({ children, activeTab, setActiveTab }) {
           flexDirection: "column",
           justifyContent: "space-between",
           overflow: "hidden",
+          maxWidth: "100vw",
         }}
       >
         <Header
@@ -87,6 +88,8 @@ export function MainLayout({ children, activeTab, setActiveTab }) {
           flexDirection: "column",
           minHeight: "calc(100vh - var(--app-shell-header-offset, 96px) - var(--app-shell-footer-offset, 38px))",
           boxSizing: "border-box",
+          maxWidth: "100vw",
+          overflowX: "hidden",
         }}
       >
         {children}

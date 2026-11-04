@@ -104,7 +104,7 @@ export default function App() {
   return (
     <MantineProvider defaultColorScheme="light">
       <MainLayout activeTab={activeTab} setActiveTab={setActiveTab}>
-        <Container size="xl" py="md">
+        <Container size="xl" py={{ base: "xs", sm: "md" }} px={{ base: 4, sm: "xs", md: "md" }} style={{ maxWidth: "100%", width: "100%" }}>
           {activeTab === AppTab.DASHBOARD && renderDashboard()}
           {activeTab === AppTab.USERS && isSuperAdmin && (
             <UserGridView currentUser={user} />

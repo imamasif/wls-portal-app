@@ -45,39 +45,40 @@ export function NotebookHeaderBar({
   return (
     <>
       {/* Top Header Banner */}
-      <Group justify="space-between" align="center" mb="md" px="xs">
-        <Group gap="md">
+      <Group justify="space-between" align="center" mb="md" px="xs" wrap="wrap" gap="sm">
+        <Group gap={{ base: "xs", sm: "md" }} wrap="nowrap" style={{ minWidth: 0, flex: "1 1 280px" }}>
           <Box
             style={{
-              width: 50,
-              height: 50,
+              width: 44,
+              height: 44,
               background: "linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #059669 100%)",
-              borderRadius: 14,
+              borderRadius: 12,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               color: "white",
               boxShadow: "0 6px 18px rgba(37, 99, 235, 0.4)",
+              flexShrink: 0,
             }}
           >
-            <IconBook size={28} />
+            <IconBook size={24} />
           </Box>
-          <div>
-            <Group gap="xs">
-              <Title order={2} c={isDark ? "white" : "dark.8"} style={{ fontWeight: 800, letterSpacing: "-0.5px" }}>
+          <div style={{ minWidth: 0 }}>
+            <Group gap="xs" wrap="wrap">
+              <Title order={3} c={isDark ? "white" : "dark.8"} style={{ fontWeight: 800, letterSpacing: "-0.5px" }}>
                 Quran Lecture Index Notebook
               </Title>
               <Badge variant="gradient" gradient={{ from: "indigo", to: "teal" }} size="sm">
                 Excel Tabular Reference
               </Badge>
             </Group>
-            <Text size="xs" c="dimmed">
+            <Text size="xs" c="dimmed" lineClamp={2}>
               Choose Language Tag ➔ Pick Category ➔ Select Lecture ➔ Browse Tabular Verses with Live Quran API & Video Clips.
             </Text>
           </div>
         </Group>
 
-        <Group gap="xs">
+        <Group gap="xs" wrap="wrap" style={{ flexShrink: 0, maxWidth: "100%" }}>
           <SegmentedControl
             value={viewMode}
             onChange={setViewMode}
@@ -88,27 +89,28 @@ export function NotebookHeaderBar({
             color="indigo"
             radius="xl"
             size="xs"
+            style={{ maxWidth: "100%" }}
           />
 
-          <ActionIcon variant="default" radius="xl" size={36} onClick={() => toggleColorScheme()} title="Toggle theme">
-            {isDark ? <IconSun size={16} /> : <IconMoon size={16} />}
+          <ActionIcon variant="default" radius="xl" size={32} onClick={() => toggleColorScheme()} title="Toggle theme">
+            {isDark ? <IconSun size={15} /> : <IconMoon size={15} />}
           </ActionIcon>
 
-          <ActionIcon variant="default" radius="xl" size={36} onClick={() => window.print()} title="Print Notebook">
-            <IconPrinter size={16} />
+          <ActionIcon variant="default" radius="xl" size={32} onClick={() => window.print()} title="Print Notebook">
+            <IconPrinter size={15} />
           </ActionIcon>
         </Group>
       </Group>
 
       {/* Top Aligned Search, Filter & Language Tags Bar */}
-      <Paper p="sm" radius="lg" withBorder mb="lg" shadow="xs" style={{ background: isDark ? "#25262b" : "#ffffff" }}>
+      <Paper p="sm" radius="lg" withBorder mb="lg" shadow="xs" style={{ background: isDark ? "#25262b" : "#ffffff", width: "100%" }}>
         <Group justify="space-between" align="flex-end" wrap="wrap" gap="sm">
           {/* Prominent Language Tags */}
           <div>
             <Text size="11px" fw={700} c="dimmed" mb={4}>
               SELECT LANGUAGE:
             </Text>
-            <Group gap={6}>
+            <Group gap={6} wrap="wrap">
               {[
                 { id: "eng", label: "📘 English", count: metaCategories.filter((c) => (c.language || "eng").toLowerCase() === "eng").length },
                 { id: "urdu", label: "📗 Urdu", count: metaCategories.filter((c) => (c.language || "eng").toLowerCase() === "urdu").length },
@@ -138,7 +140,7 @@ export function NotebookHeaderBar({
 
           {/* Search Input: Supports SurahNumber:ayatnumber (e.g. 2:53) or Range (e.g. 2:50-60) */}
           <TextInput
-            placeholder="Search keyword, or Surah#:Ayat# (e.g. 2:53 or 2:50-60)..."
+            placeholder="Search keyword, or Surah#:Ayat# (e.g. 2:53)..."
             leftSection={<IconSearch size={15} color="var(--mantine-color-dimmed)" />}
             rightSection={
               searchQuery ? (
@@ -149,7 +151,7 @@ export function NotebookHeaderBar({
             }
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            style={{ minWidth: 260, flex: 1.5 }}
+            style={{ minWidth: 180, flex: "1 1 200px" }}
             radius="md"
             size="xs"
           />
@@ -165,7 +167,7 @@ export function NotebookHeaderBar({
               setFilterSurah(val || "");
               setFilterAyat("");
             }}
-            style={{ width: 175 }}
+            style={{ minWidth: 130, flex: "1 1 140px" }}
             radius="md"
             size="xs"
           />
@@ -179,7 +181,7 @@ export function NotebookHeaderBar({
             searchable
             value={filterAyat}
             onChange={(val) => setFilterAyat(val || "")}
-            style={{ width: 105 }}
+            style={{ minWidth: 85, flex: "1 1 95px" }}
             radius="md"
             size="xs"
           />
@@ -195,7 +197,7 @@ export function NotebookHeaderBar({
             ]}
             value={sortField}
             onChange={(val) => setSortField(val || "SURAH_THEN_AYAT")}
-            style={{ width: 180 }}
+            style={{ minWidth: 140, flex: "1 1 150px" }}
             radius="md"
             size="xs"
           />
