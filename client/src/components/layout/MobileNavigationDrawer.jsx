@@ -214,6 +214,54 @@ export function MobileNavigationDrawer({
           style={{ borderRadius: "6px", marginBottom: "4px" }}
         />
 
+        {/* Core: Quran Studies & Lectures (Prominently placed for quick mobile discovery) */}
+        <NavLink
+          label="Quran Studies & Lectures"
+          leftSection={<IconBook size={18} color="var(--mantine-color-teal-6)" />}
+          childrenOffset={20}
+          defaultOpened={
+            activeTab === AppTab.QURAN_NOTEBOOK ||
+            activeTab === AppTab.QURAN_MEMORIZER ||
+            activeTab === AppTab.QURAN_EXPLORER ||
+            activeTab === AppTab.QURAN_TREE ||
+            activeTab === AppTab.AYAT_MANAGER
+          }
+          style={{ borderRadius: "6px", marginBottom: "4px" }}
+        >
+          <NavLink
+            label="Quran Lecture Index Notebook"
+            leftSection={<IconNotebook size={16} color="var(--mantine-color-indigo-6)" />}
+            active={activeTab === AppTab.QURAN_NOTEBOOK}
+            onClick={() => handleNav(AppTab.QURAN_NOTEBOOK)}
+          />
+          <NavLink
+            label="Quran Reference Memorizer"
+            leftSection={<IconBook size={16} color="var(--mantine-color-teal-6)" />}
+            active={activeTab === AppTab.QURAN_MEMORIZER}
+            onClick={() => handleNav(AppTab.QURAN_MEMORIZER)}
+          />
+          <NavLink
+            label="Quran Sticky Notes Explorer"
+            leftSection={<IconSparkles size={16} color="var(--mantine-color-grape-6)" />}
+            active={activeTab === AppTab.QURAN_EXPLORER}
+            onClick={() => handleNav(AppTab.QURAN_EXPLORER)}
+          />
+          <NavLink
+            label="Quran Morphology Tree"
+            leftSection={<IconSitemap size={16} color="var(--mantine-color-emerald-6)" />}
+            active={activeTab === AppTab.QURAN_TREE}
+            onClick={() => handleNav(AppTab.QURAN_TREE)}
+          />
+          {isSuperAdmin && (
+            <NavLink
+              label="Ayats Database Studio"
+              leftSection={<IconDatabase size={16} color="var(--mantine-color-teal-6)" />}
+              active={activeTab === AppTab.AYAT_MANAGER}
+              onClick={() => handleNav(AppTab.AYAT_MANAGER)}
+            />
+          )}
+        </NavLink>
+
         {/* SUPER USER / WLS ADMIN NAVIGATION */}
         {isWlsAdmin ? (
           <>
@@ -391,7 +439,7 @@ export function MobileNavigationDrawer({
                 onClick={() => handleNav(AppTab.QURAN_EXPLORER)}
               />
               <NavLink
-                label="Quran Lecture Notebook"
+                label="Quran Lecture Index Notebook"
                 leftSection={<IconNotebook size={16} color="var(--mantine-color-indigo-6)" />}
                 active={activeTab === AppTab.QURAN_NOTEBOOK}
                 onClick={() => handleNav(AppTab.QURAN_NOTEBOOK)}

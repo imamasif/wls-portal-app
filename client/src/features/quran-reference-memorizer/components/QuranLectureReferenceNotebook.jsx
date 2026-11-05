@@ -767,11 +767,36 @@ export function QuranLectureReferenceNotebook({ user }) {
           flex-direction: row;
         }
         @media (max-width: 991px) {
+          .notebook-wrapper {
+            perspective: none !important;
+          }
+          .notebook-book-3d {
+            border-radius: 12px !important;
+            flex-direction: column !important;
+            overflow: visible !important;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08) !important;
+          }
+          .notebook-central-page {
+            min-height: auto !important;
+          }
           .notebook-middle-body {
             flex-direction: column-reverse !important;
           }
-          .notebook-book-3d {
-            border-radius: 12px;
+          .notebook-main-scroll-area {
+            max-height: none !important;
+            overflow-y: visible !important;
+            padding: 12px 8px !important;
+          }
+          .lecture-tabs-container {
+            flex-wrap: nowrap !important;
+            overflow-x: auto !important;
+            overflow-y: hidden !important;
+            padding: 8px 10px !important;
+            gap: 8px !important;
+            -webkit-overflow-scrolling: touch;
+          }
+          .lecture-chip-slot {
+            flex-shrink: 0 !important;
           }
         }
 
@@ -787,12 +812,6 @@ export function QuranLectureReferenceNotebook({ user }) {
           max-width: 100%;
           overflow-x: auto;
           -webkit-overflow-scrolling: touch;
-        }
-        @media (max-width: 600px) {
-          .lecture-tabs-container {
-            flex-wrap: nowrap !important;
-            padding: 8px 10px;
-          }
         }
         .lecture-chip-slot {
           max-width: 100%;
@@ -897,6 +916,7 @@ export function QuranLectureReferenceNotebook({ user }) {
         /* ------------------------------------------------------------- */
         /* 3. HOVER STATE: Pop-Out Expansion (Without Pushing Other UI)  */
         /* ------------------------------------------------------------- */
+        @media (hover: hover) and (pointer: fine) {
         .lecture-chip-card:hover {
           z-index: 100; /* Float above all other chips and lower sections */
           height: auto;
@@ -953,6 +973,7 @@ export function QuranLectureReferenceNotebook({ user }) {
 
         .lecture-chip-card:hover .star-icon {
           font-size: 1rem;
+        }
         }
 
         /* 4. Active Selected State */
@@ -1219,6 +1240,7 @@ export function QuranLectureReferenceNotebook({ user }) {
 
           {/* Central Main Binder Page */}
           <Box
+            className="notebook-central-page"
             style={{
               flex: 1,
               display: "flex",
@@ -1253,6 +1275,7 @@ export function QuranLectureReferenceNotebook({ user }) {
               }}
             >
               <Box
+                className="notebook-main-scroll-area"
                 style={{
                   flex: 1,
                   padding: "16px 18px",

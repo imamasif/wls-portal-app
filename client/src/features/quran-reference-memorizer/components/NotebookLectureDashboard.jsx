@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import {
   Paper,
   Group,
@@ -104,8 +104,8 @@ export function NotebookLectureDashboard({
                   size={36}
                   type="lecture"
                 />
-                <div>
-                  <Title order={3} style={{ fontWeight: 800, fontSize: "1.3rem", color: isDark ? "#ffffff" : "#1e293b" }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <Title order={3} style={{ fontWeight: 800, fontSize: "clamp(1.1rem, 3.5vw, 1.3rem)", color: isDark ? "#ffffff" : "#1e293b", wordBreak: "break-word" }}>
                     {activeLecture.lecture_id && !isNaN(activeLecture.lecture_id) ? `${activeLecture.lecture_id}. ` : ""}
                     {getLectureName(activeLecture.lecture_name)}
                   </Title>
