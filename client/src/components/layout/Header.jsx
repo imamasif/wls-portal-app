@@ -1,4 +1,4 @@
-// src/components/layout/Header.jsx
+﻿// src/components/layout/Header.jsx
 import React from "react";
 import {
   Group,
@@ -55,8 +55,8 @@ export function Header({
 
         <Box
           style={{
-            height: "46px",
-            width: "46px",
+            height: "38px",
+            width: "38px",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -92,7 +92,7 @@ export function Header({
           >
             <Text
               component="h1"
-              size="md"
+              size="sm"
               fw={700}
               c="dark.9"
               style={{ margin: 0, lineHeight: 1.2 }}
@@ -103,7 +103,7 @@ export function Header({
             {/* CANADA word with flag positioned absolutely on its top-right corner */}
             <Text
               component="span"
-              size="md"
+              size="sm"
               fw={700}
               c="dark.9"
               style={{
