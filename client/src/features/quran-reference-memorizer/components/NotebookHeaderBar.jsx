@@ -167,7 +167,7 @@ export function NotebookHeaderBar({
               setFilterSurah(val || "");
               setFilterAyat("");
             }}
-            style={{ minWidth: 130, flex: "1 1 140px" }}
+            style={{ minWidth: 145, flex: "1 1 160px" }}
             radius="md"
             size="xs"
           />
@@ -181,7 +181,7 @@ export function NotebookHeaderBar({
             searchable
             value={filterAyat}
             onChange={(val) => setFilterAyat(val || "")}
-            style={{ minWidth: 85, flex: "1 1 95px" }}
+            style={{ minWidth: 100, flex: "1 1 110px" }}
             radius="md"
             size="xs"
           />
@@ -197,7 +197,7 @@ export function NotebookHeaderBar({
             ]}
             value={sortField}
             onChange={(val) => setSortField(val || "SURAH_THEN_AYAT")}
-            style={{ minWidth: 140, flex: "1 1 150px" }}
+            style={{ minWidth: 160, flex: "1 1 170px" }}
             radius="md"
             size="xs"
           />

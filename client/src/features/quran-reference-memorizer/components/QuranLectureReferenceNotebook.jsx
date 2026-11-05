@@ -1,4 +1,4 @@
-// client/src/features/quran-reference-memorizer/components/QuranLectureReferenceNotebook.jsx
+﻿// client/src/features/quran-reference-memorizer/components/QuranLectureReferenceNotebook.jsx
 import React, { useState, useEffect, useMemo } from "react";
 import {
   Container,
@@ -797,6 +797,13 @@ export function QuranLectureReferenceNotebook({ user }) {
           }
           .lecture-chip-slot {
             flex-shrink: 0 !important;
+            max-width: none !important;
+          }
+          .lecture-chip-card {
+            max-width: none !important;
+          }
+          .lecture-chip-ghost {
+            max-width: none !important;
           }
         }
 
