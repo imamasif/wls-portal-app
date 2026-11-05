@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import {
   Group,
   Box,
@@ -65,7 +65,7 @@ export function NotebookHeaderBar({
           </Box>
           <div style={{ minWidth: 0 }}>
             <Group gap="xs" wrap="wrap">
-              <Title order={3} c={isDark ? "white" : "dark.8"} style={{ fontWeight: 800, letterSpacing: "-0.5px" }}>
+              <Title order={3} c={isDark ? "white" : "dark.8"} style={{ fontWeight: 800, fontSize: "clamp(1.1rem, 3.5vw, 1.35rem)", letterSpacing: "-0.5px" }}>
                 Quran Lecture Index Notebook
               </Title>
               <Badge variant="gradient" gradient={{ from: "indigo", to: "teal" }} size="sm">

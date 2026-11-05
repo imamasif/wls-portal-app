@@ -44,8 +44,11 @@ export function NotebookCategoryRibbons({
             transform: none !important;
             clip-path: none !important;
             border-radius: 20px !important;
-            padding: 6px 12px !important;
+            padding: 6px 14px !important;
             flex-shrink: 0 !important;
+          }
+          .notebook-category-item .notebook-category-name {
+            max-width: none !important;
           }
         }
       `}</style>
@@ -128,6 +131,7 @@ export function NotebookCategoryRibbons({
                     type="category"
                   />
                   <span
+                    className="notebook-category-name"
                     style={{
                       whiteSpace: "nowrap",
                       overflow: "hidden",

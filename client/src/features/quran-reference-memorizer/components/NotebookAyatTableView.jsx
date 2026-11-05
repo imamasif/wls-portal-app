@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import {
   Paper,
   Group,
@@ -78,7 +78,7 @@ export function NotebookAyatTableView({
           )}
         </Paper>
       ) : (
-        <div style={{ overflowX: "auto", borderRadius: 8, border: "1px solid #cbd5e1" }}>
+        <div style={{ overflowX: "auto", borderRadius: 8, border: isDark ? "1px solid #374151" : "1px solid #cbd5e1", WebkitOverflowScrolling: "touch" }}>
           <Table className="excel-table" highlightOnHover striped={false}>
             <Table.Thead>
               <Table.Tr>
