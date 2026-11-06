@@ -10,6 +10,7 @@ import 'mantine-datatable/styles.css';
 
 import App from './App';
 import { AuthProvider } from './context/AuthContext';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 import './index.css';
 
 const theme = createTheme({
@@ -20,12 +21,14 @@ const theme = createTheme({
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <MantineProvider theme={theme} defaultColorScheme="light">
-      <ModalsProvider>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
-      </ModalsProvider>
-    </MantineProvider>
+    <ErrorBoundary>
+      <MantineProvider theme={theme} defaultColorScheme="light">
+        <ModalsProvider>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </ModalsProvider>
+      </MantineProvider>
+    </ErrorBoundary>
   </React.StrictMode>
 );

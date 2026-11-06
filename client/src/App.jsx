@@ -1,47 +1,48 @@
-import React, { useState, useEffect } from "react";
-import { MantineProvider, Container } from "@mantine/core";
+import React, { useState, useEffect, Suspense, lazy } from "react";
+import { Container, Center, Loader } from "@mantine/core";
 import { useAuth } from "./context/AuthContext";
 import { MainLayout } from "./components/MainLayout";
 import { UserRole, AppTab } from "./types/user";
-
-// Dashboards inside drop-main-menu folder
-import { SuperUserDB } from "./features/menu/components/dashboard/SuperUserDB";
-import { WlsAdminDB } from "./features/menu/components/dashboard/WlsAdminDB";
-import { UserDB } from "./features/menu/components/dashboard/UserDB";
-
-import { UserGridView } from "./features/user-management/components/UserGridView";
-import { WhatsAppGroupManager } from "./features/group-management/WhatsAppGroupManager";
-import { MSTeamGroupManager } from "./features/group-management/MSTeamGroupManager";
-import { UniversityPortalDashboard } from "./features/university/components/UniversityPortalDashboard";
-import { WlsStudentView } from "./features/wls-management/components/WlsStudentView";
-import { WlsManagementPanel } from "./features/wls-management/components/WlsManagementPanel";
-import { WlsAssessmentPanel } from "./features/wls-assessment/components/WlsAssessmentPanel";
-import { WlsReportingDashboard } from "./features/reporting/components/WlsReportingDashboard";
-import { NotificationPanel } from "./features/notifications/components/NotificationPanel";
-import { EditProfileCard } from "./components/profile/EditProfileCard";
 import { LoginPage } from "./features/auth/components/LoginPage";
-import { WlsAttendanceMonitoringPanel } from "./features/wls-attendance-monitoring/components/WlsAttendanceMonitoringPanel";
-import { WlsClassAttendancePanel } from "./features/wls-attendance-monitoring/components/WlsClassAttendancePanel";
-import { StickyNotesPanel } from "./features/sticky-notes/components/StickyNotesPanel";
-import QuranVerseMemorizerPanel from "./features/quran-reference-memorizer/components/QuranVerseMemorizerPanel";
-import { QuranStickyNotesExplorer } from "./features/quran-reference-memorizer/components/QuranStickyNotesExplorer";
-import { AyatManagerView } from "./features/quran-reference-memorizer/components/AyatManagerView";
-import { QuranLectureReferenceNotebook } from "./features/quran-reference-memorizer/components/QuranLectureReferenceNotebook";
-import { SuperUserAssessmentOverview } from "./features/wls-assessment/components/SuperUserAssessmentOverview";
-import {
-  IipcEventsSuperUserPanel,
-  IipcEventsUserView,
-  PublicEventDonationPage,
-} from "./features/iipc-events";
 
+// Code-split heavy views to ensure ultra-fast initial page loads and prevent mobile memory/parser exhaustion
+const SuperUserDB = lazy(() => import("./features/menu/components/dashboard/SuperUserDB").then(m => ({ default: m.SuperUserDB })));
+const WlsAdminDB = lazy(() => import("./features/menu/components/dashboard/WlsAdminDB").then(m => ({ default: m.WlsAdminDB })));
+const UserDB = lazy(() => import("./features/menu/components/dashboard/UserDB").then(m => ({ default: m.UserDB })));
 
+const UserGridView = lazy(() => import("./features/user-management/components/UserGridView").then(m => ({ default: m.UserGridView })));
+const WhatsAppGroupManager = lazy(() => import("./features/group-management/WhatsAppGroupManager").then(m => ({ default: m.WhatsAppGroupManager })));
+const MSTeamGroupManager = lazy(() => import("./features/group-management/MSTeamGroupManager").then(m => ({ default: m.MSTeamGroupManager })));
+const UniversityPortalDashboard = lazy(() => import("./features/university/components/UniversityPortalDashboard").then(m => ({ default: m.UniversityPortalDashboard || m.default })));
+const WlsStudentView = lazy(() => import("./features/wls-management/components/WlsStudentView").then(m => ({ default: m.WlsStudentView })));
+const WlsManagementPanel = lazy(() => import("./features/wls-management/components/WlsManagementPanel").then(m => ({ default: m.WlsManagementPanel || m.default })));
+const WlsAssessmentPanel = lazy(() => import("./features/wls-assessment/components/WlsAssessmentPanel").then(m => ({ default: m.WlsAssessmentPanel })));
+const WlsReportingDashboard = lazy(() => import("./features/reporting/components/WlsReportingDashboard").then(m => ({ default: m.WlsReportingDashboard || m.default })));
+const NotificationPanel = lazy(() => import("./features/notifications/components/NotificationPanel").then(m => ({ default: m.NotificationPanel || m.default })));
+const EditProfileCard = lazy(() => import("./components/profile/EditProfileCard").then(m => ({ default: m.EditProfileCard })));
+const WlsAttendanceMonitoringPanel = lazy(() => import("./features/wls-attendance-monitoring/components/WlsAttendanceMonitoringPanel").then(m => ({ default: m.WlsAttendanceMonitoringPanel })));
+const WlsClassAttendancePanel = lazy(() => import("./features/wls-attendance-monitoring/components/WlsClassAttendancePanel").then(m => ({ default: m.WlsClassAttendancePanel })));
+const StickyNotesPanel = lazy(() => import("./features/sticky-notes/components/StickyNotesPanel").then(m => ({ default: m.StickyNotesPanel })));
+const QuranVerseMemorizerPanel = lazy(() => import("./features/quran-reference-memorizer/components/QuranVerseMemorizerPanel"));
+const QuranStickyNotesExplorer = lazy(() => import("./features/quran-reference-memorizer/components/QuranStickyNotesExplorer").then(m => ({ default: m.QuranStickyNotesExplorer })));
+const AyatManagerView = lazy(() => import("./features/quran-reference-memorizer/components/AyatManagerView").then(m => ({ default: m.AyatManagerView })));
+const QuranLectureReferenceNotebook = lazy(() => import("./features/quran-reference-memorizer/components/QuranLectureReferenceNotebook").then(m => ({ default: m.QuranLectureReferenceNotebook })));
+const SuperUserAssessmentOverview = lazy(() => import("./features/wls-assessment/components/SuperUserAssessmentOverview").then(m => ({ default: m.SuperUserAssessmentOverview })));
 
-import {
-  QuizListScreen,
-  QuizCreatorStudio,
-  QuizReportDashboard,
-  QuizStudentView,
-} from "./features/quiz-management";
+const IipcEventsSuperUserPanel = lazy(() => import("./features/iipc-events").then(m => ({ default: m.IipcEventsSuperUserPanel })));
+const IipcEventsUserView = lazy(() => import("./features/iipc-events").then(m => ({ default: m.IipcEventsUserView })));
+const PublicEventDonationPage = lazy(() => import("./features/iipc-events").then(m => ({ default: m.PublicEventDonationPage })));
+
+const QuizListScreen = lazy(() => import("./features/quiz-management").then(m => ({ default: m.QuizListScreen })));
+const QuizCreatorStudio = lazy(() => import("./features/quiz-management").then(m => ({ default: m.QuizCreatorStudio })));
+const QuizReportDashboard = lazy(() => import("./features/quiz-management").then(m => ({ default: m.QuizReportDashboard })));
+const QuizStudentView = lazy(() => import("./features/quiz-management").then(m => ({ default: m.QuizStudentView })));
+
+const ViewLoadingFallback = () => (
+  <Center py={60}>
+    <Loader size="lg" color="blue" />
+  </Center>
+);
 
 export default function App() {
   const { user } = useAuth();
@@ -81,30 +82,28 @@ export default function App() {
   if (!user) {
     if (publicEventId) {
       return (
-        <MantineProvider defaultColorScheme="light">
+        <Suspense fallback={<ViewLoadingFallback />}>
           <PublicEventDonationPage
             eventId={publicEventId}
             onGoToLogin={() => setPublicEventId(null)}
           />
-        </MantineProvider>
+        </Suspense>
       );
     }
     return (
-      <MantineProvider defaultColorScheme="light">
-        <Container size="lg" py={80}>
-          <LoginPage
-            onSuccess={() => setActiveTab(AppTab.DASHBOARD)}
-            onSwitchToRegister={() => setActiveTab(AppTab.REGISTER)}
-          />
-        </Container>
-      </MantineProvider>
+      <Container size="lg" py={{ base: 40, sm: 80 }}>
+        <LoginPage
+          onSuccess={() => setActiveTab(AppTab.DASHBOARD)}
+          onSwitchToRegister={() => setActiveTab(AppTab.REGISTER)}
+        />
+      </Container>
     );
   }
 
   return (
-    <MantineProvider defaultColorScheme="light">
-      <MainLayout activeTab={activeTab} setActiveTab={setActiveTab}>
-        <Container size="xl" py={{ base: "xs", sm: "md" }} px={{ base: 4, sm: "xs", md: "md" }} style={{ maxWidth: "100%", width: "100%" }}>
+    <MainLayout activeTab={activeTab} setActiveTab={setActiveTab}>
+      <Container size="xl" py={{ base: "xs", sm: "md" }} px={{ base: 4, sm: "xs", md: "md" }} style={{ maxWidth: "100%", width: "100%" }}>
+        <Suspense fallback={<ViewLoadingFallback />}>
           {activeTab === AppTab.DASHBOARD && renderDashboard()}
           {activeTab === AppTab.USERS && isSuperAdmin && (
             <UserGridView currentUser={user} />
@@ -172,7 +171,6 @@ export default function App() {
               }
               quizToEdit={selectedQuizForEdit}
               onSaveComplete={(savedQuiz) => {
-                // Clear out the selection and navigate back to the list
                 setSelectedQuizForEdit(null);
                 setActiveTab(AppTab.QUIZ_LIST);
               }}
@@ -187,7 +185,7 @@ export default function App() {
           {/* Student-facing View to Take Active Quizzes */}
           {activeTab === AppTab.QUIZ_STUDENT && <QuizStudentView user={user} />}
 
-          {/* */}
+          {/* Attendance & Engagement */}
           {activeTab === AppTab.WLS_ATTENDANCE_MONITORING && isWlsAdmin && (
             <WlsAttendanceMonitoringPanel user={user} />
           )}
@@ -215,10 +213,8 @@ export default function App() {
           {(activeTab === AppTab.USER_EVENTS || (activeTab === AppTab.IIPC_EVENTS && !isSuperAdmin)) && (
             <IipcEventsUserView user={user} />
           )}
-        </Container>
-
-
-      </MainLayout>
-    </MantineProvider>
+        </Suspense>
+      </Container>
+    </MainLayout>
   );
 }

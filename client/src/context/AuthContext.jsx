@@ -1,11 +1,17 @@
 import React, { createContext, useContext, useState } from "react";
+import { safeStorage } from "../utils/safeStorage";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem("user");
-    return saved ? JSON.parse(saved) : null;
+    try {
+      const saved = safeStorage.getItem("user");
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      console.warn("Failed to parse saved user from storage:", e);
+      return null;
+    }
   });
   const [showAuthModal, setShowAuthModal] = useState(false);
 
@@ -24,33 +30,35 @@ export function AuthProvider({ children }) {
       }
 
       setUser(data);
-      localStorage.setItem("user", JSON.stringify(data));
+      safeStorage.setItem("user", JSON.stringify(data));
       setShowAuthModal(false);
       return { success: true };
     } catch (err) {
       console.error("Login error:", err.message);
       setUser(null);
-      localStorage.removeItem("user");
+      safeStorage.removeItem("user");
       throw err; // Re-throw to allow AuthModal to display error UI
     }
   };
 
   const logout = () => {
-    // 1. Clear local/session storage items related to user and token
-    localStorage.clear(); // Or clear specifically what your app uses
-    sessionStorage.clear();
+    // 1. Clear local storage items safely
+    safeStorage.clear();
+    try {
+      if (typeof window !== "undefined" && window.sessionStorage) {
+        window.sessionStorage.clear();
+      }
+    } catch (e) {
+      console.warn("sessionStorage.clear failed:", e);
+    }
 
-    // 2. Clear any Axios/Fetch global authorization headers if configured
-    // delete axios.defaults.headers.common['Authorization'];
-
-    // 3. Reset React user state
-
+    // 2. Reset React user state
     setUser(null);
   };
 
   const saveUserData = (userData) => {
     setUser(userData);
-    localStorage.setItem("user", JSON.stringify(userData));
+    safeStorage.setItem("user", JSON.stringify(userData));
   };
 
   return (
