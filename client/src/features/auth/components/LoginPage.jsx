@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { 
   Paper, 
   TextInput, 
@@ -9,13 +9,17 @@ import {
   Stack, 
   Group, 
   Box,
-  Notification
+  Notification,
+  Loader,
+  Center
 } from '@mantine/core';
 import { IconLock, IconCheck, IconX, IconMail } from '@tabler/icons-react';
 import { useAuth } from '../../../context/AuthContext';
-import { RegisterPage } from './RegisterPage';
-import { ForgotPasswordView } from './ForgotPasswordView';
-import { ResetPasswordView } from './ResetPasswordView';
+
+// Lazy-load sub-views to keep initial login bundle ultra-lightweight and prevent loading massive datasets upfront
+const RegisterPage = lazy(() => import('./RegisterPage').then(m => ({ default: m.RegisterPage })));
+const ForgotPasswordView = lazy(() => import('./ForgotPasswordView').then(m => ({ default: m.ForgotPasswordView })));
+const ResetPasswordView = lazy(() => import('./ResetPasswordView').then(m => ({ default: m.ResetPasswordView })));
 
 export function LoginPage({ onSuccess }) {
   const { login } = useAuth();
@@ -66,60 +70,66 @@ export function LoginPage({ onSuccess }) {
   // Render Register View
   if (view === 'register') {
     return (
-      <RegisterPage 
-        onSwitchToLogin={() => { 
-          setView('login'); 
-          setErrorMsg(null); 
-          setSuccessMsg(null); 
-        }} 
-        onSuccess={onSuccess} 
-      />
+      <Suspense fallback={<Center py="xl"><Loader size="md" color="teal" /></Center>}>
+        <RegisterPage 
+          onSwitchToLogin={() => { 
+            setView('login'); 
+            setErrorMsg(null); 
+            setSuccessMsg(null); 
+          }} 
+          onSuccess={onSuccess} 
+        />
+      </Suspense>
     );
   }
 
   // Render Forgot Password View
   if (view === 'forgot') {
     return (
-      <ForgotPasswordView
-        onBackToLogin={() => {
-          setView('login');
-          setErrorMsg(null);
-          setSuccessMsg(null);
-        }}
-        onOpenResetToken={(token) => {
-          setActiveResetToken(token);
-          setView('reset');
-          setErrorMsg(null);
-          setSuccessMsg(null);
-        }}
-      />
+      <Suspense fallback={<Center py="xl"><Loader size="md" color="teal" /></Center>}>
+        <ForgotPasswordView
+          onBackToLogin={() => {
+            setView('login');
+            setErrorMsg(null);
+            setSuccessMsg(null);
+          }}
+          onOpenResetToken={(token) => {
+            setActiveResetToken(token);
+            setView('reset');
+            setErrorMsg(null);
+            setSuccessMsg(null);
+          }}
+        />
+      </Suspense>
     );
   }
 
   // Render Reset Password View
   if (view === 'reset') {
     return (
-      <ResetPasswordView
-        token={activeResetToken}
-        onBackToLogin={() => {
-          // Clean token from URL
-          if (window.history.replaceState) {
-            const cleanUrl = window.location.pathname;
-            window.history.replaceState({}, document.title, cleanUrl);
-          }
-          setView('login');
-          setErrorMsg(null);
-          setSuccessMsg(null);
-        }}
-        onResetSuccess={() => {
-          if (window.history.replaceState) {
-            const cleanUrl = window.location.pathname;
-            window.history.replaceState({}, document.title, cleanUrl);
-          }
-          setView('login');
-          setSuccessMsg('Password reset successfully! You can now log in with your new password.');
-        }}
-      />
+      <Suspense fallback={<Center py="xl"><Loader size="md" color="teal" /></Center>}>
+        <ResetPasswordView
+          token={activeResetToken}
+          onBackToLogin={() => {
+            // Clean token from URL
+            if (window.history.replaceState) {
+              const cleanUrl = window.location.pathname;
+              window.history.replaceState({}, document.title, cleanUrl);
+            }
+            setView('login');
+            setErrorMsg(null);
+            setSuccessMsg(null);
+          }}
+          onResetSuccess={() => {
+            if (window.history.replaceState) {
+              const cleanUrl = window.location.pathname;
+              window.history.replaceState({}, document.title, cleanUrl);
+            }
+            setView('login');
+            setSuccessMsg('Password reset successfully! You can now log in with your new password.');
+          }}
+        />
+      </Suspense>
     );
   }
 

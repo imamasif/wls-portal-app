@@ -4,26 +4,40 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 
 export default defineConfig(({ mode }) => {
-  // Load env variables based on current process.cwd()
   const env = loadEnv(mode, process.cwd(), '');
 
   return {
     plugins: [react()],
     resolve: {
       alias: {
-        // Maps '@' to your 'src' directory
         '@': path.resolve(__dirname, './src'),
       },
     },
     build: {
-      chunkSizeWarningLimit: 2000,
+      chunkSizeWarningLimit: 1500,
       rollupOptions: {
         output: {
-          manualChunks: {
-            'vendor-react': ['react', 'react-dom'],
-            'vendor-mantine': ['@mantine/core', '@mantine/hooks'],
-            'vendor-charts': ['recharts'],
-            'vendor-icons': ['@tabler/icons-react', 'lucide-react'],
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (id.includes('country-state-city')) {
+                return 'vendor-country-data';
+              }
+              if (id.includes('recharts') || id.includes('d3-')) {
+                return 'vendor-charts';
+              }
+              if (id.includes('@mantine') || id.includes('mantine-datatable')) {
+                return 'vendor-mantine';
+              }
+              if (id.includes('@tabler/icons') || id.includes('lucide-react')) {
+                return 'vendor-icons';
+              }
+              if (id.includes('date-holidays')) {
+                return 'vendor-holidays';
+              }
+              if (id.includes('react') || id.includes('scheduler')) {
+                return 'vendor-react';
+              }
+            }
           },
         },
       },
