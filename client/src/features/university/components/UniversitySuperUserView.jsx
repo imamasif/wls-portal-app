@@ -23,6 +23,7 @@ import {
   Center,
   Tooltip,
   Divider,
+  Progress,
 } from "@mantine/core";
 import {
   IconBuildingBank,
@@ -30,6 +31,7 @@ import {
   IconBooks,
   IconVideo,
   IconUsers,
+  IconUser,
   IconAward,
   IconPlus,
   IconEdit,
