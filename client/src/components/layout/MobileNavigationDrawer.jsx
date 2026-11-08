@@ -214,6 +214,15 @@ export function MobileNavigationDrawer({
           style={{ borderRadius: "6px", marginBottom: "4px" }}
         />
 
+        {/* Dedicated University Navigation */}
+        <NavLink
+          label="IIPC University"
+          leftSection={<IconBuildingBank size={18} color="var(--mantine-color-blue-6)" />}
+          active={activeTab === AppTab.UNIVERSITY_PORTAL}
+          onClick={() => handleNav(AppTab.UNIVERSITY_PORTAL)}
+          style={{ borderRadius: "6px", marginBottom: "4px" }}
+        />
+
         {/* Core: Quran Studies & Lectures (Prominently placed for quick mobile discovery) */}
         <NavLink
           label="Quran Studies & Lectures"

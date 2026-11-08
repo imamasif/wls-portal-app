@@ -18,6 +18,7 @@ import {
   IconSparkles,
   IconHeartHandshake,
   IconCategory,
+  IconBuildingBank,
 } from "@tabler/icons-react";
 
 export function UserMenu({ activeTab, setActiveTab }) {
@@ -31,6 +32,17 @@ export function UserMenu({ activeTab, setActiveTab }) {
         size="xs"
       >
         Dashboard
+      </Button>
+
+      {/* Dedicated University Portal Button for Students */}
+      <Button
+        variant={activeTab === AppTab.UNIVERSITY_PORTAL ? "filled" : "subtle"}
+        color="blue"
+        leftSection={<IconBuildingBank size={18} />}
+        onClick={() => setActiveTab(AppTab.UNIVERSITY_PORTAL)}
+        size="xs"
+      >
+        University
       </Button>
 
       {/* Direct My Reports Button */}

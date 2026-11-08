@@ -197,6 +197,9 @@ export function UserGridView({ currentUser }) {
                 { value: UserRole.SUPER_USER, label: 'Super Admin' },
                 { value: UserRole.WLS_ADMIN, label: 'WLS Admin' },
                 { value: UserRole.USER, label: 'Student' },
+                { value: UserRole.UNIVERSITY_SUPER_USER, label: 'University Super User' },
+                { value: UserRole.UNIVERSITY_ADMIN, label: 'University Admin / Faculty' },
+                { value: UserRole.UNIVERSITY_STUDENT, label: 'University Student' },
               ]}
             />
           </Group>
@@ -282,6 +285,9 @@ export function UserGridView({ currentUser }) {
                             { value: UserRole.USER, label: 'USER' },
                             { value: UserRole.WLS_ADMIN, label: 'WLS ADMIN' },
                             { value: UserRole.SUPER_USER, label: 'SUPER USER' },
+                            { value: UserRole.UNIVERSITY_SUPER_USER, label: 'UNI SUPER USER' },
+                            { value: UserRole.UNIVERSITY_ADMIN, label: 'UNI ADMIN' },
+                            { value: UserRole.UNIVERSITY_STUDENT, label: 'UNI STUDENT' },
                           ]}
                         />
                       </div>

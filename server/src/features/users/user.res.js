@@ -7,6 +7,9 @@ export class UserResDTO {
     this.name = doc.name || '';
     this.email = doc.email || '';
     this.role = doc.role || 'USER';
+    this.roles = Array.isArray(doc.roles) && doc.roles.length > 0 
+      ? doc.roles 
+      : (doc.role ? [doc.role] : ['USER']);
     this.gender = doc.gender || '';
     this.phones = Array.isArray(doc.phones) && doc.phones.length > 0 
       ? doc.phones 

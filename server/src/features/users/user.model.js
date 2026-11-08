@@ -31,8 +31,16 @@ const UserSchema = new mongoose.Schema({
   resetPasswordExpires: { type: Date, select: false },
   role: { 
     type: String, 
-    enum: ['SUPER_USER', 'WLS_ADMIN', 'USER'],
+    enum: [
+      'SUPER_USER', 'WLS_ADMIN', 'USER',
+      'university_super_user', 'university_admin', 'university_student',
+      'UNIVERSITY_SUPER_USER', 'UNIVERSITY_ADMIN', 'UNIVERSITY_STUDENT'
+    ],
     default: 'USER' 
+  },
+  roles: {
+    type: [String],
+    default: []
   },
   groupNumbers: { type: [Number], default: [1] },
   isActive: { type: Boolean, default: true },

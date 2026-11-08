@@ -114,7 +114,7 @@ export default function App() {
           {activeTab === AppTab.TEAMS_GROUPS && isWlsAdmin && (
             <MSTeamGroupManager user={user} />
           )}
-          {activeTab === AppTab.UNIVERSITY_PORTAL && isWlsAdmin && (
+          {activeTab === AppTab.UNIVERSITY_PORTAL && (
             <UniversityPortalDashboard user={user} />
           )}
           {(activeTab === AppTab.WLS_SESSION ||

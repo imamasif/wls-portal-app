@@ -1,6 +1,7 @@
 export {
   USER_ROLES,
   UserRole,
+  UNIVERSITY_ROLES,
   ASSESSMENT_STATUSES,
   AssessmentStatus,
   CONCLUSION_STATUSES,
@@ -11,5 +12,5 @@ export {
   QuestionType,
   QUESTION_TYPE_VALUES,
   isSuperUserRole,
+  hasUserRole,
 } from "../../common/constants/enums.js";
-

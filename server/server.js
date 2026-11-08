@@ -20,14 +20,12 @@ import quizSubmissionRoutes from "./src/features/quiz-submissions/index.js";
 // Explicitly import models for the seed endpoint
 import { UserModel } from "./src/features/users/index.js";
 import { WlsSessionModel } from "./src/features/wls-session/wlsSession.model.js";
-import universityRoutes from "./src/features/universities/index.js";
-import courseProgressRoutes from "./src/features/universities/course-progress/index.js";
+import universityRoutes from "./src/features/university/index.js";
 import attendanceController from "./src/features/wls-attendance-monitoring/index.js";
 import categoryLecturesRoutes from "./src/features/category-lectures/index.js";
 import { quranRoutes } from "./src/features/quran/index.js";
 import ayatsRoutes from "./src/features/ayats/index.js";
 import iipcEventsRoutes from "./src/features/iipc-events/index.js";
-
 
 const app = express();
 
@@ -57,8 +55,7 @@ app.get("/api/health", (req, res) => {
 });
 
 app.use("/api/users", userController);
-app.use("/api/wls-sessions", wlsSessionRoutes); // <-- Mount WLS Session endpoints here
-// app.use("/api/sessions", sessionController);
+app.use("/api/wls-sessions", wlsSessionRoutes);
 app.use("/api/assessments", assessmentController);
 app.use("/api/rules", ruleRoutes);
 app.use("/api/notifications", notificationController);
@@ -69,13 +66,13 @@ app.use("/api/menu-permissions", menuPermissionController);
 app.use("/api/quizzes", quizRoutes);
 app.use("/api/quiz-submissions", quizSubmissionRoutes);
 
+// Support both /api/university and /api/universities
+app.use("/api/university", universityRoutes);
 app.use("/api/universities", universityRoutes);
-app.use("/api/universities/course-progress", courseProgressRoutes);
 app.use("/api/category-lectures", categoryLecturesRoutes);
 app.use("/api/quran", quranRoutes);
 app.use("/api/ayats", ayatsRoutes);
 app.use("/api/iipc-events", iipcEventsRoutes);
-
 
 // 3. Seed Route
 app.post("/api/seed", async (req, res) => {

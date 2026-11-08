@@ -38,6 +38,17 @@ export function WlsAdminMenu({ activeTab, setActiveTab }) {
         Dashboard
       </Button>
 
+      {/* Dedicated University Portal Button */}
+      <Button
+        variant={activeTab === AppTab.UNIVERSITY_PORTAL ? "filled" : "subtle"}
+        color="blue"
+        leftSection={<IconBuildingBank size={18} />}
+        onClick={() => setActiveTab(AppTab.UNIVERSITY_PORTAL)}
+        size="xs"
+      >
+        University
+      </Button>
+
       {/* WLS Management Dropdown */}
       <Menu shadow="md" width={240} trigger="hover">
         <Menu.Target>
