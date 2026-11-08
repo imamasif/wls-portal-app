@@ -1,3 +1,4 @@
+import { syncUniversityCurriculum } from "./seedCurriculum.js";
 import mongoose from "mongoose";
 import {
   UniversityModel,
@@ -71,6 +72,7 @@ export class UniversityUseCase {
         });
       }
     }
+    await syncUniversityCurriculum();
     return uni;
   }
 
@@ -761,4 +763,138 @@ export class UniversityUseCase {
       })),
     };
   }
+
+  // =========================================================================
+  // 12. DRAG & DROP REORDER LECTURES
+  // =========================================================================
+  static async reorderLectures(courseId, orderedLectureIds) {
+    if (!Array.isArray(orderedLectureIds) || orderedLectureIds.length === 0) {
+      throw new Error("orderedLectureIds must be a non-empty array of lecture IDs");
+    }
+    const operations = orderedLectureIds.map((id, index) => ({
+      updateOne: {
+        filter: { _id: id, courseId },
+        update: { $set: { order: index + 1 } },
+      },
+    }));
+    await LectureModel.bulkWrite(operations);
+    return await this.listLectures(courseId);
+  }
+
+  // =========================================================================
+  // 13. COURSE AUDIT FOR SUPER USER / INSTRUCTOR TRACKING
+  // =========================================================================
+  static async getCourseAudit(courseId) {
+    const course = await CourseModel.findById(courseId)
+      .populate("departmentId", "name code")
+      .populate("semesterId", "semesterNumber title")
+      .lean();
+    if (!course) throw new Error("Course not found");
+
+    const lectures = await LectureModel.find({ courseId, isActive: true }).sort({ order: 1 }).lean();
+    const totalLecturesCount = lectures.length;
+    const mandatoryCount = lectures.filter((l) => l.isMandatory).length;
+
+    // Fetch enrollments for the department
+    const deptId = course.departmentId?._id || course.departmentId;
+    const enrollments = await StudentEnrollmentModel.find({ departmentId: deptId })
+      .populate("studentId", "name email role")
+      .lean();
+
+    const studentsAudit = [];
+
+    for (const enr of enrollments) {
+      const studentId = enr.studentId?._id || enr.studentId;
+      if (!studentId) continue;
+
+      const progressList = await StudentLectureProgressModel.find({
+        studentId,
+        courseId,
+      }).lean();
+
+      const completedCount = progressList.filter((p) => p.isCompleted).length;
+      const totalPercentage = totalLecturesCount > 0
+        ? Math.min(100, Math.round((completedCount / totalLecturesCount) * 100))
+        : 0;
+
+      const examAttempts = await StudentExamAttemptModel.find({
+        studentId,
+        courseId,
+      }).sort({ attemptNumber: -1 }).lean();
+
+      const highestScore = examAttempts.reduce((max, a) => Math.max(max, a.percentage || 0), 0);
+      const isPassed = examAttempts.some((a) => a.isPassed);
+
+      studentsAudit.push({
+        studentId,
+        rollNumber: enr.rollNumber,
+        name: enr.studentName || enr.studentId?.name || "Student",
+        email: enr.studentEmail || enr.studentId?.email || "N/A",
+        status: enr.status,
+        completedLecturesCount: completedCount,
+        totalLecturesCount,
+        totalCoursePercentage: totalPercentage,
+        examAttemptsCount: examAttempts.length,
+        examHighestScore: highestScore,
+        isExamPassed: isPassed,
+        lastActivity: progressList.reduce((latest, p) => (!latest || p.updatedAt > latest ? p.updatedAt : latest), null) || enr.updatedAt,
+      });
+    }
+
+    const avgPercentage = studentsAudit.length > 0
+      ? Math.round(studentsAudit.reduce((acc, s) => acc + s.totalCoursePercentage, 0) / studentsAudit.length)
+      : 0;
+
+    return {
+      courseId: course._id,
+      courseTitle: course.title,
+      courseCode: course.code,
+      departmentName: course.departmentId?.name || "Academic Department",
+      semesterTitle: course.semesterId?.title || "Semester 1",
+      totalLecturesCount,
+      mandatoryCount,
+      totalEnrolledStudents: studentsAudit.length,
+      averageCoursePercentage: avgPercentage,
+      students: studentsAudit,
+    };
+  }
+
+  // =========================================================================
+  // 14. LECTURE NOTES (STUDENT TIME-STAMPED NOTES)
+  // =========================================================================
+  static async saveLectureNote(studentId, courseId, lectureId, text, timestampSeconds = 0) {
+    if (!text || !text.trim()) {
+      throw new Error("Note text cannot be empty");
+    }
+    let progress = await StudentLectureProgressModel.findOne({ studentId, lectureId });
+    if (!progress) {
+      progress = await StudentLectureProgressModel.create({
+        studentId,
+        courseId,
+        lectureId,
+        watchedSeconds: 0,
+        notes: [],
+      });
+    }
+
+    const note = {
+      noteId: new mongoose.Types.ObjectId().toString(),
+      text: text.trim(),
+      timestampSeconds: Math.round(Number(timestampSeconds) || 0),
+      createdAt: new Date(),
+    };
+
+    if (!Array.isArray(progress.notes)) {
+      progress.notes = [];
+    }
+    progress.notes.push(note);
+    await progress.save();
+    return note;
+  }
+
+  static async getLectureNotes(studentId, lectureId) {
+    const progress = await StudentLectureProgressModel.findOne({ studentId, lectureId }).lean();
+    return progress?.notes || [];
+  }
+
 }

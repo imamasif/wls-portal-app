@@ -41,6 +41,12 @@ import {
   IconExternalLink,
   IconEye,
   IconRefresh,
+  IconGripVertical,
+  IconArrowUp,
+  IconArrowDown,
+  IconReportAnalytics,
+  IconCircleCheck,
+  IconChecklist,
 } from "@tabler/icons-react";
 import { universityApi } from "../api/universityApi";
 import { CertificateModal } from "./CertificateModal";
@@ -103,6 +109,7 @@ export function UniversitySuperUserView({ currentUser }) {
     isExamAvailable: false,
   });
   const [lectureForm, setLectureForm] = useState({
+    topicName: "General Curriculum",
     title: "",
     description: "",
     order: 1,
@@ -127,6 +134,79 @@ export function UniversitySuperUserView({ currentUser }) {
   });
 
   const [notification, setNotification] = useState(null);
+  const [draggedIndex, setDraggedIndex] = useState(null);
+  const [auditCourseId, setAuditCourseId] = useState("");
+  const [auditData, setAuditData] = useState(null);
+  const [loadingAudit, setLoadingAudit] = useState(false);
+  const [selectedStudentAudit, setSelectedStudentAudit] = useState(null);
+  const [studentAuditModalOpen, setStudentAuditModalOpen] = useState(false);
+
+  const loadCourseAudit = async (cId) => {
+    if (!cId) return;
+    setLoadingAudit(true);
+    try {
+      const res = await universityApi.getCourseAudit(cId);
+      setAuditData(res);
+    } catch (err) {
+      showNotification("Failed to load course audit: " + err.message, "error");
+    } finally {
+      setLoadingAudit(false);
+    }
+  };
+
+  useEffect(() => {
+    if (courses.length > 0 && !auditCourseId) {
+      const initial = courses[0]._id || courses[0].id;
+      setAuditCourseId(initial);
+      loadCourseAudit(initial);
+    }
+  }, [courses]);
+
+  const handleDragStart = (e, index) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e, index) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDrop = async (e, targetIndex) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === targetIndex) return;
+    const updated = [...lectures];
+    const [draggedItem] = updated.splice(draggedIndex, 1);
+    updated.splice(targetIndex, 0, draggedItem);
+    setLectures(updated);
+    setDraggedIndex(null);
+
+    try {
+      const orderedIds = updated.map((l) => l._id || l.id);
+      await universityApi.reorderLectures(selectedCourseId, orderedIds);
+      showNotification("Lecture order updated successfully!");
+    } catch (err) {
+      showNotification("Failed to save lecture order: " + err.message, "error");
+    }
+  };
+
+  const handleMoveLecture = async (index, direction) => {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= lectures.length) return;
+    const updated = [...lectures];
+    const [item] = updated.splice(index, 1);
+    updated.splice(targetIndex, 0, item);
+    setLectures(updated);
+
+    try {
+      const orderedIds = updated.map((l) => l._id || l.id);
+      await universityApi.reorderLectures(selectedCourseId, orderedIds);
+      showNotification("Lecture sequence updated!");
+    } catch (err) {
+      showNotification("Failed to save sequence: " + err.message, "error");
+    }
+  };
+
 
   const showNotification = (msg, type = "success") => {
     setNotification({ msg, type });
@@ -567,6 +647,9 @@ export function UniversitySuperUserView({ currentUser }) {
           <Tabs.Tab value="certificates" leftSection={<IconAward size={16} />}>
             Certificates Awarded ({certificates.length})
           </Tabs.Tab>
+          <Tabs.Tab value="audit" leftSection={<IconReportAnalytics size={16} />}>
+            Student Progress Audit
+          </Tabs.Tab>
         </Tabs.List>
 
         {/* TAB 1: DEPARTMENTS & SEMESTERS */}
@@ -998,14 +1081,38 @@ export function UniversitySuperUserView({ currentUser }) {
               </Center>
             ) : (
               <Stack gap="sm">
-                {lectures.map((lec) => {
+                {lectures.map((lec, idx) => {
                   const lId = lec._id || lec.id;
                   return (
-                    <Paper key={lId} p="sm" radius="md" withBorder bg="#ffffff">
+                    <Paper
+                      key={lId}
+                      p="sm"
+                      radius="md"
+                      withBorder
+                      bg="#ffffff"
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, idx)}
+                      onDragOver={(e) => handleDragOver(e, idx)}
+                      onDrop={(e) => handleDrop(e, idx)}
+                      style={{
+                        cursor: "grab",
+                        opacity: draggedIndex === idx ? 0.4 : 1,
+                        transition: "all 0.15s ease",
+                      }}
+                    >
                       <Group justify="space-between" align="flex-start">
                         <Group gap="sm" align="flex-start">
+                          <ActionIcon
+                            variant="subtle"
+                            color="gray"
+                            size="sm"
+                            style={{ cursor: "grab", marginTop: 2 }}
+                            title="Drag to reorder"
+                          >
+                            <IconGripVertical size={16} />
+                          </ActionIcon>
                           <Badge color="indigo" size="lg" circle>
-                            {lec.order}
+                            {idx + 1}
                           </Badge>
                           <Stack gap={2}>
                             <Group gap="xs">
@@ -1053,6 +1160,26 @@ export function UniversitySuperUserView({ currentUser }) {
                         </Group>
 
                         <Group gap={4}>
+                          <ActionIcon
+                            size="sm"
+                            color="gray"
+                            variant="subtle"
+                            disabled={idx === 0}
+                            onClick={() => handleMoveLecture(idx, -1)}
+                            title="Move Up"
+                          >
+                            <IconArrowUp size={14} />
+                          </ActionIcon>
+                          <ActionIcon
+                            size="sm"
+                            color="gray"
+                            variant="subtle"
+                            disabled={idx === lectures.length - 1}
+                            onClick={() => handleMoveLecture(idx, 1)}
+                            title="Move Down"
+                          >
+                            <IconArrowDown size={14} />
+                          </ActionIcon>
                           <ActionIcon
                             size="sm"
                             color="blue"
@@ -1319,6 +1446,185 @@ export function UniversitySuperUserView({ currentUser }) {
             )}
           </Paper>
         </Tabs.Panel>
+
+        {/* TAB 6: STUDENT PROGRESS AUDIT (Image 4 & SuperUserCourseAudit) */}
+        <Tabs.Panel value="audit">
+          <Paper p="md" radius="md" withBorder bg="white">
+            <Group justify="space-between" mb="lg" wrap="wrap">
+              <div>
+                <Title order={4} c="dark.9">
+                  Student Progress & Completion Audit
+                </Title>
+                <Text size="xs" c="dimmed">
+                  Track individual student lecture watch times, total course percentages, and examination outcomes.
+                </Text>
+              </div>
+
+              <Group gap="sm">
+                <Select
+                  label="Select Course to Audit"
+                  data={courses.map((c) => ({
+                    value: c._id || c.id,
+                    label: `${c.code}: ${c.title}`,
+                  }))}
+                  value={auditCourseId}
+                  onChange={(val) => {
+                    setAuditCourseId(val);
+                    loadCourseAudit(val);
+                  }}
+                  size="xs"
+                  w={340}
+                />
+                <Button
+                  variant="light"
+                  color="indigo"
+                  size="xs"
+                  mt={22}
+                  leftSection={<IconRefresh size={14} />}
+                  onClick={() => loadCourseAudit(auditCourseId)}
+                  loading={loadingAudit}
+                >
+                  Refresh
+                </Button>
+              </Group>
+            </Group>
+
+            {loadingAudit ? (
+              <Center py={60}>
+                <Loader size="md" color="indigo" />
+              </Center>
+            ) : !auditData ? (
+              <Center py={40}>
+                <Text size="sm" c="dimmed">Select a course above to view student progress data.</Text>
+              </Center>
+            ) : (
+              <Stack gap="lg">
+                {/* 4 Summary Stat Cards */}
+                <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="sm">
+                  <Paper p="sm" radius="md" withBorder bg="blue.0" style={{ borderColor: "#bfdbfe" }}>
+                    <Text size="xs" fw={700} c="blue.8" tt="uppercase">
+                      Enrolled Students
+                    </Text>
+                    <Title order={3} c="blue.9" mt={4}>
+                      {auditData.totalEnrolledStudents}
+                    </Title>
+                  </Paper>
+                  <Paper p="sm" radius="md" withBorder bg="teal.0" style={{ borderColor: "#a7f3d0" }}>
+                    <Text size="xs" fw={700} c="teal.8" tt="uppercase">
+                      Avg Course Coverage
+                    </Text>
+                    <Title order={3} c="teal.9" mt={4}>
+                      {auditData.averageCoursePercentage}%
+                    </Title>
+                  </Paper>
+                  <Paper p="sm" radius="md" withBorder bg="green.0" style={{ borderColor: "#bbf7d0" }}>
+                    <Text size="xs" fw={700} c="green.8" tt="uppercase">
+                      Total Course Lectures
+                    </Text>
+                    <Title order={3} c="green.9" mt={4}>
+                      {auditData.totalLecturesCount}
+                    </Title>
+                  </Paper>
+                  <Paper p="sm" radius="md" withBorder bg="orange.0" style={{ borderColor: "#fed7aa" }}>
+                    <Text size="xs" fw={700} c="orange.8" tt="uppercase">
+                      Passed Exam
+                    </Text>
+                    <Title order={3} c="orange.9" mt={4}>
+                      {auditData.students.filter((s) => s.isExamPassed).length}
+                    </Title>
+                  </Paper>
+                </SimpleGrid>
+
+                {/* Students Audit Table */}
+                <Table.ScrollContainer minWidth={750}>
+                  <Table verticalSpacing="sm" highlightOnHover striped>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>Roll Number</Table.Th>
+                        <Table.Th>Student Name</Table.Th>
+                        <Table.Th>Email</Table.Th>
+                        <Table.Th>Lectures Watched</Table.Th>
+                        <Table.Th>Course Coverage (%)</Table.Th>
+                        <Table.Th>Exam Score</Table.Th>
+                        <Table.Th style={{ textAlign: "right" }}>Actions</Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {auditData.students.length === 0 ? (
+                        <Table.Tr>
+                          <Table.Td colSpan={7} style={{ textAlign: "center" }} c="dimmed">
+                            No students enrolled in this department yet.
+                          </Table.Td>
+                        </Table.Tr>
+                      ) : (
+                        auditData.students.map((st) => (
+                          <Table.Tr key={st.studentId}>
+                            <Table.Td>
+                              <Badge color="dark" variant="outline">
+                                {st.rollNumber}
+                              </Badge>
+                            </Table.Td>
+                            <Table.Td fw={600}>{st.name}</Table.Td>
+                            <Table.Td c="dimmed" size="xs">{st.email}</Table.Td>
+                            <Table.Td>
+                              <Badge color="indigo" variant="light" size="xs">
+                                {st.completedLecturesCount} / {st.totalLecturesCount}
+                              </Badge>
+                            </Table.Td>
+                            <Table.Td>
+                              <Group gap="xs" style={{ minWidth: 160 }}>
+                                <Progress
+                                  value={st.totalCoursePercentage}
+                                  color="teal"
+                                  size="sm"
+                                  style={{ flex: 1 }}
+                                  radius="xl"
+                                />
+                                <Text size="xs" fw={700} c="teal.8" style={{ width: "38px" }}>
+                                  {st.totalCoursePercentage}%
+                                </Text>
+                              </Group>
+                            </Table.Td>
+                            <Table.Td>
+                              {st.isExamPassed ? (
+                                <Badge color="green" variant="filled" size="xs">
+                                  Passed ({st.examHighestScore}%)
+                                </Badge>
+                              ) : st.examAttemptsCount > 0 ? (
+                                <Badge color="orange" variant="light" size="xs">
+                                  {st.examHighestScore}% ({st.examAttemptsCount} att.)
+                                </Badge>
+                              ) : (
+                                <Badge color="gray" variant="outline" size="xs">
+                                  Not Attempted
+                                </Badge>
+                              )}
+                            </Table.Td>
+                            <Table.Td style={{ textAlign: "right" }}>
+                              <Button
+                                size="compact-xs"
+                                variant="light"
+                                color="indigo"
+                                leftSection={<IconEye size={12} />}
+                                onClick={() => {
+                                  setSelectedStudentAudit(st);
+                                  setStudentAuditModalOpen(true);
+                                }}
+                              >
+                                Audit Detail
+                              </Button>
+                            </Table.Td>
+                          </Table.Tr>
+                        ))
+                      )}
+                    </Table.Tbody>
+                  </Table>
+                </Table.ScrollContainer>
+              </Stack>
+            )}
+          </Paper>
+        </Tabs.Panel>
+
       </Tabs>
 
       {/* MODAL: EDIT UNIVERSITY */}
@@ -1735,6 +2041,100 @@ export function UniversitySuperUserView({ currentUser }) {
           setActiveCertToView(null);
         }}
       />
+
+      {/* Student Audit Detail Modal */}
+      <Modal
+        opened={studentAuditModalOpen}
+        onClose={() => setStudentAuditModalOpen(false)}
+        title={
+          <Group gap="xs">
+            <IconUser size={18} color="#2563eb" />
+            <Text fw={700}>
+              Student Course Audit: {selectedStudentAudit?.name}
+            </Text>
+            <Badge color="dark" size="sm" variant="outline">
+              {selectedStudentAudit?.rollNumber}
+            </Badge>
+          </Group>
+        }
+        size="lg"
+        centered
+      >
+        {selectedStudentAudit && (
+          <Stack gap="md">
+            <Paper p="sm" withBorder radius="md" bg="gray.0">
+              <SimpleGrid cols={2} spacing="xs">
+                <div>
+                  <Text size="xs" c="dimmed">Email:</Text>
+                  <Text size="sm" fw={600}>{selectedStudentAudit.email}</Text>
+                </div>
+                <div>
+                  <Text size="xs" c="dimmed">Roll Number:</Text>
+                  <Text size="sm" fw={600}>{selectedStudentAudit.rollNumber}</Text>
+                </div>
+                <div>
+                  <Text size="xs" c="dimmed">Lectures Completed:</Text>
+                  <Text size="sm" fw={600}>
+                    {selectedStudentAudit.completedLecturesCount} of {selectedStudentAudit.totalLecturesCount}
+                  </Text>
+                </div>
+                <div>
+                  <Text size="xs" c="dimmed">Total Coverage:</Text>
+                  <Text size="sm" fw={700} c="teal.7">
+                    {selectedStudentAudit.totalCoursePercentage}%
+                  </Text>
+                </div>
+              </SimpleGrid>
+            </Paper>
+
+            <Title order={5} c="dark.8">
+              Lecture Watch Logs
+            </Title>
+            <Table striped withTableBorder>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>#</Table.Th>
+                  <Table.Th>Lecture</Table.Th>
+                  <Table.Th>Watch Time</Table.Th>
+                  <Table.Th>Status</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {(lectures || []).map((lec, idx) => {
+                  const lProg = (selectedStudentAudit.lectureProgress || []).find(
+                    (p) => p.lectureId === (lec._id || lec.id)
+                  );
+                  const isDone = Boolean(lProg?.isCompleted);
+                  const watchedMins = Math.round((lProg?.watchedSeconds || 0) / 60);
+                  const totalMins = Math.round((lec.durationSeconds || 0) / 60);
+
+                  return (
+                    <Table.Tr key={lec._id || idx}>
+                      <Table.Td>{idx + 1}</Table.Td>
+                      <Table.Td fw={500} size="xs">{lec.title}</Table.Td>
+                      <Table.Td size="xs">
+                        {watchedMins} / {totalMins} mins
+                      </Table.Td>
+                      <Table.Td>
+                        {isDone ? (
+                          <Badge color="green" size="xs">100% Watched</Badge>
+                        ) : (
+                          <Badge color="gray" variant="light" size="xs">Pending</Badge>
+                        )}
+                      </Table.Td>
+                    </Table.Tr>
+                  );
+                })}
+              </Table.Tbody>
+            </Table>
+
+            <Group justify="flex-end">
+              <Button onClick={() => setStudentAuditModalOpen(false)}>Close</Button>
+            </Group>
+          </Stack>
+        )}
+      </Modal>
+
     </Box>
   );
 }

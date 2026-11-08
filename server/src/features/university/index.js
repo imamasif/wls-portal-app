@@ -84,4 +84,16 @@ router.post("/certificates/award", UniversityController.awardCertificate);
 router.get("/messages/:courseId/student/:studentId", UniversityController.getMessages);
 router.post("/messages", UniversityController.sendMessage);
 
+
+// Reorder lectures (drag & drop)
+router.patch("/courses/:courseId/reorder-lectures", UniversityController.reorderLectures);
+
+// Course audit & student progress tracking
+router.get("/courses/:courseId/audit", UniversityController.getCourseAudit);
+router.get("/course-audit/:courseId", UniversityController.getCourseAudit);
+
+// Lecture notes
+router.post("/progress/note", UniversityController.saveLectureNote);
+router.get("/progress/notes/:studentId/:lectureId", UniversityController.getLectureNotes);
+
 export default router;

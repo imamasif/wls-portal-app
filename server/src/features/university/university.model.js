@@ -63,7 +63,7 @@ const SemesterSchema = new mongoose.Schema(
     },
     departmentId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Department",
+      ref: "UniversityDepartment",
       required: true,
     },
     semesterNumber: { type: Number, required: true, min: 1, max: 12 },
@@ -90,12 +90,12 @@ const CourseSchema = new mongoose.Schema(
     },
     departmentId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Department",
+      ref: "UniversityDepartment",
       required: true,
     },
     semesterId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Semester",
+      ref: "UniversitySemester",
       required: true,
     },
     title: { type: String, required: true, trim: true },
@@ -119,9 +119,10 @@ const LectureSchema = new mongoose.Schema(
   {
     courseId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Course",
+      ref: "UniversityCourse",
       required: true,
     },
+    topicName: { type: String, default: "General", trim: true },
     title: { type: String, required: true, trim: true },
     description: { type: String, default: "" },
     order: { type: Number, default: 1 },
@@ -151,12 +152,12 @@ const StudentEnrollmentSchema = new mongoose.Schema(
     },
     departmentId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Department",
+      ref: "UniversityDepartment",
       required: true,
     },
     currentSemesterId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Semester",
+      ref: "UniversitySemester",
       required: true,
     },
     currentSemesterNumber: { type: Number, default: 1 },
@@ -192,12 +193,12 @@ const StudentLectureProgressSchema = new mongoose.Schema(
     },
     courseId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Course",
+      ref: "UniversityCourse",
       required: true,
     },
     lectureId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Lecture",
+      ref: "UniversityLecture",
       required: true,
     },
     watchedSeconds: { type: Number, default: 0 },
@@ -205,6 +206,14 @@ const StudentLectureProgressSchema = new mongoose.Schema(
     lastPositionSeconds: { type: Number, default: 0 },
     isCompleted: { type: Boolean, default: false }, // true once watched end-to-end
     completedAt: { type: Date },
+    notes: [
+      {
+        noteId: { type: String, default: () => new mongoose.Types.ObjectId().toString() },
+        text: { type: String, required: true },
+        timestampSeconds: { type: Number, default: 0 },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
   },
   { timestamps: true }
 );
@@ -225,7 +234,7 @@ const StudentExamAttemptSchema = new mongoose.Schema(
     rollNumber: { type: String, required: true },
     courseId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Course",
+      ref: "UniversityCourse",
       required: true,
     },
     quizId: {
@@ -269,11 +278,11 @@ const CertificateSchema = new mongoose.Schema(
     },
     departmentId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Department",
+      ref: "UniversityDepartment",
       required: true,
     },
-    semesterId: { type: mongoose.Schema.Types.ObjectId, ref: "Semester" },
-    courseId: { type: mongoose.Schema.Types.ObjectId, ref: "Course" },
+    semesterId: { type: mongoose.Schema.Types.ObjectId, ref: "UniversitySemester" },
+    courseId: { type: mongoose.Schema.Types.ObjectId, ref: "UniversityCourse" },
     type: {
       type: String,
       enum: ["SEMESTER", "COURSE", "DEGREE"],
@@ -303,7 +312,7 @@ const UniversityMessageSchema = new mongoose.Schema(
   {
     courseId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Course",
+      ref: "UniversityCourse",
       required: true,
     },
     studentId: {

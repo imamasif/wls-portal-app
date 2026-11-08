@@ -174,4 +174,35 @@ export const universityApi = {
     const res = await axios.post(`${API_BASE}/messages`, payload);
     return res.data?.data || res.data;
   },
+
+  // 12. Reorder Lectures (Drag & Drop)
+  reorderLectures: async (courseId, orderedLectureIds) => {
+    const res = await axios.patch(`${API_BASE}/courses/${courseId}/reorder-lectures`, {
+      orderedLectureIds,
+    });
+    return res.data?.data || res.data;
+  },
+
+  // 13. Super User / Instructor Course Audit
+  getCourseAudit: async (courseId) => {
+    const res = await axios.get(`${API_BASE}/courses/${courseId}/audit`);
+    return res.data?.data || res.data;
+  },
+
+  // 14. Lecture Time-stamped Notes
+  saveLectureNote: async ({ studentId, courseId, lectureId, text, timestampSeconds }) => {
+    const res = await axios.post(`${API_BASE}/progress/note`, {
+      studentId,
+      courseId,
+      lectureId,
+      text,
+      timestampSeconds,
+    });
+    return res.data?.data || res.data;
+  },
+
+  getLectureNotes: async (studentId, lectureId) => {
+    const res = await axios.get(`${API_BASE}/progress/notes/${studentId}/${lectureId}`);
+    return res.data?.data || res.data;
+  },
 };

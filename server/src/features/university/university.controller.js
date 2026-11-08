@@ -367,4 +367,61 @@ export class UniversityController {
       next(err);
     }
   }
+
+  // =========================================================================
+  // 12. REORDER LECTURES (Drag & Drop)
+  // =========================================================================
+  static async reorderLectures(req, res, next) {
+    try {
+      const { courseId } = req.params;
+      const { orderedLectureIds } = req.body;
+      const lectures = await UniversityUseCase.reorderLectures(courseId, orderedLectureIds);
+      res.status(200).json({ success: true, data: LectureMapper.toDTOList(lectures) });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // =========================================================================
+  // 13. COURSE AUDIT & TRACKING
+  // =========================================================================
+  static async getCourseAudit(req, res, next) {
+    try {
+      const { courseId } = req.params;
+      const audit = await UniversityUseCase.getCourseAudit(courseId);
+      res.status(200).json({ success: true, data: audit });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // =========================================================================
+  // 14. LECTURE NOTES
+  // =========================================================================
+  static async saveLectureNote(req, res, next) {
+    try {
+      const { studentId, courseId, lectureId, text, timestampSeconds } = req.body;
+      const note = await UniversityUseCase.saveLectureNote(
+        studentId,
+        courseId,
+        lectureId,
+        text,
+        timestampSeconds
+      );
+      res.status(201).json({ success: true, data: note });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async getLectureNotes(req, res, next) {
+    try {
+      const { studentId, lectureId } = req.params;
+      const notes = await UniversityUseCase.getLectureNotes(studentId, lectureId);
+      res.status(200).json({ success: true, data: notes });
+    } catch (err) {
+      next(err);
+    }
+  }
+
 }

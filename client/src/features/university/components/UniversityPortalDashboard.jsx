@@ -93,7 +93,12 @@ export function UniversityPortalDashboard() {
       {activeMode === "instructor" && (
         <UniversityInstructorView currentUser={user} />
       )}
-      {activeMode === "student" && <UniversityStudentView currentUser={user} />}
+      {activeMode === "student" && (
+        <UniversityStudentView
+          currentUser={user}
+          onSwitchPerspective={isSuperUser ? setActiveMode : null}
+        />
+      )}
     </Box>
   );
 }
