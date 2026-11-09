@@ -1,24 +1,32 @@
 // src/components/auth/RegisterPage.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Paper, 
   TextInput, 
   PasswordInput, 
   Select, 
-  Textarea,
+  Textarea, 
   Button, 
   Title, 
   Text, 
   Container, 
   Stack, 
   Group, 
-  Box,
-  Notification
+  Box, 
+  Notification,
+  Badge,
+  ThemeIcon,
+  Tooltip,
+  ActionIcon,
+  Loader
 } from '@mantine/core';
 import { 
   IconUserPlus, 
   IconCheck, 
-  IconX 
+  IconX,
+  IconRobot,
+  IconShieldLock,
+  IconRefresh
 } from '@tabler/icons-react';
 import { Country, State } from 'country-state-city';
 import { LocationSelector } from '@/components/common/LocationSelector';
@@ -56,6 +64,31 @@ export function RegisterPage({ onSwitchToLogin, onSuccess }) {
   const [errorMsg, setErrorMsg] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
 
+  // Anti-Bot Robot Check CAPTCHA state
+  const [captchaData, setCaptchaData] = useState({ token: '', svg: '' });
+  const [captchaInput, setCaptchaInput] = useState('');
+  const [captchaLoading, setCaptchaLoading] = useState(false);
+
+  const fetchCaptcha = async () => {
+    setCaptchaLoading(true);
+    try {
+      const res = await fetch('/api/users/captcha');
+      if (res.ok) {
+        const data = await res.json();
+        setCaptchaData({ token: data.captchaToken, svg: data.captchaSvg });
+        setCaptchaInput('');
+      }
+    } catch (err) {
+      console.error('Failed to load CAPTCHA:', err);
+    } finally {
+      setCaptchaLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCaptcha();
+  }, []);
+
   const handleSocialChange = (index, field, value) => {
     const updated = [...socialMedia];
     updated[index][field] = value;
@@ -84,6 +117,11 @@ export function RegisterPage({ onSwitchToLogin, onSuccess }) {
       return;
     }
 
+    if (!captchaInput.trim()) {
+      setErrorMsg('Please enter the Anti-Robot security verification characters.');
+      return;
+    }
+
     setLoading(true);
 
     const countryObj = Country.getCountryByCode(selectedCountryCode);
@@ -106,7 +144,9 @@ export function RegisterPage({ onSwitchToLogin, onSuccess }) {
       countryCode: selectedCountryCode,
       state: stateObj ? stateObj.name : '',
       stateCode: selectedStateCode,
-      city: selectedCity
+      city: selectedCity,
+      captchaToken: captchaData.token,
+      captchaAnswer: captchaInput.trim()
     };
 
     try {
@@ -125,10 +165,12 @@ export function RegisterPage({ onSwitchToLogin, onSuccess }) {
         }, 1500);
       } else {
         setErrorMsg(data.error || 'Failed to register account.');
+        fetchCaptcha();
       }
     } catch (err) {
       console.error('Registration error:', err);
       setErrorMsg('Server error connecting to registration service.');
+      fetchCaptcha();
     } finally {
       setLoading(false);
     }
@@ -313,6 +355,100 @@ export function RegisterPage({ onSwitchToLogin, onSuccess }) {
                 onRemove={handleRemoveSocial}
               />
             </Box>
+
+            {/* ROBOT CHECK / ANTI-BOT CAPTCHA VERIFICATION */}
+            <Paper 
+              p="md" 
+              radius="md" 
+              withBorder 
+              style={{ 
+                background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)', 
+                borderColor: '#cbd5e1',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+              }}
+            >
+              <Group justify="space-between" mb="xs">
+                <Group gap="xs">
+                  <ThemeIcon size="md" radius="xl" color="teal" variant="light">
+                    <IconRobot size={18} />
+                  </ThemeIcon>
+                  <Text fw={700} size="sm" c="gray.8">
+                    Security Check: Human Verification
+                  </Text>
+                </Group>
+                <Badge color="teal" variant="light" size="sm">
+                  Anti-Bot Protected
+                </Badge>
+              </Group>
+              
+              <Text size="xs" c="dimmed" mb="sm">
+                To prevent automated robot spam and ensure genuine student/member accounts, please enter the security characters shown below.
+              </Text>
+
+              <Group align="flex-end" gap="md" wrap="wrap">
+                <Box style={{ position: 'relative', display: 'inline-block' }}>
+                  {captchaData.svg ? (
+                    <img 
+                      src={captchaData.svg} 
+                      alt="Security CAPTCHA" 
+                      style={{ 
+                        display: 'block', 
+                        borderRadius: '8px', 
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.06)' 
+                      }} 
+                    />
+                  ) : (
+                    <Box 
+                      style={{ 
+                        width: 190, 
+                        height: 55, 
+                        background: '#e2e8f0', 
+                        borderRadius: 8, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center' 
+                      }}
+                    >
+                      <Text size="xs" c="dimmed">Loading security code...</Text>
+                    </Box>
+                  )}
+                </Box>
+
+                <Tooltip label="Get a new security code" withArrow>
+                  <ActionIcon 
+                    variant="light" 
+                    color="teal" 
+                    size="lg" 
+                    radius="md" 
+                    loading={captchaLoading} 
+                    onClick={fetchCaptcha}
+                    aria-label="Refresh Security Code"
+                    style={{ marginBottom: '2px' }}
+                  >
+                    <IconRefresh size={18} />
+                  </ActionIcon>
+                </Tooltip>
+
+                <TextInput
+                  placeholder="Enter 5 characters"
+                  required
+                  size="sm"
+                  leftSection={<IconShieldLock size={16} />}
+                  value={captchaInput}
+                  onChange={(e) => setCaptchaInput(e.target.value.toUpperCase())}
+                  maxLength={6}
+                  style={{ flex: 1, minWidth: '170px', maxWidth: '250px' }}
+                  styles={{
+                    input: {
+                      letterSpacing: '3px',
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      fontFamily: 'monospace, Courier, sans-serif'
+                    }
+                  }}
+                />
+              </Group>
+            </Paper>
 
            <Group justify="space-between" mt="xl" pt="lg" style={{ borderTop: '1px solid #e2e8f0' }}>
   {onSwitchToLogin && (

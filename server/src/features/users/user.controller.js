@@ -38,6 +38,114 @@ router.get("/", async (req, res) => {
   }
 });
 
+// =========================================================================
+// ANTI-BOT CAPTCHA VERIFICATION GENERATION & VALIDATION
+// =========================================================================
+const CAPTCHA_SECRET =
+  process.env.CAPTCHA_SECRET || process.env.JWT_SECRET || "iipc_anti_bot_captcha_secret_2026";
+const usedCaptchaTokens = new Set();
+
+// Clean up expired tokens from memory every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const token of usedCaptchaTokens) {
+    const parts = token.split(".");
+    if (parts[1] && Number(parts[1]) < now) {
+      usedCaptchaTokens.delete(token);
+    }
+  }
+}, 5 * 60 * 1000);
+
+function generateCaptchaCode(length = 5) {
+  // Clear, easily distinguishable characters (excluding ambiguous 0, O, 1, I, l)
+  const chars = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+  let result = "";
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+function generateCaptchaSvg(code) {
+  const width = 190;
+  const height = 55;
+  const colors = [
+    "#0f766e", "#1e3a8a", "#b45309", "#4338ca", 
+    "#be123c", "#047857", "#1e293b", "#6d28d9"
+  ];
+  
+  // Random lines for visual noise and anti-bot OCR disturbance
+  let lines = "";
+  for (let i = 0; i < 4; i++) {
+    const x1 = Math.floor(Math.random() * 20);
+    const y1 = Math.floor(Math.random() * height);
+    const x2 = Math.floor(width - Math.random() * 20);
+    const y2 = Math.floor(Math.random() * height);
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const strokeWidth = (Math.random() * 1.5 + 1).toFixed(1);
+    lines += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${strokeWidth}" opacity="0.4" />`;
+  }
+
+  // Random noise dots
+  let dots = "";
+  for (let i = 0; i < 35; i++) {
+    const cx = Math.floor(Math.random() * width);
+    const cy = Math.floor(Math.random() * height);
+    const r = (Math.random() * 1.8 + 0.8).toFixed(1);
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    dots += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${color}" opacity="0.35" />`;
+  }
+
+  // Wavy spline path through characters
+  const waveY1 = Math.floor(height * 0.4 + Math.random() * 8);
+  const waveY2 = Math.floor(height * 0.6 - Math.random() * 8);
+  const wavePath = `<path d="M 10,${waveY1} C 60,${waveY2} 120,${waveY1} 180,${waveY2}" stroke="#0f766e" stroke-width="2" fill="none" opacity="0.45" />`;
+
+  // Render individual rotated and shifted characters
+  let textElements = "";
+  const charSpacing = (width - 40) / code.length;
+  for (let i = 0; i < code.length; i++) {
+    const char = code[i];
+    const x = Math.floor(20 + i * charSpacing + (Math.random() * 6 - 3));
+    const y = Math.floor(38 + (Math.random() * 8 - 4));
+    const rot = Math.floor(Math.random() * 26 - 13); // -13 to +13 deg
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const fontSize = Math.floor(Math.random() * 4 + 26); // 26-30px
+    textElements += `<text x="${x}" y="${y}" font-family="monospace, Courier, sans-serif" font-weight="900" font-size="${fontSize}" fill="${color}" transform="rotate(${rot}, ${x}, ${y})">${char}</text>`;
+  }
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" style="background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); border-radius: 8px; border: 1px solid #cbd5e1; user-select: none;">
+    ${lines}
+    ${dots}
+    ${wavePath}
+    ${textElements}
+  </svg>`;
+}
+
+// GET /api/users/captcha - Generate fresh Anti-Robot CAPTCHA challenge
+router.get("/captcha", (req, res) => {
+  try {
+    const code = generateCaptchaCode(5);
+    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes valid
+    const hmac = crypto
+      .createHmac("sha256", CAPTCHA_SECRET)
+      .update(code.toUpperCase() + ":" + expiresAt)
+      .digest("hex");
+    const captchaToken = `${hmac}.${expiresAt}`;
+    const svg = generateCaptchaSvg(code);
+    const captchaSvg = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+
+    res.json({
+      captchaToken,
+      captchaSvg,
+      expiresAt,
+    });
+  } catch (err) {
+    console.error("CAPTCHA generation error:", err);
+    res.status(500).json({ error: "Failed to generate CAPTCHA" });
+  }
+});
+
 router.post("/", async (req, res) => {
   try {
     const {
@@ -60,7 +168,52 @@ router.post("/", async (req, res) => {
       causeContribution,
       profilePictureUrl,
       socialMedia,
+      captchaToken,
+      captchaAnswer,
     } = req.body;
+
+    // 1. ROBOT CHECK: Verify Anti-Bot CAPTCHA
+    // Allow internal authenticated admin bypass if needed
+    const isInternalAdmin =
+      req.headers.authorization &&
+      req.headers.authorization.startsWith("Bearer ");
+
+    if (!isInternalAdmin) {
+      if (!captchaToken || !captchaAnswer) {
+        return res.status(400).json({
+          error: "Anti-Robot check required: Please enter the security verification code.",
+        });
+      }
+
+      const [tokenHash, tokenExpiry] = captchaToken.split(".");
+      if (!tokenHash || !tokenExpiry || Number(tokenExpiry) < Date.now()) {
+        return res.status(400).json({
+          error: "Security code expired. Please refresh the CAPTCHA and try again.",
+        });
+      }
+
+      if (usedCaptchaTokens.has(captchaToken)) {
+        return res.status(400).json({
+          error: "This security code has already been used. Please refresh for a new one.",
+        });
+      }
+
+      const expectedHash = crypto
+        .createHmac("sha256", CAPTCHA_SECRET)
+        .update(captchaAnswer.trim().toUpperCase() + ":" + tokenExpiry)
+        .digest("hex");
+
+      const b1 = Buffer.from(tokenHash, "hex");
+      const b2 = Buffer.from(expectedHash, "hex");
+      if (b1.length !== b2.length || !crypto.timingSafeEqual(b1, b2)) {
+        return res.status(400).json({
+          error: "Incorrect security code. Please check the characters and try again.",
+        });
+      }
+
+      // Mark token as consumed
+      usedCaptchaTokens.add(captchaToken);
+    }
 
     if (!email || !password) {
       return res
