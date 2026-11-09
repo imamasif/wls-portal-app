@@ -35,6 +35,7 @@ import {
   IconNotebook,
   IconCalendarHeart,
   IconCategory,
+  IconFileCertificate,
   IconHeartHandshake,
   IconPencil,
   IconLogout,
@@ -52,9 +53,23 @@ export function MobileNavigationDrawer({
   logout,
   notificationCount = 0,
 }) {
-  const activeRole = (user?.role || "").toUpperCase();
-  const isSuperAdmin = activeRole === UserRole.SUPER_USER;
-  const isWlsAdmin = isSuperAdmin || activeRole === UserRole.WLS_ADMIN;
+  const roleUpper = (user?.role || "").toUpperCase();
+  const rolesUpper = Array.isArray(user?.roles)
+    ? user.roles.map((r) => String(r).toUpperCase())
+    : [];
+
+  const isSuperAdmin =
+    roleUpper === UserRole.SUPER_USER ||
+    roleUpper === "SUPER_USER" ||
+    roleUpper === "UNIVERSITY_SUPER_USER" ||
+    rolesUpper.includes("SUPER_USER") ||
+    rolesUpper.includes("UNIVERSITY_SUPER_USER");
+
+  const isWlsAdmin =
+    isSuperAdmin ||
+    roleUpper === UserRole.WLS_ADMIN ||
+    roleUpper === "WLS_ADMIN" ||
+    rolesUpper.includes("WLS_ADMIN");
 
   const handleNav = (tab) => {
     setActiveTab(tab);
@@ -418,7 +433,7 @@ export function MobileNavigationDrawer({
               label="Miscellaneous"
               leftSection={<IconCategory size={18} color="var(--mantine-color-violet-6)" />}
               childrenOffset={20}
-              defaultOpened={activeTab === AppTab.IIPC_EVENTS}
+              defaultOpened={activeTab === AppTab.IIPC_EVENTS || activeTab === AppTab.LETTERHEADS}
               style={{ borderRadius: "6px", marginBottom: "4px" }}
             >
               <NavLink
@@ -427,6 +442,14 @@ export function MobileNavigationDrawer({
                 active={activeTab === AppTab.IIPC_EVENTS}
                 onClick={() => handleNav(AppTab.IIPC_EVENTS)}
               />
+              {(isSuperAdmin || isWlsAdmin) && (
+                <NavLink
+                  label="Letterhead & Doc Studio"
+                  leftSection={<IconFileCertificate size={16} color="var(--mantine-color-teal-6)" />}
+                  active={activeTab === AppTab.LETTERHEADS}
+                  onClick={() => handleNav(AppTab.LETTERHEADS)}
+                />
+              )}
             </NavLink>
           </>
         ) : (

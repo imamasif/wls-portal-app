@@ -14,9 +14,23 @@ export function MainLayout({ children, activeTab, setActiveTab }) {
   const { user, logout } = useAuth();
   const [mobileOpened, setMobileOpened] = useState(false);
 
-  const activeRole = (user?.role || "").toUpperCase();
-  const isSuperAdmin = activeRole === UserRole.SUPER_USER;
-  const isWlsAdmin = isSuperAdmin || activeRole === UserRole.WLS_ADMIN;
+  const roleUpper = (user?.role || "").toUpperCase();
+  const rolesUpper = Array.isArray(user?.roles)
+    ? user.roles.map((r) => String(r).toUpperCase())
+    : [];
+
+  const isSuperAdmin =
+    roleUpper === UserRole.SUPER_USER ||
+    roleUpper === "SUPER_USER" ||
+    roleUpper === "UNIVERSITY_SUPER_USER" ||
+    rolesUpper.includes("SUPER_USER") ||
+    rolesUpper.includes("UNIVERSITY_SUPER_USER");
+
+  const isWlsAdmin =
+    isSuperAdmin ||
+    roleUpper === UserRole.WLS_ADMIN ||
+    roleUpper === "WLS_ADMIN" ||
+    rolesUpper.includes("WLS_ADMIN");
 
   if (!user) {
     return <Box p="md">{children}</Box>;

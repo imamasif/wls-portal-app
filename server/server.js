@@ -26,14 +26,15 @@ import categoryLecturesRoutes from "./src/features/category-lectures/index.js";
 import { quranRoutes } from "./src/features/quran/index.js";
 import ayatsRoutes from "./src/features/ayats/index.js";
 import iipcEventsRoutes from "./src/features/iipc-events/index.js";
+import letterheadRoutes from "./src/features/letterheads/index.js";
 
 const app = express();
 
 app.use(cors());
 
 // 1. SET LIMITS AT THE TOP BEFORE ROUTES ARE MOUNTED
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ limit: "10mb", extended: true }));
+app.use(express.json({ limit: "30mb" }));
+app.use(express.urlencoded({ limit: "30mb", extended: true }));
 
 connectDB().then(async () => {
   try {
@@ -80,6 +81,7 @@ app.use("/api/category-lectures", categoryLecturesRoutes);
 app.use("/api/quran", quranRoutes);
 app.use("/api/ayats", ayatsRoutes);
 app.use("/api/iipc-events", iipcEventsRoutes);
+app.use("/api/letterheads", letterheadRoutes);
 
 // 3. Seed Route
 app.post("/api/seed", async (req, res) => {

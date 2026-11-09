@@ -16,6 +16,7 @@ import {
   IconClipboardCheck,
   IconNotes,
   IconBook,
+  IconFileCertificate,
 } from "@tabler/icons-react";
 
 export function WlsAdminDB({ setActiveTab }) {
@@ -43,6 +44,14 @@ export function WlsAdminDB({ setActiveTab }) {
       color: "orange",
       badge: "Assessments",
       tab: AppTab.ASSESSMENTS,
+    },
+    {
+      title: "Letterhead & Doc Studio",
+      description: "Generate IIPC/BP letterheads, merge docs, and sign documents.",
+      icon: IconFileCertificate,
+      color: "teal",
+      badge: "Doc Studio",
+      tab: AppTab.LETTERHEADS,
     },
     {
       title: "Quiz Management",

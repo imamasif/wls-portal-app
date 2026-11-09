@@ -16,6 +16,7 @@ import {
   IconClipboardCheck,
   IconNotes,
   IconBook,
+  IconFileCertificate,
 } from "@tabler/icons-react";
 
 export function SuperUserDB({ setActiveTab }) {
@@ -43,6 +44,14 @@ export function SuperUserDB({ setActiveTab }) {
       color: "violet",
       badge: "Audit",
       tab: AppTab.WLS_ADMIN,
+    },
+    {
+      title: "Letterhead & Doc Studio",
+      description: "Generate IIPC/BP letterheads, merge docs, and sign documents.",
+      icon: IconFileCertificate,
+      color: "teal",
+      badge: "Doc Studio",
+      tab: AppTab.LETTERHEADS,
     },
     {
       title: "Sticky Notes",
@@ -106,7 +115,7 @@ export function SuperUserDB({ setActiveTab }) {
           </Box>
         </Group>
 
-        <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="xl">
+        <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="xl">
           {cards.map((item) => {
             const IconComponent = item.icon;
             return (

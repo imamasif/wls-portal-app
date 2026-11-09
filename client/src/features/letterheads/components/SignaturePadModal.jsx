@@ -1,0 +1,346 @@
+import React, { useRef, useState, useEffect } from 'react';
+import {
+  Modal,
+  Button,
+  Group,
+  Stack,
+  Text,
+  Tabs,
+  FileInput,
+  ColorInput,
+  Slider,
+  Paper,
+  Box,
+  SegmentedControl,
+  Divider,
+} from '@mantine/core';
+import {
+  IconWriting,
+  IconUpload,
+  IconTrash,
+  IconCheck,
+  IconArrowBackUp,
+} from '@tabler/icons-react';
+
+export function SignaturePadModal({ opened, onClose, onSaveSignature }) {
+  const [activeTab, setActiveTab] = useState('draw');
+  const canvasRef = useRef(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [penColor, setPenColor] = useState('#0f172a');
+  const [penWidth, setPenWidth] = useState(2.5);
+  const [strokes, setStrokes] = useState([]);
+  const [currentStroke, setCurrentStroke] = useState([]);
+  const [uploadedImage, setUploadedImage] = useState(null);
+  const [uploadedPreview, setUploadedPreview] = useState(null);
+
+  useEffect(() => {
+    if (opened && activeTab === 'draw') {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        redrawAll(strokes);
+      }
+    }
+  }, [opened, activeTab]);
+
+  const redrawAll = (strokeList) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw baseline
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(20, canvas.height - 35);
+    ctx.lineTo(canvas.width - 20, canvas.height - 35);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Draw strokes
+    for (const stroke of strokeList) {
+      if (stroke.points.length < 2) continue;
+      ctx.strokeStyle = stroke.color;
+      ctx.lineWidth = stroke.width;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+      for (let i = 1; i < stroke.points.length; i++) {
+        ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+      }
+      ctx.stroke();
+    }
+  };
+
+  const getCanvasCoords = (e) => {
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return {
+      x: (clientX - rect.left) * (canvas.width / rect.width),
+      y: (clientY - rect.top) * (canvas.height / rect.height),
+    };
+  };
+
+  const startDrawing = (e) => {
+    e.preventDefault();
+    setIsDrawing(true);
+    const pt = getCanvasCoords(e);
+    setCurrentStroke([pt]);
+  };
+
+  const draw = (e) => {
+    if (!isDrawing) return;
+    e.preventDefault();
+    const pt = getCanvasCoords(e);
+    const updated = [...currentStroke, pt];
+    setCurrentStroke(updated);
+
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    ctx.strokeStyle = penColor;
+    ctx.lineWidth = penWidth;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    if (updated.length > 1) {
+      const prev = updated[updated.length - 2];
+      ctx.beginPath();
+      ctx.moveTo(prev.x, prev.y);
+      ctx.lineTo(pt.x, pt.y);
+      ctx.stroke();
+    }
+  };
+
+  const stopDrawing = () => {
+    if (!isDrawing) return;
+    setIsDrawing(false);
+    if (currentStroke.length > 1) {
+      const newStrokes = [...strokes, { points: currentStroke, color: penColor, width: penWidth }];
+      setStrokes(newStrokes);
+    }
+    setCurrentStroke([]);
+  };
+
+  const handleClear = () => {
+    setStrokes([]);
+    setCurrentStroke([]);
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Redraw baseline
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(20, canvas.height - 35);
+      ctx.lineTo(canvas.width - 20, canvas.height - 35);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  };
+
+  const handleUndo = () => {
+    if (strokes.length === 0) return;
+    const newStrokes = strokes.slice(0, -1);
+    setStrokes(newStrokes);
+    redrawAll(newStrokes);
+  };
+
+  const handleFileUpload = (file) => {
+    setUploadedImage(file);
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => setUploadedPreview(e.target.result);
+      reader.readAsDataURL(file);
+    } else {
+      setUploadedPreview(null);
+    }
+  };
+
+  const handleApply = () => {
+    if (activeTab === 'draw') {
+      const canvas = canvasRef.current;
+      if (!canvas || strokes.length === 0) {
+        alert('Please draw your signature before saving.');
+        return;
+      }
+      // Create transparent version for export
+      const offscreen = document.createElement('canvas');
+      offscreen.width = canvas.width;
+      offscreen.height = canvas.height;
+      const oCtx = offscreen.getContext('2d');
+
+      for (const stroke of strokes) {
+        if (stroke.points.length < 2) continue;
+        oCtx.strokeStyle = stroke.color;
+        oCtx.lineWidth = stroke.width;
+        oCtx.lineCap = 'round';
+        oCtx.lineJoin = 'round';
+        oCtx.beginPath();
+        oCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
+        for (let i = 1; i < stroke.points.length; i++) {
+          oCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
+        }
+        oCtx.stroke();
+      }
+
+      const dataUrl = offscreen.toDataURL('image/png');
+      onSaveSignature(dataUrl);
+      onClose();
+    } else {
+      if (!uploadedPreview) {
+        alert('Please select or upload a signature image first.');
+        return;
+      }
+      onSaveSignature(uploadedPreview);
+      onClose();
+    }
+  };
+
+  return (
+    <Modal
+      opened={opened}
+      onClose={onClose}
+      title={
+        <Group gap="xs">
+          <IconWriting size={20} color="var(--mantine-color-blue-6)" />
+          <Text fw={600} size="md">Add Electronic Signature</Text>
+        </Group>
+      }
+      size="lg"
+      radius="md"
+    >
+      <Tabs value={activeTab} onChange={setActiveTab} mb="md">
+        <Tabs.List grow>
+          <Tabs.Tab value="draw" leftSection={<IconWriting size={16} />}>
+            Draw on Screen
+          </Tabs.Tab>
+          <Tabs.Tab value="upload" leftSection={<IconUpload size={16} />}>
+            Upload Signature Image
+          </Tabs.Tab>
+        </Tabs.List>
+
+        <Tabs.Panel value="draw" pt="xs">
+          <Stack gap="xs">
+            <Group justify="space-between" align="center">
+              <SegmentedControl
+                size="xs"
+                value={penColor}
+                onChange={setPenColor}
+                data={[
+                  { label: 'Black', value: '#0f172a' },
+                  { label: 'Navy Blue', value: '#1e3a8a' },
+                  { label: 'Royal Blue', value: '#2563eb' },
+                  { label: 'Dark Grey', value: '#334155' },
+                ]}
+              />
+
+              <Group gap="xs">
+                <Button
+                  size="xs"
+                  variant="subtle"
+                  color="gray"
+                  leftSection={<IconArrowBackUp size={14} />}
+                  onClick={handleUndo}
+                  disabled={strokes.length === 0}
+                >
+                  Undo
+                </Button>
+                <Button
+                  size="xs"
+                  variant="subtle"
+                  color="red"
+                  leftSection={<IconTrash size={14} />}
+                  onClick={handleClear}
+                >
+                  Clear
+                </Button>
+              </Group>
+            </Group>
+
+            <Box
+              style={{
+                border: '2px dashed #94a3b8',
+                borderRadius: '8px',
+                overflow: 'hidden',
+                background: '#ffffff',
+                touchAction: 'none',
+              }}
+            >
+              <canvas
+                ref={canvasRef}
+                width={560}
+                height={200}
+                style={{ width: '100%', height: '200px', cursor: 'crosshair', display: 'block' }}
+                onMouseDown={startDrawing}
+                onMouseMove={draw}
+                onMouseUp={stopDrawing}
+                onMouseLeave={stopDrawing}
+                onTouchStart={startDrawing}
+                onTouchMove={draw}
+                onTouchEnd={stopDrawing}
+              />
+            </Box>
+
+            <Text size="xs" c="dimmed" ta="center">
+              Sign above using your mouse, trackpad, or finger. The signature line will not appear in the final document.
+            </Text>
+          </Stack>
+        </Tabs.Panel>
+
+        <Tabs.Panel value="upload" pt="xs">
+          <Stack gap="sm">
+            <FileInput
+              label="Select Transparent PNG or JPG Signature"
+              placeholder="Click to browse image file..."
+              accept="image/png,image/jpeg,image/webp"
+              onChange={handleFileUpload}
+              leftSection={<IconUpload size={16} />}
+              clearable
+            />
+
+            {uploadedPreview && (
+              <Paper p="sm" withBorder style={{ textAlign: 'center', background: '#f8fafc' }}>
+                <Text size="xs" fw={500} mb="xs" c="dimmed">
+                  Signature Preview:
+                </Text>
+                <img
+                  src={uploadedPreview}
+                  alt="Uploaded signature"
+                  style={{ maxHeight: '120px', maxWidth: '100%', objectFit: 'contain' }}
+                />
+              </Paper>
+            )}
+          </Stack>
+        </Tabs.Panel>
+      </Tabs>
+
+      <Divider my="sm" />
+
+      <Group justify="flex-end" gap="sm">
+        <Button variant="default" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button
+          color="blue"
+          leftSection={<IconCheck size={16} />}
+          onClick={handleApply}
+        >
+          Apply Signature
+        </Button>
+      </Group>
+    </Modal>
+  );
+}

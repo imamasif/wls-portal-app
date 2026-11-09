@@ -195,4 +195,5 @@ export enum AppTab {
   QURAN_NOTEBOOK = "quran-notebook",
   IIPC_EVENTS = "iipc-events",
   USER_EVENTS = "user-events",
+  LETTERHEADS = "letterheads",
 }

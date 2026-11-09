@@ -25,6 +25,7 @@ import {
   IconNotebook,
   IconCalendarHeart,
   IconCategory,
+  IconFileCertificate,
 } from "@tabler/icons-react";
 
 export function SuperUserMenu({ activeTab, setActiveTab }) {
@@ -232,7 +233,7 @@ export function SuperUserMenu({ activeTab, setActiveTab }) {
       <Menu shadow="md" width={220} trigger="hover">
         <Menu.Target>
           <Button
-            variant={activeTab === AppTab.IIPC_EVENTS ? "filled" : "subtle"}
+            variant={activeTab === AppTab.IIPC_EVENTS || activeTab === AppTab.LETTERHEADS ? "filled" : "subtle"}
             color="violet"
             leftSection={<IconCategory size={18} />}
             rightSection={<IconChevronDown size={14} />}
@@ -249,6 +250,13 @@ export function SuperUserMenu({ activeTab, setActiveTab }) {
             }
           >
             IIPC-EVENTS
+          </Menu.Item>
+          <Menu.Divider />
+          <Menu.Item
+            onClick={() => setActiveTab(AppTab.LETTERHEADS)}
+            leftSection={<IconFileCertificate size={16} color="var(--mantine-color-teal-6)" />}
+          >
+            Letterhead & Doc Studio
           </Menu.Item>
         </Menu.Dropdown>
       </Menu>

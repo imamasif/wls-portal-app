@@ -1,5 +1,6 @@
 import React, { useState, useEffect, Suspense, lazy } from "react";
-import { Container, Center, Loader } from "@mantine/core";
+import { Container, Center, Loader, Paper, Alert } from "@mantine/core";
+import { IconAlertCircle } from "@tabler/icons-react";
 import { useAuth } from "./context/AuthContext";
 import { MainLayout } from "./components/MainLayout";
 import { UserRole, AppTab } from "./types/user";
@@ -32,6 +33,7 @@ const SuperUserAssessmentOverview = lazy(() => import("./features/wls-assessment
 const IipcEventsSuperUserPanel = lazy(() => import("./features/iipc-events").then(m => ({ default: m.IipcEventsSuperUserPanel })));
 const IipcEventsUserView = lazy(() => import("./features/iipc-events").then(m => ({ default: m.IipcEventsUserView })));
 const PublicEventDonationPage = lazy(() => import("./features/iipc-events").then(m => ({ default: m.PublicEventDonationPage })));
+const LetterheadStudio = lazy(() => import("./features/letterheads/LetterheadStudio").then(m => ({ default: m.LetterheadStudio || m.default })));
 
 const QuizListScreen = lazy(() => import("./features/quiz-management").then(m => ({ default: m.QuizListScreen })));
 const QuizCreatorStudio = lazy(() => import("./features/quiz-management").then(m => ({ default: m.QuizCreatorStudio })));
@@ -68,10 +70,24 @@ export default function App() {
     else if (user && activeTab === AppTab.LOGIN) setActiveTab(AppTab.DASHBOARD);
   }, [user]);
 
-  // Define role variables and renderDashboard helper BEFORE conditional checks
-  const activeRole = (user?.role || "").toUpperCase();
-  const isSuperAdmin = activeRole === UserRole.SUPER_USER;
-  const isWlsAdmin = isSuperAdmin || activeRole === UserRole.WLS_ADMIN;
+  // Robust role variables supporting single role and roles array
+  const roleUpper = (user?.role || "").toUpperCase();
+  const rolesUpper = Array.isArray(user?.roles)
+    ? user.roles.map((r) => String(r).toUpperCase())
+    : [];
+
+  const isSuperAdmin =
+    roleUpper === UserRole.SUPER_USER ||
+    roleUpper === "SUPER_USER" ||
+    roleUpper === "UNIVERSITY_SUPER_USER" ||
+    rolesUpper.includes("SUPER_USER") ||
+    rolesUpper.includes("UNIVERSITY_SUPER_USER");
+
+  const isWlsAdmin =
+    isSuperAdmin ||
+    roleUpper === UserRole.WLS_ADMIN ||
+    roleUpper === "WLS_ADMIN" ||
+    rolesUpper.includes("WLS_ADMIN");
 
   const renderDashboard = () => {
     if (isSuperAdmin) return <SuperUserDB setActiveTab={setActiveTab} />;
@@ -222,6 +238,9 @@ export default function App() {
           )}
           {(activeTab === AppTab.USER_EVENTS || (activeTab === AppTab.IIPC_EVENTS && !isSuperAdmin)) && (
             <IipcEventsUserView user={user} />
+          )}
+          {activeTab === AppTab.LETTERHEADS && (isSuperAdmin || isWlsAdmin) && (
+            <LetterheadStudio user={user} />
           )}
         </Suspense>
       </Container>
