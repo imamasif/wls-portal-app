@@ -1020,25 +1020,98 @@ export function UniversitySuperUserView({ currentUser }) {
       </Paper>
 
       {/* Main Tabs Navigation */}
-      <Tabs value={activeTab} onChange={setActiveTab} color="indigo" radius="md">
-        <Tabs.List mb="md" style={{ overflowX: "auto", flexWrap: "nowrap" }}>
-          <Tabs.Tab value="overview" leftSection={<IconBuildingBank size={16} />}>
-            Departments & Semesters
+      <style>{`
+        .super-tabs-bar {
+          background: #ffffff;
+          border: 1px solid #e2e8f0;
+          padding: 6px;
+          border-radius: 14px;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+          box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.05), 0 2px 6px -1px rgba(15, 23, 42, 0.03);
+          margin-bottom: 20px;
+        }
+        .super-tabs-bar .mantine-Tabs-tab {
+          font-weight: 600;
+          font-size: 13.5px;
+          padding: 9px 18px;
+          border-radius: 10px;
+          color: #475569;
+          border: 1px solid transparent;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .super-tabs-bar .mantine-Tabs-tab:hover {
+          background: #f1f5f9;
+          color: #1e293b;
+          transform: translateY(-1px);
+        }
+        .super-tabs-bar .mantine-Tabs-tab[data-active] {
+          background: linear-gradient(135deg, #4f46e5 0%, #6366f1 50%, #7c3aed 100%) !important;
+          color: #ffffff !important;
+          box-shadow: 0 6px 18px -2px rgba(79, 70, 229, 0.45);
+          border-color: rgba(255, 255, 255, 0.2);
+          transform: translateY(-1px);
+        }
+        .super-tabs-bar .mantine-Tabs-tab[data-active] svg {
+          color: #ffffff !important;
+        }
+      `}</style>
+      <Tabs value={activeTab} onChange={setActiveTab} variant="pills" radius="md">
+        <Tabs.List className="super-tabs-bar">
+          <Tabs.Tab value="overview" leftSection={<IconBuildingBank size={18} />}>
+            Dept / Semesters
           </Tabs.Tab>
-          <Tabs.Tab value="courses" leftSection={<IconBooks size={16} />}>
-            Courses & Exams
+          <Tabs.Tab value="courses" leftSection={<IconBooks size={18} />}>
+            Courses
           </Tabs.Tab>
-          <Tabs.Tab value="lectures" leftSection={<IconVideo size={16} />}>
-            Sequential Video Lectures
+          <Tabs.Tab value="lectures" leftSection={<IconVideo size={18} />}>
+            Curriculum
           </Tabs.Tab>
-          <Tabs.Tab value="students" leftSection={<IconUsers size={16} />}>
-            Students & Roll Numbers ({enrollments.length})
+          <Tabs.Tab
+            value="students"
+            leftSection={<IconUsers size={18} />}
+            rightSection={
+              <Badge
+                size="sm"
+                circle
+                variant={activeTab === "students" ? "filled" : "light"}
+                color="indigo"
+                style={{
+                  backgroundColor: activeTab === "students" ? "rgba(255,255,255,0.28)" : undefined,
+                  color: activeTab === "students" ? "#ffffff" : undefined,
+                  fontWeight: 700,
+                }}
+              >
+                {enrollments.length}
+              </Badge>
+            }
+          >
+            Enrolled Students
           </Tabs.Tab>
-          <Tabs.Tab value="certificates" leftSection={<IconAward size={16} />}>
-            Certificates Awarded ({certificates.length})
+          <Tabs.Tab
+            value="certificates"
+            leftSection={<IconAward size={18} />}
+            rightSection={
+              <Badge
+                size="sm"
+                circle
+                variant={activeTab === "certificates" ? "filled" : "light"}
+                color="indigo"
+                style={{
+                  backgroundColor: activeTab === "certificates" ? "rgba(255,255,255,0.28)" : undefined,
+                  color: activeTab === "certificates" ? "#ffffff" : undefined,
+                  fontWeight: 700,
+                }}
+              >
+                {certificates.length}
+              </Badge>
+            }
+          >
+            Certificates
           </Tabs.Tab>
-          <Tabs.Tab value="audit" leftSection={<IconReportAnalytics size={16} />}>
-            Student Progress Audit
+          <Tabs.Tab value="audit" leftSection={<IconReportAnalytics size={18} />}>
+            Progress
           </Tabs.Tab>
         </Tabs.List>
 
