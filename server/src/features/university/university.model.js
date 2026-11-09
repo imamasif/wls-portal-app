@@ -170,7 +170,7 @@ const StudentEnrollmentSchema = new mongoose.Schema(
     }, // Format: YYYY-DEPT-ROLL# (e.g. 2026-QA-073)
     status: {
       type: String,
-      enum: ["ENROLLED", "ACTIVE", "PROMOTED", "GRADUATED", "SUSPENDED"],
+      enum: ["ENROLLED", "ACTIVE", "PROMOTED", "GRADUATED", "SUSPENDED", "INACTIVE"],
       default: "ACTIVE",
     },
     enrolledAt: { type: Date, default: Date.now },

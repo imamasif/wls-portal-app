@@ -115,7 +115,17 @@ export default function App() {
             <MSTeamGroupManager user={user} />
           )}
           {activeTab === AppTab.UNIVERSITY_PORTAL && (
-            <UniversityPortalDashboard user={user} />
+            (!isSuperAdmin && !isWlsAdmin && user?.isActive === false) ? (
+              <Container size="md" py="xl">
+                <Paper p="xl" radius="md" withBorder shadow="sm" bg="white">
+                  <Alert color="red" title="University Access Restricted" icon={<IconAlertCircle size={20} />}>
+                    Your university student account is currently inactive or suspended. Please contact the university administration for assistance.
+                  </Alert>
+                </Paper>
+              </Container>
+            ) : (
+              <UniversityPortalDashboard user={user} />
+            )
           )}
           {(activeTab === AppTab.WLS_SESSION ||
             activeTab === AppTab.WLS_ASSIGNMENT) && (

@@ -1,4 +1,5 @@
 import React from "react";
+import { useAuth } from "@/context/AuthContext";
 import { Group, Menu, Button, Text, Avatar } from "@mantine/core";
 import { AppTab } from "@/types/user";
 import {
@@ -22,6 +23,7 @@ import {
 } from "@tabler/icons-react";
 
 export function UserMenu({ activeTab, setActiveTab }) {
+  const { user } = useAuth();
   return (
     <Group gap="xs" px="md">
       <Button
@@ -34,16 +36,18 @@ export function UserMenu({ activeTab, setActiveTab }) {
         Dashboard
       </Button>
 
-      {/* Dedicated University Portal Button for Students */}
-      <Button
-        variant={activeTab === AppTab.UNIVERSITY_PORTAL ? "filled" : "subtle"}
-        color="blue"
-        leftSection={<IconBuildingBank size={18} />}
-        onClick={() => setActiveTab(AppTab.UNIVERSITY_PORTAL)}
-        size="xs"
-      >
-        University
-      </Button>
+      {/* Dedicated University Portal Button for Students (Only if Active) */}
+      {user?.isActive !== false && (
+        <Button
+          variant={activeTab === AppTab.UNIVERSITY_PORTAL ? "filled" : "subtle"}
+          color="blue"
+          leftSection={<IconBuildingBank size={18} />}
+          onClick={() => setActiveTab(AppTab.UNIVERSITY_PORTAL)}
+          size="xs"
+        >
+          University
+        </Button>
+      )}
 
       {/* Direct My Reports Button */}
       <Button

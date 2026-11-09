@@ -205,6 +205,29 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
       .catch((err) => console.error("Error loading chat:", err));
   };
 
+  // 3b. Send 1-on-1 Chat Message to Course Instructor
+  const handleSendMessage = async () => {
+    if (!chatInput.trim() || !selectedCourseId || !studentId) return;
+    setSendingMsg(true);
+    try {
+      await universityApi.sendMessage({
+        courseId: selectedCourseId,
+        studentId,
+        senderId: studentId,
+        senderName: currentUser?.name || "Student",
+        senderRole: "student",
+        message: chatInput.trim(),
+      });
+      setChatInput("");
+      const mList = await universityApi.getMessages(selectedCourseId, studentId);
+      setMessages(mList || []);
+    } catch (err) {
+      console.error("Failed to send message:", err);
+    } finally {
+      setSendingMsg(false);
+    }
+  };
+
   // 4. Load Time-stamped Notes for active lecture
   const loadNotes = (lectureId) => {
     if (!studentId || !lectureId) return;
@@ -824,67 +847,171 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
                     />
                   </Box>
 
-                  {/* Note Taking Area (Images 1, 2, 5) */}
+                  {/* Note Taking & 1-on-1 Course Instructor Chat Tabs */}
                   <Paper p="sm" withBorder radius="md" bg="gray.0" mb="md">
-                    <Stack gap="xs">
-                      <TextInput
-                        placeholder="Type your note here to save for later..."
-                        value={noteInput}
-                        onChange={(e) => setNoteInput(e.target.value)}
-                        size="sm"
-                        rightSection={
-                          <ActionIcon
-                            variant="filled"
-                            color="indigo"
-                            size="sm"
-                            onClick={handleSaveNote}
-                            loading={savingNote}
-                          >
-                            <IconPencil size={14} />
-                          </ActionIcon>
-                        }
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") handleSaveNote();
-                        }}
-                      />
+                    <Tabs defaultValue="notes" color="indigo" radius="md">
+                      <Tabs.List mb="xs">
+                        <Tabs.Tab value="notes" leftSection={<IconFileText size={15} />}>
+                          Module Notes ({notes.length})
+                        </Tabs.Tab>
+                        <Tabs.Tab value="chat" leftSection={<IconMessageDots size={15} />}>
+                          Ask Instructor (Course Chat)
+                        </Tabs.Tab>
+                      </Tabs.List>
 
-                      {notes.length === 0 ? (
-                        <Center py="md">
-                          <Stack align="center" gap={2}>
-                            <ThemeIcon size={36} radius="xl" color="gray" variant="light">
-                              <IconFileText size={18} />
-                            </ThemeIcon>
-                            <Text size="xs" c="dimmed">
-                              No Notes Have Been Added!
-                            </Text>
-                          </Stack>
-                        </Center>
-                      ) : (
-                        <Stack gap="xs" mt={4}>
-                          {notes.map((n, idx) => (
-                            <Paper key={n.noteId || idx} p="xs" withBorder radius="sm" bg="white">
-                              <Group justify="space-between" align="center">
-                                <Text size="xs" c="dark.8">
-                                  {n.text}
+                      <Tabs.Panel value="notes">
+                        <Stack gap="xs">
+                          <TextInput
+                            placeholder="Type your note here to save for later..."
+                            value={noteInput}
+                            onChange={(e) => setNoteInput(e.target.value)}
+                            size="sm"
+                            rightSection={
+                              <ActionIcon
+                                variant="filled"
+                                color="indigo"
+                                size="sm"
+                                onClick={handleSaveNote}
+                                loading={savingNote}
+                              >
+                                <IconPencil size={14} />
+                              </ActionIcon>
+                            }
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") handleSaveNote();
+                            }}
+                          />
+
+                          {notes.length === 0 ? (
+                            <Center py="md">
+                              <Stack align="center" gap={2}>
+                                <ThemeIcon size={36} radius="xl" color="gray" variant="light">
+                                  <IconFileText size={18} />
+                                </ThemeIcon>
+                                <Text size="xs" c="dimmed">
+                                  No Notes Have Been Added!
                                 </Text>
-                                <Button
-                                  variant="light"
-                                  color="indigo"
-                                  size="compact-xs"
-                                  onClick={() => {
-                                    if (playerRef.current && n.timestampSeconds != null) {
-                                      playerRef.current.seekTo(n.timestampSeconds, "seconds");
-                                    }
-                                  }}
-                                >
-                                  {formatTime(n.timestampSeconds)}
-                                </Button>
-                              </Group>
-                            </Paper>
-                          ))}
+                              </Stack>
+                            </Center>
+                          ) : (
+                            <Stack gap="xs" mt={4}>
+                              {notes.map((n, idx) => (
+                                <Paper key={n.noteId || idx} p="xs" withBorder radius="sm" bg="white">
+                                  <Group justify="space-between" align="center">
+                                    <Text size="xs" c="dark.8">
+                                      {n.text}
+                                    </Text>
+                                    <Button
+                                      variant="light"
+                                      color="indigo"
+                                      size="compact-xs"
+                                      onClick={() => {
+                                        if (playerRef.current && n.timestampSeconds != null) {
+                                          playerRef.current.seekTo(n.timestampSeconds, "seconds");
+                                        }
+                                      }}
+                                    >
+                                      {formatTime(n.timestampSeconds)}
+                                    </Button>
+                                  </Group>
+                                </Paper>
+                              ))}
+                            </Stack>
+                          )}
                         </Stack>
-                      )}
-                    </Stack>
+                      </Tabs.Panel>
+
+                      <Tabs.Panel value="chat">
+                        <Stack gap="xs">
+                          <Group justify="space-between" align="center">
+                            <Text size="xs" fw={600} c="dimmed">
+                              Course Instructor: <strong style={{ color: "#3730a3" }}>{activeCourse?.instructorName || "Faculty Instructor"}</strong>
+                            </Text>
+                            <Button
+                              size="compact-xs"
+                              variant="subtle"
+                              color="indigo"
+                              leftSection={<IconRefresh size={12} />}
+                              onClick={() => loadMessages(selectedCourseId)}
+                            >
+                              Refresh Chat
+                            </Button>
+                          </Group>
+
+                          <Paper
+                            p="xs"
+                            withBorder
+                            radius="sm"
+                            bg="white"
+                            style={{ maxHeight: "180px", minHeight: "90px", overflowY: "auto" }}
+                          >
+                            {messages.length === 0 ? (
+                              <Text size="xs" c="dimmed" ta="center" py="md">
+                                No messages yet for this course. Type your academic question or feedback below.
+                              </Text>
+                            ) : (
+                              <Stack gap={6}>
+                                {messages.map((m, idx) => {
+                                  const isMe = (m.senderId?._id || m.senderId) === studentId || m.senderRole === "student";
+                                  return (
+                                    <Box
+                                      key={m._id || idx}
+                                      style={{
+                                        alignSelf: isMe ? "flex-end" : "flex-start",
+                                        maxWidth: "80%",
+                                      }}
+                                    >
+                                      <Paper
+                                        p="6px 10px"
+                                        radius="md"
+                                        bg={isMe ? "indigo.1" : "gray.1"}
+                                        style={{ border: isMe ? "1px solid #c7d2fe" : "1px solid #e2e8f0" }}
+                                      >
+                                        <Group gap={6} mb={2}>
+                                          <Text size="11px" fw={700} c={isMe ? "indigo.9" : "teal.9"}>
+                                            {isMe ? "You" : m.senderName || "Instructor"}
+                                          </Text>
+                                          <Text size="10px" c="dimmed">
+                                            {m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}
+                                          </Text>
+                                        </Group>
+                                        <Text size="xs" c="dark.8">
+                                          {m.message}
+                                        </Text>
+                                      </Paper>
+                                    </Box>
+                                  );
+                                })}
+                              </Stack>
+                            )}
+                          </Paper>
+
+                          <Group gap="xs">
+                            <TextInput
+                              placeholder="Type a message or question to your instructor..."
+                              value={chatInput}
+                              onChange={(e) => setChatInput(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") handleSendMessage();
+                              }}
+                              size="sm"
+                              style={{ flex: 1 }}
+                            />
+                            <ActionIcon
+                              color="indigo"
+                              variant="filled"
+                              size="input-sm"
+                              onClick={handleSendMessage}
+                              loading={sendingMsg}
+                              disabled={!chatInput.trim()}
+                              title="Send Message"
+                            >
+                              <IconSend size={16} />
+                            </ActionIcon>
+                          </Group>
+                        </Stack>
+                      </Tabs.Panel>
+                    </Tabs>
                   </Paper>
 
                   {/* Bottom Action Bar (Image 5: Previous, Completed, Next) */}

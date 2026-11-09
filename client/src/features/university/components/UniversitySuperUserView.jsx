@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import {
   Box,
+  MultiSelect,
+  SegmentedControl,
   Paper,
   Title,
   Text,
@@ -176,6 +178,17 @@ export function UniversitySuperUserView({ currentUser }) {
     semesterId: "",
     customRollNumber: "",
   });
+  const [enrollMode, setEnrollMode] = useState("existing");
+  const [selectedStudentIds, setSelectedStudentIds] = useState([]);
+  const [selectedEnrollDepartmentIds, setSelectedEnrollDepartmentIds] = useState([]);
+  const [newStudentForm, setNewStudentForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    departmentIds: [],
+  });
+  const [submittingEnroll, setSubmittingEnroll] = useState(false);
   const [certForm, setCertForm] = useState({
     studentId: "",
     departmentId: "",
@@ -637,19 +650,100 @@ export function UniversitySuperUserView({ currentUser }) {
     }
   };
 
-  // --- Handlers: Enroll Student ---
-  const handleEnrollStudent = async () => {
+  // --- Handlers: Enroll Student (Individual, Batch & Quick Create) ---
+  const handleBatchEnroll = async () => {
+    if (selectedStudentIds.length === 0) {
+      showNotification("Please select at least one student to enroll.", "error");
+      return;
+    }
+    if (selectedEnrollDepartmentIds.length === 0) {
+      showNotification("Please select at least one department.", "error");
+      return;
+    }
+
+    setSubmittingEnroll(true);
     try {
-      if (!enrollForm.studentId || !enrollForm.departmentId) {
-        showNotification("Please select both a student and a department.", "error");
-        return;
-      }
-      const res = await universityApi.enrollStudent(enrollForm);
-      showNotification(`Student enrolled successfully! Roll Number assigned: ${res.rollNumber}`);
+      const res = await universityApi.batchEnrollStudents({
+        studentIds: selectedStudentIds,
+        departmentIds: selectedEnrollDepartmentIds,
+      });
+
+      showNotification(
+        `Successfully enrolled ${res.createdCount} student record(s)!${res.skippedCount > 0 ? ` (${res.skippedCount} already enrolled).` : ""}`
+      );
       setEnrollModalOpened(false);
-      setEnrollForm({ studentId: "", departmentId: "", semesterId: "", customRollNumber: "" });
+      setSelectedStudentIds([]);
+      setSelectedEnrollDepartmentIds([]);
       const enrolls = await universityApi.getEnrollments();
       setEnrollments(enrolls || []);
+      const uRes = await fetch("/api/users");
+      const uData = await uRes.json();
+      if (Array.isArray(uData)) setUsersList(uData);
+    } catch (err) {
+      showNotification(err.response?.data?.message || err.message, "error");
+    } finally {
+      setSubmittingEnroll(false);
+    }
+  };
+
+  const handleQuickCreateAndEnroll = async () => {
+    if (!newStudentForm.firstName.trim() || !newStudentForm.email.trim()) {
+      showNotification("First Name and Email are required.", "error");
+      return;
+    }
+    if (newStudentForm.departmentIds.length === 0) {
+      showNotification("Please select at least one department to assign.", "error");
+      return;
+    }
+
+    setSubmittingEnroll(true);
+    try {
+      const res = await universityApi.quickCreateAndEnroll({
+        firstName: newStudentForm.firstName.trim(),
+        lastName: newStudentForm.lastName.trim(),
+        email: newStudentForm.email.trim(),
+        phone: newStudentForm.phone.trim(),
+        departmentIds: newStudentForm.departmentIds,
+      });
+
+      showNotification(
+        `New student created and enrolled! Assigned Roll Number(s): ${res.enrollments.map((e) => e.rollNumber).join(", ")}`
+      );
+      setEnrollModalOpened(false);
+      setNewStudentForm({ firstName: "", lastName: "", email: "", phone: "", departmentIds: [] });
+      const enrolls = await universityApi.getEnrollments();
+      setEnrollments(enrolls || []);
+      const uRes = await fetch("/api/users");
+      const uData = await uRes.json();
+      if (Array.isArray(uData)) setUsersList(uData);
+    } catch (err) {
+      showNotification(err.response?.data?.error || err.response?.data?.message || err.message, "error");
+    } finally {
+      setSubmittingEnroll(false);
+    }
+  };
+
+  const handleToggleEnrollmentStatus = async (enrollmentId, currentStatus) => {
+    const newStatus = currentStatus === "ACTIVE" ? "INACTIVE" : "ACTIVE";
+    try {
+      await universityApi.updateEnrollmentStatus(enrollmentId, newStatus);
+      showNotification(`Student status updated to ${newStatus}`);
+      setEnrollments((prev) =>
+        prev.map((e) => ((e._id || e.id) === enrollmentId ? { ...e, status: newStatus } : e))
+      );
+    } catch (err) {
+      showNotification(err.response?.data?.message || err.message, "error");
+    }
+  };
+
+  const handleDeleteEnrollment = async (enrollmentId, studentName, deptCode) => {
+    if (!window.confirm(`Are you sure you want to remove ${studentName || "this student"} from ${deptCode || "this department"}?`)) {
+      return;
+    }
+    try {
+      await universityApi.deleteEnrollment(enrollmentId);
+      showNotification(`Student enrollment removed successfully.`);
+      setEnrollments((prev) => prev.filter((e) => (e._id || e.id) !== enrollmentId));
     } catch (err) {
       showNotification(err.response?.data?.message || err.message, "error");
     }
@@ -1526,18 +1620,14 @@ export function UniversitySuperUserView({ currentUser }) {
                           </Table.Td>
                           <Table.Td>
                             <Badge
-                              color={
-                                en.status === "ACTIVE"
-                                  ? "green"
-                                  : en.status === "PROMOTED"
-                                  ? "blue"
-                                  : en.status === "GRADUATED"
-                                  ? "yellow"
-                                  : "gray"
-                              }
+                              color={en.status === "ACTIVE" ? "green" : "gray"}
                               size="xs"
+                              variant={en.status === "ACTIVE" ? "filled" : "outline"}
+                              style={{ cursor: "pointer" }}
+                              onClick={() => handleToggleEnrollmentStatus(eId, en.status)}
+                              title="Click to toggle Active / Inactive"
                             >
-                              {en.status}
+                              {en.status || "ACTIVE"}
                             </Badge>
                           </Table.Td>
                           <Table.Td>
@@ -1547,6 +1637,14 @@ export function UniversitySuperUserView({ currentUser }) {
                           </Table.Td>
                           <Table.Td style={{ textAlign: "right" }}>
                             <Group gap={4} justify="flex-end">
+                              <Button
+                                size="compact-xs"
+                                color={en.status === "ACTIVE" ? "orange" : "teal"}
+                                variant="light"
+                                onClick={() => handleToggleEnrollmentStatus(eId, en.status)}
+                              >
+                                {en.status === "ACTIVE" ? "Mark Inactive" : "Mark Active"}
+                              </Button>
                               <Button
                                 size="compact-xs"
                                 color="teal"
@@ -1574,6 +1672,21 @@ export function UniversitySuperUserView({ currentUser }) {
                               >
                                 Award Cert
                               </Button>
+                              <ActionIcon
+                                size="sm"
+                                color="red"
+                                variant="subtle"
+                                title="Remove Student Enrollment"
+                                onClick={() =>
+                                  handleDeleteEnrollment(
+                                    eId,
+                                    en.studentName || en.studentId?.name,
+                                    en.departmentCode || en.departmentId?.code
+                                  )
+                                }
+                              >
+                                <IconTrash size={15} />
+                              </ActionIcon>
                             </Group>
                           </Table.Td>
                         </Table.Tr>
@@ -2309,55 +2422,182 @@ export function UniversitySuperUserView({ currentUser }) {
         </Stack>
       </Modal>
 
-      {/* MODAL: ENROLL STUDENT */}
+      {/* MODAL: ENROLL STUDENT(S) (Individual, Batch & Quick Create) */}
       <Modal
         opened={enrollModalOpened}
         onClose={() => setEnrollModalOpened(false)}
-        title="Enroll Student with Official Roll Number"
-        size="md"
+        title={
+          <Group gap="xs">
+            <ThemeIcon color="indigo" size="md" radius="md">
+              <IconSchool size={18} />
+            </ThemeIcon>
+            <Text fw={700}>Enroll Student(s) with Official Roll Number</Text>
+          </Group>
+        }
+        size="lg"
+        centered
       >
-        <Stack gap="sm">
-          <Select
-            label="Select Student"
-            placeholder="Search student..."
-            required
-            data={usersList.map((u) => ({
-              value: u._id || u.id,
-              label: `${u.name} (${u.email})`,
-            }))}
-            value={enrollForm.studentId}
-            onChange={(val) => setEnrollForm({ ...enrollForm, studentId: val })}
-            searchable
+        <Stack gap="md">
+          <SegmentedControl
+            fullWidth
+            value={enrollMode}
+            onChange={setEnrollMode}
+            data={[
+              { label: "👥 Choose Existing Student(s)", value: "existing" },
+              { label: "➕ Quick Add New Student", value: "new" },
+            ]}
           />
 
-          <Select
-            label="Department"
-            placeholder="Select department..."
-            required
-            data={departments.map((d) => ({
-              value: d._id || d.id,
-              label: `${d.code} - ${d.name}`,
-            }))}
-            value={enrollForm.departmentId}
-            onChange={(val) => setEnrollForm({ ...enrollForm, departmentId: val })}
-          />
+          {enrollMode === "existing" ? (
+            <Stack gap="sm">
+              <Group justify="space-between" align="center">
+                <Text size="xs" fw={600} c="dimmed">
+                  SELECT STUDENT(S) TO ENROLL
+                </Text>
+                <Group gap={6}>
+                  <Button
+                    size="compact-xs"
+                    variant="subtle"
+                    onClick={() =>
+                      setSelectedStudentIds(usersList.map((u) => u._id || u.id))
+                    }
+                  >
+                    Select All
+                  </Button>
+                  <Button
+                    size="compact-xs"
+                    variant="subtle"
+                    color="gray"
+                    onClick={() => setSelectedStudentIds([])}
+                  >
+                    Clear
+                  </Button>
+                </Group>
+              </Group>
 
-          <TextInput
-            label="Custom Roll Number (Optional)"
-            placeholder="Leave empty for auto-generation (e.g. 2026-QA-073)"
-            value={enrollForm.customRollNumber}
-            onChange={(e) => setEnrollForm({ ...enrollForm, customRollNumber: e.target.value })}
-          />
+              <MultiSelect
+                placeholder="Search and select one or more students..."
+                data={usersList.map((u) => ({
+                  value: u._id || u.id,
+                  label: `${u.name || "User"} (${u.email})`,
+                }))}
+                value={selectedStudentIds}
+                onChange={setSelectedStudentIds}
+                searchable
+                clearable
+                maxDropdownHeight={240}
+              />
 
-          <Paper p="xs" radius="md" bg="gray.1">
-            <Text size="xs" c="dimmed">
-              Format: <strong>YYYY-DEPT-ROLL#</strong>. If left blank, the system automatically assigns the next sequential roll number for this department and academic year.
-            </Text>
-          </Paper>
+              <MultiSelect
+                label="Assign to Department(s) *"
+                placeholder="Select one or more departments (e.g. QGE, QGU)..."
+                required
+                data={departments.map((d) => ({
+                  value: d._id || d.id,
+                  label: `${d.code} - ${d.name}`,
+                }))}
+                value={selectedEnrollDepartmentIds}
+                onChange={setSelectedEnrollDepartmentIds}
+                searchable
+                clearable
+              />
 
-          <Button fullWidth mt="md" color="indigo" onClick={handleEnrollStudent}>
-            Enroll & Assign Roll Number
-          </Button>
+              <Paper p="xs" radius="md" bg="blue.0" style={{ borderLeft: "4px solid var(--mantine-color-blue-6)" }}>
+                <Text size="xs" c="blue.9">
+                  ℹ️ <strong>System Generated Roll Numbers:</strong> Format: <strong>YYYY-DEPT-ROLL###</strong> (e.g. <code>2026-QGE-001</code>). The system automatically assigns consecutive sequential roll numbers for each department.
+                </Text>
+              </Paper>
+
+              <Button
+                fullWidth
+                mt="xs"
+                color="indigo"
+                onClick={handleBatchEnroll}
+                loading={submittingEnroll}
+                disabled={selectedStudentIds.length === 0 || selectedEnrollDepartmentIds.length === 0}
+              >
+                Enroll {selectedStudentIds.length} Student(s) in {selectedEnrollDepartmentIds.length} Department(s)
+              </Button>
+            </Stack>
+          ) : (
+            <Stack gap="sm">
+              <Text size="xs" c="dimmed">
+                Create a new student account and automatically enroll them with official sequential roll number(s).
+              </Text>
+
+              <SimpleGrid cols={2} spacing="sm">
+                <TextInput
+                  label="First Name *"
+                  placeholder="e.g. Tariq"
+                  required
+                  value={newStudentForm.firstName}
+                  onChange={(e) =>
+                    setNewStudentForm({ ...newStudentForm, firstName: e.target.value })
+                  }
+                />
+                <TextInput
+                  label="Last Name"
+                  placeholder="e.g. Jameel"
+                  value={newStudentForm.lastName}
+                  onChange={(e) =>
+                    setNewStudentForm({ ...newStudentForm, lastName: e.target.value })
+                  }
+                />
+              </SimpleGrid>
+
+              <TextInput
+                label="Email Address *"
+                placeholder="e.g. student@domain.com"
+                required
+                value={newStudentForm.email}
+                onChange={(e) =>
+                  setNewStudentForm({ ...newStudentForm, email: e.target.value })
+                }
+              />
+
+              <TextInput
+                label="Phone Number"
+                placeholder="e.g. +1 416-555-0199"
+                value={newStudentForm.phone}
+                onChange={(e) =>
+                  setNewStudentForm({ ...newStudentForm, phone: e.target.value })
+                }
+              />
+
+              <MultiSelect
+                label="Assign to Department(s) *"
+                placeholder="Select department(s)..."
+                required
+                data={departments.map((d) => ({
+                  value: d._id || d.id,
+                  label: `${d.code} - ${d.name}`,
+                }))}
+                value={newStudentForm.departmentIds}
+                onChange={(val) =>
+                  setNewStudentForm({ ...newStudentForm, departmentIds: val })
+                }
+                searchable
+                clearable
+              />
+
+              <Paper p="xs" radius="md" bg="blue.0" style={{ borderLeft: "4px solid var(--mantine-color-blue-6)" }}>
+                <Text size="xs" c="blue.9">
+                  ℹ️ <strong>Unique Email Check & Roll Numbers:</strong> Email uniqueness is validated before account creation. Consecutive <strong>YYYY-DEPT-ROLL###</strong> roll numbers are automatically assigned.
+                </Text>
+              </Paper>
+
+              <Button
+                fullWidth
+                mt="xs"
+                color="indigo"
+                onClick={handleQuickCreateAndEnroll}
+                loading={submittingEnroll}
+                disabled={!newStudentForm.firstName.trim() || !newStudentForm.email.trim() || newStudentForm.departmentIds.length === 0}
+              >
+                Create Student & Assign Roll Number(s)
+              </Button>
+            </Stack>
+          )}
         </Stack>
       </Modal>
 

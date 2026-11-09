@@ -485,6 +485,156 @@ export class UniversityUseCase {
     return enrollment;
   }
 
+  static async batchEnrollStudents({ studentIds = [], departmentIds = [] }) {
+    if (!Array.isArray(studentIds) || studentIds.length === 0) {
+      throw new Error("Please select at least one student.");
+    }
+    if (!Array.isArray(departmentIds) || departmentIds.length === 0) {
+      throw new Error("Please select at least one department.");
+    }
+
+    const uni = await this.getOrCreateUniversity();
+    const createdEnrollments = [];
+    const skipped = [];
+
+    for (const sId of studentIds) {
+      const student = await UserModel.findById(sId);
+      if (!student) continue;
+
+      for (const dId of departmentIds) {
+        const dept = await DepartmentModel.findById(dId);
+        if (!dept) continue;
+
+        const existing = await StudentEnrollmentModel.findOne({
+          studentId: student._id,
+          departmentId: dept._id,
+        });
+
+        if (existing) {
+          skipped.push({ studentName: student.name, departmentCode: dept.code, reason: "Already enrolled" });
+          continue;
+        }
+
+        const targetSemester = await SemesterModel.findOne({
+          departmentId: dept._id,
+          semesterNumber: 1,
+        });
+
+        const rollNumber = await this.generateRollNumber(dept.code);
+
+        const enr = await StudentEnrollmentModel.create({
+          studentId: student._id,
+          studentName: student.name,
+          studentEmail: student.email,
+          universityId: uni._id,
+          departmentId: dept._id,
+          currentSemesterId: targetSemester?._id,
+          currentSemesterNumber: targetSemester?.semesterNumber || 1,
+          rollNumber,
+          status: "ACTIVE",
+        });
+
+        createdEnrollments.push(enr);
+
+        if (!student.roles) student.roles = [];
+        if (!student.roles.includes("university_student")) {
+          student.roles.push("university_student");
+          await student.save();
+        }
+      }
+    }
+
+    return {
+      success: true,
+      createdCount: createdEnrollments.length,
+      skippedCount: skipped.length,
+      enrollments: createdEnrollments,
+      skipped,
+    };
+  }
+
+  static async quickCreateAndEnrollStudent({
+    firstName,
+    lastName = "",
+    email,
+    phone = "",
+    departmentIds = [],
+  }) {
+    if (!firstName || !email) {
+      throw new Error("First name and email are required.");
+    }
+    if (!Array.isArray(departmentIds) || departmentIds.length === 0) {
+      throw new Error("Please select at least one department.");
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const existingUser = await UserModel.findOne({ email: cleanEmail });
+    if (existingUser) {
+      throw new Error(`A user with email '${cleanEmail}' already exists in the system.`);
+    }
+
+    const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
+    const newUser = await UserModel.create({
+      name: fullName,
+      email: cleanEmail,
+      password: "User@12345",
+      phone: phone.trim(),
+      phones: phone.trim() ? [{ number: phone.trim(), type: "Mobile", isPrimary: true }] : [],
+      role: "USER",
+      roles: ["USER", "university_student"],
+      isActive: true,
+    });
+
+    const uni = await this.getOrCreateUniversity();
+    const createdEnrollments = [];
+
+    for (const dId of departmentIds) {
+      const dept = await DepartmentModel.findById(dId);
+      if (!dept) continue;
+
+      const targetSemester = await SemesterModel.findOne({
+        departmentId: dept._id,
+        semesterNumber: 1,
+      });
+
+      const rollNumber = await this.generateRollNumber(dept.code);
+
+      const enr = await StudentEnrollmentModel.create({
+        studentId: newUser._id,
+        studentName: newUser.name,
+        studentEmail: newUser.email,
+        universityId: uni._id,
+        departmentId: dept._id,
+        currentSemesterId: targetSemester?._id,
+        currentSemesterNumber: targetSemester?.semesterNumber || 1,
+        rollNumber,
+        status: "ACTIVE",
+      });
+
+      createdEnrollments.push(enr);
+    }
+
+    return {
+      success: true,
+      user: newUser,
+      enrollments: createdEnrollments,
+    };
+  }
+
+  static async updateEnrollmentStatus(id, status) {
+    const enr = await StudentEnrollmentModel.findById(id);
+    if (!enr) throw new Error("Enrollment not found.");
+    enr.status = status;
+    await enr.save();
+    return enr;
+  }
+
+  static async deleteEnrollment(id) {
+    const enr = await StudentEnrollmentModel.findByIdAndDelete(id);
+    if (!enr) throw new Error("Enrollment not found.");
+    return { success: true, deletedId: id };
+  }
+
   static async listEnrollments(filter = {}) {
     const query = {};
     if (filter.departmentId) {

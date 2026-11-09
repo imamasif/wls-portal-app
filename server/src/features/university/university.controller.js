@@ -283,6 +283,42 @@ export class UniversityController {
   // =========================================================================
   // 6. ENROLLMENTS & ROLL NUMBERS
   // =========================================================================
+  static async batchEnrollStudents(req, res, next) {
+    try {
+      const result = await UniversityUseCase.batchEnrollStudents(req.body);
+      res.status(200).json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async quickCreateAndEnrollStudent(req, res, next) {
+    try {
+      const result = await UniversityUseCase.quickCreateAndEnrollStudent(req.body);
+      res.status(201).json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async updateEnrollmentStatus(req, res, next) {
+    try {
+      const enrollment = await UniversityUseCase.updateEnrollmentStatus(req.params.id, req.body.status);
+      res.status(200).json({ success: true, data: enrollment });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async deleteEnrollment(req, res, next) {
+    try {
+      const result = await UniversityUseCase.deleteEnrollment(req.params.id);
+      res.status(200).json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
   static async listEnrollments(req, res, next) {
     try {
       const enrollments = await UniversityUseCase.listEnrollments({

@@ -70,6 +70,10 @@ router.delete("/courses/:courseId/lectures/:lectureId", (req, res, next) => {
 // Enrollments & Roll Numbers
 router.get("/enrollments", UniversityController.listEnrollments);
 router.post("/enrollments", UniversityController.enrollStudent);
+router.post("/enrollments/batch", UniversityController.batchEnrollStudents);
+router.post("/enrollments/quick-create-and-enroll", UniversityController.quickCreateAndEnrollStudent);
+router.patch("/enrollments/:id/status", UniversityController.updateEnrollmentStatus);
+router.delete("/enrollments/:id", UniversityController.deleteEnrollment);
 router.post("/enrollments/promote", UniversityController.promoteStudent);
 
 // Student Watch Progress & Anti-Cheat
