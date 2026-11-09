@@ -90,6 +90,7 @@ export function MainLayout({ children, activeTab, setActiveTab }) {
           boxSizing: "border-box",
           maxWidth: "100vw",
           overflowX: "hidden",
+          paddingBottom: "50px",
         }}
       >
         {children}

@@ -981,7 +981,7 @@ export function UniversitySuperUserView({ currentUser }) {
               Batches
             </Text>
             <Title order={3} mt={4}>
-              {summary?.totalBatches || batches.length || 0}
+              {summary?.totalBatches !== undefined ? summary.totalBatches : (batches.length || 0)}
             </Title>
           </Card>
           <Card p="xs" radius="md" bg="rgba(255,255,255,0.08)" c="white">

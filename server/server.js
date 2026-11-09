@@ -48,6 +48,13 @@ connectDB().then(async () => {
   } catch (mErr) {
     console.warn("Auto-migration note:", mErr.message);
   }
+  try {
+    const { UniversityUseCase } = await import("./src/features/university/university.usecase.js");
+    UniversityUseCase.getOrCreateDefaultBatches().catch(() => {});
+    UniversityUseCase.syncAllLectureDurationsBackground().catch(() => {});
+  } catch (uErr) {
+    console.warn("University background sync note:", uErr.message);
+  }
 });
 
 app.get("/api/health", (req, res) => {

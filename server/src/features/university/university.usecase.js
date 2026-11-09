@@ -324,6 +324,12 @@ export class UniversityUseCase {
   // =========================================================================
   static async getOrCreateDefaultBatches(departmentId = null) {
     const uni = await this.getOrCreateUniversity();
+    const activeDepts = await DepartmentModel.find({ isActive: true });
+    const activeDeptIds = activeDepts.map((d) => d._id);
+
+    // Clean up any orphan batches belonging to deleted departments
+    await BatchModel.deleteMany({ departmentId: { $nin: activeDeptIds } });
+
     const deptQuery = { isActive: true };
     if (departmentId) deptQuery._id = departmentId;
     const depts = await DepartmentModel.find(deptQuery);
@@ -1100,7 +1106,10 @@ export class UniversityUseCase {
         order: lec.order,
         videoUrls: lec.videoUrls,
         isMandatory: lec.isMandatory,
-        durationSeconds: lec.durationSeconds,
+        durationSeconds:
+          totalDurationSeconds > 0 && totalDurationSeconds !== 1800
+            ? totalDurationSeconds
+            : (lec.durationSeconds || 0),
         isUnlocked,
         isCompleted,
         watchedSeconds,
@@ -1192,6 +1201,14 @@ export class UniversityUseCase {
 
     const lecture = await LectureModel.findById(lectureId);
     const isMandatory = lecture ? lecture.isMandatory !== false : true;
+
+    // Self-healing: if lecture has default 1800 or 0, update it with real duration from player
+    if (totalDurationSeconds > 0 && lecture) {
+      if (!lecture.durationSeconds || lecture.durationSeconds === 1800) {
+        lecture.durationSeconds = Math.round(totalDurationSeconds);
+        lecture.save().catch(() => {});
+      }
+    }
 
     const effectiveDuration = totalDurationSeconds > 0 
       ? totalDurationSeconds 
@@ -1454,13 +1471,41 @@ export class UniversityUseCase {
   // =========================================================================
   // 11. PORTAL SUMMARY
   // =========================================================================
+  static async syncAllLectureDurationsBackground() {
+    try {
+      const lecturesToSync = await LectureModel.find({
+        $or: [{ durationSeconds: 0 }, { durationSeconds: 1800 }, { durationSeconds: null }],
+        "videoUrls.0": { $exists: true },
+      });
+      if (!lecturesToSync || lecturesToSync.length === 0) return;
+      console.log(`[University] Auto-syncing real durations for ${lecturesToSync.length} lectures in background...`);
+      for (const lec of lecturesToSync) {
+        if (Array.isArray(lec.videoUrls) && lec.videoUrls[0]) {
+          const detected = await resolveYouTubeDuration(lec.videoUrls[0]);
+          if (detected > 0) {
+            lec.durationSeconds = detected;
+            await lec.save();
+          }
+        }
+      }
+      console.log(`[University] Finished auto-syncing real durations.`);
+    } catch (err) {
+      console.warn(`[University] Auto-sync lecture durations error:`, err.message);
+    }
+  }
+
   static async getPortalSummary() {
     const university = await this.getOrCreateUniversity();
     const departments = await DepartmentModel.find({ isActive: true });
-    const semesters = await SemesterModel.find({ isActive: true });
-    const courses = await CourseModel.find({ isActive: true });
-    const batches = await BatchModel.find({ isActive: true });
-    const enrollments = await StudentEnrollmentModel.find()
+    const activeDeptIds = departments.map((d) => d._id);
+
+    // Clean up any orphan batches belonging to deleted departments
+    await BatchModel.deleteMany({ departmentId: { $nin: activeDeptIds } });
+
+    const semesters = await SemesterModel.find({ isActive: true, departmentId: { $in: activeDeptIds } });
+    const courses = await CourseModel.find({ isActive: true, departmentId: { $in: activeDeptIds } });
+    const batches = await BatchModel.find({ isActive: true, departmentId: { $in: activeDeptIds } });
+    const enrollments = await StudentEnrollmentModel.find({ departmentId: { $in: activeDeptIds } })
       .populate("studentId", "name email role")
       .populate("departmentId", "name code")
       .populate("batchId", "name year code")

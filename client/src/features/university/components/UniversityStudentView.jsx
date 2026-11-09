@@ -309,7 +309,34 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
 
   const handleDuration = (dur) => {
     if (dur && Number.isFinite(dur) && dur > 0) {
-      setDurationSeconds(dur);
+      const roundedDur = Math.round(dur);
+      setDurationSeconds(roundedDur);
+      if (activeLecture) {
+        activeLecture.durationSeconds = roundedDur;
+        activeLecture.totalDurationSeconds = roundedDur;
+      }
+      if (courseData?.lectures) {
+        const curLecId = activeLecture?.lectureId || activeLecture?._id;
+        const target = courseData.lectures.find(
+          (l) => (l.lectureId || l._id) === curLecId
+        );
+        if (target) {
+          target.durationSeconds = roundedDur;
+          target.totalDurationSeconds = roundedDur;
+        }
+      }
+      // Persist real duration to database
+      if (studentId && selectedCourseId && activeLecture) {
+        universityApi.updateProgress({
+          studentId,
+          courseId: selectedCourseId,
+          lectureId: activeLecture.lectureId || activeLecture._id,
+          watchedSeconds: maxWatchedSeconds || 0,
+          totalDurationSeconds: roundedDur,
+          lastPositionSeconds: playedSeconds || 0,
+          markComplete: false,
+        }).catch(() => {});
+      }
     }
   };
 
@@ -372,11 +399,21 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
 
   const handleNextLecture = () => {
     if (contentMode === "video") {
+      const isMandatory = activeLecture?.isMandatory !== false;
+      const isAlreadyCompleted = Boolean(isCompletedState || activeLecture?.isCompleted);
+
+      // If current lecture is mandatory and NOT completed yet: show standard dialog
+      if (isMandatory && !isAlreadyCompleted) {
+        const dur = durationSeconds || activeLecture?.durationSeconds || 0;
+        if (!dur || maxWatchedSeconds < dur * 0.95) {
+          setEducationModalOpen(true);
+          return;
+        }
+      }
+
       if (currentLectureIndex >= 0 && currentLectureIndex < allLecturesList.length - 1) {
         const nextLec = allLecturesList[currentLectureIndex + 1];
-        if (nextLec.isUnlocked || isCompletedState) {
-          selectLecture(nextLec);
-        }
+        selectLecture(nextLec);
       } else if (courseData?.exam?.isExamUnlocked) {
         // Reached end of lectures -> open Quiz!
         selectQuiz();
@@ -699,8 +736,11 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
                               contentMode === "video" &&
                               (lec.lectureId || lec._id) ===
                                 (activeLecture?.lectureId || activeLecture?._id);
-                            const isCompleted = Boolean(lec.isCompleted);
+                            const isCompleted = Boolean(lec.isCompleted || (isSelected && isCompletedState));
                             const isLocked = !lec.isUnlocked && !isCompleted;
+                            const curDur = (isSelected && durationSeconds > 0)
+                              ? durationSeconds
+                              : (lec.durationSeconds || lec.totalDurationSeconds || 0);
 
                             return (
                               <Box
@@ -720,20 +760,23 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
                                 <Group justify="space-between" align="center" wrap="nowrap">
                                   <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
                                     {isCompleted ? (
-                                      <IconCircleCheck size={18} color="#10b981" />
+                                      <ThemeIcon size={22} radius="xl" color="teal" variant="filled">
+                                        <IconCheck size={13} stroke={3} />
+                                      </ThemeIcon>
                                     ) : isLocked ? (
-                                      <IconLock size={16} color="#94a3b8" />
+                                      <ThemeIcon size={22} radius="xl" color="gray.2" variant="filled">
+                                        <IconLock size={12} color="#94a3b8" />
+                                      </ThemeIcon>
                                     ) : (
-                                      <IconPlayerPlay
-                                        size={18}
-                                        color={isSelected ? "#2563eb" : "#64748b"}
-                                      />
+                                      <ThemeIcon size={22} radius="xl" color={isSelected ? "blue" : "gray.2"} variant="filled">
+                                        <IconPlayerPlay size={12} color={isSelected ? "#ffffff" : "#475569"} />
+                                      </ThemeIcon>
                                     )}
                                     <Box style={{ minWidth: 0, flex: 1 }}>
                                       <Text
                                         size="xs"
-                                        fw={isSelected ? 700 : 500}
-                                        c={isSelected ? "blue.8" : isLocked ? "dimmed" : "dark.8"}
+                                        fw={isSelected ? 700 : isCompleted ? 600 : 500}
+                                        c={isSelected ? "blue.8" : isCompleted ? "teal.8" : isLocked ? "dimmed" : "dark.8"}
                                         lineClamp={1}
                                       >
                                         <Text span fw={600} mr={4} c="dimmed">
@@ -741,9 +784,21 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
                                         </Text>
                                         {lec.title}
                                       </Text>
-                                      <Text size="11px" c="dimmed">
-                                        Video • {formatDurationDisplay(lec.durationSeconds || 0)}
-                                      </Text>
+                                      <Group gap={6} align="center">
+                                        {isCompleted ? (
+                                          <Text size="11px" fw={700} c="teal.7">
+                                            Completed ✔
+                                          </Text>
+                                        ) : (
+                                          <Text size="11px" c="dimmed">
+                                            Video
+                                          </Text>
+                                        )}
+                                        <Text size="11px" c="dimmed">•</Text>
+                                        <Text size="11px" c="dimmed">
+                                          {formatDurationDisplay(curDur)}
+                                        </Text>
+                                      </Group>
                                     </Box>
                                   </Group>
                                 </Group>
@@ -881,12 +936,62 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
 
                   {/* Note Taking & 1-on-1 Course Instructor Chat Tabs */}
                   <Paper p="sm" withBorder radius="md" bg="gray.0" mb="md">
-                    <Tabs defaultValue="notes" color="indigo" radius="md">
-                      <Tabs.List mb="xs">
-                        <Tabs.Tab value="notes" leftSection={<IconFileText size={15} />}>
-                          Module Notes ({notes.length})
+                    <style>{`
+                      .student-tabs-pill-bar {
+                        background: #ffffff;
+                        border: 1px solid #e2e8f0;
+                        padding: 5px;
+                        border-radius: 12px;
+                        display: flex;
+                        gap: 6px;
+                        box-shadow: 0 2px 10px -2px rgba(15, 23, 42, 0.05);
+                        margin-bottom: 12px;
+                      }
+                      .student-tabs-pill-bar .mantine-Tabs-tab {
+                        font-weight: 600;
+                        font-size: 13px;
+                        padding: 8px 16px;
+                        border-radius: 9px;
+                        color: #475569;
+                        border: 1px solid transparent;
+                        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                      }
+                      .student-tabs-pill-bar .mantine-Tabs-tab:hover {
+                        background: #f1f5f9;
+                        color: #1e293b;
+                        transform: translateY(-1px);
+                      }
+                      .student-tabs-pill-bar .mantine-Tabs-tab[data-active] {
+                        background: linear-gradient(135deg, #4f46e5 0%, #6366f1 50%, #7c3aed 100%) !important;
+                        color: #ffffff !important;
+                        box-shadow: 0 4px 12px -2px rgba(79, 70, 229, 0.45);
+                        border-color: rgba(255, 255, 255, 0.2);
+                        transform: translateY(-1px);
+                      }
+                      .student-tabs-pill-bar .mantine-Tabs-tab[data-active] svg {
+                        color: #ffffff !important;
+                      }
+                    `}</style>
+                    <Tabs defaultValue="notes" variant="pills" radius="md">
+                      <Tabs.List className="student-tabs-pill-bar">
+                        <Tabs.Tab
+                          value="notes"
+                          leftSection={<IconFileText size={16} />}
+                          rightSection={
+                            <Badge
+                              size="sm"
+                              circle
+                              variant="light"
+                              color="indigo"
+                              style={{ fontWeight: 700 }}
+                            >
+                              {notes.length}
+                            </Badge>
+                          }
+                        >
+                          Module Notes
                         </Tabs.Tab>
-                        <Tabs.Tab value="chat" leftSection={<IconMessageDots size={15} />}>
+                        <Tabs.Tab value="chat" leftSection={<IconMessageDots size={16} />}>
                           Ask Instructor (Course Chat)
                         </Tabs.Tab>
                       </Tabs.List>

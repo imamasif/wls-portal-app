@@ -19,6 +19,7 @@ export async function populateCurriculumFromWeb(forceUri = null) {
   const {
     UniversityModel,
     DepartmentModel,
+    BatchModel,
     SemesterModel,
     CourseModel,
     LectureModel,
@@ -131,6 +132,7 @@ export async function populateCurriculumFromWeb(forceUri = null) {
   }
 
   console.log("Cleaning up all old university collections (departments, semesters, courses, lectures)...");
+  await BatchModel.deleteMany({});
   await LectureModel.deleteMany({});
   await CourseModel.deleteMany({});
   await SemesterModel.deleteMany({});
