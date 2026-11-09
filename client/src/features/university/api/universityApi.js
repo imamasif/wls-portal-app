@@ -5,6 +5,11 @@ const API_BASE = "/api/university";
 
 export const universityApi = {
   // 1. Portal Summary
+  syncWebCurriculum: async () => {
+    const res = await axios.post(`${API_BASE}/sync-web-curriculum`);
+    return res.data?.data || res.data;
+  },
+
   getPortalSummary: async () => {
     const res = await axios.get(`${API_BASE}/portal-summary`);
     return res.data?.data || res.data;

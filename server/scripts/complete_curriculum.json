@@ -1,0 +1,1110 @@
+{
+  "QGU": {
+    "deptCode": "QGU",
+    "deptName": "Quranic Grammer - Urdu",
+    "headOfDepartment": "Br Aazim Kamal",
+    "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/",
+    "courseTitles": [
+      "Introduction by Muhammad Shaikh",
+      "Allah Aur Aliah",
+      "Iblees Shaitan",
+      "Al-Kitab",
+      "Al-Quran"
+    ],
+    "courses": [
+      {
+        "courseIndex": 1,
+        "courseTitle": "Introduction by Muhammad Shaikh",
+        "lessons": [
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/learn-direct-translation-in-urdu-english-from-the-book-of-god-color-coded-by-muhammad-shaikh/",
+            "title": "Learn Direct Translation in Urdu & English From The Book of God Color Coded by Muhammad Shaikh",
+            "videoUrl": "https://www.youtube.com/watch?v=EebpNyihh44",
+            "order": 1
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/color-coded-quran-basic-grammar-introduction-urdu-language/",
+            "title": "Color Coded Quran Basic Grammar Introduction Urdu Language",
+            "videoUrl": "https://www.youtube.com/watch?v=NKa4CRHj4ns",
+            "order": 2
+          }
+        ],
+        "quiz": null
+      },
+      {
+        "courseIndex": 2,
+        "courseTitle": "Allah Aur Aliah",
+        "lessons": [
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-1-allah-aur-aalihah-muhammad-shaikh-part-1/",
+            "title": "Lecture 1 Allah Aur Aalihah | Muhammad Shaikh | Part 1",
+            "videoUrl": "https://www.youtube.com/watch?v=ebF3Eg8YXsE",
+            "order": 1
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/allah-aur-aalihah-session-01-urdu-translation/",
+            "title": "Allah Aur Aalihah Session 01 Urdu Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=pUCEeo3TxYg",
+            "order": 2
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/introduction-to-arabic-grammar-arabic-grammar-series-ep-01-qari-aqib/",
+            "title": "Introduction to Arabic Grammar | Arabic Grammar Series | Ep- 01 | Qari Aqib",
+            "videoUrl": "https://www.youtube.com/watch?v=i0lQZHnvAUc",
+            "order": 3
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-1-allah-aur-aalihah-muhammad-shaikh-part-2/",
+            "title": "Lecture 1 Allah Aur Aalihah | Muhammad Shaikh | Part 2",
+            "videoUrl": "https://www.youtube.com/watch?v=kjMsWuHPsrs",
+            "order": 4
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/allah-aur-aalihah-session-02-urdu-translation/",
+            "title": "Allah Aur Aalihah Session 02 Urdu Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=wXglfEgJRts",
+            "order": 5
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/basic-terms-istilahaat-arabic-grammar-series-ep-02-qari-aqib/",
+            "title": "BASIC TERMS | Istilahaat | Arabic Grammar Series | Ep- 02 | Qari Aqib",
+            "videoUrl": "https://www.youtube.com/watch?v=kuKgASwyVJ0",
+            "order": 6
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-1-allah-aur-aalihah-muhammad-shaikh-part-3/",
+            "title": "Lecture 1 Allah Aur Aalihah | Muhammad Shaikh | Part 3",
+            "videoUrl": "https://www.youtube.com/watch?v=_Fq0ojvY2lU",
+            "order": 7
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/allah-aur-aalihah-session-03-urdu-translation/",
+            "title": "Allah Aur Aalihah Session 03 Urdu Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=MDncrBKj_Ps",
+            "order": 8
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/noun-aeraab-ism-aur-aeraab-arabic-grammar-series-ep-03-qari-aqib/",
+            "title": "NOUN & AERAAB | Ism aur Aeraab | Arabic Grammar Series | Ep- 03 | Qari Aqib",
+            "videoUrl": "https://www.youtube.com/watch?v=ruGDTHDC2nA",
+            "order": 9
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-1-allah-aur-aalihah-muhammad-shaikh-part-4/",
+            "title": "Lecture 1 Allah Aur Aalihah | Muhammad Shaikh | Part 4",
+            "videoUrl": "https://www.youtube.com/watch?v=L0SMWViSY0M",
+            "order": 10
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/allah-aur-aalihah-session-04-urdu-translation/",
+            "title": "Allah Aur Aalihah Session 04 Urdu Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=7GiVpJVJyFM",
+            "order": 11
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/munsarif-asma-aeraab-aur-munsarif-arabic-grammar-series-ep-04-qari-aqib/",
+            "title": "MUNSARIF ASMA | Aeraab aur Munsarif | Arabic Grammar Series | Ep- 04 | Qari Aqib",
+            "videoUrl": "https://www.youtube.com/watch?v=E7Ca_OqsvHg",
+            "order": 12
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-1-allah-aur-aalihah-muhammad-shaikh-part-5/",
+            "title": "Lecture 1 Allah Aur Aalihah | Muhammad Shaikh | Part 5",
+            "videoUrl": "https://www.youtube.com/watch?v=Bk0u6pTL5wg",
+            "order": 13
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/allah-aur-aalihah-session-05-urdu-translation/",
+            "title": "Allah Aur Aalihah Session 05 Urdu Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=Bx2hHM8Jic4",
+            "order": 14
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/gair-munsarif-asma-aeraab-aur-gair-munsarif-arabic-grammar-series-ep-05-qari-aqib/",
+            "title": "GAIR MUNSARIF ASMA | Aeraab aur Gair Munsarif | Arabic Grammar Series | Ep- 05 | Qari Aqib",
+            "videoUrl": "https://www.youtube.com/watch?v=e8LyClh7C_s",
+            "order": 15
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-1-allah-aur-aalihah-muhammad-shaikh-part-6/",
+            "title": "Lecture 1 Allah Aur Aalihah | Muhammad Shaikh | Part 6",
+            "videoUrl": "https://www.youtube.com/watch?v=Uq3gaLPKxO0",
+            "order": 16
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/allah-aur-aalihah-session-06-urdu-translation/",
+            "title": "Allah Aur Aalihah Session 06 Urdu Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=lzT70EDw2_c",
+            "order": 17
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/mabnee-asma-muarab-mabnee-arabic-grammar-series-ep-06-qari-aqib/",
+            "title": "MABNEE ASMA | Muarab & Mabnee | Arabic Grammar Series | Ep- 06 | Qari Aqib",
+            "videoUrl": "https://www.youtube.com/watch?v=baYOwmvH59o",
+            "order": 18
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-1-allah-aur-aalihah-muhammad-shaikh-part-7/",
+            "title": "Lecture 1 Allah Aur Aalihah | Muhammad Shaikh | Part 7",
+            "videoUrl": "https://www.youtube.com/watch?v=0SjVAsyA42s",
+            "order": 19
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/allah-aur-aalihah-session-07-urdu-translation/",
+            "title": "Allah Aur Aalihah Session 07 Urdu Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=2pVrqaSWQ40",
+            "order": 20
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/jins-muzakar-muanas-arabic-grammar-series-ep-07-qari-aqib/",
+            "title": "JINS | Muzakar & Mu`anas | Arabic Grammar Series | Ep- 07 | Qari Aqib",
+            "videoUrl": "https://www.youtube.com/watch?v=CbJnR4JfEfY",
+            "order": 21
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-1-allah-aur-aalihah-muhammad-shaikh-part-8/",
+            "title": "Lecture 1 Allah Aur Aalihah | Muhammad Shaikh | Part 8",
+            "videoUrl": "https://www.youtube.com/watch?v=2h-btgbdzwM",
+            "order": 22
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/allah-aur-aalihah-session-08-urdu-translation/",
+            "title": "Allah Aur Aalihah Session 08 Urdu Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=dxETCxmH-vQ",
+            "order": 23
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/addad-singular-plural-arabic-grammar-series-ep-08-qari-aqib/",
+            "title": "ADDAD | Singular & Plural | Arabic Grammar Series | Ep- 08 | Qari Aqib",
+            "videoUrl": "https://www.youtube.com/watch?v=8a-jVfSRqt4",
+            "order": 24
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-1-allah-aur-aalihah-muhammad-shaikh-part-9/",
+            "title": "Lecture 1 Allah Aur Aalihah | Muhammad Shaikh | Part 9",
+            "videoUrl": "https://www.youtube.com/watch?v=MrGcW4QX06c",
+            "order": 25
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/allah-aur-aalihah-session-09-urdu-translation/",
+            "title": "Allah Aur Aalihah Session 09 Urdu Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=VVrbXRcW0D0",
+            "order": 26
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/jama-salim-addad-muzakar-muanas-plural-arabic-grammar-series-ep-09-qari-aqib-2/",
+            "title": "JAMA SALIM | Addad | Muzakar & Mu`anas | Plural | Arabic Grammar Series | Ep- 09 | Qari Aqib",
+            "videoUrl": "https://www.youtube.com/watch?v=UsSZx8Fo-SU",
+            "order": 27
+          }
+        ],
+        "quiz": {
+          "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/quizzes/allah-and-aaliha-quiz/",
+          "title": "Allah and Aaliha Quiz"
+        }
+      },
+      {
+        "courseIndex": 3,
+        "courseTitle": "Iblees Shaitan",
+        "lessons": [
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-2-iblees-shaitaan-muhammad-shaikh-part-1/",
+            "title": "Lecture 2: Iblees / Shaitaan | Muhammad Shaikh | Part 1",
+            "videoUrl": "https://www.youtube.com/watch?v=08alXaTtQgU",
+            "order": 1
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-2-iblees-shaitaan-session-01-colors-translation/",
+            "title": "Lecture 2: Iblees / Shaitaan Session 01 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=zuFmbJo47TY",
+            "order": 2
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/introduction-to-arabic-grammar-arabic-grammar-series-ep-01-qari-aqib-2/",
+            "title": "Introduction to Arabic Grammar | Arabic Grammar Series | Ep- 01 | Qari Aqib",
+            "videoUrl": "https://www.youtube.com/watch?v=i0lQZHnvAUc",
+            "order": 3
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-2-iblees-shaitaan-muhammad-shaikh-part-2/",
+            "title": "Lecture 2: Iblees / Shaitaan | Muhammad Shaikh | Part 2",
+            "videoUrl": "https://www.youtube.com/watch?v=wgxvozznU14",
+            "order": 4
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-2-iblees-shaitaan-session-02-colors-translation/",
+            "title": "Lecture 2: Iblees / Shaitaan Session 02 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=HtvMJjpmw5E",
+            "order": 5
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/basic-terms-istilahaat-arabic-grammar-series-ep-02-qari-aqib-2/",
+            "title": "BASIC TERMS | Istilahaat | Arabic Grammar Series | Ep- 02 | Qari Aqib",
+            "videoUrl": "https://www.youtube.com/watch?v=kuKgASwyVJ0",
+            "order": 6
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-2-iblees-shaitaan-muhammad-shaikh-part-3/",
+            "title": "Lecture 2: Iblees / Shaitaan | Muhammad Shaikh | Part 3",
+            "videoUrl": "https://www.youtube.com/watch?v=QOV1TkDvbgs",
+            "order": 7
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-2-iblees-shaitaan-session-03-colors-translation/",
+            "title": "Lecture 2: Iblees / Shaitaan Session 03 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=6aB9frIlXbw",
+            "order": 8
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/noun-aeraab-ism-aur-aeraab-arabic-grammar-series-ep-03-qari-aqib-2/",
+            "title": "NOUN & AERAAB | Ism aur Aeraab | Arabic Grammar Series | Ep- 03 | Qari Aqib",
+            "videoUrl": "https://www.youtube.com/watch?v=ruGDTHDC2nA",
+            "order": 9
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-2-iblees-shaitaan-muhammad-shaikh-part-4/",
+            "title": "Lecture 2: Iblees / Shaitaan | Muhammad Shaikh | Part 4",
+            "videoUrl": "https://www.youtube.com/watch?v=VD4cfm0bCRc",
+            "order": 10
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-2-iblees-shaitaan-session-04-colors-translation/",
+            "title": "Lecture 2: Iblees / Shaitaan Session 04 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=-SOA90Orl38",
+            "order": 11
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/munsarif-asma-aeraab-aur-munsarif-arabic-grammar-series-ep-04-qari-aqib-2/",
+            "title": "MUNSARIF ASMA | Aeraab aur Munsarif | Arabic Grammar Series | Ep- 04 | Qari Aqib",
+            "videoUrl": "https://www.youtube.com/watch?v=E7Ca_OqsvHg",
+            "order": 12
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-2-iblees-shaitaan-muhammad-shaikh-part-5/",
+            "title": "Lecture 2: Iblees / Shaitaan | Muhammad Shaikh | Part 5",
+            "videoUrl": "https://www.youtube.com/watch?v=tDvRNJRoLPA",
+            "order": 13
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-2-iblees-shaitaan-session-05-colors-translation/",
+            "title": "Lecture 2: Iblees / Shaitaan Session 05 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=KFfszPM3G2Q",
+            "order": 14
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/gair-munsarif-asma-aeraab-aur-gair-munsarif-arabic-grammar-series-ep-05-qari-aqib-2/",
+            "title": "GAIR MUNSARIF ASMA | Aeraab aur Gair Munsarif | Arabic Grammar Series | Ep- 05 | Qari Aqib",
+            "videoUrl": "https://www.youtube.com/watch?v=e8LyClh7C_s",
+            "order": 15
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-2-iblees-shaitaan-muhammad-shaikh-part-6/",
+            "title": "Lecture 2: Iblees / Shaitaan | Muhammad Shaikh | Part 6",
+            "videoUrl": "https://www.youtube.com/watch?v=VGchev02NDs",
+            "order": 16
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-2-iblees-shaitaan-session-06-colors-translation/",
+            "title": "Lecture 2: Iblees / Shaitaan Session 06 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=URKt1k54llA",
+            "order": 17
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/mabnee-asma-muarab-mabnee-arabic-grammar-series-ep-06-qari-aqib-2/",
+            "title": "MABNEE ASMA | Muarab & Mabnee | Arabic Grammar Series | Ep- 06 | Qari Aqib",
+            "videoUrl": "https://www.youtube.com/watch?v=baYOwmvH59o",
+            "order": 18
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-2-iblees-shaitaan-muhammad-shaikh-part-7/",
+            "title": "Lecture 2: Iblees / Shaitaan | Muhammad Shaikh | Part 7",
+            "videoUrl": "https://www.youtube.com/watch?v=zLRlJkPsKxs",
+            "order": 19
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-2-iblees-shaitaan-session-07-colors-translation/",
+            "title": "Lecture 2: Iblees / Shaitaan Session 07 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=b1aVLHLTDIg",
+            "order": 20
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/jins-muzakar-muanas-arabic-grammar-series-ep-07-qari-aqib-2/",
+            "title": "JINS | Muzakar & Mu`anas | Arabic Grammar Series | Ep- 07 | Qari Aqib",
+            "videoUrl": "https://www.youtube.com/watch?v=CbJnR4JfEfY",
+            "order": 21
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-2-iblees-shaitaan-muhammad-shaikh-part-8/",
+            "title": "Lecture 2: Iblees / Shaitaan | Muhammad Shaikh | Part 8",
+            "videoUrl": "https://www.youtube.com/watch?v=IsLp3ML2mdE",
+            "order": 22
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-2-iblees-shaitaan-session-08-colors-translation/",
+            "title": "Lecture 2: Iblees / Shaitaan Session 08 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=jiYMzWWW4LA",
+            "order": 23
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/addad-singular-plural-arabic-grammar-series-ep-08-qari-aqib-2/",
+            "title": "ADDAD | Singular & Plural | Arabic Grammar Series | Ep- 08 | Qari Aqib",
+            "videoUrl": "https://www.youtube.com/watch?v=8a-jVfSRqt4",
+            "order": 24
+          }
+        ],
+        "quiz": {
+          "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/quizzes/iblees-shaitaan-quiz/",
+          "title": "Iblees / Shaitaan Quiz"
+        }
+      },
+      {
+        "courseIndex": 4,
+        "courseTitle": "Al-Kitab",
+        "lessons": [
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-3-al-kitab-muhammad-shaikh-part-1/",
+            "title": "Lecture 3: Al-Kitab | Muhammad Shaikh | Part 1",
+            "videoUrl": "https://www.youtube.com/watch?v=ZkyZL9UK6sc",
+            "order": 1
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-3-al-kitab-session-01-colors-translation/",
+            "title": "Lecture 3: Al-Kitab Session 01 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=gS8w13rpGQU",
+            "order": 2
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/introduction-to-arabic-grammar-arabic-grammar-series-ep-01-qari-aqib-3/",
+            "title": "Introduction to Arabic Grammar | Arabic Grammar Series | Ep- 01 | Qari Aqib",
+            "videoUrl": "https://www.youtube.com/watch?v=i0lQZHnvAUc",
+            "order": 3
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-3-al-kitab-muhammad-shaikh-part-2/",
+            "title": "Lecture 3: Al-Kitab | Muhammad Shaikh | Part 2",
+            "videoUrl": "https://www.youtube.com/watch?v=O5twgpNR2dY",
+            "order": 4
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-3-al-kitab-session-02-colors-translation/",
+            "title": "Lecture 3: Al-Kitab Session 02 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=Hs2xJx_TW7w",
+            "order": 5
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/basic-terms-istilahaat-arabic-grammar-series-ep-02-qari-aqib-3/",
+            "title": "BASIC TERMS | Istilahaat | Arabic Grammar Series | Ep- 02 | Qari Aqib",
+            "videoUrl": "https://www.youtube.com/watch?v=kuKgASwyVJ0",
+            "order": 6
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-3-al-kitab-muhammad-shaikh-part-3/",
+            "title": "Lecture 3: Al-Kitab | Muhammad Shaikh | Part 3",
+            "videoUrl": "https://www.youtube.com/watch?v=Tnywm9BF37Y",
+            "order": 7
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-3-al-kitab-session-03-colors-translation/",
+            "title": "Lecture 3: Al-Kitab Session 03 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=MpSUZZRz5kI",
+            "order": 8
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/noun-aeraab-ism-aur-aeraab-arabic-grammar-series-ep-03-qari-aqib-3/",
+            "title": "NOUN & AERAAB | Ism aur Aeraab | Arabic Grammar Series | Ep- 03 | Qari Aqib",
+            "videoUrl": "https://www.youtube.com/watch?v=ruGDTHDC2nA",
+            "order": 9
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-3-al-kitab-muhammad-shaikh-part-4/",
+            "title": "Lecture 3: Al-Kitab | Muhammad Shaikh | Part 4",
+            "videoUrl": "https://www.youtube.com/watch?v=sbjSxt3aWnc",
+            "order": 10
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-3-al-kitab-session-04-colors-translation/",
+            "title": "Lecture 3: Al-Kitab Session 04 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=7B8vON247L0",
+            "order": 11
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/munsarif-asma-aeraab-aur-munsarif-arabic-grammar-series-ep-04-qari-aqib-3/",
+            "title": "MUNSARIF ASMA | Aeraab aur Munsarif | Arabic Grammar Series | Ep- 04 | Qari Aqib",
+            "videoUrl": "https://www.youtube.com/watch?v=E7Ca_OqsvHg",
+            "order": 12
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-3-al-kitab-muhammad-shaikh-part-5/",
+            "title": "Lecture 3: Al-Kitab | Muhammad Shaikh | Part 5",
+            "videoUrl": "https://www.youtube.com/watch?v=0xykvqvnWCs",
+            "order": 13
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-3-al-kitab-session-05-colors-translation/",
+            "title": "Lecture 3: Al-Kitab Session 05 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=WZmGfka-65Q",
+            "order": 14
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/gair-munsarif-asma-aeraab-aur-gair-munsarif-arabic-grammar-series-ep-05-qari-aqib-3/",
+            "title": "GAIR MUNSARIF ASMA | Aeraab aur Gair Munsarif | Arabic Grammar Series | Ep- 05 | Qari Aqib",
+            "videoUrl": "https://www.youtube.com/watch?v=e8LyClh7C_s",
+            "order": 15
+          }
+        ],
+        "quiz": null
+      },
+      {
+        "courseIndex": 5,
+        "courseTitle": "Al-Quran",
+        "lessons": [
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-4-quran-muhammad-shaikh-part-1-2/",
+            "title": "Lecture 4: Quran | Muhammad Shaikh | Part 1",
+            "videoUrl": "https://www.youtube.com/watch?v=h0F9XvH-EDc",
+            "order": 1
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-4-quran-session-01-colors-translation-2/",
+            "title": "Lecture 4: Quran Session 01 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=SVPZLhFs4II",
+            "order": 2
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/introduction-to-arabic-grammar-arabic-grammar-series-ep-01-qari-aqib-4/",
+            "title": "Introduction to Arabic Grammar | Arabic Grammar Series | Ep- 01 | Qari Aqib",
+            "videoUrl": "https://www.youtube.com/watch?v=i0lQZHnvAUc",
+            "order": 3
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-4-quran-muhammad-shaikh-part-2/",
+            "title": "Lecture 4: Quran | Muhammad Shaikh | Part 2",
+            "videoUrl": "https://www.youtube.com/watch?v=bpagJcQXnfw",
+            "order": 4
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-4-quran-session-02-colors-translation/",
+            "title": "Lecture 4: Quran Session 02 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=EAaKsXwoRn4",
+            "order": 5
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/basic-terms-istilahaat-arabic-grammar-series-ep-02-qari-aqib-4/",
+            "title": "BASIC TERMS | Istilahaat | Arabic Grammar Series | Ep- 02 | Qari Aqib",
+            "videoUrl": "https://www.youtube.com/watch?v=kuKgASwyVJ0",
+            "order": 6
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-4-quran-muhammad-shaikh-part-3/",
+            "title": "Lecture 4: Quran | Muhammad Shaikh | Part 3",
+            "videoUrl": "https://www.youtube.com/watch?v=6ZL1OnEZMKo",
+            "order": 7
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-4-quran-session-03-colors-translation/",
+            "title": "Lecture 4: Quran Session 03 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=_5NIMJ2lQEI",
+            "order": 8
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/noun-aeraab-ism-aur-aeraab-arabic-grammar-series-ep-03-qari-aqib-4/",
+            "title": "NOUN & AERAAB | Ism aur Aeraab | Arabic Grammar Series | Ep- 03 | Qari Aqib",
+            "videoUrl": "https://www.youtube.com/watch?v=ruGDTHDC2nA",
+            "order": 9
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-4-quran-muhammad-shaikh-part-4/",
+            "title": "Lecture 4: Quran | Muhammad Shaikh | Part 4",
+            "videoUrl": "https://www.youtube.com/watch?v=Fci_JClnIuk",
+            "order": 10
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-4-quran-session-04-colors-translation/",
+            "title": "Lecture 4: Quran Session 04 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=rxzucCVMwnQ",
+            "order": 11
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/munsarif-asma-aeraab-aur-munsarif-arabic-grammar-series-ep-04-qari-aqib-4/",
+            "title": "MUNSARIF ASMA | Aeraab aur Munsarif | Arabic Grammar Series | Ep- 04 | Qari Aqib",
+            "videoUrl": "https://www.youtube.com/watch?v=E7Ca_OqsvHg",
+            "order": 12
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-4-quran-muhammad-shaikh-part-5/",
+            "title": "Lecture 4: Quran | Muhammad Shaikh | Part 5",
+            "videoUrl": "https://www.youtube.com/watch?v=tZ_AVI6QvjE",
+            "order": 13
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/lecture-4-quran-session-05-colors-translation/",
+            "title": "Lecture 4: Quran Session 05 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=NA3woC7hB7w",
+            "order": 14
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/quranic-grammar-in-urdu/lesson/gair-munsarif-asma-aeraab-aur-gair-munsarif-arabic-grammar-series-ep-05-qari-aqib-4/",
+            "title": "GAIR MUNSARIF ASMA | Aeraab aur Gair Munsarif | Arabic Grammar Series | Ep- 05 | Qari Aqib",
+            "videoUrl": "https://www.youtube.com/watch?v=e8LyClh7C_s",
+            "order": 15
+          }
+        ],
+        "quiz": null
+      }
+    ]
+  },
+  "QGE": {
+    "deptCode": "QGE",
+    "deptName": "Quranic Grammer - English",
+    "headOfDepartment": "Sister Isha",
+    "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/",
+    "courseTitles": [
+      "Introduction by Muhammad Shaikh",
+      "Allah Aur Aliah",
+      "Iblees Shaitan",
+      "Al-Kitab",
+      "Al-Quran"
+    ],
+    "courses": [
+      {
+        "courseIndex": 1,
+        "courseTitle": "Introduction by Muhammad Shaikh",
+        "lessons": [
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/learn-direct-translation-in-urdu-english-from-the-book-of-god-color-coded-by-muhammad-shaikh-2/",
+            "title": "Learn Direct Translation in Urdu & English From The Book of God Color Coded by Muhammad Shaikh",
+            "videoUrl": "https://www.youtube.com/watch?v=EebpNyihh44",
+            "order": 1
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/color-coded-quran-basic-grammar-introduction-english-language/",
+            "title": "Color Coded Quran Basic Grammar Introduction English Language",
+            "videoUrl": "https://www.youtube.com/watch?v=mbw7OWLC-z4",
+            "order": 2
+          }
+        ],
+        "quiz": null
+      },
+      {
+        "courseIndex": 2,
+        "courseTitle": "Allah Aur Aliah",
+        "lessons": [
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-1-gods-allah-muhammad-shaikh-part-1/",
+            "title": "Lecture 1: gods & Allah | Muhammad Shaikh | Part 1",
+            "videoUrl": "https://www.youtube.com/watch?v=JzYMoNqcI1g",
+            "order": 1
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-1-gods-allah-session-01-colors-translation/",
+            "title": "Lecture 1: gods & Allah Session 01 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=5sRYueYWv58",
+            "order": 2
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/quranic-grammar-made-easy-lesson-1-arabic101/",
+            "title": "Quranic Grammar MADE EASY - Lesson 1 | Arabic101",
+            "videoUrl": "https://www.youtube.com/watch?v=9cG88mQDVBY",
+            "order": 3
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-1-gods-allah-muhammad-shaikh-part-2/",
+            "title": "Lecture 1: gods & Allah | Muhammad Shaikh | Part 2",
+            "videoUrl": "https://www.youtube.com/watch?v=NATh2YAD84g",
+            "order": 4
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-1-gods-allah-session-02-colors-translation/",
+            "title": "Lecture 1: gods & Allah Session 02 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=X68gv_GhHGc",
+            "order": 5
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/quranic-grammar-made-easy-lesson-2-arabic101/",
+            "title": "Quranic Grammar MADE EASY - Lesson 2 | Arabic101",
+            "videoUrl": "https://www.youtube.com/watch?v=kWUrA4Y5s4o",
+            "order": 6
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-1-gods-allah-muhammad-shaikh-part-3/",
+            "title": "Lecture 1: gods & Allah | Muhammad Shaikh | Part 3",
+            "videoUrl": "https://www.youtube.com/watch?v=wK1oEoTgB3A",
+            "order": 7
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-1-gods-allah-session-03-colors-translation/",
+            "title": "Lecture 1: gods & Allah Session 03 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=ah6HDpofF0c",
+            "order": 8
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/quranic-grammar-made-easy-lesson-3-arabic101/",
+            "title": "Quranic Grammar MADE EASY - Lesson 3 | Arabic101",
+            "videoUrl": "https://www.youtube.com/watch?v=E8_UZZ2Wb_0",
+            "order": 9
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-1-gods-allah-muhammad-shaikh-part-4/",
+            "title": "Lecture 1: gods & Allah | Muhammad Shaikh | Part 4",
+            "videoUrl": "https://www.youtube.com/watch?v=x86cD8YIn_w",
+            "order": 10
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-1-gods-allah-session-04-colors-translation/",
+            "title": "Lecture 1: gods & Allah Session 04 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=vmdrYARmJG4",
+            "order": 11
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/quranic-grammar-made-easy-lesson-4-arabic101/",
+            "title": "Quranic Grammar MADE EASY - Lesson 4 | Arabic101",
+            "videoUrl": "https://www.youtube.com/watch?v=ykYR2SCcGKY",
+            "order": 12
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-1-gods-allah-muhammad-shaikh-part-5/",
+            "title": "Lecture 1: gods & Allah | Muhammad Shaikh | Part 5",
+            "videoUrl": "https://www.youtube.com/watch?v=49Rn5gvRHg8",
+            "order": 13
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-1-gods-allah-session-05-colors-translation/",
+            "title": "Lecture 1: gods & Allah Session 05 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=2s-uvheuWNQ",
+            "order": 14
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/quranic-irab-%d8%a5%d8%b9%d8%b1%d8%a7%d8%a8-made-easy-lesson-5-arabic101/",
+            "title": "Quranic (I'rab إعراب) MADE EASY - Lesson 5 | Arabic101",
+            "videoUrl": "https://www.youtube.com/watch?v=13X_J5-Q1Oo",
+            "order": 15
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-1-gods-allah-muhammad-shaikh-part-6/",
+            "title": "Lecture 1: gods & Allah | Muhammad Shaikh | Part 6",
+            "videoUrl": "https://www.youtube.com/watch?v=3qsiqQByy6Q",
+            "order": 16
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-1-gods-allah-session-06-colors-translation/",
+            "title": "Lecture 1: gods & Allah Session 06 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=ZvW5QYvtHJM",
+            "order": 17
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/quranic-grammar-made-easy-lesson-6-pronouns-arabic101/",
+            "title": "Quranic Grammar MADE EASY - Lesson 6: Pronouns | Arabic101",
+            "videoUrl": "https://www.youtube.com/watch?v=OSl2-Osajrk",
+            "order": 18
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-1-gods-allah-muhammad-shaikh-part-7/",
+            "title": "Lecture 1: gods & Allah | Muhammad Shaikh | Part 7",
+            "videoUrl": "https://www.youtube.com/watch?v=ZpA81WbCkxk",
+            "order": 19
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-1-gods-allah-session-07-colors-translation/",
+            "title": "Lecture 1: gods & Allah Session 07 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=NVY92EXExkE",
+            "order": 20
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/quranic-grammar-made-easy-lesson-7-attached-pronouns-arabic101/",
+            "title": "Quranic Grammar MADE EASY - Lesson 7: Attached Pronouns | Arabic101",
+            "videoUrl": "https://www.youtube.com/watch?v=IOiVohk11SQ",
+            "order": 21
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-1-gods-allah-muhammad-shaikh-part-8/",
+            "title": "Lecture 1: gods & Allah | Muhammad Shaikh | Part 8",
+            "videoUrl": "https://www.youtube.com/watch?v=AaQVIh05xlg",
+            "order": 22
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-1-gods-allah-session-08-colors-translation/",
+            "title": "Lecture 1: gods & Allah Session 08 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=TeHNxTEs89s",
+            "order": 23
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/quranic-grammar-made-easy-lesson-8-hidden-pronouns-arabic101/",
+            "title": "Quranic Grammar MADE EASY - Lesson 8: Hidden Pronouns | Arabic101",
+            "videoUrl": "https://www.youtube.com/watch?v=fFsfPvYG8nU",
+            "order": 24
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-1-gods-allah-muhammad-shaikh-part-9/",
+            "title": "Lecture 1: gods & Allah | Muhammad Shaikh | Part 9",
+            "videoUrl": "https://www.youtube.com/watch?v=aQ3r4pasW1s",
+            "order": 25
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-1-gods-allah-session-09-colors-translation/",
+            "title": "Lecture 1: gods & Allah Session 09 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=25A0sk841pE",
+            "order": 26
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/quranic-grammar-made-easy-lesson-9-verb-conjugation-arabic101/",
+            "title": "Quranic Grammar MADE EASY - Lesson 9: Verb Conjugation | Arabic101",
+            "videoUrl": "https://www.youtube.com/watch?v=gSuSqHpKgi0",
+            "order": 27
+          }
+        ],
+        "quiz": {
+          "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/quizzes/allah-and-aaliha-quiz-2/",
+          "title": "Allah and Aaliha Quiz"
+        }
+      },
+      {
+        "courseIndex": 3,
+        "courseTitle": "Iblees Shaitan",
+        "lessons": [
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-2-devil-satan-muhammad-shaikh-part-1/",
+            "title": "Lecture 2: Devil / Satan | Muhammad Shaikh | Part 1",
+            "videoUrl": "https://www.youtube.com/watch?v=KFdNpzizIuU",
+            "order": 1
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-2-devil-satan-session-01-colors-translation/",
+            "title": "Lecture 2: Devil / Satan Session 01 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=osSxJwUfrCE",
+            "order": 2
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/quranic-grammar-made-easy-lesson-1-arabic101-2/",
+            "title": "Quranic Grammar MADE EASY - Lesson 1 | Arabic101",
+            "videoUrl": "https://www.youtube.com/watch?v=9cG88mQDVBY",
+            "order": 3
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-2-devil-satan-muhammad-shaikh-part-2/",
+            "title": "Lecture 2: Devil / Satan | Muhammad Shaikh | Part 2",
+            "videoUrl": "https://www.youtube.com/watch?v=2a4iln2SuIA",
+            "order": 4
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-2-devil-satan-session-02-colors-translation/",
+            "title": "Lecture 2: Devil / Satan Session 02 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=otDU4Nx-5KU",
+            "order": 5
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/quranic-grammar-made-easy-lesson-2-arabic101-2/",
+            "title": "Quranic Grammar MADE EASY - Lesson 2 | Arabic101",
+            "videoUrl": "https://www.youtube.com/watch?v=kWUrA4Y5s4o",
+            "order": 6
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-2-devil-satan-muhammad-shaikh-part-3/",
+            "title": "Lecture 2: Devil / Satan | Muhammad Shaikh | Part 3",
+            "videoUrl": "https://www.youtube.com/watch?v=dFCDP3jTRPY",
+            "order": 7
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-2-devil-satan-session-03-colors-translation/",
+            "title": "Lecture 2: Devil / Satan Session 03 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=7pA4Vjwcnbc",
+            "order": 8
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/quranic-grammar-made-easy-lesson-3-arabic101-2/",
+            "title": "Quranic Grammar MADE EASY - Lesson 3 | Arabic101",
+            "videoUrl": "https://www.youtube.com/watch?v=E8_UZZ2Wb_0",
+            "order": 9
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-2-devil-satan-muhammad-shaikh-part-4/",
+            "title": "Lecture 2: Devil / Satan | Muhammad Shaikh | Part 4",
+            "videoUrl": "https://www.youtube.com/watch?v=HNZityy48_0",
+            "order": 10
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-2-devil-satan-session-04-colors-translation/",
+            "title": "Lecture 2: Devil / Satan Session 04 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=WkAEVG8B55M",
+            "order": 11
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/quranic-grammar-made-easy-lesson-4-arabic101-2/",
+            "title": "Quranic Grammar MADE EASY - Lesson 4 | Arabic101",
+            "videoUrl": "https://www.youtube.com/watch?v=ykYR2SCcGKY",
+            "order": 12
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-2-devil-satan-muhammad-shaikh-part-5/",
+            "title": "Lecture 2: Devil / Satan | Muhammad Shaikh | Part 5",
+            "videoUrl": "https://www.youtube.com/watch?v=Nlw94kToU00",
+            "order": 13
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-2-devil-satan-session-05-colors-translation/",
+            "title": "Lecture 2: Devil / Satan Session 05 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=gIs8ROtTtIQ",
+            "order": 14
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/quranic-irab-%d8%a5%d8%b9%d8%b1%d8%a7%d8%a8-made-easy-lesson-5-arabic101-2/",
+            "title": "Quranic (I'rab إعراب) MADE EASY - Lesson 5 | Arabic101",
+            "videoUrl": "https://www.youtube.com/watch?v=13X_J5-Q1Oo",
+            "order": 15
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-2-devil-satan-muhammad-shaikh-part-6/",
+            "title": "Lecture 2: Devil / Satan | Muhammad Shaikh | Part 6",
+            "videoUrl": "https://www.youtube.com/watch?v=Qd1vbtgEnmA",
+            "order": 16
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-2-devil-satan-session-06-colors-translation/",
+            "title": "Lecture 2: Devil / Satan Session 06 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=KXGUNFzPwsQ",
+            "order": 17
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/quranic-grammar-made-easy-lesson-6-pronouns-arabic101-2/",
+            "title": "Quranic Grammar MADE EASY - Lesson 6: Pronouns | Arabic101",
+            "videoUrl": "https://www.youtube.com/watch?v=OSl2-Osajrk",
+            "order": 18
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-2-devil-satan-muhammad-shaikh-part-7/",
+            "title": "Lecture 2: Devil / Satan | Muhammad Shaikh | Part 7",
+            "videoUrl": "https://www.youtube.com/watch?v=QbTJ-ZdGS0I",
+            "order": 19
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-2-devil-satan-session-07-colors-translation/",
+            "title": "Lecture 2: Devil / Satan Session 07 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=94Cfp5mDo6s",
+            "order": 20
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/quranic-grammar-made-easy-lesson-7-attached-pronouns-arabic101-2/",
+            "title": "Quranic Grammar MADE EASY - Lesson 7: Attached Pronouns | Arabic101",
+            "videoUrl": "https://www.youtube.com/watch?v=IOiVohk11SQ",
+            "order": 21
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-2-devil-satan-muhammad-shaikh-part-8/",
+            "title": "Lecture 2: Devil / Satan | Muhammad Shaikh | Part 8",
+            "videoUrl": "https://www.youtube.com/watch?v=K8kumL2zxwg",
+            "order": 22
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-2-devil-satan-session-08-colors-translation/",
+            "title": "Lecture 2: Devil / Satan Session 08 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=TNjHnFiD0Os",
+            "order": 23
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/quranic-grammar-made-easy-lesson-8-hidden-pronouns-arabic101-2/",
+            "title": "Quranic Grammar MADE EASY - Lesson 8: Hidden Pronouns | Arabic101",
+            "videoUrl": "https://www.youtube.com/watch?v=fFsfPvYG8nU",
+            "order": 24
+          }
+        ],
+        "quiz": {
+          "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/quizzes/devil-satan-quiz/",
+          "title": "Devil / Satan Quiz"
+        }
+      },
+      {
+        "courseIndex": 4,
+        "courseTitle": "Al-Kitab",
+        "lessons": [
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-3-the-book-muhammad-shaikh-part-1/",
+            "title": "Lecture 3: The Book | Muhammad Shaikh | Part 1",
+            "videoUrl": "https://www.youtube.com/watch?v=mBr6QKMcPP8",
+            "order": 1
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-3-the-book-session-01-colors-translation/",
+            "title": "Lecture 3: The Book Session 01 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=dFb5YxwBVxI",
+            "order": 2
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/quranic-grammar-made-easy-lesson-1-arabic101-3/",
+            "title": "Quranic Grammar MADE EASY - Lesson 1 | Arabic101",
+            "videoUrl": "https://www.youtube.com/watch?v=9cG88mQDVBY",
+            "order": 3
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-3-the-book-muhammad-shaikh-part-2/",
+            "title": "Lecture 3: The Book | Muhammad Shaikh | Part 2",
+            "videoUrl": "https://www.youtube.com/watch?v=j7TPzdi9EUk",
+            "order": 4
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-3-the-book-session-02-colors-translation/",
+            "title": "Lecture 3: The Book Session 02 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=uabRgXZm2UE",
+            "order": 5
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/quranic-grammar-made-easy-lesson-2-arabic101-3/",
+            "title": "Quranic Grammar MADE EASY - Lesson 2 | Arabic101",
+            "videoUrl": "https://www.youtube.com/watch?v=kWUrA4Y5s4o",
+            "order": 6
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-3-the-book-muhammad-shaikh-part-3/",
+            "title": "Lecture 3: The Book | Muhammad Shaikh | Part 3",
+            "videoUrl": "https://www.youtube.com/watch?v=GHJ1ly0a-aE",
+            "order": 7
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-3-the-book-session-03-colors-translation/",
+            "title": "Lecture 3: The Book Session 03 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=iNbaa0ncL6U",
+            "order": 8
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/quranic-grammar-made-easy-lesson-3-arabic101-3/",
+            "title": "Quranic Grammar MADE EASY - Lesson 3 | Arabic101",
+            "videoUrl": "https://www.youtube.com/watch?v=E8_UZZ2Wb_0",
+            "order": 9
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-3-the-book-muhammad-shaikh-part-4/",
+            "title": "Lecture 3: The Book | Muhammad Shaikh | Part 4",
+            "videoUrl": "https://www.youtube.com/watch?v=zEORAh2476w",
+            "order": 10
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-3-the-book-session-04-colors-translation/",
+            "title": "Lecture 3: The Book Session 04 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=K9eg0OO_vyU",
+            "order": 11
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/quranic-grammar-made-easy-lesson-4-arabic101-3/",
+            "title": "Quranic Grammar MADE EASY - Lesson 4 | Arabic101",
+            "videoUrl": "https://www.youtube.com/watch?v=ykYR2SCcGKY",
+            "order": 12
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-3-the-book-muhammad-shaikh-part-5/",
+            "title": "Lecture 3: The Book | Muhammad Shaikh | Part 5",
+            "videoUrl": "https://www.youtube.com/watch?v=z9hpDjFQOAI",
+            "order": 13
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-3-the-book-session-05-colors-translation/",
+            "title": "Lecture 3: The Book Session 05 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=RmG_1bCK84Q",
+            "order": 14
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/quranic-irab-%d8%a5%d8%b9%d8%b1%d8%a7%d8%a8-made-easy-lesson-5-arabic101-3/",
+            "title": "Quranic (I'rab إعراب) MADE EASY - Lesson 5 | Arabic101",
+            "videoUrl": "https://www.youtube.com/watch?v=13X_J5-Q1Oo",
+            "order": 15
+          }
+        ],
+        "quiz": null
+      },
+      {
+        "courseIndex": 5,
+        "courseTitle": "Al-Quran",
+        "lessons": [
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-4-quran-muhammad-shaikh-part-1/",
+            "title": "Lecture 4: Quran | Muhammad Shaikh | Part 1",
+            "videoUrl": "https://www.youtube.com/watch?v=4td1wdBcJko",
+            "order": 1
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-4-quran-session-01-colors-translation/",
+            "title": "Lecture 4: Quran Session 01 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=ygug-DnP64M",
+            "order": 2
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/quranic-grammar-made-easy-lesson-1-arabic101-4/",
+            "title": "Quranic Grammar MADE EASY - Lesson 1 | Arabic101",
+            "videoUrl": "https://www.youtube.com/watch?v=9cG88mQDVBY",
+            "order": 3
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-4-quran-muhammad-shaikh-part-2-2/",
+            "title": "Lecture 4: Quran | Muhammad Shaikh | Part 2",
+            "videoUrl": "https://www.youtube.com/watch?v=kLbVd_PHvXM",
+            "order": 4
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-4-quran-session-02-colors-translation-2/",
+            "title": "Lecture 4: Quran Session 02 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=WgmP-013-uY",
+            "order": 5
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/quranic-grammar-made-easy-lesson-2-arabic101-4/",
+            "title": "Quranic Grammar MADE EASY - Lesson 2 | Arabic101",
+            "videoUrl": "https://www.youtube.com/watch?v=kWUrA4Y5s4o",
+            "order": 6
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-4-quran-muhammad-shaikh-part-3-2/",
+            "title": "Lecture 4: Quran | Muhammad Shaikh | Part 3",
+            "videoUrl": "https://www.youtube.com/watch?v=hC21HWunM4k",
+            "order": 7
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-4-quran-session-03-colors-translation-2/",
+            "title": "Lecture 4: Quran Session 03 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=oSeBJteT4yE",
+            "order": 8
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/quranic-grammar-made-easy-lesson-3-arabic101-4/",
+            "title": "Quranic Grammar MADE EASY - Lesson 3 | Arabic101",
+            "videoUrl": "https://www.youtube.com/watch?v=E8_UZZ2Wb_0",
+            "order": 9
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-4-quran-muhammad-shaikh-part-4-2/",
+            "title": "Lecture 4: Quran | Muhammad Shaikh | Part 4",
+            "videoUrl": "https://www.youtube.com/watch?v=1m1KLIdFSH4",
+            "order": 10
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-4-quran-session-04-colors-translation-2/",
+            "title": "Lecture 4: Quran Session 04 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=STOAKlmdV6g",
+            "order": 11
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/quranic-grammar-made-easy-lesson-4-arabic101-4/",
+            "title": "Quranic Grammar MADE EASY - Lesson 4 | Arabic101",
+            "videoUrl": "https://www.youtube.com/watch?v=ykYR2SCcGKY",
+            "order": 12
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-4-quran-muhammad-shaikh-part-5-2/",
+            "title": "Lecture 4: Quran | Muhammad Shaikh | Part 5",
+            "videoUrl": "https://www.youtube.com/watch?v=M6q9wtIXbXg",
+            "order": 13
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/lecture-4-quran-session-05-colors-translation-2/",
+            "title": "Lecture 4: Quran Session 05 Colors / Translation",
+            "videoUrl": "https://www.youtube.com/watch?v=lAmoJn5WY4g",
+            "order": 14
+          },
+          {
+            "url": "https://iipccanada.com/onlinecourse/courses/color-coded-quran-by-muhammad-shaikh/lesson/quranic-irab-%d8%a5%d8%b9%d8%b1%d8%a7%d8%a8-made-easy-lesson-5-arabic101-4/",
+            "title": "Quranic (I'rab إعراب) MADE EASY - Lesson 5 | Arabic101",
+            "videoUrl": "https://www.youtube.com/watch?v=13X_J5-Q1Oo",
+            "order": 15
+          }
+        ],
+        "quiz": null
+      }
+    ]
+  }
+}

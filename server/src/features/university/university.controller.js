@@ -24,6 +24,20 @@ import {
 } from "./university.req.js";
 
 export class UniversityController {
+  static async syncWebCurriculum(req, res, next) {
+    try {
+      const { populateCurriculumFromWeb } = await import("../../../scripts/populate_clean_curriculum.js");
+      const summary = await populateCurriculumFromWeb();
+      res.status(200).json({
+        success: true,
+        message: "Clean web curriculum successfully populated from IIPC Canada portal!",
+        data: summary,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   // =========================================================================
   // 1. UNIVERSITY PROFILE
   // =========================================================================

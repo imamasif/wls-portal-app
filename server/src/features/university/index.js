@@ -25,6 +25,7 @@ export { UniversityUseCase } from "./university.usecase.js";
 // =========================================================================
 
 // Portal Summary / Dashboard
+router.post("/sync-web-curriculum", UniversityController.syncWebCurriculum);
 router.get("/portal-summary", UniversityController.getPortalSummary);
 router.get("/university-summary", UniversityController.getPortalSummary);
 

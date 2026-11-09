@@ -103,6 +103,21 @@ export function UniversitySuperUserView({ currentUser }) {
   // Analytics & Progress Reports State (Tab 6)
   const [reportData, setReportData] = useState(null);
   const [loadingReport, setLoadingReport] = useState(false);
+  const [syncingWeb, setSyncingWeb] = useState(false);
+
+  const handleSyncWebCurriculum = async () => {
+    if (!window.confirm("Are you sure you want to re-sync curriculum directly from IIPC Canada web portal? This will refresh all 5 courses and lectures for both departments.")) return;
+    setSyncingWeb(true);
+    try {
+      await universityApi.syncWebCurriculum();
+      showNotification("Successfully synced 2 departments, 10 courses, and all lectures from IIPC Canada!");
+      await loadAll();
+    } catch (err) {
+      showNotification("Failed to sync from web: " + (err.response?.data?.message || err.message), "error");
+    } finally {
+      setSyncingWeb(false);
+    }
+  };
   const [reportFilterDept, setReportFilterDept] = useState("");
   const [reportFilterSem, setReportFilterSem] = useState("");
 
