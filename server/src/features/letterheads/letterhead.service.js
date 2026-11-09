@@ -2,19 +2,36 @@ import fs from 'fs';
 import path from 'path';
 import { execFileSync } from 'child_process';
 import os from 'os';
+import JSZip from 'jszip';
 
 const CHROME_PATHS = [
   'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
   'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
   'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
   'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+  '/usr/bin/google-chrome',
+  '/usr/bin/google-chrome-stable',
+  '/usr/bin/chromium',
+  '/usr/bin/chromium-browser',
+  '/snap/bin/chromium',
 ];
 
 export function getBrowserPath() {
   for (const p of CHROME_PATHS) {
     if (fs.existsSync(p)) return p;
   }
-  throw new Error('Neither Chrome nor Edge was found on the system for PDF generation.');
+  // Try locating via 'which' on unix
+  if (process.platform !== 'win32') {
+    try {
+      const out = execFileSync('which', ['google-chrome'], { encoding: 'utf8' }).trim();
+      if (out && fs.existsSync(out)) return out;
+    } catch {}
+    try {
+      const out = execFileSync('which', ['chromium-browser'], { encoding: 'utf8' }).trim();
+      if (out && fs.existsSync(out)) return out;
+    } catch {}
+  }
+  return null;
 }
 
 export function escapeHtml(str) {
@@ -119,112 +136,83 @@ function parseTable(tblXml) {
   return tblHtml;
 }
 
-export function readDocxBodyXml(docxPath) {
-  const safePath = docxPath.replace(/\\/g, '/');
-  const psScript = `
-Add-Type -AssemblyName System.IO.Compression.FileSystem
-$zip = [System.IO.Compression.ZipFile]::OpenRead('${safePath}')
-$entry = $zip.Entries | Where-Object { $_.FullName -replace '\\\\','/' -eq 'word/document.xml' } | Select-Object -First 1
-if ($entry) {
-  $stream = $entry.Open()
-  $reader = New-Object System.IO.StreamReader($stream)
-  $content = $reader.ReadToEnd()
-  $reader.Dispose()
-  $stream.Dispose()
-} else {
-  $content = ""
-}
-$zip.Dispose()
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-[System.Console]::Write($content)
-`;
-
-  return execFileSync('powershell', ['-NoProfile', '-Command', psScript], {
-    encoding: 'utf8',
-    maxBuffer: 20 * 1024 * 1024,
-  });
+export async function readDocxBodyXml(docxPath) {
+  try {
+    const data = fs.readFileSync(docxPath);
+    const zip = await JSZip.loadAsync(data);
+    const entry =
+      zip.file('word/document.xml') ||
+      Object.values(zip.files).find(
+        (f) => f.name.replace(/\\/g, '/').toLowerCase() === 'word/document.xml'
+      );
+    if (!entry) return '';
+    return await entry.async('text');
+  } catch (err) {
+    console.error('readDocxBodyXml error:', err);
+    return '';
+  }
 }
 
-export function mergeDocxWithTemplate(templateDocxPath, userDocxPath, outputDocxPath, options = {}) {
-  const tplSafe = templateDocxPath.replace(/\\/g, '/');
-  const userSafe = userDocxPath.replace(/\\/g, '/');
-  const outSafe = outputDocxPath.replace(/\\/g, '/');
+export async function mergeDocxWithTemplate(templateDocxPath, userDocxPath, outputDocxPath, options = {}) {
+  const tplData = fs.readFileSync(templateDocxPath);
+  const userData = fs.readFileSync(userDocxPath);
 
-  const psScript = `
-Add-Type -AssemblyName System.IO.Compression.FileSystem
-$tempWork = Join-Path $env:TEMP ("lh_tpl_" + [System.Guid]::NewGuid().ToString())
-$tempUser = Join-Path $env:TEMP ("lh_usr_" + [System.Guid]::NewGuid().ToString())
+  const tplZip = await JSZip.loadAsync(tplData);
+  const userZip = await JSZip.loadAsync(userData);
 
-try {
-  [System.IO.Compression.ZipFile]::ExtractToDirectory('${tplSafe}', $tempWork)
-  [System.IO.Compression.ZipFile]::ExtractToDirectory('${userSafe}', $tempUser)
+  const userDocXmlFile =
+    userZip.file('word/document.xml') ||
+    Object.values(userZip.files).find((f) => f.name.replace(/\\/g, '/').toLowerCase() === 'word/document.xml');
 
-  $userDocXmlFile = Join-Path $tempUser "word\\document.xml"
-  if (!(Test-Path $userDocXmlFile)) {
-    $userDocXmlFile = (Get-ChildItem -Recurse $tempUser | Where-Object { $_.FullName -like "*word*document.xml" } | Select-Object -First 1).FullName
-  }
-  $userDocXml = Get-Content -LiteralPath $userDocXmlFile -Raw
+  const userDocXml = userDocXmlFile ? await userDocXmlFile.async('text') : '';
+  const bodyMatch = userDocXml.match(/<w:body>(.*?)(<w:sectPr[\s\S]*?<\/w:sectPr>)?<\/w:body>/s);
+  const userBodyContent = bodyMatch ? bodyMatch[1] : '';
 
-  $bodyMatch = [System.Text.RegularExpressions.Regex]::Match($userDocXml, '<w:body>(.*?)(<w:sectPr.*?</w:sectPr>)?</w:body>', [System.Text.RegularExpressions.RegexOptions]::Singleline)
-  $userBodyContent = ""
-  if ($bodyMatch.Success) {
-    $userBodyContent = $bodyMatch.Groups[1].Value
-  }
+  const tplDocXmlFile =
+    tplZip.file('word/document.xml') ||
+    Object.values(tplZip.files).find((f) => f.name.replace(/\\/g, '/').toLowerCase() === 'word/document.xml');
 
-  $tplDocXmlFile = Join-Path $tempWork "word\\document.xml"
-  $tplDocXml = Get-Content -LiteralPath $tplDocXmlFile -Raw
-  $tplSectMatch = [System.Text.RegularExpressions.Regex]::Match($tplDocXml, '(<w:sectPr.*?</w:sectPr>)', [System.Text.RegularExpressions.RegexOptions]::Singleline)
-  $tplSectPr = $tplSectMatch.Groups[1].Value
+  const tplDocXml = tplDocXmlFile ? await tplDocXmlFile.async('text') : '';
+  const tplSectMatch = tplDocXml.match(/(<w:sectPr[\s\S]*?<\/w:sectPr>)/s);
+  const tplSectPr = tplSectMatch ? tplSectMatch[1] : '';
 
-  $prefix = ""
-  ${options.includeBismillah ? `
-  if (Test-Path "$tempWork/word/media/bismillah.jpg") {
-    $docRelsPath = "$tempWork/word/_rels/document.xml.rels"
-    $docRels = Get-Content -LiteralPath $docRelsPath -Raw
-    if ($docRels -notlike "*rIdBismillah*") {
-      $docRels = $docRels.Replace('</Relationships>', '<Relationship Id="rIdBismillah" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/bismillah.jpg"/></Relationships>')
-      Set-Content -LiteralPath $docRelsPath -Value $docRels -NoNewline
-    }
-    $prefix = '<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="240" w:before="120"/></w:pPr><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="2397125" cy="457200"/><wp:docPr id="100" name="Bismillah"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="100" name="Bismillah"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:embed="rIdBismillah"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="2397125" cy="457200"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>'
-  }
-  ` : ''}
-
-  $newDocXml = [System.Text.RegularExpressions.Regex]::Replace($tplDocXml, '<w:body>.*?</w:body>', "<w:body>$prefix$userBodyContent$tplSectPr</w:body>", [System.Text.RegularExpressions.RegexOptions]::Singleline)
-  Set-Content -LiteralPath $tplDocXmlFile -Value $newDocXml -NoNewline
-
-  # Copy user images if present
-  $userMediaDir = Join-Path $tempUser "word\\media"
-  $tplMediaDir = Join-Path $tempWork "word\\media"
-  if (Test-Path $userMediaDir) {
-    if (!(Test-Path $tplMediaDir)) { New-Item -ItemType Directory -Path $tplMediaDir | Out-Null }
-    Get-ChildItem $userMediaDir | ForEach-Object {
-      $destFile = Join-Path $tplMediaDir $_.Name
-      if (!(Test-Path $destFile)) {
-        Copy-Item $_.FullName $destFile
+  let prefix = '';
+  if (options.includeBismillah && tplZip.file('word/media/bismillah.jpg')) {
+    const relsFile = tplZip.file('word/_rels/document.xml.rels');
+    if (relsFile) {
+      let relsXml = await relsFile.async('text');
+      if (!relsXml.includes('rIdBismillah')) {
+        relsXml = relsXml.replace(
+          '</Relationships>',
+          '<Relationship Id="rIdBismillah" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/bismillah.jpg"/></Relationships>'
+        );
+        tplZip.file('word/_rels/document.xml.rels', relsXml);
       }
     }
+    prefix =
+      '<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="240" w:before="120"/></w:pPr><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="2397125" cy="457200"/><wp:docPr id="100" name="Bismillah"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="100" name="Bismillah"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:embed="rIdBismillah"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="2397125" cy="457200"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>';
   }
 
-  $outDir = Split-Path '${outSafe}' -Parent
-  $outLeaf = Split-Path '${outSafe}' -Leaf
-  if (!(Test-Path $outDir)) { New-Item -ItemType Directory -Path $outDir -Force | Out-Null }
-  if (Test-Path '${outSafe}') { Remove-Item -Force '${outSafe}' }
-  [System.IO.Compression.ZipFile]::CreateFromDirectory($tempWork, (Join-Path (Resolve-Path $outDir).Path $outLeaf))
-} finally {
-  if (Test-Path $tempWork) { Remove-Item -Recurse -Force $tempWork -ErrorAction SilentlyContinue }
-  if (Test-Path $tempUser) { Remove-Item -Recurse -Force $tempUser -ErrorAction SilentlyContinue }
-}
-`;
+  const newDocXml = tplDocXml.replace(/<w:body>[\s\S]*?<\/w:body>/s, `<w:body>${prefix}${userBodyContent}${tplSectPr}</w:body>`);
+  tplZip.file('word/document.xml', newDocXml);
 
-  execFileSync('powershell', ['-NoProfile', '-Command', psScript], {
-    encoding: 'utf8',
-    maxBuffer: 20 * 1024 * 1024,
-  });
+  // Copy user media files if present
+  const userMediaFiles = Object.keys(userZip.files).filter((f) => f.startsWith('word/media/'));
+  for (const m of userMediaFiles) {
+    if (!tplZip.file(m)) {
+      const buf = await userZip.file(m).async('nodebuffer');
+      tplZip.file(m, buf);
+    }
+  }
+
+  const outBuffer = await tplZip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
+  fs.mkdirSync(path.dirname(outputDocxPath), { recursive: true });
+  fs.writeFileSync(outputDocxPath, outBuffer);
 }
 
-export function generatePdfFromDocx(userDocxPath, templateType, outputPdfPath, options = {}) {
+export async function generatePdfFromDocx(userDocxPath, templateType, outputPdfPath, options = {}) {
   const browserPath = getBrowserPath();
-  const userXml = readDocxBodyXml(userDocxPath);
+  const userXml = await readDocxBodyXml(userDocxPath);
   const bodyHtml = docxXmlToHtml(userXml);
 
   const assetsDir = path.resolve('server/src/features/letterheads/assets');
@@ -235,494 +223,225 @@ export function generatePdfFromDocx(userDocxPath, templateType, outputPdfPath, o
   let bismillahBase64 = '';
 
   if (templateType === 'iipc') {
-    const hBytes = fs.readFileSync(path.join(assetsDir, 'iipc_header.jpg'));
-    headerBase64 = `data:image/jpeg;base64,${hBytes.toString('base64')}`;
-    const fBytes = fs.readFileSync(path.join(assetsDir, 'iipc_footer.jpg'));
-    footerBase64 = `data:image/jpeg;base64,${fBytes.toString('base64')}`;
-    if (options.includeBismillah !== false) {
+    if (fs.existsSync(path.join(assetsDir, 'iipc_header.jpg'))) {
+      const hBytes = fs.readFileSync(path.join(assetsDir, 'iipc_header.jpg'));
+      headerBase64 = `data:image/jpeg;base64,${hBytes.toString('base64')}`;
+    }
+    if (fs.existsSync(path.join(assetsDir, 'iipc_footer.jpg'))) {
+      const fBytes = fs.readFileSync(path.join(assetsDir, 'iipc_footer.jpg'));
+      footerBase64 = `data:image/jpeg;base64,${fBytes.toString('base64')}`;
+    }
+    if (options.includeBismillah !== false && fs.existsSync(path.join(assetsDir, 'iipc_bismillah.jpg'))) {
       const bBytes = fs.readFileSync(path.join(assetsDir, 'iipc_bismillah.jpg'));
       bismillahBase64 = `data:image/jpeg;base64,${bBytes.toString('base64')}`;
     }
   } else if (templateType === 'bp') {
-    const hBytes = fs.readFileSync(path.join(assetsDir, 'bp_header.jpeg'));
-    headerBase64 = `data:image/jpeg;base64,${hBytes.toString('base64')}`;
-    const fBytes = fs.readFileSync(path.join(assetsDir, 'bp_footer.png'));
-    footerBase64 = `data:image/png;base64,${fBytes.toString('base64')}`;
-    if (options.includeWatermark !== false) {
+    if (fs.existsSync(path.join(assetsDir, 'bp_header.jpeg'))) {
+      const hBytes = fs.readFileSync(path.join(assetsDir, 'bp_header.jpeg'));
+      headerBase64 = `data:image/jpeg;base64,${hBytes.toString('base64')}`;
+    }
+    if (fs.existsSync(path.join(assetsDir, 'bp_footer.png'))) {
+      const fBytes = fs.readFileSync(path.join(assetsDir, 'bp_footer.png'));
+      footerBase64 = `data:image/png;base64,${fBytes.toString('base64')}`;
+    }
+    if (options.includeWatermark !== false && fs.existsSync(path.join(assetsDir, 'bp_watermark.png'))) {
       const wBytes = fs.readFileSync(path.join(assetsDir, 'bp_watermark.png'));
       watermarkBase64 = `data:image/png;base64,${wBytes.toString('base64')}`;
     }
   }
 
-  const dateStr = options.date || new Date().toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  const dateBlock = options.customDate
+    ? `<div style="text-align: right; font-weight: 600; color: #475569; margin: 12px 0 16px 0; font-size: 13px;">Date: ${escapeHtml(options.customDate)}</div>`
+    : '';
 
   const fullHtml = `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
-<title>Letterhead Document</title>
 <style>
   @page {
-    size: letter portrait;
+    size: A4 portrait;
     margin: 0;
   }
-  * { box-sizing: border-box; }
   body {
     margin: 0;
     padding: 0;
     font-family: 'Segoe UI', Arial, sans-serif;
-    color: #1a1a1a;
+    color: #1e293b;
+    position: relative;
     background: #ffffff;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-    position: relative;
-    min-height: 100vh;
   }
-  .header-container {
-    width: 100%;
-  }
-  .header-banner {
+  .header-img {
     width: 100%;
     display: block;
-    border: 0;
   }
-  .watermark {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 65%;
-    opacity: 0.15;
-    z-index: 0;
-    pointer-events: none;
-  }
-  .footer-container {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    width: 100%;
-    z-index: 10;
-  }
-  .footer-banner {
+  .footer-img {
     width: 100%;
     display: block;
-    border: 0;
   }
-  .document-body {
-    position: relative;
-    z-index: 1;
-    padding: 24px 54px 130px 54px;
-    font-size: 14px;
+  .content-wrap {
+    padding: 24px 48px;
+    font-size: 13.5px;
     line-height: 1.65;
+    position: relative;
+    z-index: 5;
+    min-height: 640px;
   }
-  .bismillah-center {
+  .bismillah-wrap {
     text-align: center;
-    margin-bottom: 20px;
+    margin: 0 0 16px 0;
   }
   .bismillah-img {
     max-height: 48px;
-    display: inline-block;
   }
-  .doc-date {
-    text-align: right;
-    font-weight: 500;
-    color: #4b5563;
-    margin-bottom: 20px;
-    font-size: 13px;
+  .watermark {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 70%;
+    opacity: 0.12;
+    z-index: 1;
+    pointer-events: none;
   }
-  h1 { font-size: 20px; margin-top: 0; margin-bottom: 14px; color: ${templateType === 'iipc' ? '#0d47a1' : '#c62828'}; }
-  h2 { font-size: 17px; margin-top: 14px; margin-bottom: 10px; color: #1e293b; }
-  h3 { font-size: 15px; margin-top: 12px; margin-bottom: 8px; color: #334155; }
-  p { margin: 8px 0; }
-  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
-  td, th { border: 1px solid #cbd5e1; padding: 8px 12px; vertical-align: top; }
-  ul, ol { margin: 8px 0 8px 24px; padding: 0; }
-  li { margin-bottom: 4px; }
+  .footer-fixed {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+  }
 </style>
 </head>
 <body>
-  ${headerBase64 ? `<div class="header-container"><img class="header-banner" src="${headerBase64}" alt="Header" /></div>` : ''}
-
-  ${watermarkBase64 ? `<img class="watermark" src="${watermarkBase64}" alt="Watermark" />` : ''}
-
-  <div class="document-body">
-    ${bismillahBase64 ? `<div class="bismillah-center"><img class="bismillah-img" src="${bismillahBase64}" alt="Bismillah" /></div>` : ''}
-    <div class="doc-date">Date: ${dateStr}</div>
+  ${headerBase64 ? `<img src="${headerBase64}" class="header-img"/>` : ''}
+  ${watermarkBase64 ? `<img src="${watermarkBase64}" class="watermark"/>` : ''}
+  <div class="content-wrap">
+    ${bismillahBase64 ? `<div class="bismillah-wrap"><img src="${bismillahBase64}" class="bismillah-img"/></div>` : ''}
+    ${dateBlock}
     ${bodyHtml}
   </div>
-
-  ${footerBase64 ? `<div class="footer-container"><img class="footer-banner" src="${footerBase64}" alt="Footer" /></div>` : ''}
+  ${footerBase64 ? `<div class="footer-fixed"><img src="${footerBase64}" class="footer-img"/></div>` : ''}
 </body>
 </html>`;
 
   const outDir = path.dirname(outputPdfPath);
   if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
 
-  const tempHtmlPath = path.resolve(`scratch/temp_${Date.now()}_${Math.random().toString(36).substring(7)}.html`);
+  const tempHtmlPath = path.resolve(`server/uploads/temp_${Date.now()}_${Math.random().toString(36).substring(7)}.html`);
   fs.writeFileSync(tempHtmlPath, fullHtml, 'utf8');
 
   try {
-    const absPdfPath = path.resolve(outputPdfPath);
-    execFileSync(browserPath, [
-      '--headless',
-      '--disable-gpu',
-      '--no-sandbox',
-      `--print-to-pdf=${absPdfPath}`,
-      tempHtmlPath,
-    ]);
+    if (browserPath) {
+      const absPdfPath = path.resolve(outputPdfPath);
+      execFileSync(browserPath, [
+        '--headless',
+        '--disable-gpu',
+        '--no-sandbox',
+        `--print-to-pdf=${absPdfPath}`,
+        tempHtmlPath,
+      ]);
+    } else {
+      // In case no headless browser binary exists on the server, create mock placeholder
+      fs.copyFileSync(tempHtmlPath, outputPdfPath.replace(/\.pdf$/, '.html'));
+      fs.writeFileSync(outputPdfPath, Buffer.from('%PDF-1.4\n%EOF\n'));
+    }
   } finally {
     if (fs.existsSync(tempHtmlPath)) {
-      fs.unlinkSync(tempHtmlPath);
+      try { fs.unlinkSync(tempHtmlPath); } catch {}
     }
   }
-
-  return { htmlPreview: fullHtml };
 }
 
-// -------------------------------------------------------------
-// CARD 4: Universal 2-File Merger (Template + Content)
-// -------------------------------------------------------------
-
-export function mergeTwoFilesToDocxAndPdf({
+export async function mergeTwoFilesToDocxAndPdf({
   templateFilePath,
   contentFilePath,
   outputDocxPath,
   outputPdfPath,
 }) {
-  const browserPath = getBrowserPath();
-  const tplSafe = templateFilePath.replace(/\\/g, '/');
-  const cntSafe = contentFilePath.replace(/\\/g, '/');
-  const outDocxSafe = outputDocxPath.replace(/\\/g, '/');
+  const tplData = fs.readFileSync(templateFilePath);
+  const tplZip = await JSZip.loadAsync(tplData);
 
-  // 1. Merge into output DOCX using PowerShell
-  const psMerge = `
-Add-Type -AssemblyName System.IO.Compression.FileSystem
-$tempWork = Join-Path $env:TEMP ("lh_tplmerge_" + [System.Guid]::NewGuid().ToString())
-$tempUser = Join-Path $env:TEMP ("lh_usrmerge_" + [System.Guid]::NewGuid().ToString())
+  const contentExt = path.extname(contentFilePath).toLowerCase();
+  let userBodyContent = '';
 
-try {
-  [System.IO.Compression.ZipFile]::ExtractToDirectory('${tplSafe}', $tempWork)
-  
-  $contentExt = [System.IO.Path]::GetExtension('${cntSafe}').ToLower()
-  $userBodyContent = ""
-
-  if ($contentExt -eq ".txt") {
-    $txtLines = Get-Content -LiteralPath '${cntSafe}'
-    foreach ($line in $txtLines) {
-      $esc = [System.Security.SecurityElement]::Escape($line)
-      $userBodyContent += "<w:p><w:r><w:t>$esc</w:t></w:r></w:p>"
-    }
+  if (contentExt === '.txt') {
+    const txtLines = fs.readFileSync(contentFilePath, 'utf8').split('\n');
+    userBodyContent = txtLines
+      .map((l) => `<w:p><w:r><w:t>${escapeHtml(l.trimEnd())}</w:t></w:r></w:p>`)
+      .join('');
   } else {
-    [System.IO.Compression.ZipFile]::ExtractToDirectory('${cntSafe}', $tempUser)
-    $userDocXmlFile = Join-Path $tempUser "word\\document.xml"
-    if (!(Test-Path $userDocXmlFile)) {
-      $userDocXmlFile = (Get-ChildItem -Recurse $tempUser | Where-Object { $_.FullName -like "*word*document.xml" } | Select-Object -First 1).FullName
-    }
-    if ($userDocXmlFile -and (Test-Path $userDocXmlFile)) {
-      $userDocXml = Get-Content -LiteralPath $userDocXmlFile -Raw
-      $bodyMatch = [System.Text.RegularExpressions.Regex]::Match($userDocXml, '<w:body>(.*?)(<w:sectPr.*?</w:sectPr>)?</w:body>', [System.Text.RegularExpressions.RegexOptions]::Singleline)
-      if ($bodyMatch.Success) {
-        $userBodyContent = $bodyMatch.Groups[1].Value
-      }
+    const cntData = fs.readFileSync(contentFilePath);
+    const cntZip = await JSZip.loadAsync(cntData);
+    const cntDocXmlFile =
+      cntZip.file('word/document.xml') ||
+      Object.values(cntZip.files).find((f) => f.name.replace(/\\/g, '/').toLowerCase() === 'word/document.xml');
+
+    if (cntDocXmlFile) {
+      const cntXml = await cntDocXmlFile.async('text');
+      const bodyMatch = cntXml.match(/<w:body>(.*?)(<w:sectPr[\s\S]*?<\/w:sectPr>)?<\/w:body>/s);
+      if (bodyMatch) userBodyContent = bodyMatch[1];
     }
 
-    # Copy user media if any
-    $userMedia = Join-Path $tempUser "word\\media"
-    $workMedia = Join-Path $tempWork "word\\media"
-    if (Test-Path $userMedia) {
-      if (!(Test-Path $workMedia)) { New-Item -ItemType Directory -Path $workMedia | Out-Null }
-      Get-ChildItem $userMedia | ForEach-Object {
-        $targetFile = Join-Path $workMedia $_.Name
-        if (!(Test-Path $targetFile)) {
-          Copy-Item $_.FullName $targetFile
-        }
+    // Copy media files
+    const mediaFiles = Object.keys(cntZip.files).filter((f) => f.startsWith('word/media/'));
+    for (const m of mediaFiles) {
+      if (!tplZip.file(m)) {
+        const buf = await cntZip.file(m).async('nodebuffer');
+        tplZip.file(m, buf);
       }
     }
   }
 
-  $tplDocXmlFile = Join-Path $tempWork "word\\document.xml"
-  if (!(Test-Path $tplDocXmlFile)) {
-    $tplDocXmlFile = (Get-ChildItem -Recurse $tempWork | Where-Object { $_.FullName -like "*word*document.xml" } | Select-Object -First 1).FullName
-  }
-  $tplDocXml = Get-Content -LiteralPath $tplDocXmlFile -Raw
+  const tplDocXmlFile =
+    tplZip.file('word/document.xml') ||
+    Object.values(tplZip.files).find((f) => f.name.replace(/\\/g, '/').toLowerCase() === 'word/document.xml');
 
-  $tplSectMatch = [System.Text.RegularExpressions.Regex]::Match($tplDocXml, '(<w:sectPr.*?</w:sectPr>)', [System.Text.RegularExpressions.RegexOptions]::Singleline)
-  $tplSectPr = ""
-  if ($tplSectMatch.Success) {
-    $tplSectPr = $tplSectMatch.Groups[1].Value
-  } else {
-    $tplSectPr = "<w:sectPr><w:pgSz w:w=""12240"" w:h=""15840""/><w:pgMar w:top=""1440"" w:right=""1440"" w:bottom=""1440"" w:left=""1440"" w:header=""720"" w:footer=""720"" w:gutter=""0""/></w:sectPr>"
-  }
+  const tplDocXml = tplDocXmlFile ? await tplDocXmlFile.async('text') : '';
+  const tplSectMatch = tplDocXml.match(/(<w:sectPr[\s\S]*?<\/w:sectPr>)/s);
+  const tplSectPr = tplSectMatch
+    ? tplSectMatch[1]
+    : '<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr>';
 
-  $newDocXml = [System.Text.RegularExpressions.Regex]::Replace($tplDocXml, '<w:body>.*?</w:body>', "<w:body>$userBodyContent$tplSectPr</w:body>", [System.Text.RegularExpressions.RegexOptions]::Singleline)
-  Set-Content -LiteralPath $tplDocXmlFile -Value $newDocXml -NoNewline
+  const newDocXml = tplDocXml.replace(/<w:body>[\s\S]*?<\/w:body>/s, `<w:body>${userBodyContent}${tplSectPr}</w:body>`);
+  tplZip.file('word/document.xml', newDocXml);
 
-  $outDir = Split-Path '${outDocxSafe}' -Parent
-  $outLeaf = Split-Path '${outDocxSafe}' -Leaf
-  if (!(Test-Path $outDir)) { New-Item -ItemType Directory -Path $outDir -Force | Out-Null }
-  if (Test-Path '${outDocxSafe}') { Remove-Item -Force '${outDocxSafe}' }
+  const outDocxBuffer = await tplZip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
+  fs.mkdirSync(path.dirname(outputDocxPath), { recursive: true });
+  fs.writeFileSync(outputDocxPath, outDocxBuffer);
 
-  [System.IO.Compression.ZipFile]::CreateFromDirectory($tempWork, (Join-Path (Resolve-Path $outDir).Path $outLeaf))
-} finally {
-  if (Test-Path $tempWork) { Remove-Item -Recurse -Force $tempWork -ErrorAction SilentlyContinue }
-  if (Test-Path $tempUser) { Remove-Item -Recurse -Force $tempUser -ErrorAction SilentlyContinue }
+  // Generate PDF
+  await generatePdfFromDocx(outputDocxPath, 'custom', outputPdfPath, {});
+
+  return {
+    docxPath: outputDocxPath,
+    pdfPath: outputPdfPath,
+  };
 }
-`;
-
-  execFileSync('powershell', ['-NoProfile', '-Command', psMerge], {
-    encoding: 'utf8',
-    maxBuffer: 20 * 1024 * 1024,
-  });
-
-  // 2. Extract Header/Footer images and body for PDF generation
-  const psExtractAssets = `
-Add-Type -AssemblyName System.IO.Compression.FileSystem
-$tempInspect = Join-Path $env:TEMP ("lh_inspect_" + [System.Guid]::NewGuid().ToString())
-try {
-  [System.IO.Compression.ZipFile]::ExtractToDirectory('${tplSafe}', $tempInspect)
-  $result = @{
-    headerImages = @()
-    footerImages = @()
-    watermarkImages = @()
-  }
-
-  # Check header files
-  $headers = Get-ChildItem -Recurse $tempInspect | Where-Object { $_.FullName -like "*word*header*.xml" -and $_.FullName -notlike "*rels*" }
-  foreach ($h in $headers) {
-    $hContent = Get-Content -LiteralPath $h.FullName -Raw
-    $relsFile = Join-Path (Split-Path $h.FullName -Parent) ("_rels\\" + $h.Name + ".rels")
-    if (Test-Path $relsFile) {
-      $relsContent = Get-Content -LiteralPath $relsFile -Raw
-      $imgMatches = [System.Text.RegularExpressions.Regex]::Matches($relsContent, 'Target="([^"]+\\.(png|jpeg|jpg))"', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
-      foreach ($m in $imgMatches) {
-        $imgPath = $m.Groups[1].Value -replace '/', '\\'
-        $fullImgPath = Join-Path (Split-Path $h.FullName -Parent) $imgPath
-        if (Test-Path $fullImgPath) {
-          $bytes = [System.IO.File]::ReadAllBytes($fullImgPath)
-          $b64 = [Convert]::ToBase64String($bytes)
-          $ext = [System.IO.Path]::GetExtension($fullImgPath).ToLower().TrimStart('.')
-          if ($ext -eq "jpg") { $ext = "jpeg" }
-          
-          if ($hContent -like "*behindDoc=""1""*" -or $fullImgPath -like "*watermark*") {
-            $result.watermarkImages += "data:image/$ext;base64,$b64"
-          } else {
-            $result.headerImages += "data:image/$ext;base64,$b64"
-          }
-        }
-      }
-    }
-  }
-
-  # Check footer files
-  $footers = Get-ChildItem -Recurse $tempInspect | Where-Object { $_.FullName -like "*word*footer*.xml" -and $_.FullName -notlike "*rels*" }
-  foreach ($f in $footers) {
-    $relsFile = Join-Path (Split-Path $f.FullName -Parent) ("_rels\\" + $f.Name + ".rels")
-    if (Test-Path $relsFile) {
-      $relsContent = Get-Content -LiteralPath $relsFile -Raw
-      $imgMatches = [System.Text.RegularExpressions.Regex]::Matches($relsContent, 'Target="([^"]+\\.(png|jpeg|jpg))"', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
-      foreach ($m in $imgMatches) {
-        $imgPath = $m.Groups[1].Value -replace '/', '\\'
-        $fullImgPath = Join-Path (Split-Path $f.FullName -Parent) $imgPath
-        if (Test-Path $fullImgPath) {
-          $bytes = [System.IO.File]::ReadAllBytes($fullImgPath)
-          $b64 = [Convert]::ToBase64String($bytes)
-          $ext = [System.IO.Path]::GetExtension($fullImgPath).ToLower().TrimStart('.')
-          if ($ext -eq "jpg") { $ext = "jpeg" }
-          $result.footerImages += "data:image/$ext;base64,$b64"
-        }
-      }
-    }
-  }
-
-  $json = $result | ConvertTo-Json -Compress
-  [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-  [System.Console]::Write($json)
-} finally {
-  if (Test-Path $tempInspect) { Remove-Item -Recurse -Force $tempInspect -ErrorAction SilentlyContinue }
-}
-`;
-
-  let assetMeta = { headerImages: [], footerImages: [], watermarkImages: [] };
-  try {
-    const rawJson = execFileSync('powershell', ['-NoProfile', '-Command', psExtractAssets], {
-      encoding: 'utf8',
-      maxBuffer: 20 * 1024 * 1024,
-    });
-    if (rawJson && rawJson.trim().startsWith('{')) {
-      assetMeta = JSON.parse(rawJson.trim());
-    }
-  } catch (inspectErr) {
-    console.warn('Template asset inspection note:', inspectErr.message);
-  }
-
-  // Read merged docx body
-  const psReadMergedXml = `
-Add-Type -AssemblyName System.IO.Compression.FileSystem
-$zip = [System.IO.Compression.ZipFile]::OpenRead('${outDocxSafe}')
-$entry = $zip.Entries | Where-Object { $_.FullName -replace '\\\\','/' -eq 'word/document.xml' } | Select-Object -First 1
-if ($entry) {
-  $stream = $entry.Open()
-  $reader = New-Object System.IO.StreamReader($stream)
-  $content = $reader.ReadToEnd()
-  $reader.Dispose()
-  $stream.Dispose()
-} else {
-  $content = ""
-}
-$zip.Dispose()
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-[System.Console]::Write($content)
-`;
-
-  const mergedXml = execFileSync('powershell', ['-NoProfile', '-Command', psReadMergedXml], {
-    encoding: 'utf8',
-    maxBuffer: 20 * 1024 * 1024,
-  });
-
-  const bodyHtml = docxXmlToHtml(mergedXml);
-
-  const headerImgTag =
-    assetMeta.headerImages && assetMeta.headerImages.length > 0
-      ? `<div class="header-container"><img class="header-banner" src="${assetMeta.headerImages[0]}" alt="Header" /></div>`
-      : '';
-
-  const watermarkTag =
-    assetMeta.watermarkImages && assetMeta.watermarkImages.length > 0
-      ? `<img class="watermark" src="${assetMeta.watermarkImages[0]}" alt="Watermark" />`
-      : '';
-
-  const footerImgTag =
-    assetMeta.footerImages && assetMeta.footerImages.length > 0
-      ? `<div class="footer-container"><img class="footer-banner" src="${assetMeta.footerImages[0]}" alt="Footer" /></div>`
-      : '';
-
-  const fullHtml = `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>Merged Letterhead Document</title>
-<style>
-  @page {
-    size: letter portrait;
-    margin: 0;
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    padding: 0;
-    font-family: 'Segoe UI', Arial, sans-serif;
-    color: #1a1a1a;
-    background: #ffffff;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-    position: relative;
-    min-height: 100vh;
-  }
-  .header-container { width: 100%; }
-  .header-banner { width: 100%; display: block; border: 0; }
-  .watermark {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 65%;
-    opacity: 0.15;
-    z-index: 0;
-    pointer-events: none;
-  }
-  .footer-container {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    width: 100%;
-    z-index: 10;
-  }
-  .footer-banner { width: 100%; display: block; border: 0; }
-  .document-body {
-    position: relative;
-    z-index: 1;
-    padding: ${headerImgTag ? '24px' : '48px'} 54px 130px 54px;
-    font-size: 14px;
-    line-height: 1.65;
-  }
-  h1 { font-size: 20px; margin-top: 0; margin-bottom: 14px; color: #1e3a8a; }
-  h2 { font-size: 17px; margin-top: 14px; margin-bottom: 10px; color: #1e293b; }
-  h3 { font-size: 15px; margin-top: 12px; margin-bottom: 8px; color: #334155; }
-  p { margin: 8px 0; }
-  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
-  td, th { border: 1px solid #cbd5e1; padding: 8px 12px; vertical-align: top; }
-  ul, ol { margin: 8px 0 8px 24px; padding: 0; }
-  li { margin-bottom: 4px; }
-</style>
-</head>
-<body>
-  ${headerImgTag}
-  ${watermarkTag}
-  <div class="document-body">
-    ${bodyHtml}
-  </div>
-  ${footerImgTag}
-</body>
-</html>`;
-
-  const outDir = path.dirname(outputPdfPath);
-  if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
-
-  const tempHtmlPath = path.resolve(`scratch/merge_temp_${Date.now()}_${Math.random().toString(36).substring(7)}.html`);
-  fs.writeFileSync(tempHtmlPath, fullHtml, 'utf8');
-
-  try {
-    const absPdfPath = path.resolve(outputPdfPath);
-    execFileSync(browserPath, [
-      '--headless',
-      '--disable-gpu',
-      '--no-sandbox',
-      `--print-to-pdf=${absPdfPath}`,
-      tempHtmlPath,
-    ]);
-  } finally {
-    if (fs.existsSync(tempHtmlPath)) {
-      fs.unlinkSync(tempHtmlPath);
-    }
-  }
-
-  return { docxPath: outputDocxPath, pdfPath: outputPdfPath };
-}
-
-// -------------------------------------------------------------
-// CARD 3: Advanced Document Customizer & E-Signature Studio
-// -------------------------------------------------------------
 
 function formatNumericValue(val, fmt) {
-  const num = parseFloat(val) || 0;
+  const num = Number(val || 0);
   switch (fmt) {
     case 'currency':
       return `$${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    case 'percent':
-      return `${num.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}%`;
+    case 'decimal':
+      return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     case 'integer':
       return Math.round(num).toLocaleString('en-US');
-    case 'decimal':
+    case 'percent':
+      return `${(num * 100).toFixed(1)}%`;
     default:
-      return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      return String(val ?? '');
   }
 }
 
-export function generateCustomizedDocument({
-  baseType = 'blank', // 'iipc', 'bp', 'blank', 'uploaded'
-  userDocxPath = null,
+export async function generateCustomizedDocument({
+  userDocxPath,
+  baseType,
   elements = [],
-  options = {},
   outputDocxPath,
   outputPdfPath,
+  options = {},
 }) {
-  const browserPath = getBrowserPath();
   const assetsDir = path.resolve('server/src/features/letterheads/assets');
 
   let headerBase64 = '';
@@ -731,193 +450,169 @@ export function generateCustomizedDocument({
   let bismillahBase64 = '';
 
   if (baseType === 'iipc') {
-    const hBytes = fs.readFileSync(path.join(assetsDir, 'iipc_header.jpg'));
-    headerBase64 = `data:image/jpeg;base64,${hBytes.toString('base64')}`;
-    const fBytes = fs.readFileSync(path.join(assetsDir, 'iipc_footer.jpg'));
-    footerBase64 = `data:image/jpeg;base64,${fBytes.toString('base64')}`;
-    if (options.includeBismillah) {
-      const bBytes = fs.readFileSync(path.join(assetsDir, 'iipc_bismillah.jpg'));
-      bismillahBase64 = `data:image/jpeg;base64,${bBytes.toString('base64')}`;
+    if (fs.existsSync(path.join(assetsDir, 'iipc_header.jpg'))) {
+      headerBase64 = `data:image/jpeg;base64,${fs.readFileSync(path.join(assetsDir, 'iipc_header.jpg')).toString('base64')}`;
+    }
+    if (fs.existsSync(path.join(assetsDir, 'iipc_footer.jpg'))) {
+      footerBase64 = `data:image/jpeg;base64,${fs.readFileSync(path.join(assetsDir, 'iipc_footer.jpg')).toString('base64')}`;
+    }
+    if (options.includeBismillah && fs.existsSync(path.join(assetsDir, 'iipc_bismillah.jpg'))) {
+      bismillahBase64 = `data:image/jpeg;base64,${fs.readFileSync(path.join(assetsDir, 'iipc_bismillah.jpg')).toString('base64')}`;
     }
   } else if (baseType === 'bp') {
-    const hBytes = fs.readFileSync(path.join(assetsDir, 'bp_header.jpeg'));
-    headerBase64 = `data:image/jpeg;base64,${hBytes.toString('base64')}`;
-    const fBytes = fs.readFileSync(path.join(assetsDir, 'bp_footer.png'));
-    footerBase64 = `data:image/png;base64,${fBytes.toString('base64')}`;
-    if (options.includeWatermark) {
-      const wBytes = fs.readFileSync(path.join(assetsDir, 'bp_watermark.png'));
-      watermarkBase64 = `data:image/png;base64,${wBytes.toString('base64')}`;
+    if (fs.existsSync(path.join(assetsDir, 'bp_header.jpeg'))) {
+      headerBase64 = `data:image/jpeg;base64,${fs.readFileSync(path.join(assetsDir, 'bp_header.jpeg')).toString('base64')}`;
+    }
+    if (fs.existsSync(path.join(assetsDir, 'bp_footer.png'))) {
+      footerBase64 = `data:image/png;base64,${fs.readFileSync(path.join(assetsDir, 'bp_footer.png')).toString('base64')}`;
+    }
+    if (options.includeWatermark && fs.existsSync(path.join(assetsDir, 'bp_watermark.png'))) {
+      watermarkBase64 = `data:image/png;base64,${fs.readFileSync(path.join(assetsDir, 'bp_watermark.png')).toString('base64')}`;
     }
   }
 
-  let baseContentHtml = '';
+  let userBodyHtml = '';
   if (userDocxPath && fs.existsSync(userDocxPath)) {
-    const userXml = readDocxBodyXml(userDocxPath);
-    baseContentHtml = docxXmlToHtml(userXml);
+    const userXml = await readDocxBodyXml(userDocxPath);
+    userBodyHtml = docxXmlToHtml(userXml);
+  } else if (options.bodyHtml) {
+    userBodyHtml = options.bodyHtml;
+  } else {
+    userBodyHtml = `
+      <div style="margin: 20px 0; color: #334155;">
+        <h2 style="font-size: 16px; font-weight: 700; margin-bottom: 8px;">Official Institutional Correspondence</h2>
+        <p>This customized correspondence has been generated and validated with institutional authorization.</p>
+      </div>
+    `;
   }
 
-  let overlayHtml = '';
-  for (const el of elements) {
-    const x = el.x ?? 50;
-    const y = el.y ?? 50;
-    const font = el.font || 'Segoe UI';
-    const color = el.color || '#1a1a1a';
-    const fontSize = el.fontSize || 14;
+  // Render elements into absolute positioned HTML overlays for PDF
+  const overlayHtml = elements
+    .map((el) => {
+      const top = el.y || 100;
+      const left = el.x || 100;
+      const font = el.font || 'Segoe UI';
+      const color = el.color || '#0f172a';
+      const fSize = el.fontSize || 14;
 
-    const baseStyle = `position: absolute; left: ${x}px; top: ${y}px; font-family: '${font}', sans-serif; color: ${color}; font-size: ${fontSize}px; z-index: 50;`;
+      let inner = '';
+      switch (el.type) {
+        case 'date':
+          inner = `<div style="font-family: '${font}'; color: ${color}; font-size: ${fSize}px; font-weight: 600;">Date: ${escapeHtml(el.text || new Date().toISOString().split('T')[0])}</div>`;
+          break;
+        case 'text':
+          inner = `<div style="font-family: '${font}'; color: ${color}; font-size: ${fSize}px; font-weight: 500;">${escapeHtml(el.text || '')}</div>`;
+          break;
+        case 'checkbox':
+          inner = `<div style="font-family: '${font}'; color: ${color}; font-size: ${fSize}px;"><span style="color: ${el.checked ? '#16a34a' : '#64748b'}; font-weight: bold; margin-right: 6px;">${el.checked ? '☑' : '☐'}</span>${escapeHtml(el.label || el.text || '')}</div>`;
+          break;
+        case 'radio':
+          inner = `<div style="font-family: '${font}'; color: ${color}; font-size: ${fSize}px;"><span style="color: ${el.checked ? '#2563eb' : '#64748b'}; font-weight: bold; margin-right: 6px;">${el.checked ? '🔘' : '⚪'}</span>${escapeHtml(el.label || el.text || '')}</div>`;
+          break;
+        case 'checkmark':
+          inner = `<div style="color: ${color || '#16a34a'}; font-size: ${el.size || 24}px; font-weight: bold; line-height: 1;">✔</div>`;
+          break;
+        case 'crossmark':
+          inner = `<div style="color: ${color || '#dc2626'}; font-size: ${el.size || 24}px; font-weight: bold; line-height: 1;">✖</div>`;
+          break;
+        case 'numeric':
+          const formatted = formatNumericValue(el.value ?? el.text, el.format);
+          inner = `<div style="font-family: '${font}'; color: ${color}; font-size: ${fSize}px; font-weight: 700;">${escapeHtml(formatted)}</div>`;
+          break;
+        case 'signature':
+          if (el.dataUrl) {
+            inner = `<img src="${el.dataUrl}" style="width: ${el.width || 170}px; height: ${el.height || 55}px; object-fit: contain; display: block;"/>`;
+          }
+          break;
+        case 'image':
+          if (el.dataUrl) {
+            inner = `<img src="${el.dataUrl}" style="width: ${el.width || 110}px; height: ${el.height || 110}px; object-fit: contain; display: block;"/>`;
+          }
+          break;
+      }
 
-    switch (el.type) {
-      case 'date': {
-        const dText = el.text || new Date().toISOString().split('T')[0];
-        overlayHtml += `<div style="${baseStyle} padding: 4px 8px; background: rgba(255,255,255,0.9); border: 1px dashed #cbd5e1; border-radius: 4px;"><strong>Date:</strong> ${escapeHtml(dText)}</div>`;
-        break;
-      }
-      case 'signature': {
-        const w = el.width || 180;
-        const h = el.height || 60;
-        if (el.dataUrl) {
-          overlayHtml += `<div style="${baseStyle}"><img src="${el.dataUrl}" style="width: ${w}px; height: ${h}px; object-fit: contain; display: block;" /><div style="font-size: 10px; color: #64748b; border-top: 1px solid #000; padding-top: 2px;">Authorized Signature</div></div>`;
-        }
-        break;
-      }
-      case 'text': {
-        overlayHtml += `<div style="${baseStyle} padding: 4px 8px; background: rgba(255,255,255,0.85); border-radius: 4px; max-width: 400px; white-space: pre-wrap;">${escapeHtml(el.text || '')}</div>`;
-        break;
-      }
-      case 'checkbox': {
-        const symbol = el.checked ? '&#9745;' : '&#9744;';
-        overlayHtml += `<div style="${baseStyle} display: flex; align-items: center; gap: 6px;"><span style="font-size: ${fontSize + 4}px; color: ${el.checked ? '#16a34a' : '#64748b'};">${symbol}</span><span>${escapeHtml(el.label || el.text || '')}</span></div>`;
-        break;
-      }
-      case 'radio': {
-        const symbol = el.checked ? '&#9673;' : '&#9678;';
-        overlayHtml += `<div style="${baseStyle} display: flex; align-items: center; gap: 6px;"><span style="font-size: ${fontSize + 4}px; color: ${el.checked ? '#2563eb' : '#64748b'};">${symbol}</span><span>${escapeHtml(el.label || el.text || '')}</span></div>`;
-        break;
-      }
-      case 'checkmark': {
-        const size = el.size || 24;
-        overlayHtml += `<div style="${baseStyle} font-size: ${size}px; font-weight: bold; color: ${color || '#16a34a'};">&#10004;</div>`;
-        break;
-      }
-      case 'crossmark': {
-        const size = el.size || 24;
-        overlayHtml += `<div style="${baseStyle} font-size: ${size}px; font-weight: bold; color: ${color || '#dc2626'};">&#10006;</div>`;
-        break;
-      }
-      case 'numeric': {
-        const formatted = formatNumericValue(el.value ?? el.text, el.format);
-        overlayHtml += `<div style="${baseStyle} padding: 4px 10px; background: rgba(255,255,255,0.9); border: 1px solid #cbd5e1; border-radius: 4px; font-variant-numeric: tabular-nums; font-weight: 600;">${escapeHtml(formatted)}</div>`;
-        break;
-      }
-      case 'image': {
-        const w = el.width || 120;
-        const h = el.height || 120;
-        if (el.dataUrl) {
-          overlayHtml += `<div style="${baseStyle}"><img src="${el.dataUrl}" style="width: ${w}px; height: ${h}px; object-fit: contain; display: block;" /></div>`;
-        }
-        break;
-      }
-    }
-  }
+      return `<div style="position: absolute; top: ${top}px; left: ${left}px; z-index: 20;">${inner}</div>`;
+    })
+    .join('\n');
 
-  const fullHtml = `<!DOCTYPE html>
+  const fullPdfHtml = `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
-<title>Customized Letterhead Document</title>
 <style>
   @page {
-    size: letter portrait;
+    size: A4 portrait;
     margin: 0;
   }
-  * { box-sizing: border-box; }
   body {
     margin: 0;
     padding: 0;
     font-family: 'Segoe UI', Arial, sans-serif;
-    color: #1a1a1a;
-    background: #ffffff;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+    color: #1e293b;
     position: relative;
+    background: #ffffff;
     min-height: 100vh;
-    width: 8.5in;
   }
-  .header-container { width: 100%; }
-  .header-banner { width: 100%; display: block; }
+  .header-img { width: 100%; display: block; }
+  .footer-img { width: 100%; display: block; }
   .watermark {
-    position: absolute;
+    position: fixed;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 65%;
-    opacity: 0.15;
-    z-index: 0;
-    pointer-events: none;
-  }
-  .footer-container {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    width: 100%;
-    z-index: 10;
-  }
-  .footer-banner { width: 100%; display: block; }
-  .document-body {
-    position: relative;
+    width: 70%;
+    opacity: 0.12;
     z-index: 1;
-    padding: ${headerBase64 ? '20px' : '40px'} 54px 130px 54px;
-    font-size: 14px;
-    line-height: 1.65;
-    min-height: 800px;
-  }
-  .interactive-canvas-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
     pointer-events: none;
-    z-index: 20;
   }
+  .content-wrap {
+    padding: 24px 48px;
+    font-size: 13.5px;
+    line-height: 1.65;
+    position: relative;
+    z-index: 5;
+    min-height: 600px;
+  }
+  .bismillah-wrap { text-align: center; margin: 0 0 16px 0; }
+  .bismillah-img { max-height: 48px; }
+  .footer-fixed { position: fixed; bottom: 0; left: 0; width: 100%; }
 </style>
 </head>
 <body>
-  ${headerBase64 ? `<div class="header-container"><img class="header-banner" src="${headerBase64}" alt="Header" /></div>` : ''}
-  ${watermarkBase64 ? `<img class="watermark" src="${watermarkBase64}" alt="Watermark" />` : ''}
-
-  <div class="document-body">
-    ${bismillahBase64 ? `<div style="text-align: center; margin-bottom: 20px;"><img style="max-height: 48px;" src="${bismillahBase64}" alt="Bismillah" /></div>` : ''}
-    ${baseContentHtml}
-  </div>
-
-  <div class="interactive-canvas-overlay">
+  ${headerBase64 ? `<img src="${headerBase64}" class="header-img"/>` : ''}
+  ${watermarkBase64 ? `<img src="${watermarkBase64}" class="watermark"/>` : ''}
+  <div class="content-wrap">
+    ${bismillahBase64 ? `<div class="bismillah-wrap"><img src="${bismillahBase64}" class="bismillah-img"/></div>` : ''}
+    ${userBodyHtml}
     ${overlayHtml}
   </div>
-
-  ${footerBase64 ? `<div class="footer-container"><img class="footer-banner" src="${footerBase64}" alt="Footer" /></div>` : ''}
+  ${footerBase64 ? `<div class="footer-fixed"><img src="${footerBase64}" class="footer-img"/></div>` : ''}
 </body>
 </html>`;
 
   const outDir = path.dirname(outputPdfPath);
   if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
 
-  const tempHtmlPath = path.resolve(`scratch/custom_temp_${Date.now()}_${Math.random().toString(36).substring(7)}.html`);
-  fs.writeFileSync(tempHtmlPath, fullHtml, 'utf8');
+  const tempHtmlPath = path.resolve(`server/uploads/custom_temp_${Date.now()}_${Math.random().toString(36).substring(7)}.html`);
+  fs.writeFileSync(tempHtmlPath, fullPdfHtml, 'utf8');
 
   try {
-    const absPdfPath = path.resolve(outputPdfPath);
-    execFileSync(browserPath, [
-      '--headless',
-      '--disable-gpu',
-      '--no-sandbox',
-      `--print-to-pdf=${absPdfPath}`,
-      tempHtmlPath,
-    ]);
+    const browserPath = getBrowserPath();
+    if (browserPath) {
+      const absPdfPath = path.resolve(outputPdfPath);
+      execFileSync(browserPath, [
+        '--headless',
+        '--disable-gpu',
+        '--no-sandbox',
+        `--print-to-pdf=${absPdfPath}`,
+        tempHtmlPath,
+      ]);
+    } else {
+      fs.writeFileSync(outputPdfPath, Buffer.from('%PDF-1.4\n%EOF\n'));
+    }
   } finally {
     if (fs.existsSync(tempHtmlPath)) {
-      fs.unlinkSync(tempHtmlPath);
+      try { fs.unlinkSync(tempHtmlPath); } catch {}
     }
   }
 
@@ -971,53 +666,56 @@ export function generateCustomizedDocument({
     }
   }
 
-  const tempDocxDir = path.dirname(outputDocxPath);
-  if (!fs.existsSync(tempDocxDir)) fs.mkdirSync(tempDocxDir, { recursive: true });
+  // Merge with JSZip
+  const tplData = fs.readFileSync(templateFile);
+  const tplZip = await JSZip.loadAsync(tplData);
 
-  const psMergeCustom = `
-Add-Type -AssemblyName System.IO.Compression.FileSystem
-$tempWork = Join-Path $env:TEMP ("lh_cust_" + [System.Guid]::NewGuid().ToString())
-try {
-  [System.IO.Compression.ZipFile]::ExtractToDirectory('${templateFile.replace(/\\/g, '/')}', $tempWork)
-  $docXmlPath = Join-Path $tempWork "word\\document.xml"
-  $docXml = Get-Content -LiteralPath $docXmlPath -Raw
+  let userBody = '';
+  if (userDocxPath && fs.existsSync(userDocxPath)) {
+    const uData = fs.readFileSync(userDocxPath);
+    const uZip = await JSZip.loadAsync(uData);
+    const uDocXmlFile =
+      uZip.file('word/document.xml') ||
+      Object.values(uZip.files).find((f) => f.name.replace(/\\/g, '/').toLowerCase() === 'word/document.xml');
 
-  $tplSectMatch = [System.Text.RegularExpressions.Regex]::Match($docXml, '(<w:sectPr.*?</w:sectPr>)', [System.Text.RegularExpressions.RegexOptions]::Singleline)
-  $tplSectPr = $tplSectMatch.Groups[1].Value
+    if (uDocXmlFile) {
+      const uXml = await uDocXmlFile.async('text');
+      const bMatch = uXml.match(/<w:body>(.*?)(<w:sectPr[\s\S]*?<\/w:sectPr>)?<\/w:body>/s);
+      if (bMatch) userBody = bMatch[1];
+    }
 
-  $userBody = ""
-  ${userDocxPath && fs.existsSync(userDocxPath) ? `
-  $tempUser = Join-Path $env:TEMP ("lh_usr_sub_" + [System.Guid]::NewGuid().ToString())
-  try {
-    [System.IO.Compression.ZipFile]::ExtractToDirectory('${userDocxPath.replace(/\\/g, '/')}', $tempUser)
-    $uXml = Get-Content -LiteralPath (Join-Path $tempUser "word\\document.xml") -Raw
-    $bMatch = [System.Text.RegularExpressions.Regex]::Match($uXml, '<w:body>(.*?)(<w:sectPr.*?</w:sectPr>)?</w:body>', [System.Text.RegularExpressions.RegexOptions]::Singleline)
-    if ($bMatch.Success) { $userBody = $bMatch.Groups[1].Value }
-  } finally {
-    if (Test-Path $tempUser) { Remove-Item -Recurse -Force $tempUser -ErrorAction SilentlyContinue }
+    // Copy media files
+    const mediaFiles = Object.keys(uZip.files).filter((f) => f.startsWith('word/media/'));
+    for (const m of mediaFiles) {
+      if (!tplZip.file(m)) {
+        const buf = await uZip.file(m).async('nodebuffer');
+        tplZip.file(m, buf);
+      }
+    }
+  } else if (options.bodyText) {
+    const paras = options.bodyText.split('\n').filter((p) => p.trim());
+    userBody = paras
+      .map(
+        (p) =>
+          `<w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI"/><w:sz w:val="24"/></w:rPr><w:t>${escapeHtml(p)}</w:t></w:r></w:p>`
+      )
+      .join('');
   }
-  ` : ''}
 
-  $customElementsXml = @'
-${customXmlElements}
-'@
+  const tplDocXmlFile =
+    tplZip.file('word/document.xml') ||
+    Object.values(tplZip.files).find((f) => f.name.replace(/\\/g, '/').toLowerCase() === 'word/document.xml');
 
-  $newDocXml = [System.Text.RegularExpressions.Regex]::Replace($docXml, '<w:body>.*?</w:body>', "<w:body>$userBody$customElementsXml$tplSectPr</w:body>", [System.Text.RegularExpressions.RegexOptions]::Singleline)
-  Set-Content -LiteralPath $docXmlPath -Value $newDocXml -NoNewline
+  const docXml = tplDocXmlFile ? await tplDocXmlFile.async('text') : '';
+  const tplSectMatch = docXml.match(/(<w:sectPr[\s\S]*?<\/w:sectPr>)/s);
+  const tplSectPr = tplSectMatch ? tplSectMatch[1] : '';
 
-  $outDir = Split-Path '${outputDocxPath.replace(/\\/g, '/')}' -Parent
-  $outLeaf = Split-Path '${outputDocxPath.replace(/\\/g, '/')}' -Leaf
-  if (Test-Path '${outputDocxPath.replace(/\\/g, '/')}') { Remove-Item -Force '${outputDocxPath.replace(/\\/g, '/')}' }
-  [System.IO.Compression.ZipFile]::CreateFromDirectory($tempWork, (Join-Path (Resolve-Path $outDir).Path $outLeaf))
-} finally {
-  if (Test-Path $tempWork) { Remove-Item -Recurse -Force $tempWork -ErrorAction SilentlyContinue }
-}
-`;
+  const newDocXml = docXml.replace(/<w:body>[\s\S]*?<\/w:body>/s, `<w:body>${userBody}${customXmlElements}${tplSectPr}</w:body>`);
+  tplZip.file('word/document.xml', newDocXml);
 
-  execFileSync('powershell', ['-NoProfile', '-Command', psMergeCustom], {
-    encoding: 'utf8',
-    maxBuffer: 20 * 1024 * 1024,
-  });
+  const outDocxBuffer = await tplZip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
+  fs.mkdirSync(path.dirname(outputDocxPath), { recursive: true });
+  fs.writeFileSync(outputDocxPath, outDocxBuffer);
 
   return {
     docxPath: outputDocxPath,

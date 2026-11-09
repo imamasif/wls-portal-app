@@ -19,6 +19,7 @@
     "country-state-city": "^3.2.1",
     "date-holidays": "^3.36.1",
     "dayjs": "^1.11.23",
+    "jszip": "^3.10.2",
     "lucide-react": "^1.46.0",
     "mantine-datatable": "^9.4.0",
     "react": "^19.2.0",

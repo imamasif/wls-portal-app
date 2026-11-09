@@ -87,13 +87,13 @@ router.post('/generate', upload.single('file'), requireSuperUser, async (req, re
     const outputPdfPath = path.join(generatedDir, `${docId}.pdf`);
 
     // 1. Merge docx with letterhead
-    mergeDocxWithTemplate(templatePath, req.file.path, outputDocxPath, {
+    await mergeDocxWithTemplate(templatePath, req.file.path, outputDocxPath, {
       includeBismillah,
       includeWatermark,
     });
 
     // 2. Generate PDF conversion
-    generatePdfFromDocx(req.file.path, templateType, outputPdfPath, {
+    await generatePdfFromDocx(req.file.path, templateType, outputPdfPath, {
       includeBismillah,
       includeWatermark,
       date: customDate,
@@ -149,7 +149,7 @@ router.post('/customize', upload.single('file'), requireSuperUser, async (req, r
 
     const userDocxPath = req.file ? req.file.path : null;
 
-    generateCustomizedDocument({
+    await generateCustomizedDocument({
       baseType,
       userDocxPath,
       elements,
@@ -205,7 +205,7 @@ router.post(
       const outputDocxPath = path.join(generatedDir, `${docId}.docx`);
       const outputPdfPath = path.join(generatedDir, `${docId}.pdf`);
 
-      mergeTwoFilesToDocxAndPdf({
+      await mergeTwoFilesToDocxAndPdf({
         templateFilePath: templateFile.path,
         contentFilePath: contentFile.path,
         outputDocxPath,
