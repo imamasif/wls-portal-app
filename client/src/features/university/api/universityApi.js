@@ -58,9 +58,33 @@ export const universityApi = {
     return res.data?.data || res.data;
   },
 
+  // 3b. Batches (Year Cohorts)
+  getBatches: async (departmentId) => {
+    const params = departmentId ? { departmentId } : {};
+    const res = await axios.get(`${API_BASE}/batches`, { params });
+    return res.data?.data || res.data;
+  },
+
+  createBatch: async (payload) => {
+    const res = await axios.post(`${API_BASE}/batches`, payload);
+    return res.data?.data || res.data;
+  },
+
+  updateBatch: async (id, payload) => {
+    const res = await axios.put(`${API_BASE}/batches/${id}`, payload);
+    return res.data?.data || res.data;
+  },
+
+  deleteBatch: async (id) => {
+    const res = await axios.delete(`${API_BASE}/batches/${id}`);
+    return res.data?.data || res.data;
+  },
+
   // 4. Semesters
-  getSemesters: async (departmentId) => {
-    const res = await axios.get(`${API_BASE}/departments/${departmentId}/semesters`);
+  getSemesters: async (departmentId, batchId) => {
+    const params = {};
+    if (batchId) params.batchId = batchId;
+    const res = await axios.get(`${API_BASE}/departments/${departmentId}/semesters`, { params });
     return res.data?.data || res.data;
   },
 

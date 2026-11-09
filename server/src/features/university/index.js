@@ -7,6 +7,7 @@ const router = Router();
 export {
   UniversityModel,
   DepartmentModel,
+  BatchModel,
   SemesterModel,
   CourseModel,
   LectureModel,
@@ -32,6 +33,12 @@ router.get("/university-summary", UniversityController.getPortalSummary);
 // University Profile
 router.get("/", UniversityController.getUniversity);
 router.put("/:id", UniversityController.updateUniversity);
+
+// Batches (Year Cohorts)
+router.get("/batches", UniversityController.listBatches);
+router.post("/batches", UniversityController.createBatch);
+router.put("/batches/:id", UniversityController.updateBatch);
+router.delete("/batches/:id", UniversityController.deleteBatch);
 
 // Departments
 router.get("/departments", UniversityController.listDepartments);

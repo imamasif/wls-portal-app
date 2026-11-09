@@ -1444,6 +1444,7 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
                   enrollment?.departmentId?.name ||
                   "Quranic Studies"}
               </strong>{" "}
+              | Batch: <strong>{enrollment?.batchName || `Batch ${enrollment?.batchYear || 2026}`}</strong>{" "}
               | Current Semester:{" "}
               <strong>Semester {enrollment?.currentSemesterNumber || 1}</strong>
             </Text>

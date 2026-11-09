@@ -8,7 +8,12 @@ const UniversitySchema = new mongoose.Schema(
       required: true,
       trim: true,
       unique: true,
-      default: "International Islamic Propagation Center (IIPC) University",
+      default: "IIPC - International Islamic Propagation Center Canada University",
+    },
+    viceChancellor: {
+      type: String,
+      trim: true,
+      default: "Muhammad Shaikh",
     },
     code: {
       type: String,
@@ -53,6 +58,46 @@ const DepartmentSchema = new mongoose.Schema(
 );
 DepartmentSchema.index({ universityId: 1, code: 1 }, { unique: true });
 
+// 2b. BATCH (YEAR COHORT) MODEL
+const BatchSchema = new mongoose.Schema(
+  {
+    universityId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "University",
+      required: true,
+    },
+    departmentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "UniversityDepartment",
+      required: true,
+    },
+    year: {
+      type: Number,
+      required: true,
+      default: 2026,
+    },
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+      default: "Batch 2026",
+    },
+    code: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      default: "B-2026",
+    },
+    startDate: { type: Date },
+    endDate: { type: Date },
+    totalSemesters: { type: Number, default: 4 },
+    isActive: { type: Boolean, default: true },
+    isGraduated: { type: Boolean, default: false },
+  },
+  { timestamps: true }
+);
+BatchSchema.index({ departmentId: 1, year: 1 }, { unique: true });
+
 // 3. SEMESTER MODEL
 const SemesterSchema = new mongoose.Schema(
   {
@@ -65,6 +110,14 @@ const SemesterSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "UniversityDepartment",
       required: true,
+    },
+    batchId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "UniversityBatch",
+    },
+    batchYear: {
+      type: Number,
+      default: 2026,
     },
     semesterNumber: { type: Number, required: true, min: 1, max: 12 },
     title: { type: String, required: true, trim: true }, // e.g. "Semester 1 - Foundation"
@@ -155,6 +208,18 @@ const StudentEnrollmentSchema = new mongoose.Schema(
       ref: "UniversityDepartment",
       required: true,
     },
+    batchId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "UniversityBatch",
+    },
+    batchYear: {
+      type: Number,
+      default: 2026,
+    },
+    batchName: {
+      type: String,
+      default: "Batch 2026",
+    },
     currentSemesterId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "UniversitySemester",
@@ -179,7 +244,7 @@ const StudentEnrollmentSchema = new mongoose.Schema(
   { timestamps: true }
 );
 StudentEnrollmentSchema.index(
-  { studentId: 1, departmentId: 1 },
+  { studentId: 1, departmentId: 1, batchId: 1 },
   { unique: true }
 );
 
@@ -345,6 +410,10 @@ UniversityMessageSchema.index({
 
 export const UniversityModel =
   mongoose.models.University || mongoose.model("University", UniversitySchema);
+
+export const BatchModel =
+  mongoose.models.UniversityBatch ||
+  mongoose.model("UniversityBatch", BatchSchema);
 
 export const DepartmentModel =
   mongoose.models.UniversityDepartment ||

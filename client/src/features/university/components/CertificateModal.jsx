@@ -68,7 +68,7 @@ export function CertificateModal({ certificate, opened, onClose }) {
             c="blue.9"
             style={{ letterSpacing: "2px" }}
           >
-            International Islamic Propagation Center Canada
+            IIPC - International Islamic Propagation Center Canada University
           </Text>
           <Title
             order={2}
@@ -80,7 +80,7 @@ export function CertificateModal({ certificate, opened, onClose }) {
               marginBottom: "8px",
             }}
           >
-            IIPC UNIVERSITY
+            OFFICIAL CERTIFICATION BOARD
           </Title>
 
           <Divider
@@ -145,13 +145,13 @@ export function CertificateModal({ certificate, opened, onClose }) {
                   color: "#1e3a8a",
                 }}
               >
-                M. Shaikh
+                Muhammad Shaikh
               </Box>
               <Text size="xs" fw={700} c="gray.8">
-                Dean of Academic Affairs
+                Vice Chancellor
               </Text>
               <Text size="10px" c="dimmed">
-                IIPC University
+                Muhammad Shaikh
               </Text>
             </Stack>
 

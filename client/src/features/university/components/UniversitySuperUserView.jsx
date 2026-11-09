@@ -81,6 +81,19 @@ export function UniversitySuperUserView({ currentUser }) {
   const [certificates, setCertificates] = useState([]);
   const [usersList, setUsersList] = useState([]);
   const [quizzesList, setQuizzesList] = useState([]);
+  const [batches, setBatches] = useState([]);
+  const [selectedBatchId, setSelectedBatchId] = useState(null);
+  const [batchModalOpened, setBatchModalOpened] = useState(false);
+  const [batchForm, setBatchForm] = useState({
+    year: 2027,
+    name: "Batch 2027",
+    startDate: "",
+    endDate: "",
+  });
+  const [savingBatch, setSavingBatch] = useState(false);
+  const [filterBatchId, setFilterBatchId] = useState("");
+  const [selectedEnrollBatchId, setSelectedEnrollBatchId] = useState("");
+
 
   // Department Deletion Safety & Eligibility Modal States
   const [deleteDeptModalOpened, setDeleteDeptModalOpened] = useState(false);
@@ -138,6 +151,7 @@ export function UniversitySuperUserView({ currentUser }) {
   const [editingItem, setEditingItem] = useState(null);
   const [uniForm, setUniForm] = useState({
     name: "",
+    viceChancellor: "Muhammad Shaikh",
     code: "",
     description: "",
     address: "",
@@ -283,17 +297,23 @@ export function UniversitySuperUserView({ currentUser }) {
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [sumRes, deptsRes, enrollsRes, certsRes] = await Promise.all([
+      const [sumRes, deptsRes, enrollsRes, certsRes, batchesRes] = await Promise.all([
         universityApi.getPortalSummary(),
         universityApi.getDepartments(),
         universityApi.getEnrollments(),
         universityApi.getCertificates(),
+        universityApi.getBatches(),
       ]);
 
       setSummary(sumRes);
       setDepartments(deptsRes || []);
       setEnrollments(enrollsRes || []);
       setCertificates(certsRes || []);
+      setBatches(batchesRes || []);
+      if (batchesRes && batchesRes.length > 0 && !selectedBatchId) {
+        setSelectedBatchId(batchesRes[0]._id || batchesRes[0].id);
+        setSelectedEnrollBatchId(batchesRes[0]._id || batchesRes[0].id);
+      }
 
       if (deptsRes && deptsRes.length > 0 && !selectedDeptId) {
         setSelectedDeptId(deptsRes[0]._id || deptsRes[0].id);
@@ -302,6 +322,7 @@ export function UniversitySuperUserView({ currentUser }) {
       if (sumRes?.university) {
         setUniForm({
           name: sumRes.university.name || "",
+          viceChancellor: sumRes.university.viceChancellor || "Muhammad Shaikh",
           code: sumRes.university.code || "",
           description: sumRes.university.description || "",
           address: sumRes.university.address || "",
@@ -339,12 +360,25 @@ export function UniversitySuperUserView({ currentUser }) {
     loadAll();
   }, []);
 
-  // When selected department changes, load its semesters and courses
+  // When selected department or batch changes, load batches, semesters, and courses
   useEffect(() => {
     if (!selectedDeptId) return;
 
     universityApi
-      .getSemesters(selectedDeptId)
+      .getBatches(selectedDeptId)
+      .then((bList) => {
+        setBatches(bList || []);
+        if (bList && bList.length > 0) {
+          const activeBatch = bList.find((b) => b.isActive) || bList[0];
+          const curBatchId = selectedBatchId || activeBatch._id || activeBatch.id;
+          setSelectedBatchId(curBatchId);
+          setSelectedEnrollBatchId(curBatchId);
+        }
+      })
+      .catch((err) => console.error("Error loading batches:", err));
+
+    universityApi
+      .getSemesters(selectedDeptId, selectedBatchId)
       .then((sems) => {
         setSemesters(sems || []);
         if (sems && sems.length > 0) {
@@ -356,7 +390,7 @@ export function UniversitySuperUserView({ currentUser }) {
       .catch((err) => console.error("Error loading semesters:", err));
 
     universityApi
-      .getCourses({ departmentId: selectedDeptId })
+      .getCourses({ departmentId: selectedDeptId, batchId: selectedBatchId })
       .then((cList) => {
         setCourses(cList || []);
         if (cList && cList.length > 0) {
@@ -366,7 +400,7 @@ export function UniversitySuperUserView({ currentUser }) {
         }
       })
       .catch((err) => console.error("Error loading courses:", err));
-  }, [selectedDeptId]);
+  }, [selectedDeptId, selectedBatchId]);
 
   // When selected course changes, load its lectures
   useEffect(() => {
@@ -509,6 +543,34 @@ export function UniversitySuperUserView({ currentUser }) {
       loadAll();
     } catch (err) {
       showNotification(err.response?.data?.message || err.message, "error");
+    }
+  };
+
+
+  // --- Handlers: Batches (Annual Cohorts) ---
+  const handleSaveBatch = async () => {
+    if (!selectedDeptId) {
+      showNotification("Please select a department first.", "error");
+      return;
+    }
+    try {
+      setSavingBatch(true);
+      await universityApi.createBatch({
+        ...batchForm,
+        departmentId: selectedDeptId,
+      });
+      showNotification(`Batch ${batchForm.year} created successfully with curriculum intact!`);
+      setBatchModalOpened(false);
+      const bList = await universityApi.getBatches(selectedDeptId);
+      setBatches(bList || []);
+      if (bList && bList.length > 0) {
+        setSelectedBatchId(bList[0]._id || bList[0].id);
+      }
+      loadAll();
+    } catch (err) {
+      showNotification(err.response?.data?.message || err.message, "error");
+    } finally {
+      setSavingBatch(false);
     }
   };
 
@@ -666,6 +728,7 @@ export function UniversitySuperUserView({ currentUser }) {
       const res = await universityApi.batchEnrollStudents({
         studentIds: selectedStudentIds,
         departmentIds: selectedEnrollDepartmentIds,
+        batchId: selectedEnrollBatchId || undefined,
       });
 
       showNotification(
@@ -704,6 +767,7 @@ export function UniversitySuperUserView({ currentUser }) {
         email: newStudentForm.email.trim(),
         phone: newStudentForm.phone.trim(),
         departmentIds: newStudentForm.departmentIds,
+        batchId: selectedEnrollBatchId || undefined,
       });
 
       showNotification(
@@ -862,8 +926,13 @@ export function UniversitySuperUserView({ currentUser }) {
               </Badge>
             </Group>
             <Title order={2} style={{ color: "#ffffff", letterSpacing: "-0.5px" }}>
-              {summary?.university?.name || "IIPC University Portal"}
+              {summary?.university?.name || "IIPC - International Islamic Propagation Center Canada University"}
             </Title>
+            <Group gap="xs" mt={2}>
+              <Badge color="yellow" variant="light" size="sm">
+                Vice Chancellor: {summary?.university?.viceChancellor || uniForm.viceChancellor || "Muhammad Shaikh"}
+              </Badge>
+            </Group>
             <Text size="sm" c="gray.3" maw={700}>
               {summary?.university?.description}
             </Text>
@@ -892,13 +961,21 @@ export function UniversitySuperUserView({ currentUser }) {
         </Group>
 
         {/* Aggregate KPI counters */}
-        <SimpleGrid cols={{ base: 2, sm: 5 }} mt="xl" spacing="sm">
+        <SimpleGrid cols={{ base: 2, sm: 6 }} mt="xl" spacing="sm">
           <Card p="xs" radius="md" bg="rgba(255,255,255,0.08)" c="white">
             <Text size="xs" c="gray.3" tt="uppercase" fw={600}>
               Departments
             </Text>
             <Title order={3} mt={4}>
               {summary?.totalDepartments || 0}
+            </Title>
+          </Card>
+          <Card p="xs" radius="md" bg="rgba(255,255,255,0.08)" c="white">
+            <Text size="xs" c="gray.3" tt="uppercase" fw={600}>
+              Batches
+            </Text>
+            <Title order={3} mt={4}>
+              {summary?.totalBatches || batches.length || 0}
             </Title>
           </Card>
           <Card p="xs" radius="md" bg="rgba(255,255,255,0.08)" c="white">
@@ -1077,47 +1154,131 @@ export function UniversitySuperUserView({ currentUser }) {
             </SimpleGrid>
           </Paper>
 
-          {/* Department Semesters Overview */}
+          {/* Batches (Admission Year Cohorts) & Semesters Hierarchy */}
           {selectedDeptId && (
-            <Paper p="md" radius="md" withBorder bg="white">
-              <Group justify="space-between" mb="sm">
-                <Title order={4}>Semesters in Selected Department</Title>
-                <Badge color="indigo" variant="outline">
-                  {semesters.length} Semesters Generated
-                </Badge>
-              </Group>
-
-              <SimpleGrid cols={{ base: 2, sm: 4, md: 8 }} spacing="xs">
-                {semesters.map((sem) => (
-                  <Card
-                    key={sem._id || sem.id}
-                    p="xs"
-                    radius="md"
-                    withBorder
-                    style={{
-                      textAlign: "center",
-                      backgroundColor:
-                        (sem._id || sem.id) === selectedSemesterId
-                          ? "#eff6ff"
-                          : "#fafafa",
-                      borderColor:
-                        (sem._id || sem.id) === selectedSemesterId
-                          ? "#2563eb"
-                          : "#e2e8f0",
-                      cursor: "pointer",
+            <Stack gap="md">
+              {/* Batches Section */}
+              <Paper p="md" radius="md" withBorder bg="white">
+                <Group justify="space-between" mb="sm">
+                  <Stack gap={2}>
+                    <Group gap="xs">
+                      <IconCalendar size={18} color="#4f46e5" />
+                      <Title order={4}>
+                        Batches (Year Cohorts) for {departments.find(d => (d._id || d.id) === selectedDeptId)?.name}
+                      </Title>
+                    </Group>
+                    <Text size="xs" c="dimmed">
+                      Each academic year introduces a new batch cohort. Courses and lecture content remain intact across all cohorts.
+                    </Text>
+                  </Stack>
+                  <Button
+                    leftSection={<IconPlus size={16} />}
+                    color="indigo"
+                    size="xs"
+                    onClick={() => {
+                      const nextYear = new Date().getFullYear() + 1;
+                      setBatchForm({
+                        year: nextYear,
+                        name: `Batch ${nextYear}`,
+                        startDate: "",
+                        endDate: "",
+                      });
+                      setBatchModalOpened(true);
                     }}
-                    onClick={() => setSelectedSemesterId(sem._id || sem.id)}
                   >
-                    <Text size="xs" fw={700} c="indigo.8">
-                      Semester {sem.semesterNumber}
+                    Add New Batch
+                  </Button>
+                </Group>
+
+                <SimpleGrid cols={{ base: 1, sm: 3, md: 4 }} spacing="sm">
+                  {batches
+                    .filter((b) => !b.departmentId || (b.departmentId._id || b.departmentId) === selectedDeptId)
+                    .map((b) => {
+                      const bId = b._id || b.id;
+                      const isSelected = selectedBatchId === bId;
+                      return (
+                        <Card
+                          key={bId}
+                          p="sm"
+                          radius="md"
+                          withBorder
+                          style={{
+                            cursor: "pointer",
+                            borderColor: isSelected ? "#4f46e5" : "#e2e8f0",
+                            backgroundColor: isSelected ? "#eef2ff" : "#ffffff",
+                            boxShadow: isSelected ? "0 4px 12px rgba(79, 70, 229, 0.15)" : "none",
+                            transition: "all 0.2s ease",
+                          }}
+                          onClick={() => {
+                            setSelectedBatchId(bId);
+                            setSelectedEnrollBatchId(bId);
+                          }}
+                        >
+                          <Group justify="space-between" mb={4}>
+                            <Badge color="indigo" variant="filled" size="sm">
+                              {b.year}
+                            </Badge>
+                            <Badge color={b.isGraduated ? "gray" : b.isActive ? "teal" : "orange"} size="xs" variant="light">
+                              {b.isGraduated ? "Graduated" : b.isActive ? "Active Batch" : "Inactive"}
+                            </Badge>
+                          </Group>
+                          <Text fw={700} size="sm" c="dark.9">
+                            {b.name || `Batch ${b.year}`}
+                          </Text>
+                          <Text size="11px" c="dimmed" mt={2}>
+                            Curriculum: {b.totalSemesters || 4} Semesters
+                          </Text>
+                        </Card>
+                      );
+                    })}
+                </SimpleGrid>
+              </Paper>
+
+              {/* Semesters in Selected Batch */}
+              <Paper p="md" radius="md" withBorder bg="white">
+                <Group justify="space-between" mb="sm">
+                  <Stack gap={2}>
+                    <Title order={4}>
+                      Semesters for {batches.find(b => (b._id || b.id) === selectedBatchId)?.name || "Active Batch"}
+                    </Title>
+                    <Text size="xs" c="dimmed">
+                      Select a semester below to view its affiliated courses and lecture materials.
                     </Text>
-                    <Text size="10px" c="dimmed">
-                      {sem.academicYear || "2026-2027"}
-                    </Text>
-                  </Card>
-                ))}
-              </SimpleGrid>
-            </Paper>
+                  </Stack>
+                  <Badge color="indigo" variant="outline">
+                    {semesters.length} Semesters
+                  </Badge>
+                </Group>
+
+                <SimpleGrid cols={{ base: 2, sm: 4, md: 8 }} spacing="xs">
+                  {semesters.map((sem) => {
+                    const isSelected = (sem._id || sem.id) === selectedSemesterId;
+                    return (
+                      <Card
+                        key={sem._id || sem.id}
+                        p="xs"
+                        radius="md"
+                        withBorder
+                        style={{
+                          textAlign: "center",
+                          backgroundColor: isSelected ? "#eff6ff" : "#fafafa",
+                          borderColor: isSelected ? "#2563eb" : "#e2e8f0",
+                          cursor: "pointer",
+                        }}
+                        onClick={() => setSelectedSemesterId(sem._id || sem.id)}
+                      >
+                        <Text size="xs" fw={700} c="indigo.8">
+                          Semester {sem.semesterNumber}
+                        </Text>
+                        <Text size="10px" c="dimmed">
+                          {sem.academicYear || "2026-2027"}
+                        </Text>
+                      </Card>
+                    );
+                  })}
+                </SimpleGrid>
+              </Paper>
+            </Stack>
           )}
         </Tabs.Panel>
 
@@ -1550,7 +1711,7 @@ export function UniversitySuperUserView({ currentUser }) {
         {/* TAB 4: ENROLLED STUDENTS & ROLL NUMBERS */}
         <Tabs.Panel value="students">
           <Paper p="md" radius="md" withBorder bg="white">
-            <Group justify="space-between" mb="md">
+            <Group justify="space-between" mb="md" wrap="wrap">
               <Stack gap={2}>
                 <Title order={4}>Enrolled Students & Roll Numbers</Title>
                 <Text size="xs" c="dimmed">
@@ -1582,6 +1743,7 @@ export function UniversitySuperUserView({ currentUser }) {
                       <Table.Th>Roll Number</Table.Th>
                       <Table.Th>Student Name</Table.Th>
                       <Table.Th>Department</Table.Th>
+                      <Table.Th>Batch</Table.Th>
                       <Table.Th>Current Semester</Table.Th>
                       <Table.Th>Status</Table.Th>
                       <Table.Th>Enrolled Date</Table.Th>
@@ -1611,6 +1773,11 @@ export function UniversitySuperUserView({ currentUser }) {
                           <Table.Td>
                             <Badge color="blue" variant="light" size="xs">
                               {en.departmentCode || en.departmentId?.code || "DEPT"}
+                            </Badge>
+                          </Table.Td>
+                          <Table.Td>
+                            <Badge color="indigo" variant="light" size="xs">
+                              {en.batchName || (en.batchYear ? `Batch ${en.batchYear}` : "Batch 2026")}
                             </Badge>
                           </Table.Td>
                           <Table.Td>
@@ -2146,6 +2313,13 @@ export function UniversitySuperUserView({ currentUser }) {
             onChange={(e) => setUniForm({ ...uniForm, name: e.target.value })}
           />
           <TextInput
+            label="Vice Chancellor"
+            placeholder="Muhammad Shaikh"
+            required
+            value={uniForm.viceChancellor}
+            onChange={(e) => setUniForm({ ...uniForm, viceChancellor: e.target.value })}
+          />
+          <TextInput
             label="Institution Code"
             required
             value={uniForm.code}
@@ -2488,6 +2662,17 @@ export function UniversitySuperUserView({ currentUser }) {
                 maxDropdownHeight={240}
               />
 
+              <Select
+                label="Assign to Batch (Year Cohort) *"
+                placeholder="Select Batch Cohort (e.g. Batch 2026)..."
+                required
+                data={batches.map((b) => ({
+                  value: b._id || b.id,
+                  label: `${b.name || `Batch ${b.year}`} (${b.year})`,
+                }))}
+                value={selectedEnrollBatchId}
+                onChange={setSelectedEnrollBatchId}
+              />
               <MultiSelect
                 label="Assign to Department(s) *"
                 placeholder="Select one or more departments (e.g. QGE, QGU)..."
@@ -2965,6 +3150,64 @@ export function UniversitySuperUserView({ currentUser }) {
 
           <Button fullWidth mt="md" color="indigo" onClick={handleSaveSemester}>
             Save Semester Details
+          </Button>
+        </Stack>
+      </Modal>
+
+
+      {/* MODAL 4: ADD BATCH COHORT */}
+      <Modal
+        opened={batchModalOpened}
+        onClose={() => setBatchModalOpened(false)}
+        title={
+          <Group gap="xs">
+            <ThemeIcon color="indigo" variant="light">
+              <IconCalendar size={18} />
+            </ThemeIcon>
+            <Text fw={700}>
+              Add New Batch Cohort for {departments.find(d => (d._id || d.id) === selectedDeptId)?.name || "Department"}
+            </Text>
+          </Group>
+        }
+        size="md"
+      >
+        <Stack gap="sm">
+          <NumberInput
+            label="Admission Year *"
+            required
+            value={batchForm.year}
+            onChange={(val) => setBatchForm({ ...batchForm, year: Number(val), name: `Batch ${val}` })}
+            min={2020}
+            max={2040}
+          />
+          <TextInput
+            label="Batch Name *"
+            required
+            placeholder="e.g. Batch 2027"
+            value={batchForm.name}
+            onChange={(e) => setBatchForm({ ...batchForm, name: e.target.value })}
+          />
+          <Group grow>
+            <TextInput
+              label="Start Date"
+              type="date"
+              value={batchForm.startDate}
+              onChange={(e) => setBatchForm({ ...batchForm, startDate: e.target.value })}
+            />
+            <TextInput
+              label="End Date"
+              type="date"
+              value={batchForm.endDate}
+              onChange={(e) => setBatchForm({ ...batchForm, endDate: e.target.value })}
+            />
+          </Group>
+          <Paper p="xs" radius="md" bg="blue.0" style={{ borderLeft: "4px solid var(--mantine-color-blue-6)" }}>
+            <Text size="xs" c="blue.9">
+              ℹ️ <strong>Curriculum & Video Integrity:</strong> All semesters, courses, and video lectures from the baseline curriculum are automatically instantiated for this batch so students have access to the full course material.
+            </Text>
+          </Paper>
+          <Button fullWidth mt="md" color="indigo" onClick={handleSaveBatch} loading={savingBatch}>
+            Create Batch & Instantiate Curriculum
           </Button>
         </Stack>
       </Modal>

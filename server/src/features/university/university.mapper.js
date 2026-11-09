@@ -1,6 +1,7 @@
 import {
   UniversityResDTO,
   DepartmentResDTO,
+  BatchResDTO,
   SemesterResDTO,
   CourseResDTO,
   LectureResDTO,
@@ -24,6 +25,16 @@ export class DepartmentMapper {
   }
   static toDTOList(docs) {
     return Array.isArray(docs) ? docs.map(DepartmentMapper.toDTO) : [];
+  }
+}
+
+export class BatchMapper {
+  static toDTO(doc) {
+    if (!doc) return null;
+    return new BatchResDTO(doc);
+  }
+  static toDTOList(docs) {
+    return Array.isArray(docs) ? docs.map(BatchMapper.toDTO) : [];
   }
 }
 

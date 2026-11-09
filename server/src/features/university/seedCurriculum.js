@@ -18,7 +18,8 @@ export async function syncUniversityCurriculum(force = false) {
     let uni = await UniversityModel.findOne({ isActive: true });
     if (!uni) {
       uni = await UniversityModel.create({
-        name: "International Islamic Propagation Center (IIPC) University",
+        name: "IIPC - International Islamic Propagation Center Canada University",
+        viceChancellor: "Muhammad Shaikh",
         code: "IIPC-U",
         description:
           "Systematic Quranic, Arabic, and Islamic Studies University offering undergraduate and certificate tracks.",

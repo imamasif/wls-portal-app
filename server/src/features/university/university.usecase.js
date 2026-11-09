@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import {
   UniversityModel,
   DepartmentModel,
+  BatchModel,
   SemesterModel,
   CourseModel,
   LectureModel,
@@ -23,8 +24,9 @@ export class UniversityUseCase {
     let uni = await UniversityModel.findOne({ isActive: true });
     if (!uni) {
       uni = await UniversityModel.create({
-        name: "International Islamic Propagation Center (IIPC) University",
+        name: "IIPC - International Islamic Propagation Center Canada University",
         code: "IIPC-U",
+        viceChancellor: "Muhammad Shaikh",
         description:
           "Systematic Quranic, Arabic, and Islamic Studies University offering undergraduate and certificate tracks.",
         foundedYear: 2026,
@@ -71,6 +73,20 @@ export class UniversityUseCase {
           isActive: true,
         });
       }
+    } else {
+      let needsSave = false;
+      if (
+        uni.name === "International Islamic Propagation Center (IIPC) University" ||
+        uni.name === "IIPC CANADA Quranic Educational University"
+      ) {
+        uni.name = "IIPC - International Islamic Propagation Center Canada University";
+        needsSave = true;
+      }
+      if (!uni.viceChancellor) {
+        uni.viceChancellor = "Muhammad Shaikh";
+        needsSave = true;
+      }
+      if (needsSave) await uni.save();
     }
     // syncUniversityCurriculum removed from auto-trigger
     return uni;
@@ -130,7 +146,25 @@ export class UniversityUseCase {
         isActive: true,
       });
     }
-    await SemesterModel.insertMany(semesterDocs);
+    // Create default Batch 2026 for this new department
+    const defaultBatch = await BatchModel.create({
+      universityId: uniId,
+      departmentId: dept._id,
+      year: 2026,
+      name: "Batch 2026",
+      code: "B-2026",
+      totalSemesters: totalSem,
+      isActive: true,
+      isGraduated: false,
+    });
+
+    // Link created semesters to default Batch 2026
+    const semesterDocsWithBatch = semesterDocs.map((s) => ({
+      ...s,
+      batchId: defaultBatch._id,
+      batchYear: 2026,
+    }));
+    await SemesterModel.insertMany(semesterDocsWithBatch);
 
     return dept;
   }
@@ -244,6 +278,7 @@ export class UniversityUseCase {
         `Cannot delete department. There are ${activeCourses.length} active course(s) and affiliated exams (${courseSummary}) assigned to this department. You must clear or reassign those courses first before deleting.`
       );
     }
+    await BatchModel.deleteMany({ departmentId: id });
     await SemesterModel.deleteMany({ departmentId: id });
     await StudentEnrollmentModel.deleteMany({ departmentId: id });
     const dept = await DepartmentModel.findByIdAndDelete(id);
@@ -252,12 +287,210 @@ export class UniversityUseCase {
   }
 
   // =========================================================================
+  // 2b. BATCHES (YEAR COHORTS)
+  // =========================================================================
+  static async getOrCreateDefaultBatches(departmentId = null) {
+    const uni = await this.getOrCreateUniversity();
+    const deptQuery = { isActive: true };
+    if (departmentId) deptQuery._id = departmentId;
+    const depts = await DepartmentModel.find(deptQuery);
+
+    for (const dept of depts) {
+      let defaultBatch = await BatchModel.findOne({ departmentId: dept._id, year: 2026 });
+      if (!defaultBatch) {
+        defaultBatch = await BatchModel.create({
+          universityId: uni._id,
+          departmentId: dept._id,
+          year: 2026,
+          name: "Batch 2026",
+          code: "B-2026",
+          totalSemesters: dept.totalSemesters || 4,
+          isActive: true,
+          isGraduated: false,
+        });
+      }
+      // Ensure existing semesters of this dept are linked to Batch 2026
+      await SemesterModel.updateMany(
+        { departmentId: dept._id, $or: [{ batchId: { $exists: false } }, { batchId: null }] },
+        { $set: { batchId: defaultBatch._id, batchYear: 2026 } }
+      );
+    }
+  }
+
+  static async listBatches(filter = {}) {
+    await this.getOrCreateDefaultBatches(filter.departmentId);
+    const query = {};
+    if (filter.departmentId) {
+      const dId = filter.departmentId?._id || filter.departmentId;
+      if (mongoose.Types.ObjectId.isValid(dId)) query.departmentId = dId;
+    }
+    if (filter.isActive !== undefined) {
+      query.isActive = filter.isActive === "true" || filter.isActive === true;
+    }
+    return await BatchModel.find(query)
+      .populate("departmentId", "name code totalSemesters")
+      .sort({ year: -1, createdAt: -1 });
+  }
+
+  static async createBatch(payload) {
+    let uniId = payload.universityId;
+    if (!uniId) {
+      const defaultUni = await this.getOrCreateUniversity();
+      uniId = defaultUni._id;
+    }
+
+    const dept = await DepartmentModel.findById(payload.departmentId);
+    if (!dept) throw new Error("Department not found for batch creation.");
+
+    const batchYear = Number(payload.year) || new Date().getFullYear();
+    const existing = await BatchModel.findOne({
+      departmentId: dept._id,
+      year: batchYear,
+    });
+    if (existing) {
+      throw new Error(`Batch for year ${batchYear} already exists in ${dept.name}.`);
+    }
+
+    const batchName = payload.name?.trim() || `Batch ${batchYear}`;
+    const batchCode = payload.code?.trim()?.toUpperCase() || `B-${batchYear}`;
+
+    const batch = await BatchModel.create({
+      universityId: uniId,
+      departmentId: dept._id,
+      year: batchYear,
+      name: batchName,
+      code: batchCode,
+      startDate: payload.startDate,
+      endDate: payload.endDate,
+      totalSemesters: dept.totalSemesters || 4,
+      isActive: true,
+      isGraduated: false,
+    });
+
+    // Instantiate semesters for this batch (Semesters 1 to dept.totalSemesters)
+    const numSemesters = dept.totalSemesters || 4;
+    const createdSemesters = [];
+    for (let s = 1; s <= numSemesters; s++) {
+      const sem = await SemesterModel.create({
+        universityId: uniId,
+        departmentId: dept._id,
+        batchId: batch._id,
+        batchYear: batch.year,
+        semesterNumber: s,
+        title: `Semester ${s}`,
+        academicYear: `${batchYear}-${batchYear + 1}`,
+        isActive: true,
+      });
+      createdSemesters.push(sem);
+    }
+
+    // Clone curriculum from baseline batch so courses and videos remain intact!
+    const baseBatch = await BatchModel.findOne({
+      departmentId: dept._id,
+      year: { $ne: batchYear },
+    }).sort({ year: 1 });
+
+    if (baseBatch) {
+      const baseSemesters = await SemesterModel.find({ batchId: baseBatch._id }).sort({ semesterNumber: 1 });
+      for (const targetSem of createdSemesters) {
+        const sourceSem = baseSemesters.find((bs) => bs.semesterNumber === targetSem.semesterNumber);
+        if (!sourceSem) continue;
+
+        const sourceCourses = await CourseModel.find({ semesterId: sourceSem._id });
+        for (const sc of sourceCourses) {
+          const clonedCourse = await CourseModel.create({
+            universityId: uniId,
+            departmentId: dept._id,
+            semesterId: targetSem._id,
+            title: sc.title,
+            code: `${sc.code}-${batchYear}`,
+            description: sc.description,
+            credits: sc.credits,
+            instructorId: sc.instructorId,
+            instructorName: sc.instructorName,
+            isExamAvailable: sc.isExamAvailable,
+            examQuizId: sc.examQuizId,
+            examPassingPercentage: sc.examPassingPercentage,
+            examMaxAttempts: sc.examMaxAttempts,
+            isActive: sc.isActive,
+          });
+
+          // Clone lectures
+          const sourceLectures = await LectureModel.find({ courseId: sc._id }).sort({ order: 1 });
+          if (sourceLectures.length > 0) {
+            const clonedLectures = sourceLectures.map((sl) => ({
+              courseId: clonedCourse._id,
+              topicName: sl.topicName,
+              title: sl.title,
+              description: sl.description,
+              order: sl.order,
+              videoUrls: sl.videoUrls,
+              isMandatory: sl.isMandatory,
+              durationSeconds: sl.durationSeconds,
+              isActive: sl.isActive,
+            }));
+            await LectureModel.insertMany(clonedLectures);
+          }
+        }
+      }
+    }
+
+    return batch;
+  }
+
+  static async updateBatch(id, payload) {
+    const batch = await BatchModel.findById(id);
+    if (!batch) throw new Error("Batch not found.");
+
+    if (payload.name) batch.name = payload.name;
+    if (payload.code) batch.code = payload.code;
+    if (payload.startDate !== undefined) batch.startDate = payload.startDate;
+    if (payload.endDate !== undefined) batch.endDate = payload.endDate;
+    if (payload.isActive !== undefined) batch.isActive = payload.isActive;
+    if (payload.isGraduated !== undefined) {
+      batch.isGraduated = payload.isGraduated;
+      if (payload.isGraduated) {
+        await StudentEnrollmentModel.updateMany(
+          { batchId: batch._id, status: { $ne: "GRADUATED" } },
+          { $set: { status: "GRADUATED" } }
+        );
+      }
+    }
+
+    await batch.save();
+    return batch;
+  }
+
+  static async deleteBatch(id) {
+    const enrollmentsCount = await StudentEnrollmentModel.countDocuments({ batchId: id });
+    if (enrollmentsCount > 0) {
+      throw new Error(`Cannot delete batch. There are ${enrollmentsCount} active student enrollment(s) in this batch.`);
+    }
+    const batchSemesters = await SemesterModel.find({ batchId: id });
+    const semIds = batchSemesters.map((s) => s._id);
+    const courses = await CourseModel.find({ semesterId: { $in: semIds } });
+    const courseIds = courses.map((c) => c._id);
+    await LectureModel.deleteMany({ courseId: { $in: courseIds } });
+    await CourseModel.deleteMany({ _id: { $in: courseIds } });
+    await SemesterModel.deleteMany({ _id: { $in: semIds } });
+    const batch = await BatchModel.findByIdAndDelete(id);
+    if (!batch) throw new Error("Batch not found.");
+    return { success: true, deletedBatchId: id };
+  }
+
+  // =========================================================================
   // 3. SEMESTERS
   // =========================================================================
-  static async listSemesters(departmentId) {
+  static async listSemesters(departmentId, batchId = null) {
     const query = { isActive: true };
     if (departmentId) query.departmentId = departmentId;
-    return await SemesterModel.find(query).sort({ semesterNumber: 1 });
+    if (batchId) query.batchId = batchId;
+    const sems = await SemesterModel.find(query).sort({ semesterNumber: 1 });
+    if (sems.length === 0 && departmentId && batchId) {
+      // Fallback to department's base semesters if batch-specific semesters are not yet instantiated
+      return await SemesterModel.find({ departmentId, isActive: true }).sort({ semesterNumber: 1 });
+    }
+    return sems;
   }
 
   static async createSemester(payload) {
@@ -302,6 +535,15 @@ export class UniversityUseCase {
     if (filter.departmentId) {
       const dId = filter.departmentId?._id || filter.departmentId;
       if (mongoose.Types.ObjectId.isValid(dId)) query.departmentId = dId;
+    }
+    if (filter.batchId) {
+      const bId = filter.batchId?._id || filter.batchId;
+      if (mongoose.Types.ObjectId.isValid(bId)) {
+        const batchSemesters = await SemesterModel.find({ batchId: bId });
+        if (batchSemesters.length > 0) {
+          query.semesterId = { $in: batchSemesters.map((s) => s._id) };
+        }
+      }
     }
     if (filter.semesterId) {
       const sId = filter.semesterId?._id || filter.semesterId;
@@ -422,8 +664,8 @@ export class UniversityUseCase {
   // =========================================================================
   // 6. STUDENT ENROLLMENT & ROLL NUMBER GENERATION
   // =========================================================================
-  static async generateRollNumber(departmentCode, year = new Date().getFullYear()) {
-    const prefix = `${year}-${departmentCode.toUpperCase()}-`;
+  static async generateRollNumber(departmentCode, batchYear = new Date().getFullYear()) {
+    const prefix = `${batchYear}-${departmentCode.toUpperCase()}-`;
     const count = await StudentEnrollmentModel.countDocuments({
       rollNumber: { $regex: `^${prefix}` },
     });
@@ -431,16 +673,51 @@ export class UniversityUseCase {
     return `${prefix}${String(nextSeq).padStart(3, "0")}`;
   }
 
-  static async enrollStudent({ studentId, departmentId, semesterId, customRollNumber }) {
+  static async enrollStudent({ studentId, departmentId, batchId, semesterId, customRollNumber }) {
     const student = await UserModel.findById(studentId);
     if (!student) throw new Error("User not found to enroll.");
 
     const dept = await DepartmentModel.findById(departmentId);
     if (!dept) throw new Error("Department not found.");
 
+    // Resolve Batch (default to active batch or Batch 2026)
+    let targetBatch = null;
+    if (batchId) {
+      targetBatch = await BatchModel.findById(batchId);
+    }
+    if (!targetBatch) {
+      targetBatch = await BatchModel.findOne({ departmentId: dept._id, isActive: true }).sort({ year: -1 });
+    }
+    if (!targetBatch) {
+      await this.getOrCreateDefaultBatches(dept._id);
+      targetBatch = await BatchModel.findOne({ departmentId: dept._id }).sort({ year: -1 });
+    }
+
+    const batchYear = targetBatch?.year || new Date().getFullYear();
+
+    // Constraint: A student can only enroll in ONE batch per department until graduation
+    const existingActiveInDept = await StudentEnrollmentModel.findOne({
+      studentId: student._id,
+      departmentId: dept._id,
+      status: { $ne: "GRADUATED" },
+    });
+    if (existingActiveInDept) {
+      const bName = existingActiveInDept.batchName || existingActiveInDept.batchYear || "an active batch";
+      throw new Error(
+        `Student ${student.name} is already enrolled in ${dept.name} under ${bName} with Roll Number: ${existingActiveInDept.rollNumber}. A student can only be enrolled in one batch per department until graduation.`
+      );
+    }
+
     let targetSemester = null;
     if (semesterId) {
       targetSemester = await SemesterModel.findById(semesterId);
+    }
+    if (!targetSemester && targetBatch) {
+      targetSemester = await SemesterModel.findOne({
+        departmentId: dept._id,
+        batchId: targetBatch._id,
+        semesterNumber: 1,
+      });
     }
     if (!targetSemester) {
       targetSemester = await SemesterModel.findOne({
@@ -449,17 +726,9 @@ export class UniversityUseCase {
       });
     }
 
-    const existing = await StudentEnrollmentModel.findOne({
-      studentId: student._id,
-      departmentId: dept._id,
-    });
-    if (existing) {
-      throw new Error(`Student ${student.name} is already enrolled in department ${dept.name} with Roll Number: ${existing.rollNumber}`);
-    }
-
     const rollNumber =
       customRollNumber?.trim()?.toUpperCase() ||
-      (await this.generateRollNumber(dept.code));
+      (await this.generateRollNumber(dept.code, batchYear));
 
     const uni = await this.getOrCreateUniversity();
 
@@ -469,6 +738,9 @@ export class UniversityUseCase {
       studentEmail: student.email,
       universityId: uni._id,
       departmentId: dept._id,
+      batchId: targetBatch?._id,
+      batchYear,
+      batchName: targetBatch?.name || `Batch ${batchYear}`,
       currentSemesterId: targetSemester._id,
       currentSemesterNumber: targetSemester.semesterNumber || 1,
       rollNumber,
@@ -485,7 +757,7 @@ export class UniversityUseCase {
     return enrollment;
   }
 
-  static async batchEnrollStudents({ studentIds = [], departmentIds = [] }) {
+  static async batchEnrollStudents({ studentIds = [], departmentIds = [], batchId = null }) {
     if (!Array.isArray(studentIds) || studentIds.length === 0) {
       throw new Error("Please select at least one student.");
     }
@@ -505,22 +777,48 @@ export class UniversityUseCase {
         const dept = await DepartmentModel.findById(dId);
         if (!dept) continue;
 
-        const existing = await StudentEnrollmentModel.findOne({
+        let targetBatch = null;
+        if (batchId) {
+          targetBatch = await BatchModel.findOne({ _id: batchId, departmentId: dept._id });
+        }
+        if (!targetBatch) {
+          targetBatch = await BatchModel.findOne({ departmentId: dept._id, isActive: true }).sort({ year: -1 });
+        }
+        if (!targetBatch) {
+          await this.getOrCreateDefaultBatches(dept._id);
+          targetBatch = await BatchModel.findOne({ departmentId: dept._id }).sort({ year: -1 });
+        }
+
+        const batchYear = targetBatch?.year || new Date().getFullYear();
+
+        const existingActiveInDept = await StudentEnrollmentModel.findOne({
           studentId: student._id,
           departmentId: dept._id,
+          status: { $ne: "GRADUATED" },
         });
 
-        if (existing) {
-          skipped.push({ studentName: student.name, departmentCode: dept.code, reason: "Already enrolled" });
+        if (existingActiveInDept) {
+          skipped.push({
+            studentName: student.name,
+            departmentCode: dept.code,
+            reason: `Already enrolled in ${existingActiveInDept.batchName || existingActiveInDept.batchYear} (Roll: ${existingActiveInDept.rollNumber})`,
+          });
           continue;
         }
 
-        const targetSemester = await SemesterModel.findOne({
+        let targetSemester = await SemesterModel.findOne({
           departmentId: dept._id,
+          batchId: targetBatch?._id,
           semesterNumber: 1,
         });
+        if (!targetSemester) {
+          targetSemester = await SemesterModel.findOne({
+            departmentId: dept._id,
+            semesterNumber: 1,
+          });
+        }
 
-        const rollNumber = await this.generateRollNumber(dept.code);
+        const rollNumber = await this.generateRollNumber(dept.code, batchYear);
 
         const enr = await StudentEnrollmentModel.create({
           studentId: student._id,
@@ -528,6 +826,9 @@ export class UniversityUseCase {
           studentEmail: student.email,
           universityId: uni._id,
           departmentId: dept._id,
+          batchId: targetBatch?._id,
+          batchYear,
+          batchName: targetBatch?.name || `Batch ${batchYear}`,
           currentSemesterId: targetSemester?._id,
           currentSemesterNumber: targetSemester?.semesterNumber || 1,
           rollNumber,
@@ -559,6 +860,7 @@ export class UniversityUseCase {
     email,
     phone = "",
     departmentIds = [],
+    batchId = null,
   }) {
     if (!firstName || !email) {
       throw new Error("First name and email are required.");
@@ -592,12 +894,33 @@ export class UniversityUseCase {
       const dept = await DepartmentModel.findById(dId);
       if (!dept) continue;
 
-      const targetSemester = await SemesterModel.findOne({
+      let targetBatch = null;
+      if (batchId) {
+        targetBatch = await BatchModel.findOne({ _id: batchId, departmentId: dept._id });
+      }
+      if (!targetBatch) {
+        targetBatch = await BatchModel.findOne({ departmentId: dept._id, isActive: true }).sort({ year: -1 });
+      }
+      if (!targetBatch) {
+        await this.getOrCreateDefaultBatches(dept._id);
+        targetBatch = await BatchModel.findOne({ departmentId: dept._id }).sort({ year: -1 });
+      }
+
+      const batchYear = targetBatch?.year || new Date().getFullYear();
+
+      let targetSemester = await SemesterModel.findOne({
         departmentId: dept._id,
+        batchId: targetBatch?._id,
         semesterNumber: 1,
       });
+      if (!targetSemester) {
+        targetSemester = await SemesterModel.findOne({
+          departmentId: dept._id,
+          semesterNumber: 1,
+        });
+      }
 
-      const rollNumber = await this.generateRollNumber(dept.code);
+      const rollNumber = await this.generateRollNumber(dept.code, batchYear);
 
       const enr = await StudentEnrollmentModel.create({
         studentId: newUser._id,
@@ -605,6 +928,9 @@ export class UniversityUseCase {
         studentEmail: newUser.email,
         universityId: uni._id,
         departmentId: dept._id,
+        batchId: targetBatch?._id,
+        batchYear,
+        batchName: targetBatch?.name || `Batch ${batchYear}`,
         currentSemesterId: targetSemester?._id,
         currentSemesterNumber: targetSemester?.semesterNumber || 1,
         rollNumber,
@@ -641,6 +967,10 @@ export class UniversityUseCase {
       const dId = filter.departmentId?._id || filter.departmentId;
       if (mongoose.Types.ObjectId.isValid(dId)) query.departmentId = dId;
     }
+    if (filter.batchId) {
+      const bId = filter.batchId?._id || filter.batchId;
+      if (mongoose.Types.ObjectId.isValid(bId)) query.batchId = bId;
+    }
     if (filter.studentId) {
       const sId = filter.studentId?._id || filter.studentId;
       if (mongoose.Types.ObjectId.isValid(sId)) query.studentId = sId;
@@ -650,6 +980,7 @@ export class UniversityUseCase {
     return await StudentEnrollmentModel.find(query)
       .populate("studentId", "name email role")
       .populate("departmentId", "name code")
+      .populate("batchId", "name year code")
       .populate("currentSemesterId", "semesterNumber title")
       .sort({ createdAt: -1 });
   }
@@ -1081,20 +1412,24 @@ export class UniversityUseCase {
     const departments = await DepartmentModel.find({ isActive: true });
     const semesters = await SemesterModel.find({ isActive: true });
     const courses = await CourseModel.find({ isActive: true });
+    const batches = await BatchModel.find({ isActive: true });
     const enrollments = await StudentEnrollmentModel.find()
       .populate("studentId", "name email role")
       .populate("departmentId", "name code")
+      .populate("batchId", "name year code")
       .populate("currentSemesterId", "semesterNumber title");
     const certificatesCount = await CertificateModel.countDocuments();
 
     return {
       university,
       totalDepartments: departments.length,
+      totalBatches: batches.length,
       totalSemesters: semesters.length,
       totalCourses: courses.length,
       totalStudents: enrollments.length,
       totalCertificates: certificatesCount,
       departments,
+      batches,
       courses,
       recentEnrollments: enrollments.slice(0, 10),
       allEnrollments: enrollments.map((e) => ({
@@ -1105,6 +1440,9 @@ export class UniversityUseCase {
         rollNumber: e.rollNumber,
         department: e.departmentId?.name,
         departmentCode: e.departmentId?.code,
+        batchId: e.batchId?._id || e.batchId,
+        batchYear: e.batchYear || 2026,
+        batchName: e.batchName || (e.batchId?.name ? e.batchId.name : `Batch ${e.batchYear || 2026}`),
         semester: e.currentSemesterNumber,
         status: e.status,
         enrolledAt: e.enrolledAt,
@@ -1186,6 +1524,9 @@ export class UniversityUseCase {
       studentsAudit.push({
         studentId,
         rollNumber: enr.rollNumber,
+        batchId: enr.batchId,
+        batchYear: enr.batchYear,
+        batchName: enr.batchName || `Batch ${enr.batchYear || 2026}`,
         name: enr.studentName || enr.studentId?.name || "Student",
         email: enr.studentEmail || enr.studentId?.email || "N/A",
         status: enr.status,

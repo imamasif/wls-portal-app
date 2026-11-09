@@ -4,6 +4,7 @@ export class UniversityResDTO {
     this.id = doc._id?.toString() || doc.id;
     this.name = doc.name;
     this.code = doc.code;
+    this.viceChancellor = doc.viceChancellor || "Muhammad Shaikh";
     this.description = doc.description || "";
     this.logoUrl = doc.logoUrl || "";
     this.foundedYear = doc.foundedYear || 2026;
@@ -31,6 +32,26 @@ export class DepartmentResDTO {
   }
 }
 
+export class BatchResDTO {
+  constructor(entity) {
+    const doc = entity.toObject ? entity.toObject() : entity;
+    this.id = doc._id?.toString() || doc.id;
+    this.universityId = doc.universityId?._id?.toString() || doc.universityId?.toString();
+    this.departmentId = doc.departmentId?._id?.toString() || doc.departmentId?.toString();
+    this.departmentName = doc.departmentId?.name || "";
+    this.departmentCode = doc.departmentId?.code || "";
+    this.year = doc.year || 2026;
+    this.name = doc.name || `Batch ${this.year}`;
+    this.code = doc.code || `B-${this.year}`;
+    this.startDate = doc.startDate;
+    this.endDate = doc.endDate;
+    this.totalSemesters = doc.totalSemesters || 4;
+    this.isActive = doc.isActive !== undefined ? doc.isActive : true;
+    this.isGraduated = Boolean(doc.isGraduated);
+    this.createdAt = doc.createdAt;
+  }
+}
+
 export class SemesterResDTO {
   constructor(entity) {
     const doc = entity.toObject ? entity.toObject() : entity;
@@ -39,6 +60,8 @@ export class SemesterResDTO {
     this.departmentId = doc.departmentId?._id?.toString() || doc.departmentId?.toString();
     this.departmentName = doc.departmentId?.name || "";
     this.departmentCode = doc.departmentId?.code || "";
+    this.batchId = doc.batchId?._id?.toString() || doc.batchId?.toString() || "";
+    this.batchYear = doc.batchYear || 2026;
     this.semesterNumber = doc.semesterNumber;
     this.title = doc.title;
     this.academicYear = doc.academicYear || "2026-2027";
@@ -58,8 +81,7 @@ export class CourseResDTO {
     this.departmentName = doc.departmentId?.name || "";
     this.departmentCode = doc.departmentId?.code || "";
     this.semesterId = doc.semesterId?._id?.toString() || doc.semesterId?.toString();
-    this.semesterNumber = doc.semesterId?.semesterNumber || null;
-    this.semesterTitle = doc.semesterId?.title || "";
+    this.semesterNumber = doc.semesterId?.semesterNumber || 1;
     this.title = doc.title;
     this.code = doc.code;
     this.description = doc.description || "";
@@ -103,6 +125,9 @@ export class EnrollmentResDTO {
     this.departmentId = doc.departmentId?._id?.toString() || doc.departmentId?.toString();
     this.departmentName = doc.departmentId?.name || "";
     this.departmentCode = doc.departmentId?.code || "";
+    this.batchId = doc.batchId?._id?.toString() || doc.batchId?.toString() || "";
+    this.batchYear = doc.batchYear || doc.batchId?.year || 2026;
+    this.batchName = doc.batchName || (doc.batchId?.name ? doc.batchId.name : `Batch ${doc.batchYear || 2026}`);
     this.currentSemesterId = doc.currentSemesterId?._id?.toString() || doc.currentSemesterId?.toString();
     this.currentSemesterNumber = doc.currentSemesterNumber || 1;
     this.rollNumber = doc.rollNumber;
@@ -124,6 +149,7 @@ export class ProgressResDTO {
     this.lastPositionSeconds = doc.lastPositionSeconds || 0;
     this.isCompleted = Boolean(doc.isCompleted);
     this.completedAt = doc.completedAt;
+    this.notes = Array.isArray(doc.notes) ? doc.notes : [];
   }
 }
 
@@ -136,15 +162,14 @@ export class CertificateResDTO {
     this.rollNumber = doc.rollNumber;
     this.universityId = doc.universityId?._id?.toString() || doc.universityId?.toString();
     this.departmentId = doc.departmentId?._id?.toString() || doc.departmentId?.toString();
-    this.semesterId = doc.semesterId?._id?.toString() || doc.semesterId?.toString();
-    this.courseId = doc.courseId?._id?.toString() || doc.courseId?.toString();
-    this.type = doc.type;
+    this.departmentName = doc.departmentId?.name || "";
+    this.type = doc.type || "SEMESTER";
     this.certificateNumber = doc.certificateNumber;
     this.title = doc.title;
     this.grade = doc.grade || "PASSED";
     this.status = doc.status || "AWARDED";
     this.issuedDate = doc.issuedDate;
-    this.issuedBy = doc.issuedBy;
+    this.issuedBy = doc.issuedBy || "University Administration";
   }
 }
 

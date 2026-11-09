@@ -2,6 +2,7 @@ export class CreateUniversityReqDTO {
   constructor(data = {}) {
     this.name = data.name?.trim();
     this.code = data.code?.trim()?.toUpperCase();
+    this.viceChancellor = data.viceChancellor?.trim() || "Muhammad Shaikh";
     this.description = data.description?.trim() || "";
     this.logoUrl = data.logoUrl?.trim() || "";
     this.foundedYear = Number(data.foundedYear) || 2026;
@@ -25,6 +26,23 @@ export class CreateDepartmentReqDTO {
   }
 }
 
+export class CreateBatchReqDTO {
+  constructor(data = {}) {
+    this.universityId = data.universityId;
+    this.departmentId = data.departmentId;
+    this.batchId = data.batchId || undefined;
+    this.batchYear = data.batchYear ? Number(data.batchYear) : undefined;
+    this.year = Number(data.year) || new Date().getFullYear();
+    this.name = data.name?.trim() || `Batch ${this.year}`;
+    this.code = data.code?.trim()?.toUpperCase() || `B-${this.year}`;
+    this.startDate = data.startDate ? new Date(data.startDate) : undefined;
+    this.endDate = data.endDate ? new Date(data.endDate) : undefined;
+    this.totalSemesters = Number(data.totalSemesters) || 4;
+    this.isActive = data.isActive !== undefined ? Boolean(data.isActive) : true;
+    this.isGraduated = Boolean(data.isGraduated);
+  }
+}
+
 export class CreateSemesterReqDTO {
   constructor(data = {}) {
     this.universityId = data.universityId;
@@ -43,6 +61,8 @@ export class CreateCourseReqDTO {
     this.universityId = data.universityId;
     this.departmentId = data.departmentId;
     this.semesterId = data.semesterId;
+    this.batchId = data.batchId || undefined;
+    this.batchYear = data.batchYear ? Number(data.batchYear) : undefined;
     this.title = data.title?.trim();
     this.code = data.code?.trim()?.toUpperCase();
     this.description = data.description?.trim() || "";

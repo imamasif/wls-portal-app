@@ -2,6 +2,7 @@ import { UniversityUseCase } from "./university.usecase.js";
 import {
   UniversityMapper,
   DepartmentMapper,
+  BatchMapper,
   SemesterMapper,
   CourseMapper,
   LectureMapper,
@@ -13,6 +14,7 @@ import {
 import {
   CreateUniversityReqDTO,
   CreateDepartmentReqDTO,
+  CreateBatchReqDTO,
   CreateSemesterReqDTO,
   CreateCourseReqDTO,
   CreateLectureReqDTO,
@@ -113,6 +115,47 @@ export class UniversityController {
     try {
       const report = await UniversityUseCase.getUniversityAnalyticsReport(req.query);
       res.status(200).json({ success: true, data: report });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+
+  // =========================================================================
+  // 2b. BATCHES (YEAR COHORTS)
+  // =========================================================================
+  static async listBatches(req, res, next) {
+    try {
+      const batches = await UniversityUseCase.listBatches(req.query);
+      res.status(200).json({ success: true, data: BatchMapper.toDTOList(batches) });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async createBatch(req, res, next) {
+    try {
+      const reqDto = new CreateBatchReqDTO(req.body);
+      const batch = await UniversityUseCase.createBatch(reqDto);
+      res.status(201).json({ success: true, data: BatchMapper.toDTO(batch) });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async updateBatch(req, res, next) {
+    try {
+      const batch = await UniversityUseCase.updateBatch(req.params.id, req.body);
+      res.status(200).json({ success: true, data: BatchMapper.toDTO(batch) });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async deleteBatch(req, res, next) {
+    try {
+      const result = await UniversityUseCase.deleteBatch(req.params.id);
+      res.status(200).json({ success: true, data: result });
     } catch (err) {
       next(err);
     }
