@@ -936,7 +936,7 @@ export function UniversitySuperUserView({ currentUser }) {
             </Title>
             <Group gap="xs" mt={2}>
               <Badge color="yellow" variant="light" size="sm">
-                Vice Chancellor: {summary?.university?.viceChancellor || uniForm.viceChancellor || "Muhammad Shaikh"}
+                Chancellor: {summary?.university?.viceChancellor || uniForm.viceChancellor || "Muhammad Shaikh"}
               </Badge>
             </Group>
             <Text size="sm" c="gray.3" maw={700}>
@@ -2392,7 +2392,7 @@ export function UniversitySuperUserView({ currentUser }) {
             onChange={(e) => setUniForm({ ...uniForm, name: e.target.value })}
           />
           <TextInput
-            label="Vice Chancellor"
+            label="Chancellor"
             placeholder="Muhammad Shaikh"
             required
             value={uniForm.viceChancellor}

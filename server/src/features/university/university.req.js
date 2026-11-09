@@ -2,7 +2,8 @@ export class CreateUniversityReqDTO {
   constructor(data = {}) {
     this.name = data.name?.trim();
     this.code = data.code?.trim()?.toUpperCase();
-    this.viceChancellor = data.viceChancellor?.trim() || "Muhammad Shaikh";
+    this.viceChancellor = (data.chancellor || data.viceChancellor)?.trim() || "Muhammad Shaikh";
+    this.chancellor = this.viceChancellor;
     this.description = data.description?.trim() || "";
     this.logoUrl = data.logoUrl?.trim() || "";
     this.foundedYear = Number(data.foundedYear) || 2026;

@@ -148,7 +148,7 @@ export function CertificateModal({ certificate, opened, onClose }) {
                 Muhammad Shaikh
               </Box>
               <Text size="xs" fw={700} c="gray.8">
-                Vice Chancellor
+                Chancellor
               </Text>
               <Text size="10px" c="dimmed">
                 Muhammad Shaikh

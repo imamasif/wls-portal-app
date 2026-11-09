@@ -4,7 +4,8 @@ export class UniversityResDTO {
     this.id = doc._id?.toString() || doc.id;
     this.name = doc.name;
     this.code = doc.code;
-    this.viceChancellor = doc.viceChancellor || "Muhammad Shaikh";
+    this.viceChancellor = doc.viceChancellor || doc.chancellor || "Muhammad Shaikh";
+    this.chancellor = this.viceChancellor;
     this.description = doc.description || "";
     this.logoUrl = doc.logoUrl || "";
     this.foundedYear = doc.foundedYear || 2026;

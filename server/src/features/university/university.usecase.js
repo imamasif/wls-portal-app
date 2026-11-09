@@ -126,6 +126,9 @@ export class UniversityUseCase {
   }
 
   static async updateUniversity(id, payload) {
+    if (payload.chancellor && !payload.viceChancellor) {
+      payload.viceChancellor = payload.chancellor;
+    }
     const uni = await UniversityModel.findByIdAndUpdate(id, payload, {
       new: true,
       runValidators: true,
