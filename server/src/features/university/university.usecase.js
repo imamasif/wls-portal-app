@@ -16,6 +16,39 @@ import {
 import { UserModel } from "../users/user.model.js";
 import { QuizModel } from "../quizzes/quiz.model.js";
 
+async function resolveYouTubeDuration(url) {
+  if (!url || typeof url !== "string") return 0;
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+  if (!match) return 0;
+  const videoId = match[1];
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6000);
+    const resp = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    if (!resp.ok) return 0;
+    const html = await resp.text();
+    const m = html.match(/"lengthSeconds":"(\d+)"/);
+    if (m && m[1]) {
+      return parseInt(m[1], 10);
+    }
+    const m2 = html.match(/"approxDurationMs":"(\d+)"/);
+    if (m2 && m2[1]) {
+      return Math.round(parseInt(m2[1], 10) / 1000);
+    }
+  } catch (err) {
+    console.warn(`Could not resolve YouTube duration for ${videoId}:`, err.message);
+  }
+  return 0;
+}
+
 export class UniversityUseCase {
   // =========================================================================
   // 1. UNIVERSITY PROFILE & SETUP
@@ -642,11 +675,25 @@ export class UniversityUseCase {
       const highest = await LectureModel.findOne({ courseId: payload.courseId }).sort({ order: -1 });
       payload.order = highest ? highest.order + 1 : 1;
     }
+    if ((!payload.durationSeconds || payload.durationSeconds === 1800) && Array.isArray(payload.videoUrls) && payload.videoUrls.length > 0) {
+      const detected = await resolveYouTubeDuration(payload.videoUrls[0]);
+      if (detected > 0) {
+        payload.durationSeconds = detected;
+      }
+    }
     const lecture = await LectureModel.create(payload);
     return lecture;
   }
 
   static async updateLecture(id, payload) {
+    if (Array.isArray(payload.videoUrls) && payload.videoUrls.length > 0) {
+      if (!payload.durationSeconds || payload.durationSeconds === 1800) {
+        const detected = await resolveYouTubeDuration(payload.videoUrls[0]);
+        if (detected > 0) {
+          payload.durationSeconds = detected;
+        }
+      }
+    }
     const lecture = await LectureModel.findByIdAndUpdate(id, payload, {
       new: true,
       runValidators: true,

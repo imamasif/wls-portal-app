@@ -119,6 +119,17 @@ export async function populateCurriculumFromWeb(forceUri = null) {
     });
   }
 
+  console.log("Backing up any known video durations from existing lectures...");
+  const existingLectures = await LectureModel.find({}, "videoUrls durationSeconds").lean();
+  const urlDurationMap = new Map();
+  for (const lec of existingLectures) {
+    if (lec.durationSeconds && lec.durationSeconds > 0 && Array.isArray(lec.videoUrls)) {
+      for (const u of lec.videoUrls) {
+        if (u) urlDurationMap.set(u.trim(), lec.durationSeconds);
+      }
+    }
+  }
+
   console.log("Cleaning up all old university collections (departments, semesters, courses, lectures)...");
   await LectureModel.deleteMany({});
   await CourseModel.deleteMany({});
@@ -232,7 +243,7 @@ export async function populateCurriculumFromWeb(forceUri = null) {
         order: idx + 1,
         videoUrls: lesson.videoUrl ? [lesson.videoUrl] : [],
         isMandatory: true,
-        durationSeconds: 1800,
+        durationSeconds: (lesson.videoUrl && urlDurationMap.get(lesson.videoUrl.trim())) || 1800,
         isActive: true,
       }));
 

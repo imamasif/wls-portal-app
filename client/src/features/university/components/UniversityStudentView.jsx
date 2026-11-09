@@ -497,6 +497,22 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
     return `${String(mins).padStart(2, "0")}:${String(remSecs).padStart(2, "0")}`;
   };
 
+  // Format lecture duration nicely (e.g. 53m 35s or 1h 12m)
+  const formatDurationDisplay = (secs) => {
+    if (!secs || secs <= 0) return "0 mins";
+    const totalSecs = Math.round(secs);
+    const hrs = Math.floor(totalSecs / 3600);
+    const mins = Math.floor((totalSecs % 3600) / 60);
+    const remSecs = totalSecs % 60;
+    if (hrs > 0) {
+      return remSecs > 0 ? `${hrs}h ${mins}m ${remSecs}s` : `${hrs}h ${mins}m`;
+    }
+    if (remSecs > 0) {
+      return `${mins}m ${remSecs}s`;
+    }
+    return `${mins} mins`;
+  };
+
   // Format 2-digit index (e.g. 01, 02, 03...)
   const formatIndex = (idx) => String(idx + 1).padStart(2, "0");
 
@@ -710,7 +726,7 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
                                         {lec.title}
                                       </Text>
                                       <Text size="11px" c="dimmed">
-                                        Video - {formatTime(lec.durationSeconds || 900)} mins
+                                        Video • {formatDurationDisplay(lec.durationSeconds || 0)}
                                       </Text>
                                     </Box>
                                   </Group>

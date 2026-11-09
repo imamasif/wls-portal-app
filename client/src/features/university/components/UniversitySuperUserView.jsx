@@ -184,7 +184,7 @@ export function UniversitySuperUserView({ currentUser }) {
     order: 1,
     videoUrls: [""],
     isMandatory: true,
-    durationSeconds: 1800,
+    durationSeconds: 0,
   });
   const [enrollForm, setEnrollForm] = useState({
     studentId: "",
@@ -873,7 +873,13 @@ export function UniversitySuperUserView({ currentUser }) {
 
   const formatSeqIndex = (idx) => (idx + 1 < 10 ? `0${idx + 1}` : `${idx + 1}`);
   const formatLectureDuration = (secs) => {
-    const m = Math.floor((secs || 1800) / 60);
+    if (!secs || secs <= 0) return "0 mins";
+    const totalSecs = Math.round(secs);
+    const h = Math.floor(totalSecs / 3600);
+    const m = Math.floor((totalSecs % 3600) / 60);
+    const s = totalSecs % 60;
+    if (h > 0) return s > 0 ? `${h}h ${m}m ${s}s` : `${h}h ${m}`;
+    if (s > 0) return `${m}m ${s}s`;
     return `${m} mins`;
   };
 
@@ -1542,7 +1548,7 @@ export function UniversitySuperUserView({ currentUser }) {
                     order: lectures.length + 1,
                     videoUrls: [""],
                     isMandatory: true,
-                    durationSeconds: 1800,
+                    durationSeconds: 0,
                   });
                   setLectureModalOpened(true);
                 }}
@@ -1617,7 +1623,7 @@ export function UniversitySuperUserView({ currentUser }) {
                                 </Badge>
                               )}
                               <Badge color="blue" variant="outline" size="xs">
-                                {Math.round((lec.durationSeconds || 0) / 60)} mins
+                                {formatLectureDuration(lec.durationSeconds)}
                               </Badge>
                             </Group>
                             <Text size="xs" c="dimmed">
@@ -1683,7 +1689,7 @@ export function UniversitySuperUserView({ currentUser }) {
                                     ? lec.videoUrls
                                     : [""],
                                 isMandatory: Boolean(lec.isMandatory),
-                                durationSeconds: lec.durationSeconds || 1800,
+                                durationSeconds: lec.durationSeconds || 0,
                               });
                               setLectureModalOpened(true);
                             }}
@@ -2921,15 +2927,15 @@ export function UniversitySuperUserView({ currentUser }) {
                     (p) => p.lectureId === (lec._id || lec.id)
                   );
                   const isDone = Boolean(lProg?.isCompleted);
-                  const watchedMins = Math.round((lProg?.watchedSeconds || 0) / 60);
-                  const totalMins = Math.round((lec.durationSeconds || 0) / 60);
+                  const watchedStr = formatLectureDuration(lProg?.watchedSeconds || 0);
+                  const totalStr = formatLectureDuration(lec.durationSeconds || 0);
 
                   return (
                     <Table.Tr key={lec._id || idx}>
                       <Table.Td>{idx + 1}</Table.Td>
                       <Table.Td fw={500} size="xs">{lec.title}</Table.Td>
                       <Table.Td size="xs">
-                        {watchedMins} / {totalMins} mins
+                        {watchedStr} / {totalStr}
                       </Table.Td>
                       <Table.Td>
                         {isDone ? (
