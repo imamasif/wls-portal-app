@@ -725,8 +725,13 @@ export class UniversityUseCase {
     const count = await StudentEnrollmentModel.countDocuments({
       rollNumber: { $regex: `^${prefix}` },
     });
-    const nextSeq = count + 1;
-    return `${prefix}${String(nextSeq).padStart(3, "0")}`;
+    let nextSeq = count + 1;
+    let rollNumber = `${prefix}${String(nextSeq).padStart(3, "0")}`;
+    while (await StudentEnrollmentModel.exists({ rollNumber })) {
+      nextSeq++;
+      rollNumber = `${prefix}${String(nextSeq).padStart(3, "0")}`;
+    }
+    return rollNumber;
   }
 
   static async enrollStudent({ studentId, departmentId, batchId, semesterId, customRollNumber }) {
@@ -813,7 +818,7 @@ export class UniversityUseCase {
     return enrollment;
   }
 
-  static async batchEnrollStudents({ studentIds = [], departmentIds = [], batchId = null }) {
+  static async batchEnrollStudents({ studentIds = [], departmentIds = [], batchId = null, semesterNumber = 1 }) {
     if (!Array.isArray(studentIds) || studentIds.length === 0) {
       throw new Error("Please select at least one student.");
     }
@@ -824,6 +829,7 @@ export class UniversityUseCase {
     const uni = await this.getOrCreateUniversity();
     const createdEnrollments = [];
     const skipped = [];
+    const semNum = Number(semesterNumber) || 1;
 
     for (const sId of studentIds) {
       const student = await UserModel.findById(sId);
@@ -865,12 +871,12 @@ export class UniversityUseCase {
         let targetSemester = await SemesterModel.findOne({
           departmentId: dept._id,
           batchId: targetBatch?._id,
-          semesterNumber: 1,
+          semesterNumber: semNum,
         });
         if (!targetSemester) {
           targetSemester = await SemesterModel.findOne({
             departmentId: dept._id,
-            semesterNumber: 1,
+            semesterNumber: semNum,
           });
         }
 
@@ -886,7 +892,7 @@ export class UniversityUseCase {
           batchYear,
           batchName: targetBatch?.name || `Batch ${batchYear}`,
           currentSemesterId: targetSemester?._id,
-          currentSemesterNumber: targetSemester?.semesterNumber || 1,
+          currentSemesterNumber: targetSemester?.semesterNumber || semNum,
           rollNumber,
           status: "ACTIVE",
         });

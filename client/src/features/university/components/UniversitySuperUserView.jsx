@@ -195,6 +195,7 @@ export function UniversitySuperUserView({ currentUser }) {
   const [enrollMode, setEnrollMode] = useState("existing");
   const [selectedStudentIds, setSelectedStudentIds] = useState([]);
   const [selectedEnrollDepartmentIds, setSelectedEnrollDepartmentIds] = useState([]);
+  const [selectedEnrollSemesterNumber, setSelectedEnrollSemesterNumber] = useState(1);
   const [newStudentForm, setNewStudentForm] = useState({
     firstName: "",
     lastName: "",
@@ -333,7 +334,7 @@ export function UniversitySuperUserView({ currentUser }) {
 
       // Fetch users for instructor/student selection
       try {
-        const uRes = await fetch("/api/users?limit=200");
+        const uRes = await fetch("/api/users");
         const uData = await uRes.json();
         setUsersList(Array.isArray(uData) ? uData : uData.users || []);
       } catch (e) {
@@ -729,6 +730,7 @@ export function UniversitySuperUserView({ currentUser }) {
         studentIds: selectedStudentIds,
         departmentIds: selectedEnrollDepartmentIds,
         batchId: selectedEnrollBatchId || undefined,
+        semesterNumber: selectedEnrollSemesterNumber,
       });
 
       showNotification(
@@ -1810,9 +1812,19 @@ export function UniversitySuperUserView({ currentUser }) {
 
             {enrollments.length === 0 ? (
               <Center py={40}>
-                <Text size="sm" c="dimmed">
-                  No students enrolled yet. Click "Enroll New Student" to assign a roll number.
-                </Text>
+                <Stack align="center" gap="sm">
+                  <Text size="sm" c="dimmed">
+                    No students enrolled yet. Click "Enroll New Student" to assign a roll number.
+                  </Text>
+                  <Button
+                    leftSection={<IconUserPlus size={16} />}
+                    color="indigo"
+                    variant="filled"
+                    onClick={() => setEnrollModalOpened(true)}
+                  >
+                    Enroll Students Now
+                  </Button>
+                </Stack>
               </Center>
             ) : (
               <Table.ScrollContainer minWidth={700}>
@@ -2715,7 +2727,7 @@ export function UniversitySuperUserView({ currentUser }) {
                       setSelectedStudentIds(usersList.map((u) => u._id || u.id))
                     }
                   >
-                    Select All
+                    Select All ({usersList.length})
                   </Button>
                   <Button
                     size="compact-xs"
@@ -2727,6 +2739,12 @@ export function UniversitySuperUserView({ currentUser }) {
                   </Button>
                 </Group>
               </Group>
+
+              {selectedStudentIds.length > 0 && (
+                <Text size="xs" c="teal.7" fw={600}>
+                  ✓ Selected {selectedStudentIds.length} of {usersList.length} registered students
+                </Text>
+              )}
 
               <MultiSelect
                 placeholder="Search and select one or more students..."
@@ -2741,17 +2759,35 @@ export function UniversitySuperUserView({ currentUser }) {
                 maxDropdownHeight={240}
               />
 
-              <Select
-                label="Assign to Batch (Year Cohort) *"
-                placeholder="Select Batch Cohort (e.g. Batch 2026)..."
-                required
-                data={batches.map((b) => ({
-                  value: b._id || b.id,
-                  label: `${b.name || `Batch ${b.year}`} (${b.year})`,
-                }))}
-                value={selectedEnrollBatchId}
-                onChange={setSelectedEnrollBatchId}
-              />
+              <Group grow>
+                <Select
+                  label="Assign to Batch (Year Cohort) *"
+                  placeholder="Select Batch Cohort (e.g. Batch 2026)..."
+                  required
+                  data={batches.map((b) => ({
+                    value: b._id || b.id,
+                    label: `${b.name || `Batch ${b.year}`} (${b.year})`,
+                  }))}
+                  value={selectedEnrollBatchId}
+                  onChange={setSelectedEnrollBatchId}
+                />
+                <Select
+                  label="Starting Semester *"
+                  data={[
+                    { value: "1", label: "Semester 1 (Fresh Admission)" },
+                    { value: "2", label: "Semester 2" },
+                    { value: "3", label: "Semester 3" },
+                    { value: "4", label: "Semester 4" },
+                    { value: "5", label: "Semester 5" },
+                    { value: "6", label: "Semester 6" },
+                    { value: "7", label: "Semester 7" },
+                    { value: "8", label: "Semester 8" },
+                  ]}
+                  value={String(selectedEnrollSemesterNumber)}
+                  onChange={(val) => setSelectedEnrollSemesterNumber(Number(val) || 1)}
+                />
+              </Group>
+
               <MultiSelect
                 label="Assign to Department(s) *"
                 placeholder="Select one or more departments (e.g. QGE, QGU)..."
