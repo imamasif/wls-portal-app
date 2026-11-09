@@ -513,6 +513,22 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
     return `${mins} mins`;
   };
 
+  // Format remaining seconds or elapsed seconds (e.g. 5m 20s or 1h 12m)
+  const formatRemaining = (secs) => {
+    if (!secs || secs <= 0) return "0s";
+    const totalSecs = Math.round(secs);
+    const hrs = Math.floor(totalSecs / 3600);
+    const mins = Math.floor((totalSecs % 3600) / 60);
+    const remSecs = totalSecs % 60;
+    if (hrs > 0) {
+      return remSecs > 0 ? `${hrs}h ${mins}m ${remSecs}s` : `${hrs}h ${mins}m`;
+    }
+    if (mins > 0) {
+      return remSecs > 0 ? `${mins}m ${remSecs}s` : `${mins}m`;
+    }
+    return `${remSecs}s`;
+  };
+
   // Format 2-digit index (e.g. 01, 02, 03...)
   const formatIndex = (idx) => String(idx + 1).padStart(2, "0");
 
