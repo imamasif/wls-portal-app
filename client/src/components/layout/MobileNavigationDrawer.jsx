@@ -344,55 +344,17 @@ export function MobileNavigationDrawer({
               leftSection={<IconShieldCheck size={18} color="var(--mantine-color-green-6)" />}
               childrenOffset={20}
               defaultOpened={
-                activeTab === AppTab.MENU_PERMISSIONS ||
-                activeTab === AppTab.WHATSAPP_GROUPS ||
-                activeTab === AppTab.TEAMS_GROUPS ||
-                activeTab === AppTab.UNIVERSITY_PORTAL ||
                 activeTab === AppTab.USERS ||
                 activeTab === AppTab.QUIZ_LIST ||
-                activeTab === AppTab.QUIZ_STUDIO ||
                 activeTab === AppTab.QUIZ_REPORTS ||
                 activeTab === AppTab.STICKY_NOTES ||
                 activeTab === AppTab.QURAN_MEMORIZER ||
                 activeTab === AppTab.QURAN_EXPLORER ||
                 activeTab === AppTab.QURAN_NOTEBOOK ||
-                activeTab === AppTab.AYAT_MANAGER ||
-                activeTab === AppTab.QURAN_TREE
+                activeTab === AppTab.AYAT_MANAGER
               }
               style={{ borderRadius: "6px", marginBottom: "4px" }}
             >
-              {isSuperAdmin && (
-                <NavLink
-                  label="Menu Permissions"
-                  leftSection={<IconShieldCheck size={16} color="var(--mantine-color-green-6)" />}
-                  active={activeTab === AppTab.MENU_PERMISSIONS}
-                  onClick={() => handleNav(AppTab.MENU_PERMISSIONS)}
-                />
-              )}
-              {isSuperAdmin && (
-                <NavLink
-                  label="WhatsApp Groups"
-                  leftSection={<IconBrandWhatsapp size={16} color="var(--mantine-color-teal-6)" />}
-                  active={activeTab === AppTab.WHATSAPP_GROUPS}
-                  onClick={() => handleNav(AppTab.WHATSAPP_GROUPS)}
-                />
-              )}
-              {isSuperAdmin && (
-                <NavLink
-                  label="Teams Groups"
-                  leftSection={<IconBrandTeams size={16} color="var(--mantine-color-indigo-6)" />}
-                  active={activeTab === AppTab.TEAMS_GROUPS}
-                  onClick={() => handleNav(AppTab.TEAMS_GROUPS)}
-                />
-              )}
-              {isSuperAdmin && (
-                <NavLink
-                  label="University Portal"
-                  leftSection={<IconBuildingBank size={16} color="var(--mantine-color-blue-6)" />}
-                  active={activeTab === AppTab.UNIVERSITY_PORTAL}
-                  onClick={() => handleNav(AppTab.UNIVERSITY_PORTAL)}
-                />
-              )}
               {isSuperAdmin && (
                 <NavLink
                   label="User Management"
@@ -402,26 +364,12 @@ export function MobileNavigationDrawer({
                 />
               )}
               {isSuperAdmin && (
-                <NavLink
-                  label="Reports"
-                  leftSection={<IconChartBar size={16} color="var(--mantine-color-grape-6)" />}
-                  active={activeTab === AppTab.REPORTS}
-                  onClick={() => handleNav(AppTab.REPORTS)}
-                />
-              )}
-              {isSuperAdmin && (
                 <>
                   <NavLink
                     label="Quiz Management"
                     leftSection={<IconListDetails size={16} color="var(--mantine-color-cyan-6)" />}
                     active={activeTab === AppTab.QUIZ_LIST}
                     onClick={() => handleNav(AppTab.QUIZ_LIST)}
-                  />
-                  <NavLink
-                    label="Quiz Studio"
-                    leftSection={<IconPencilPlus size={16} color="var(--mantine-color-pink-6)" />}
-                    active={activeTab === AppTab.QUIZ_STUDIO}
-                    onClick={() => handleNav(AppTab.QUIZ_STUDIO)}
                   />
                   <NavLink
                     label="Quiz Reports"
@@ -463,12 +411,6 @@ export function MobileNavigationDrawer({
                   onClick={() => handleNav(AppTab.AYAT_MANAGER)}
                 />
               )}
-              <NavLink
-                label="Quran Morphology Tree"
-                leftSection={<IconSitemap size={16} color="var(--mantine-color-emerald-6)" />}
-                active={activeTab === AppTab.QURAN_TREE}
-                onClick={() => handleNav(AppTab.QURAN_TREE)}
-              />
             </NavLink>
 
             {/* Miscellaneous */}

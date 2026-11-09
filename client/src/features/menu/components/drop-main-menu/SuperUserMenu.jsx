@@ -150,59 +150,12 @@ export function SuperUserMenu({ activeTab, setActiveTab }) {
         </Menu.Target>
         <Menu.Dropdown>
           <Menu.Item
-            onClick={() => setActiveTab(AppTab.MENU_PERMISSIONS)}
-            leftSection={
-              <IconShieldCheck size={16} color="var(--mantine-color-green-6)" />
-            }
-          >
-            Menu Permissions
-          </Menu.Item>
-          <Menu.Item
-            onClick={() => setActiveTab(AppTab.WHATSAPP_GROUPS)}
-            leftSection={
-              <IconBrandWhatsapp
-                size={16}
-                color="var(--mantine-color-teal-6)"
-              />
-            }
-          >
-            WhatsApp Groups
-          </Menu.Item>
-          <Menu.Item
-            onClick={() => setActiveTab(AppTab.TEAMS_GROUPS)}
-            leftSection={
-              <IconBrandTeams size={16} color="var(--mantine-color-indigo-6)" />
-            }
-          >
-            Teams Groups
-          </Menu.Item>
-          <Menu.Item
-            onClick={() => setActiveTab(AppTab.UNIVERSITY_PORTAL)}
-            leftSection={
-              <IconBuildingBank size={16} color="var(--mantine-color-blue-6)" />
-            }
-          >
-            University Portal
-          </Menu.Item>
-
-          <Menu.Divider />
-
-          <Menu.Item
             onClick={() => setActiveTab(AppTab.USERS)}
             leftSection={
               <IconUsers size={16} color="var(--mantine-color-cyan-6)" />
             }
           >
             User Management
-          </Menu.Item>
-
-          <Menu.Item
-            onClick={() => setActiveTab(AppTab.REPORTS)}
-            leftSection={
-              <IconChartBar size={16} color="var(--mantine-color-grape-6)" />
-            }
-          >
-            Reports
           </Menu.Item>
 
           <Menu.Divider />
@@ -214,14 +167,6 @@ export function SuperUserMenu({ activeTab, setActiveTab }) {
             }
           >
             Quiz Management (List)
-          </Menu.Item>
-          <Menu.Item
-            onClick={() => setActiveTab(AppTab.QUIZ_STUDIO)}
-            leftSection={
-              <IconPencilPlus size={16} color="var(--mantine-color-pink-6)" />
-            }
-          >
-            Quiz Studio (Create)
           </Menu.Item>
           <Menu.Item
             onClick={() => setActiveTab(AppTab.QUIZ_REPORTS)}
@@ -279,16 +224,6 @@ export function SuperUserMenu({ activeTab, setActiveTab }) {
             }
           >
             Ayats Database Studio
-          </Menu.Item>
-
-          <Menu.Divider />
-          <Menu.Item
-            onClick={() => setActiveTab(AppTab.QURAN_TREE)}
-            leftSection={
-              <IconSitemap size={16} color="var(--mantine-color-emerald-6)" />
-            }
-          >
-            Quran Morphology Tree
           </Menu.Item>
         </Menu.Dropdown>
       </Menu>
