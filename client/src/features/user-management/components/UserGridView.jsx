@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   TextInput, 
   Select, 
+  MultiSelect, 
   Group, 
   Paper, 
   Title, 
@@ -31,6 +32,40 @@ import { UserProfileDetail } from './UserProfileDetail';
 import { AdminUserControls } from './AdminUserControls';
 import { UserRole, isSuperUserRole } from '../../../types/user';
 
+const ROLE_OPTIONS = [
+  { value: UserRole.SUPER_USER, label: 'SUPER_USER' },
+  { value: UserRole.WLS_ADMIN, label: 'WLS_ADMIN' },
+  { value: UserRole.UNIVERSITY_SUPER_USER, label: 'university_super_user' },
+  { value: UserRole.UNIVERSITY_ADMIN, label: 'university_admin' },
+  { value: UserRole.USER, label: 'USER' },
+  { value: UserRole.UNIVERSITY_STUDENT, label: 'university_student' },
+];
+
+const getRoleBadgeColor = (role) => {
+  switch (role) {
+    case UserRole.SUPER_USER: return 'red';
+    case UserRole.WLS_ADMIN: return 'orange';
+    case UserRole.UNIVERSITY_SUPER_USER: return 'violet';
+    case UserRole.UNIVERSITY_ADMIN: return 'teal';
+    case UserRole.USER: return 'blue';
+    case UserRole.UNIVERSITY_STUDENT: return 'indigo';
+    default: return 'gray';
+  }
+};
+
+const getUserRoles = (u) => {
+  const rolesSet = new Set();
+  if (u.role) rolesSet.add(u.role);
+  if (Array.isArray(u.roles)) {
+    u.roles.forEach((r) => r && rolesSet.add(r));
+  }
+  if (rolesSet.size === 0) {
+    rolesSet.add(UserRole.USER);
+  }
+  rolesSet.add(UserRole.UNIVERSITY_STUDENT);
+  return Array.from(rolesSet);
+};
+
 export function UserGridView({ currentUser }) {
   const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -52,6 +87,47 @@ export function UserGridView({ currentUser }) {
   };
 
   const isSuperAdmin = isSuperUserRole(currentUser?.role);
+
+  const handleMultiRolesChange = async (targetUser, newRoles) => {
+    const targetId = targetUser._id || targetUser.id;
+    setUpdatingUserId(targetId);
+
+    const finalRoles = Array.from(new Set(newRoles));
+    if (!finalRoles.includes(UserRole.UNIVERSITY_STUDENT)) {
+      finalRoles.push(UserRole.UNIVERSITY_STUDENT);
+    }
+
+    const ROLE_HIERARCHY = [
+      UserRole.SUPER_USER,
+      UserRole.WLS_ADMIN,
+      UserRole.UNIVERSITY_SUPER_USER,
+      UserRole.UNIVERSITY_ADMIN,
+      UserRole.USER,
+      UserRole.UNIVERSITY_STUDENT,
+    ];
+    const primaryRole = ROLE_HIERARCHY.find((r) => finalRoles.includes(r)) || UserRole.USER;
+
+    try {
+      const res = await fetch(`/api/users/${targetId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...targetUser, role: primaryRole, roles: finalRoles }),
+      });
+
+      if (res.ok) {
+        const updatedUser = await res.json();
+        setUsers((prev) => prev.map((u) => ((u._id || u.id) === targetId ? updatedUser : u)));
+        showToast(`Roles updated successfully for ${targetUser.name || 'user'}!`);
+      } else {
+        showToast('Failed to update user roles.', 'error');
+      }
+    } catch (err) {
+      showToast('Server error while updating roles.', 'error');
+    } finally {
+      setUpdatingUserId(null);
+    }
+  };
+
 
   useEffect(() => {
     fetch('/api/users')
@@ -185,7 +261,8 @@ export function UserGridView({ currentUser }) {
       user.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       primaryPhone.includes(searchTerm);
     
-    const matchesRole = roleFilter === 'ALL' || user.role === roleFilter;
+    const userAllRoles = getUserRoles(user);
+    const matchesRole = roleFilter === 'ALL' || userAllRoles.includes(roleFilter);
     return matchesSearch && matchesRole;
   });
 
@@ -310,81 +387,42 @@ export function UserGridView({ currentUser }) {
               {
                 accessor: 'role',
                 title: 'Role & University Status',
-                width: 230,
+                width: 280,
                 sortable: true,
                 render: (u) => {
                   const currentUserId = currentUser?._id || currentUser?.id;
                   const isSelf = Boolean(currentUserId && (u._id || u.id) === currentUserId);
-                  const userRoles = Array.isArray(u.roles) ? u.roles : ['university_student'];
-                  const isUniAdmin = userRoles.includes(UserRole.UNIVERSITY_ADMIN);
-                  const isUniSuper = userRoles.includes(UserRole.UNIVERSITY_SUPER_USER);
+                  const assignedRoles = getUserRoles(u);
 
                   return (
                     <div onClick={(e) => e.stopPropagation()}>
                       {isSuperAdmin && !isSelf ? (
-                        <Select
+                        <MultiSelect
                           size="xs"
-                          w={150}
-                          comboboxProps={{ width: 160, zIndex: 1000 }}
-                          value={u.role || UserRole.USER}
+                          w={260}
+                          comboboxProps={{ width: 260, zIndex: 1000 }}
+                          placeholder="Select roles..."
+                          data={ROLE_OPTIONS}
+                          value={assignedRoles}
                           disabled={updatingUserId === (u._id || u.id)}
-                          onChange={(val) => handleRoleChangeRequest(u, val)}
-                          data={[
-                            { value: UserRole.USER, label: 'USER' },
-                            { value: UserRole.WLS_ADMIN, label: 'WLS ADMIN' },
-                            { value: UserRole.SUPER_USER, label: 'SUPER USER' },
-                            { value: UserRole.UNIVERSITY_SUPER_USER, label: 'UNI SUPER USER' },
-                            { value: UserRole.UNIVERSITY_ADMIN, label: 'UNI ADMIN' },
-                            { value: UserRole.UNIVERSITY_STUDENT, label: 'UNI STUDENT' },
-                          ]}
+                          onChange={(newRoles) => handleMultiRolesChange(u, newRoles)}
+                          searchable
+                          clearable={false}
                         />
                       ) : (
-                        <Badge size="sm" variant="light">
-                          {u.role || UserRole.USER}
-                        </Badge>
+                        <Group gap={4} wrap="wrap">
+                          {assignedRoles.map((role) => (
+                            <Badge
+                              key={role}
+                              size="xs"
+                              color={getRoleBadgeColor(role)}
+                              variant="light"
+                            >
+                              {role}
+                            </Badge>
+                          ))}
+                        </Group>
                       )}
-
-                      {/* University Roles Under Each User */}
-                      <Group gap={4} mt={6} wrap="wrap">
-                        <Badge size="xs" color="indigo" variant="light">
-                          Uni Student
-                        </Badge>
-                        {isUniAdmin && (
-                          <Badge size="xs" color="teal" variant="filled">
-                            Uni Admin
-                          </Badge>
-                        )}
-                        {isUniSuper && (
-                          <Badge size="xs" color="violet" variant="filled">
-                            Uni Super User
-                          </Badge>
-                        )}
-
-                        {isSuperAdmin && !isSelf && (
-                          <Menu shadow="md" width={180} position="bottom-start">
-                            <Menu.Target>
-                              <ActionIcon size="xs" variant="subtle" color="gray" title="Manage University Access">
-                                <IconPlus size={12} />
-                              </ActionIcon>
-                            </Menu.Target>
-                            <Menu.Dropdown>
-                              <Menu.Label>University Roles</Menu.Label>
-                              <Menu.Item
-                                leftSection={isUniAdmin ? <IconCheck size={14} color="#10b981" /> : <IconSchool size={14} />}
-                                onClick={() => handleToggleUniversityRole(u, UserRole.UNIVERSITY_ADMIN)}
-                              >
-                                {isUniAdmin ? 'Revoke Uni Admin' : 'Assign Uni Admin'}
-                              </Menu.Item>
-                              <Menu.Item
-                                leftSection={isUniSuper ? <IconCheck size={14} color="#10b981" /> : <IconBuildingBank size={14} />}
-                                onClick={() => handleToggleUniversityRole(u, UserRole.UNIVERSITY_SUPER_USER)}
-                              >
-                                {isUniSuper ? 'Revoke Uni Super' : 'Assign Uni Super User'}
-                              </Menu.Item>
-                            </Menu.Dropdown>
-                          </Menu>
-                        )}
-                      </Group>
                     </div>
                   );
                 },

@@ -527,10 +527,31 @@ export class UniversityUseCase {
 
     const lecturesWithStatus = lectures.map((lec, idx) => {
       const p = progressMap.get(lec._id.toString());
-      const isCompleted = p ? Boolean(p.isCompleted) : false;
       const watchedSeconds = p ? p.watchedSeconds : 0;
       const totalDurationSeconds = p ? p.totalDurationSeconds : lec.durationSeconds || 0;
       const lastPositionSeconds = p ? p.lastPositionSeconds : 0;
+
+      // Anti-Cheat Verification:
+      // If lecture is mandatory, student MUST have legitimately watched >= 90% of the video.
+      // Invalidate false completion if user bypassed video time without watching.
+      let isCompleted = false;
+      if (p) {
+        if (!lec.isMandatory) {
+          isCompleted = Boolean(p.isCompleted);
+        } else {
+          const dur = totalDurationSeconds || lec.durationSeconds || 0;
+          if (dur > 0 && watchedSeconds >= dur * 0.90) {
+            isCompleted = true;
+          } else {
+            isCompleted = false;
+            if (p.isCompleted) {
+              p.isCompleted = false;
+              p.completedAt = null;
+              p.save().catch(() => {});
+            }
+          }
+        }
+      }
 
       // Sequential unlock rule:
       // A lecture is unlocked if:
@@ -629,31 +650,50 @@ export class UniversityUseCase {
       lectureId,
     });
 
-    const shouldComplete =
-      markComplete ||
-      (totalDurationSeconds > 0 && watchedSeconds >= totalDurationSeconds * 0.95);
+    const lecture = await LectureModel.findById(lectureId);
+    const isMandatory = lecture ? lecture.isMandatory !== false : true;
+
+    const effectiveDuration = totalDurationSeconds > 0 
+      ? totalDurationSeconds 
+      : (lecture?.durationSeconds || progress?.totalDurationSeconds || 0);
+
+    const currentWatched = Math.max(progress?.watchedSeconds || 0, watchedSeconds);
+
+    // Anti-Cheat Enforcement:
+    // If lecture is mandatory, student MUST have watched at least 90% of the video duration.
+    // Client cannot bypass this by sending markComplete=true!
+    let shouldComplete = false;
+    if (isMandatory) {
+      shouldComplete = effectiveDuration > 0 && currentWatched >= effectiveDuration * 0.90;
+    } else {
+      shouldComplete = markComplete || (effectiveDuration > 0 && currentWatched >= effectiveDuration * 0.90);
+    }
 
     if (!progress) {
       progress = await StudentLectureProgressModel.create({
         studentId,
         courseId,
         lectureId,
-        watchedSeconds,
-        totalDurationSeconds,
+        watchedSeconds: currentWatched,
+        totalDurationSeconds: effectiveDuration,
         lastPositionSeconds,
         isCompleted: shouldComplete,
         completedAt: shouldComplete ? new Date() : null,
       });
     } else {
-      progress.watchedSeconds = Math.max(progress.watchedSeconds, watchedSeconds);
-      if (totalDurationSeconds > 0) {
-        progress.totalDurationSeconds = totalDurationSeconds;
+      progress.watchedSeconds = currentWatched;
+      if (effectiveDuration > 0) {
+        progress.totalDurationSeconds = effectiveDuration;
       }
       progress.lastPositionSeconds = lastPositionSeconds;
 
       if (!progress.isCompleted && shouldComplete) {
         progress.isCompleted = true;
         progress.completedAt = new Date();
+      } else if (progress.isCompleted && !shouldComplete && isMandatory) {
+        // Revoke illegitimate completion on mandatory lecture if watched seconds is insufficient
+        progress.isCompleted = false;
+        progress.completedAt = null;
       }
       await progress.save();
     }

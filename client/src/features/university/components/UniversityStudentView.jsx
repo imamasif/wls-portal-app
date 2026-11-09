@@ -227,6 +227,7 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
     setPlayedSeconds(lecture.lastPositionSeconds || initialWatched);
     setMaxWatchedSeconds(initialWatched);
     setIsCompletedState(Boolean(lecture.isCompleted));
+    setDurationSeconds(lecture.totalDurationSeconds || lecture.durationSeconds || 0);
     setAntiCheatWarning(null);
 
     loadNotes(lecture.lectureId || lecture._id);
@@ -242,7 +243,11 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
   // 5. Anti-Cheat Video Watch Logic:
   // If lecture is ALREADY completed -> student can re-watch freely anytime with NO restrictions!
   // If lecture is NOT completed and mandatory -> prevent scrubbing ahead!
-  const handleProgress = ({ playedSeconds: currentSecs }) => {
+  const handleProgress = ({ playedSeconds: currentSecs, totalSeconds }) => {
+    if (totalSeconds && totalSeconds > 0 && (!durationSeconds || durationSeconds !== totalSeconds)) {
+      setDurationSeconds(totalSeconds);
+    }
+
     if (activeLecture?.isMandatory && !isCompletedState) {
       if (currentSecs > maxWatchedSeconds + 3) {
         if (playerRef.current) {
@@ -260,6 +265,14 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
       setMaxWatchedSeconds(currentSecs);
     }
 
+    // Auto-complete if student has legitimately watched 95%+ of video
+    const effectiveDur = totalSeconds || durationSeconds || activeLecture?.durationSeconds || 0;
+    if (effectiveDur > 0 && currentSecs >= effectiveDur * 0.95 && !isCompletedState) {
+      setIsCompletedState(true);
+      saveProgressToBackend(currentSecs, true);
+      return;
+    }
+
     // Periodically save progress to backend (every ~10 seconds)
     if (Math.round(currentSecs) > 0 && Math.round(currentSecs) % 10 === 0) {
       saveProgressToBackend(currentSecs, false);
@@ -267,12 +280,16 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
   };
 
   const handleDuration = (dur) => {
-    setDurationSeconds(dur);
+    if (dur && Number.isFinite(dur) && dur > 0) {
+      setDurationSeconds(dur);
+    }
   };
 
   const handleEnded = () => {
+    const effectiveDur = durationSeconds || maxWatchedSeconds || activeLecture?.durationSeconds || 0;
+    setMaxWatchedSeconds(effectiveDur);
     setIsCompletedState(true);
-    saveProgressToBackend(durationSeconds || playedSeconds, true);
+    saveProgressToBackend(effectiveDur, true);
   };
 
   const saveProgressToBackend = async (currentSecs, markComplete = false) => {
@@ -300,7 +317,23 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
   // 6. Manual Mark Completed Action (Image 5 center green pill button)
   const handleManualMarkCompleted = async () => {
     if (!activeLecture) return;
-    await saveProgressToBackend(durationSeconds || playedSeconds || 60, true);
+    const isMandatory = activeLecture.isMandatory !== false;
+    const dur = durationSeconds || activeLecture.durationSeconds || 0;
+
+    // Strict Anti-Cheat Verification:
+    // Mandatory videos CANNOT be manually marked as complete unless the full video time has elapsed (95%+)
+    if (isMandatory && !isCompletedState) {
+      if (!dur || maxWatchedSeconds < dur * 0.95) {
+        const remaining = Math.max(0, dur - maxWatchedSeconds);
+        setAntiCheatWarning(
+          `⚠️ This video is mandatory. You must watch the complete video (${formatRemaining(remaining)} remaining) to unlock completion.`
+        );
+        return;
+      }
+    }
+
+    const completedSeconds = dur > 0 ? dur : (durationSeconds || playedSeconds || 60);
+    await saveProgressToBackend(completedSeconds, true);
     setIsCompletedState(true);
     handleNextLecture();
   };
@@ -733,19 +766,12 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
                   <Box mb="md">
                     <UniversityVideoPlayer
                       videoUrl={selectedVideoUrl}
-                      isMandatory={Boolean(activeLecture?.isMandatory)}
+                      isMandatory={Boolean(activeLecture?.isMandatory !== false)}
                       isCompleted={isCompletedState}
                       initialPosition={activeLecture?.lastPositionSeconds || 0}
-                      onProgress={({ playedSeconds }) => {
-                        setPlayedSeconds(playedSeconds);
-                        if (Math.round(playedSeconds) > 0 && Math.round(playedSeconds) % 10 === 0) {
-                          saveProgressToBackend(playedSeconds, false);
-                        }
-                      }}
-                      onEnded={() => {
-                        saveProgressToBackend(playedSeconds, true);
-                        handleMarkComplete();
-                      }}
+                      onDuration={handleDuration}
+                      onProgress={handleProgress}
+                      onEnded={handleEnded}
                       onCheatDetected={(warning) => setAntiCheatWarning(warning)}
                     />
                   </Box>
@@ -826,21 +852,54 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
                       Previous
                     </Button>
 
-                    <Button
-                      color="teal"
-                      size="md"
-                      radius="xl"
-                      leftSection={<IconCheck size={18} />}
-                      onClick={handleManualMarkCompleted}
-                    >
-                      {isCompletedState ? "Completed ✔" : "Mark as Complete"}
-                    </Button>
+                    {isCompletedState ? (
+                      <Button
+                        color="teal"
+                        size="md"
+                        radius="xl"
+                        leftSection={<IconCheck size={18} />}
+                        onClick={handleNextLecture}
+                      >
+                        Completed ✔ {currentLectureIndex < allLecturesList.length - 1 ? "(Next Module)" : "(Take Quiz)"}
+                      </Button>
+                    ) : (activeLecture?.isMandatory !== false) && (!durationSeconds || maxWatchedSeconds < durationSeconds * 0.95) ? (
+                      <Tooltip
+                        label={`Mandatory Video: You must watch the complete video (${formatRemaining(Math.max(0, (durationSeconds || 0) - maxWatchedSeconds))} remaining) before marking it complete.`}
+                        withArrow
+                      >
+                        <Button
+                          color="gray"
+                          variant="light"
+                          size="md"
+                          radius="xl"
+                          leftSection={<IconLock size={18} />}
+                          disabled
+                          style={{ cursor: "not-allowed", opacity: 0.7 }}
+                        >
+                          Watch Full Video to Complete {durationSeconds > 0 ? `(${formatRemaining(Math.max(0, durationSeconds - maxWatchedSeconds))} left)` : ''}
+                        </Button>
+                      </Tooltip>
+                    ) : (
+                      <Button
+                        color="teal"
+                        size="md"
+                        radius="xl"
+                        leftSection={<IconCheck size={18} />}
+                        onClick={handleManualMarkCompleted}
+                      >
+                        Mark as Complete
+                      </Button>
+                    )}
 
                     <Button
                       variant="default"
                       size="sm"
                       rightSection={<IconChevronRight size={16} />}
                       onClick={handleNextLecture}
+                      disabled={
+                        currentLectureIndex >= allLecturesList.length - 1 &&
+                        !courseData?.exam?.isExamUnlocked
+                      }
                     >
                       Next
                     </Button>
