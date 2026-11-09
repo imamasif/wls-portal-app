@@ -1,5 +1,5 @@
 // client/src/features/university/components/UniversityStudentView.jsx
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   Box,
   Paper,
@@ -85,6 +85,8 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
   const [durationSeconds, setDurationSeconds] = useState(0);
   const [maxWatchedSeconds, setMaxWatchedSeconds] = useState(0);
   const [isCompletedState, setIsCompletedState] = useState(false);
+  const [educationModalOpen, setEducationModalOpen] = useState(false);
+  const [autoCompletedAlert, setAutoCompletedAlert] = useState(false);
 
   // Time-stamped Notes State
   const [notes, setNotes] = useState([]);
@@ -229,6 +231,8 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
     setIsCompletedState(Boolean(lecture.isCompleted));
     setDurationSeconds(lecture.totalDurationSeconds || lecture.durationSeconds || 0);
     setAntiCheatWarning(null);
+    setEducationModalOpen(false);
+    setAutoCompletedAlert(false);
 
     loadNotes(lecture.lectureId || lecture._id);
   };
@@ -270,6 +274,7 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
     if (effectiveDur > 0 && currentSecs >= effectiveDur * 0.95 && !isCompletedState) {
       setIsCompletedState(true);
       saveProgressToBackend(currentSecs, true);
+      setAutoCompletedAlert(true);
       return;
     }
 
@@ -290,6 +295,7 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
     setMaxWatchedSeconds(effectiveDur);
     setIsCompletedState(true);
     saveProgressToBackend(effectiveDur, true);
+    setAutoCompletedAlert(true);
   };
 
   const saveProgressToBackend = async (currentSecs, markComplete = false) => {
@@ -321,13 +327,10 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
     const dur = durationSeconds || activeLecture.durationSeconds || 0;
 
     // Strict Anti-Cheat Verification:
-    // Mandatory videos CANNOT be manually marked as complete unless the full video time has elapsed (95%+)
+    // If mandatory and not yet watched fully, pop up educational modal to guide the student!
     if (isMandatory && !isCompletedState) {
       if (!dur || maxWatchedSeconds < dur * 0.95) {
-        const remaining = Math.max(0, dur - maxWatchedSeconds);
-        setAntiCheatWarning(
-          `⚠️ This video is mandatory. You must watch the complete video (${formatRemaining(remaining)} remaining) to unlock completion.`
-        );
+        setEducationModalOpen(true);
         return;
       }
     }
@@ -483,14 +486,46 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
   });
 
   const activeCourse = courses.find((c) => (c._id || c.id) === selectedCourseId) || courses[0];
-  const courseCoverage = courseData?.totalCoursePercentage || 0;
+
+  // Dynamic Real-time Course Coverage:
+  // Combines all completed lectures + real-time in-progress watch time of the active lecture
+  const dynamicCourseCoverage = useMemo(() => {
+    const lectures = courseData?.lectures || [];
+    if (lectures.length === 0) return 0;
+
+    let totalProgressSum = 0;
+    lectures.forEach((lec) => {
+      const lecId = lec.lectureId || lec._id;
+      const isActive = activeLecture && (activeLecture.lectureId || activeLecture._id) === lecId;
+
+      if (lec.isCompleted || (isActive && isCompletedState)) {
+        totalProgressSum += 1.0;
+      } else {
+        const watched = isActive
+          ? Math.max(lec.watchedSeconds || 0, maxWatchedSeconds, playedSeconds)
+          : (lec.watchedSeconds || 0);
+        const dur = (isActive ? (durationSeconds || lec.totalDurationSeconds || lec.durationSeconds) : (lec.totalDurationSeconds || lec.durationSeconds)) || 1800;
+        if (dur > 0 && watched > 0) {
+          totalProgressSum += Math.min(0.99, watched / dur);
+        }
+      }
+    });
+
+    return Math.min(100, Math.round((totalProgressSum / lectures.length) * 100));
+  }, [courseData, activeLecture, isCompletedState, maxWatchedSeconds, playedSeconds, durationSeconds]);
+
+  const courseCoverage = Math.max(courseData?.totalCoursePercentage || 0, dynamicCourseCoverage);
   const completedLecturesCount = courseData?.completedCount || 0;
   const remainingLecturesCount = courseData?.remainingCount || 0;
 
-  const totalWatchedSeconds = (courseData?.lectures || []).reduce(
-    (sum, l) => sum + (l.watchedSeconds || 0),
-    0
-  );
+  const totalWatchedSeconds = (courseData?.lectures || []).reduce((sum, l) => {
+    const lecId = l.lectureId || l._id;
+    const isActive = activeLecture && (activeLecture.lectureId || activeLecture._id) === lecId;
+    const watched = isActive
+      ? Math.max(l.watchedSeconds || 0, maxWatchedSeconds, playedSeconds)
+      : (l.watchedSeconds || 0);
+    return sum + watched;
+  }, 0);
   const totalHoursSpent = (totalWatchedSeconds / 3600).toFixed(1);
 
   if (loading) {
@@ -762,6 +797,19 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
                     </Alert>
                   )}
 
+                  {autoCompletedAlert && (
+                    <Alert
+                      icon={<IconCircleCheck size={18} />}
+                      color="teal"
+                      title="🎉 Module Completed Automatically!"
+                      withCloseButton
+                      onClose={() => setAutoCompletedAlert(false)}
+                      mb="sm"
+                    >
+                      You have finished watching the entire video! This lecture has been automatically marked as complete in your curriculum and your progress is saved.
+                    </Alert>
+                  )}
+
                   {/* Enhanced University Video Player with YouTube IFrame API & Anti-Cheat Scrub Locking */}
                   <Box mb="md">
                     <UniversityVideoPlayer
@@ -862,32 +910,18 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
                       >
                         Completed ✔ {currentLectureIndex < allLecturesList.length - 1 ? "(Next Module)" : "(Take Quiz)"}
                       </Button>
-                    ) : (activeLecture?.isMandatory !== false) && (!durationSeconds || maxWatchedSeconds < durationSeconds * 0.95) ? (
-                      <Tooltip
-                        label={`Mandatory Video: You must watch the complete video (${formatRemaining(Math.max(0, (durationSeconds || 0) - maxWatchedSeconds))} remaining) before marking it complete.`}
-                        withArrow
-                      >
-                        <Button
-                          color="gray"
-                          variant="light"
-                          size="md"
-                          radius="xl"
-                          leftSection={<IconLock size={18} />}
-                          disabled
-                          style={{ cursor: "not-allowed", opacity: 0.7 }}
-                        >
-                          Watch Full Video to Complete {durationSeconds > 0 ? `(${formatRemaining(Math.max(0, durationSeconds - maxWatchedSeconds))} left)` : ''}
-                        </Button>
-                      </Tooltip>
                     ) : (
                       <Button
-                        color="teal"
+                        color={activeLecture?.isMandatory !== false && (!durationSeconds || maxWatchedSeconds < durationSeconds * 0.95) ? "orange" : "teal"}
+                        variant={activeLecture?.isMandatory !== false && (!durationSeconds || maxWatchedSeconds < durationSeconds * 0.95) ? "light" : "filled"}
                         size="md"
                         radius="xl"
-                        leftSection={<IconCheck size={18} />}
+                        leftSection={activeLecture?.isMandatory !== false && (!durationSeconds || maxWatchedSeconds < durationSeconds * 0.95) ? <IconLock size={18} /> : <IconCheck size={18} />}
                         onClick={handleManualMarkCompleted}
                       >
-                        Mark as Complete
+                        {activeLecture?.isMandatory !== false && (!durationSeconds || maxWatchedSeconds < durationSeconds * 0.95)
+                          ? `Mark as Complete (${formatRemaining(Math.max(0, (durationSeconds || 0) - maxWatchedSeconds))} left)`
+                          : "Mark as Complete"}
                       </Button>
                     )}
 
@@ -1046,6 +1080,90 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
             </Box>
           </SimpleGrid>
         </Box>
+
+
+      {/* Educational Modal for Incomplete Mandatory Lecture */}
+      <Modal
+        opened={educationModalOpen}
+        onClose={() => setEducationModalOpen(false)}
+        title={
+          <Group gap="xs">
+            <ThemeIcon color="orange" size="lg" radius="md" variant="light">
+              <IconSchool size={20} />
+            </ThemeIcon>
+            <div>
+              <Text fw={700} size="sm">Mandatory Video Completion Policy</Text>
+              <Text size="xs" c="dimmed">{activeLecture?.title || "Course Lecture"}</Text>
+            </div>
+          </Group>
+        }
+        centered
+        size="md"
+        radius="md"
+        overlayProps={{ opacity: 0.55, blur: 3 }}
+      >
+        <Stack gap="md" py="xs">
+          <Text size="sm" c="gray.7">
+            This lecture is designated as <strong>Mandatory</strong> by the University curriculum. To ensure authentic learning and preserve academic integrity, students are required to watch mandatory lectures from start to finish at their own pace.
+          </Text>
+
+          {/* Current Watch Progress Card */}
+          <Paper p="md" radius="md" withBorder bg="gray.0">
+            <Group justify="space-between" mb="xs">
+              <Text size="xs" fw={600} c="dimmed">YOUR WATCH PROGRESS</Text>
+              <Badge color="orange" variant="light" size="xs">In Progress</Badge>
+            </Group>
+            
+            <Progress 
+              value={Math.min(100, Math.round(((maxWatchedSeconds || 0) / (durationSeconds || 1)) * 100))} 
+              color="orange" 
+              size="lg" 
+              radius="xl" 
+              animated 
+            />
+
+            <Group justify="space-between" mt="xs">
+              <div>
+                <Text size="xs" c="dimmed">Watched</Text>
+                <Text size="xs" fw={700}>{formatRemaining(maxWatchedSeconds)}</Text>
+              </div>
+              <div>
+                <Text size="xs" c="dimmed">Total Duration</Text>
+                <Text size="xs" fw={700}>{formatRemaining(durationSeconds)}</Text>
+              </div>
+              <div>
+                <Text size="xs" c="dimmed">Remaining</Text>
+                <Text size="xs" fw={700} c="orange.8">
+                  {formatRemaining(Math.max(0, (durationSeconds || 0) - maxWatchedSeconds))}
+                </Text>
+              </div>
+            </Group>
+          </Paper>
+
+          {/* Key Guidelines */}
+          <Paper p="xs" radius="sm" bg="blue.0" style={{ borderLeft: '4px solid var(--mantine-color-blue-6)' }}>
+            <Stack gap={4}>
+              <Text size="xs" fw={600} c="blue.9">🎓 How It Works:</Text>
+              <Text size="xs" c="blue.8">
+                • <strong>Automatic Completion:</strong> Once you watch through the video time, the system will <strong>automatically mark it complete</strong> and unlock the next lecture or quiz.
+              </Text>
+              <Text size="xs" c="blue.8">
+                • <strong>Free Replay:</strong> After completion, you can revisit this video anytime and scroll forward or backward freely with zero restrictions.
+              </Text>
+            </Stack>
+          </Paper>
+
+          <Button 
+            fullWidth 
+            color="indigo" 
+            size="md" 
+            radius="md" 
+            onClick={() => setEducationModalOpen(false)}
+          >
+            I Understand, Continue Watching
+          </Button>
+        </Stack>
+      </Modal>
 
         {/* Modal: Interactive Exam Taking (Image 3) */}
         <Modal

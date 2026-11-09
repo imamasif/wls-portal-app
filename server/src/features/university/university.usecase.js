@@ -603,8 +603,20 @@ export class UniversityUseCase {
       (attemptsCount < maxAttempts || hasPassedExam);
 
     const completedCount = lecturesWithStatus.filter((l) => l.isCompleted).length;
+    let totalProgressSum = 0;
+    lecturesWithStatus.forEach((l) => {
+      if (l.isCompleted) {
+        totalProgressSum += 1.0;
+      } else {
+        const dur = l.totalDurationSeconds || l.durationSeconds || 1800;
+        if (dur > 0 && l.watchedSeconds > 0) {
+          totalProgressSum += Math.min(0.99, l.watchedSeconds / dur);
+        }
+      }
+    });
+
     const totalPercentage = lectures.length > 0
-      ? Math.round((completedCount / lectures.length) * 100)
+      ? Math.min(100, Math.round((totalProgressSum / lectures.length) * 100))
       : 0;
 
     return {
@@ -999,8 +1011,18 @@ export class UniversityUseCase {
       }).lean();
 
       const completedCount = progressList.filter((p) => p.isCompleted).length;
+      let totalProgressSum = 0;
+      lectures.forEach((lec) => {
+        const p = progressList.find((x) => x.lectureId?.toString() === lec._id?.toString());
+        if (p?.isCompleted) {
+          totalProgressSum += 1.0;
+        } else if (p && p.watchedSeconds > 0) {
+          const dur = p.totalDurationSeconds || lec.durationSeconds || 1800;
+          totalProgressSum += Math.min(0.99, p.watchedSeconds / dur);
+        }
+      });
       const totalPercentage = totalLecturesCount > 0
-        ? Math.min(100, Math.round((completedCount / totalLecturesCount) * 100))
+        ? Math.min(100, Math.round((totalProgressSum / totalLecturesCount) * 100))
         : 0;
 
       const examAttempts = await StudentExamAttemptModel.find({
@@ -1140,7 +1162,18 @@ export class UniversityUseCase {
             const highestScore = examAttempts.reduce((max, a) => Math.max(max, a.percentage || 0), 0);
             const isExamPassed = examAttempts.some((a) => a.isPassed);
             const totalWatchSeconds = progressDocs.reduce((acc, p) => acc + (p.watchTimeSeconds || 0), 0);
-            const percentage = totalLecs > 0 ? Math.round((completedCount / totalLecs) * 100) : 0;
+            let deptProgressSum = 0;
+            const courseLecs = await LectureModel.find({ courseId: course._id, isActive: true }).lean();
+            courseLecs.forEach((lec) => {
+              const p = progressDocs.find((x) => x.lectureId?.toString() === lec._id?.toString());
+              if (p?.isCompleted) {
+                deptProgressSum += 1.0;
+              } else if (p && p.watchedSeconds > 0) {
+                const dur = p.totalDurationSeconds || lec.durationSeconds || 1800;
+                deptProgressSum += Math.min(0.99, p.watchedSeconds / dur);
+              }
+            });
+            const percentage = totalLecs > 0 ? Math.min(100, Math.round((deptProgressSum / totalLecs) * 100)) : 0;
 
             studentProgressList.push({
               studentId,
