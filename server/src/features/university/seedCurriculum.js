@@ -8,8 +8,13 @@ import {
   LectureModel,
 } from "./university.model.js";
 
-export async function syncUniversityCurriculum() {
+export async function syncUniversityCurriculum(force = false) {
   try {
+    const deptCount = await DepartmentModel.countDocuments();
+    if (deptCount > 0 && !force) {
+      console.log("ℹ [Curriculum] Departments already exist. Skipping automatic seed to preserve user-managed departments.");
+      return;
+    }
     let uni = await UniversityModel.findOne({ isActive: true });
     if (!uni) {
       uni = await UniversityModel.create({

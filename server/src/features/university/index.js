@@ -36,7 +36,9 @@ router.put("/:id", UniversityController.updateUniversity);
 router.get("/departments", UniversityController.listDepartments);
 router.post("/departments", UniversityController.createDepartment);
 router.put("/departments/:id", UniversityController.updateDepartment);
+router.get("/departments/:id/deletion-eligibility", UniversityController.checkDepartmentDeletion);
 router.delete("/departments/:id", UniversityController.deleteDepartment);
+router.get("/analytics-report", UniversityController.getUniversityAnalyticsReport);
 
 // Semesters
 router.get("/departments/:departmentId/semesters", UniversityController.listSemesters);

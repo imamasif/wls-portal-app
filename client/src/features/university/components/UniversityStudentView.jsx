@@ -123,7 +123,15 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
       setEnrollment(userEnrollment);
       setCertificates(certsRes || []);
 
-      const cList = await universityApi.getCourses();
+      let filter = {};
+      if (userEnrollment?.departmentId) {
+        const deptId = userEnrollment.departmentId._id || userEnrollment.departmentId;
+        filter.departmentId = deptId;
+      }
+      let cList = await universityApi.getCourses(filter);
+      if (!cList || cList.length === 0) {
+        cList = await universityApi.getCourses();
+      }
       setCourses(cList || []);
 
       if (cList && cList.length > 0 && !selectedCourseId) {
@@ -1137,7 +1145,7 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
               <strong>
                 {enrollment?.departmentName ||
                   enrollment?.departmentId?.name ||
-                  "Quranic Arabic & Translation"}
+                  "Quranic Studies"}
               </strong>{" "}
               | Current Semester:{" "}
               <strong>Semester {enrollment?.currentSemesterNumber || 1}</strong>

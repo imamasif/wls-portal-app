@@ -72,7 +72,7 @@ export class UniversityUseCase {
         });
       }
     }
-    await syncUniversityCurriculum();
+    // syncUniversityCurriculum removed from auto-trigger
     return uni;
   }
 
@@ -109,14 +109,16 @@ export class UniversityUseCase {
       throw new Error(`Department with code ${cleanCode} already exists in this university.`);
     }
 
+    const totalSem = Math.max(1, Math.min(12, Number(payload.totalSemesters) || 4));
+
     const dept = await DepartmentModel.create({
       ...payload,
       universityId: uniId,
       code: cleanCode,
+      totalSemesters: totalSem,
     });
 
-    // Auto-create Semesters 1 to totalSemesters (default 8)
-    const totalSem = Number(payload.totalSemesters) || 8;
+    // Auto-create Semesters 1 to totalSemesters (default 4)
     const semesterDocs = [];
     for (let i = 1; i <= totalSem; i++) {
       semesterDocs.push({
@@ -134,20 +136,116 @@ export class UniversityUseCase {
   }
 
   static async updateDepartment(id, payload) {
-    const dept = await DepartmentModel.findByIdAndUpdate(id, payload, {
-      new: true,
-      runValidators: true,
-    });
+    const dept = await DepartmentModel.findById(id);
     if (!dept) throw new Error("Department not found");
+
+    if (payload.code) {
+      payload.code = payload.code.trim().toUpperCase();
+    }
+
+    // Handle totalSemesters synchronization
+    if (payload.totalSemesters !== undefined && payload.totalSemesters !== null) {
+      const newTotal = Math.max(1, Math.min(12, Number(payload.totalSemesters)));
+      const existingSemesters = await SemesterModel.find({ departmentId: dept._id }).sort({ semesterNumber: 1 });
+      const currentCount = existingSemesters.length;
+
+      if (newTotal < currentCount) {
+        // Find semesters that would be removed (semesterNumber > newTotal)
+        const semestersToRemove = existingSemesters.filter((s) => s.semesterNumber > newTotal);
+        const semIdsToRemove = semestersToRemove.map((s) => s._id);
+
+        // Check if ANY course is assigned to these semesters
+        const coursesInRemovedSemesters = await CourseModel.find({
+          departmentId: dept._id,
+          semesterId: { $in: semIdsToRemove },
+        });
+
+        if (coursesInRemovedSemesters.length > 0) {
+          const semNumbersWithCourses = [...new Set(
+            coursesInRemovedSemesters.map((c) => {
+              const sem = semestersToRemove.find((s) => s._id.toString() === c.semesterId.toString());
+              return sem ? `Semester ${sem.semesterNumber}` : "Unknown";
+            })
+          )];
+          const courseListStr = coursesInRemovedSemesters.map((c) => `[${c.code}] ${c.title}`).join(", ");
+          throw new Error(
+            `Cannot reduce semesters from ${currentCount} to ${newTotal}. Active course(s) and exam(s) exist in ${semNumbersWithCourses.join(", ")}: ${courseListStr}. Please clear or reassign those courses first before reducing semesters.`
+          );
+        }
+
+        // If no courses exist, remove the excess semesters
+        await SemesterModel.deleteMany({
+          departmentId: dept._id,
+          semesterNumber: { $gt: newTotal },
+        });
+      } else if (newTotal > currentCount) {
+        // Generate missing semesters up to newTotal
+        const existingNumbers = new Set(existingSemesters.map((s) => s.semesterNumber));
+        const newSemDocs = [];
+        for (let i = 1; i <= newTotal; i++) {
+          if (!existingNumbers.has(i)) {
+            newSemDocs.push({
+              universityId: dept.universityId,
+              departmentId: dept._id,
+              semesterNumber: i,
+              title: `Semester ${i}`,
+              academicYear: "2026-2027",
+              isActive: true,
+            });
+          }
+        }
+        if (newSemDocs.length > 0) {
+          await SemesterModel.insertMany(newSemDocs);
+        }
+      }
+
+      dept.totalSemesters = newTotal;
+    }
+
+    if (payload.name) dept.name = payload.name;
+    if (payload.code) dept.code = payload.code;
+    if (payload.description !== undefined) dept.description = payload.description;
+    if (payload.headOfDepartment !== undefined) dept.headOfDepartment = payload.headOfDepartment;
+    if (payload.isActive !== undefined) dept.isActive = payload.isActive;
+
+    await dept.save();
     return dept;
   }
 
+  static async checkDepartmentDeletionEligibility(id) {
+    const dept = await DepartmentModel.findById(id);
+    if (!dept) throw new Error("Department not found");
+
+    const courses = await CourseModel.find({ departmentId: id }).populate("semesterId", "semesterNumber title");
+    const semesters = await SemesterModel.find({ departmentId: id }).sort({ semesterNumber: 1 });
+    const enrollmentsCount = await StudentEnrollmentModel.countDocuments({ departmentId: id });
+
+    return {
+      department: dept,
+      canDelete: courses.length === 0,
+      totalCourses: courses.length,
+      courses: courses.map((c) => ({
+        id: c._id,
+        code: c.code,
+        title: c.title,
+        semesterNumber: c.semesterId?.semesterNumber || 1,
+        hasExam: !!c.examQuizId,
+      })),
+      totalSemesters: semesters.length,
+      totalEnrollments: enrollmentsCount,
+    };
+  }
+
   static async deleteDepartment(id) {
-    const coursesCount = await CourseModel.countDocuments({ departmentId: id });
-    if (coursesCount > 0) {
-      throw new Error("Cannot delete department that contains active courses. Delete or reassign courses first.");
+    const activeCourses = await CourseModel.find({ departmentId: id });
+    if (activeCourses.length > 0) {
+      const courseSummary = activeCourses.map((c) => `[${c.code}] ${c.title}`).join(", ");
+      throw new Error(
+        `Cannot delete department. There are ${activeCourses.length} active course(s) and affiliated exams (${courseSummary}) assigned to this department. You must clear or reassign those courses first before deleting.`
+      );
     }
     await SemesterModel.deleteMany({ departmentId: id });
+    await StudentEnrollmentModel.deleteMany({ departmentId: id });
     const dept = await DepartmentModel.findByIdAndDelete(id);
     if (!dept) throw new Error("Department not found");
     return dept;
@@ -177,9 +275,12 @@ export class UniversityUseCase {
   }
 
   static async deleteSemester(id) {
-    const courseCount = await CourseModel.countDocuments({ semesterId: id });
-    if (courseCount > 0) {
-      throw new Error("Cannot delete semester that contains active courses.");
+    const activeCourses = await CourseModel.find({ semesterId: id });
+    if (activeCourses.length > 0) {
+      const courseSummary = activeCourses.map((c) => `[${c.code}] ${c.title}`).join(", ");
+      throw new Error(
+        `Cannot delete semester. There are ${activeCourses.length} active course(s) and affiliated exams (${courseSummary}) assigned to this semester. First reassign or delete these courses.`
+      );
     }
     const sem = await SemesterModel.findByIdAndDelete(id);
     if (!sem) throw new Error("Semester not found");
@@ -910,4 +1011,148 @@ export class UniversityUseCase {
     return progress?.notes || [];
   }
 
+  // =========================================================================
+  // 15. UNIVERSITY-WIDE & DEPARTMENT-WIDE ANALYTICS & AUDIT REPORT
+  // =========================================================================
+  static async getUniversityAnalyticsReport(filter = {}) {
+    const deptQuery = { isActive: true };
+    if (filter.departmentId) deptQuery._id = filter.departmentId;
+
+    const departments = await DepartmentModel.find(deptQuery).sort({ name: 1 }).lean();
+    const reportDepts = [];
+
+    for (const dept of departments) {
+      const semesters = await SemesterModel.find({ departmentId: dept._id }).sort({ semesterNumber: 1 }).lean();
+      const deptCourses = await CourseModel.find({ departmentId: dept._id }).sort({ code: 1 }).lean();
+      const deptEnrollments = await StudentEnrollmentModel.find({ departmentId: dept._id })
+        .populate("studentId", "name email")
+        .lean();
+
+      const semestersData = [];
+
+      for (const sem of semesters) {
+        if (filter.semesterId && sem._id.toString() !== filter.semesterId.toString()) {
+          continue;
+        }
+
+        const semCourses = deptCourses.filter(
+          (c) => c.semesterId && c.semesterId.toString() === sem._id.toString()
+        );
+
+        // Enrolled students in this semester (or department)
+        const semStudents = deptEnrollments.filter(
+          (e) => !e.currentSemesterId || e.currentSemesterId.toString() === sem._id.toString()
+        );
+
+        const coursesData = [];
+        for (const course of semCourses) {
+          const lectures = await LectureModel.find({ courseId: course._id, isActive: true }).sort({ order: 1 }).lean();
+          const totalLecs = lectures.length;
+
+          const studentProgressList = [];
+          for (const enrollment of semStudents) {
+            const studentId = enrollment.studentId?._id || enrollment.studentId;
+            if (!studentId) continue;
+
+            const progressDocs = await StudentLectureProgressModel.find({
+              studentId,
+              courseId: course._id,
+            }).lean();
+
+            const completedCount = progressDocs.filter((p) => p.isCompleted).length;
+            const examAttempts = await StudentExamAttemptModel.find({
+              studentId,
+              courseId: course._id,
+            }).sort({ createdAt: -1 }).lean();
+
+            const highestScore = examAttempts.reduce((max, a) => Math.max(max, a.percentage || 0), 0);
+            const isExamPassed = examAttempts.some((a) => a.isPassed);
+            const totalWatchSeconds = progressDocs.reduce((acc, p) => acc + (p.watchTimeSeconds || 0), 0);
+            const percentage = totalLecs > 0 ? Math.round((completedCount / totalLecs) * 100) : 0;
+
+            studentProgressList.push({
+              studentId,
+              name: enrollment.studentName || enrollment.studentId?.name || "Student",
+              email: enrollment.studentEmail || enrollment.studentId?.email || "",
+              rollNumber: enrollment.rollNumber,
+              completedLecturesCount: completedCount,
+              remainingLecturesCount: Math.max(0, totalLecs - completedCount),
+              totalLecturesCount: totalLecs,
+              totalCoursePercentage: percentage,
+              examAttemptsCount: examAttempts.length,
+              examHighestScore: highestScore,
+              isExamPassed,
+              watchTimeMinutes: Math.round(totalWatchSeconds / 60),
+            });
+          }
+
+          const avgCourseProgress = studentProgressList.length > 0
+            ? Math.round(
+                studentProgressList.reduce((acc, s) => acc + s.totalCoursePercentage, 0) /
+                  studentProgressList.length
+              )
+            : 0;
+
+          coursesData.push({
+            id: course._id,
+            code: course.code,
+            title: course.title,
+            instructorName: course.instructorName || dept.headOfDepartment || "Instructor",
+            credits: course.credits || 3,
+            startDate: course.startDate,
+            endDate: course.endDate,
+            isActive: course.isActive,
+            isExamAvailable: course.isExamAvailable,
+            examPassingPercentage: course.examPassingPercentage || 75,
+            examMaxAttempts: course.examMaxAttempts || 5,
+            hasExam: !!course.examQuizId,
+            totalLectures: totalLecs,
+            enrolledStudentsCount: semStudents.length,
+            averageCoursePercentage: avgCourseProgress,
+            students: studentProgressList,
+          });
+        }
+
+        const allSemStudentProgresses = coursesData.flatMap((c) => c.students);
+        const avgSemProgress = allSemStudentProgresses.length > 0
+          ? Math.round(
+              allSemStudentProgresses.reduce((acc, s) => acc + s.totalCoursePercentage, 0) /
+                allSemStudentProgresses.length
+            )
+          : 0;
+
+        semestersData.push({
+          id: sem._id,
+          semesterNumber: sem.semesterNumber,
+          title: sem.title,
+          academicYear: sem.academicYear || "2026-2027",
+          startDate: sem.startDate,
+          endDate: sem.endDate,
+          isActive: sem.isActive,
+          coursesCount: semCourses.length,
+          enrolledStudentsCount: semStudents.length,
+          averageSemesterPercentage: avgSemProgress,
+          courses: coursesData,
+        });
+      }
+
+      reportDepts.push({
+        id: dept._id,
+        name: dept.name,
+        code: dept.code,
+        headOfDepartment: dept.headOfDepartment,
+        description: dept.description,
+        totalSemesters: dept.totalSemesters || semesters.length,
+        actualSemestersCount: semesters.length,
+        totalCoursesCount: deptCourses.length,
+        totalEnrolledStudents: deptEnrollments.length,
+        semesters: semestersData,
+      });
+    }
+
+    return {
+      departments: reportDepts,
+      generatedAt: new Date().toISOString(),
+    };
+  }
 }

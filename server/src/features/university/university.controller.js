@@ -77,10 +77,28 @@ export class UniversityController {
     }
   }
 
+  static async checkDepartmentDeletion(req, res, next) {
+    try {
+      const eligibility = await UniversityUseCase.checkDepartmentDeletionEligibility(req.params.id);
+      res.status(200).json({ success: true, data: eligibility });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   static async deleteDepartment(req, res, next) {
     try {
       const dept = await UniversityUseCase.deleteDepartment(req.params.id);
       res.status(200).json({ success: true, message: "Department deleted successfully", data: dept });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async getUniversityAnalyticsReport(req, res, next) {
+    try {
+      const report = await UniversityUseCase.getUniversityAnalyticsReport(req.query);
+      res.status(200).json({ success: true, data: report });
     } catch (err) {
       next(err);
     }

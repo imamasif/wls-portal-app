@@ -24,6 +24,9 @@ import {
   Tooltip,
   Divider,
   Progress,
+  Alert,
+  Accordion,
+  ThemeIcon,
 } from "@mantine/core";
 import {
   IconBuildingBank,
@@ -49,6 +52,11 @@ import {
   IconReportAnalytics,
   IconCircleCheck,
   IconChecklist,
+  IconAlertTriangle,
+  IconCalendar,
+  IconClock,
+  IconShieldLock,
+  IconInfoCircle,
 } from "@tabler/icons-react";
 import { universityApi } from "../api/universityApi";
 import { CertificateModal } from "./CertificateModal";
@@ -70,6 +78,33 @@ export function UniversitySuperUserView({ currentUser }) {
   const [certificates, setCertificates] = useState([]);
   const [usersList, setUsersList] = useState([]);
   const [quizzesList, setQuizzesList] = useState([]);
+
+  // Department Deletion Safety & Eligibility Modal States
+  const [deleteDeptModalOpened, setDeleteDeptModalOpened] = useState(false);
+  const [deptToDelete, setDeptToDelete] = useState(null);
+  const [deletionEligibility, setDeletionEligibility] = useState(null);
+  const [checkingEligibility, setCheckingEligibility] = useState(false);
+  const [deletingDept, setDeletingDept] = useState(false);
+
+  // Department Update Error Modal (when reducing semesters with courses)
+  const [deptErrorModal, setDeptErrorModal] = useState({ opened: false, title: "", message: "" });
+
+  // Semester Details Edit Modal State
+  const [semModalOpened, setSemModalOpened] = useState(false);
+  const [selectedSemForEdit, setSelectedSemForEdit] = useState(null);
+  const [semForm, setSemForm] = useState({
+    title: "",
+    academicYear: "2026-2027",
+    startDate: "",
+    endDate: "",
+    isActive: true,
+  });
+
+  // Analytics & Progress Reports State (Tab 6)
+  const [reportData, setReportData] = useState(null);
+  const [loadingReport, setLoadingReport] = useState(false);
+  const [reportFilterDept, setReportFilterDept] = useState("");
+  const [reportFilterSem, setReportFilterSem] = useState("");
 
   // Modals state
   const [uniModalOpened, setUniModalOpened] = useState(false);
@@ -315,6 +350,125 @@ export function UniversitySuperUserView({ currentUser }) {
       .then((lList) => setLectures(lList || []))
       .catch((err) => console.error("Error loading lectures:", err));
   }, [selectedCourseId]);
+
+  // Helper to re-fetch and synchronize semesters and courses when department changes or updates
+  const reloadSemestersAndCourses = async (deptId) => {
+    if (!deptId) return;
+    try {
+      const [sems, cList] = await Promise.all([
+        universityApi.getSemesters(deptId),
+        universityApi.getCourses({ departmentId: deptId }),
+      ]);
+      setSemesters(sems || []);
+      if (sems && sems.length > 0) {
+        setSelectedSemesterId((prev) => {
+          const stillExists = sems.some((s) => (s._id || s.id) === prev);
+          return stillExists ? prev : (sems[0]._id || sems[0].id);
+        });
+      } else {
+        setSelectedSemesterId(null);
+      }
+      setCourses(cList || []);
+      if (cList && cList.length > 0) {
+        setSelectedCourseId((prev) => {
+          const stillExists = cList.some((c) => (c._id || c.id) === prev);
+          return stillExists ? prev : (cList[0]._id || cList[0].id);
+        });
+      } else {
+        setSelectedCourseId(null);
+      }
+    } catch (err) {
+      console.error("Error reloading semesters & courses:", err);
+    }
+  };
+
+  // Safe Department Deletion Flow
+  const initiateDeleteDepartment = async (dept) => {
+    setDeptToDelete(dept);
+    setCheckingEligibility(true);
+    setDeletionEligibility(null);
+    setDeleteDeptModalOpened(true);
+    try {
+      const elig = await universityApi.checkDepartmentDeletionEligibility(dept._id || dept.id);
+      setDeletionEligibility(elig);
+    } catch (err) {
+      showNotification(err.response?.data?.message || err.message, "error");
+      setDeleteDeptModalOpened(false);
+    } finally {
+      setCheckingEligibility(false);
+    }
+  };
+
+  const confirmDeleteDepartment = async () => {
+    if (!deptToDelete) return;
+    setDeletingDept(true);
+    try {
+      await universityApi.deleteDepartment(deptToDelete._id || deptToDelete.id);
+      showNotification(`Department ${deptToDelete.name} deleted successfully!`);
+      setDeleteDeptModalOpened(false);
+      setDeptToDelete(null);
+      setDeletionEligibility(null);
+      if (selectedDeptId === (deptToDelete._id || deptToDelete.id)) {
+        setSelectedDeptId(null);
+        setSemesters([]);
+        setCourses([]);
+      }
+      loadAll();
+    } catch (err) {
+      showNotification(err.response?.data?.message || err.message, "error");
+    } finally {
+      setDeletingDept(false);
+    }
+  };
+
+  // Semester Modal Handlers
+  const openEditSemesterModal = (sem) => {
+    setSelectedSemForEdit(sem);
+    setSemForm({
+      title: sem.title || `Semester ${sem.semesterNumber}`,
+      academicYear: sem.academicYear || "2026-2027",
+      startDate: sem.startDate ? sem.startDate.substring(0, 10) : "",
+      endDate: sem.endDate ? sem.endDate.substring(0, 10) : "",
+      isActive: sem.isActive !== false,
+    });
+    setSemModalOpened(true);
+  };
+
+  const handleSaveSemester = async () => {
+    if (!selectedSemForEdit) return;
+    try {
+      await universityApi.updateSemester(selectedSemForEdit._id || selectedSemForEdit.id, semForm);
+      showNotification("Semester details updated successfully!");
+      setSemModalOpened(false);
+      if (selectedDeptId) {
+        await reloadSemestersAndCourses(selectedDeptId);
+      }
+    } catch (err) {
+      showNotification(err.response?.data?.message || err.message, "error");
+    }
+  };
+
+  // Analytics Report Loader
+  const loadAnalyticsReport = async () => {
+    setLoadingReport(true);
+    try {
+      const res = await universityApi.getAnalyticsReport({
+        departmentId: reportFilterDept || undefined,
+        semesterId: reportFilterSem || undefined,
+      });
+      setReportData(res);
+    } catch (err) {
+      console.error("Failed to load analytics report:", err);
+    } finally {
+      setLoadingReport(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "audit") {
+      loadAnalyticsReport();
+    }
+  }, [activeTab, reportFilterDept, reportFilterSem]);
 
   // --- Handlers: University ---
   const handleSaveUniversity = async () => {
@@ -731,7 +885,7 @@ export function UniversitySuperUserView({ currentUser }) {
                           color="red"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleDeleteDepartment(dept._id || dept.id);
+                            initiateDeleteDepartment(dept);
                           }}
                         >
                           <IconTrash size={14} />
@@ -1451,150 +1605,317 @@ export function UniversitySuperUserView({ currentUser }) {
 
         {/* TAB 6: STUDENT PROGRESS AUDIT (Image 4 & SuperUserCourseAudit) */}
         <Tabs.Panel value="audit">
-          <Paper p="md" radius="md" withBorder bg="white">
-            <Group justify="space-between" mb="lg" wrap="wrap">
-              <div>
-                <Title order={4} c="dark.9">
-                  Student Progress & Completion Audit
-                </Title>
-                <Text size="xs" c="dimmed">
-                  Track individual student lecture watch times, total course percentages, and examination outcomes.
-                </Text>
-              </div>
+          <Stack gap="lg">
+            {/* Header & Filter Bar */}
+            <Paper p="md" radius="md" withBorder bg="white">
+              <Group justify="space-between" mb="sm" wrap="wrap">
+                <div>
+                  <Title order={4} c="dark.9">
+                    University & Student Progress Reports
+                  </Title>
+                  <Text size="xs" c="dimmed">
+                    Track overall departments, semester curricula, course allocations, and individual student lecture watch progress.
+                  </Text>
+                </div>
 
-              <Group gap="sm">
-                <Select
-                  label="Select Course to Audit"
-                  data={courses.map((c) => ({
-                    value: c._id || c.id,
-                    label: `${c.code}: ${c.title}`,
-                  }))}
-                  value={auditCourseId}
-                  onChange={(val) => {
-                    setAuditCourseId(val);
-                    loadCourseAudit(val);
-                  }}
-                  size="xs"
-                  w={340}
-                />
-                <Button
-                  variant="light"
-                  color="indigo"
-                  size="xs"
-                  mt={22}
-                  leftSection={<IconRefresh size={14} />}
-                  onClick={() => loadCourseAudit(auditCourseId)}
-                  loading={loadingAudit}
-                >
-                  Refresh
-                </Button>
+                <Group gap="sm">
+                  <Select
+                    label="Filter by Department"
+                    placeholder="All Departments"
+                    data={[
+                      { value: "", label: "All Departments" },
+                      ...departments.map((d) => ({
+                        value: d._id || d.id,
+                        label: `${d.code}: ${d.name}`,
+                      })),
+                    ]}
+                    value={reportFilterDept}
+                    onChange={(val) => setReportFilterDept(val || "")}
+                    size="xs"
+                    w={220}
+                    clearable
+                  />
+                  <Select
+                    label="Filter by Semester"
+                    placeholder="All Semesters"
+                    data={[
+                      { value: "", label: "All Semesters" },
+                      { value: "1", label: "Semester 1" },
+                      { value: "2", label: "Semester 2" },
+                      { value: "3", label: "Semester 3" },
+                      { value: "4", label: "Semester 4" },
+                    ]}
+                    value={reportFilterSem}
+                    onChange={(val) => setReportFilterSem(val || "")}
+                    size="xs"
+                    w={150}
+                    clearable
+                  />
+                  <Button
+                    variant="light"
+                    color="indigo"
+                    size="xs"
+                    mt={22}
+                    leftSection={<IconRefresh size={14} />}
+                    onClick={loadAnalyticsReport}
+                    loading={loadingReport}
+                  >
+                    Refresh Report
+                  </Button>
+                </Group>
               </Group>
-            </Group>
 
-            {loadingAudit ? (
-              <Center py={60}>
-                <Loader size="md" color="indigo" />
-              </Center>
-            ) : !auditData ? (
-              <Center py={40}>
-                <Text size="sm" c="dimmed">Select a course above to view student progress data.</Text>
-              </Center>
-            ) : (
-              <Stack gap="lg">
-                {/* 4 Summary Stat Cards */}
-                <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="sm">
-                  <Paper p="sm" radius="md" withBorder bg="blue.0" style={{ borderColor: "#bfdbfe" }}>
-                    <Text size="xs" fw={700} c="blue.8" tt="uppercase">
-                      Enrolled Students
-                    </Text>
-                    <Title order={3} c="blue.9" mt={4}>
-                      {auditData.totalEnrolledStudents}
-                    </Title>
-                  </Paper>
-                  <Paper p="sm" radius="md" withBorder bg="teal.0" style={{ borderColor: "#a7f3d0" }}>
-                    <Text size="xs" fw={700} c="teal.8" tt="uppercase">
-                      Avg Course Coverage
-                    </Text>
-                    <Title order={3} c="teal.9" mt={4}>
-                      {auditData.averageCoursePercentage}%
-                    </Title>
-                  </Paper>
-                  <Paper p="sm" radius="md" withBorder bg="green.0" style={{ borderColor: "#bbf7d0" }}>
-                    <Text size="xs" fw={700} c="green.8" tt="uppercase">
-                      Total Course Lectures
-                    </Text>
-                    <Title order={3} c="green.9" mt={4}>
-                      {auditData.totalLecturesCount}
-                    </Title>
-                  </Paper>
-                  <Paper p="sm" radius="md" withBorder bg="orange.0" style={{ borderColor: "#fed7aa" }}>
-                    <Text size="xs" fw={700} c="orange.8" tt="uppercase">
-                      Passed Exam
-                    </Text>
-                    <Title order={3} c="orange.9" mt={4}>
-                      {auditData.students.filter((s) => s.isExamPassed).length}
-                    </Title>
-                  </Paper>
-                </SimpleGrid>
+              {/* 4 Summary Stat Cards */}
+              <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="sm" mt="md">
+                <Paper p="sm" radius="md" withBorder bg="blue.0" style={{ borderColor: "#bfdbfe" }}>
+                  <Text size="xs" fw={700} c="blue.8" tt="uppercase">
+                    Total Departments
+                  </Text>
+                  <Title order={3} c="blue.9" mt={4}>
+                    {reportData?.departments?.length || departments.length}
+                  </Title>
+                  <Text size="10px" c="dimmed">Configured tracks</Text>
+                </Paper>
 
-                {/* Students Audit Table */}
-                <Table.ScrollContainer minWidth={750}>
-                  <Table verticalSpacing="sm" highlightOnHover striped>
+                <Paper p="sm" radius="md" withBorder bg="indigo.0" style={{ borderColor: "#c7d2fe" }}>
+                  <Text size="xs" fw={700} c="indigo.8" tt="uppercase">
+                    Total Semesters
+                  </Text>
+                  <Title order={3} c="indigo.9" mt={4}>
+                    {reportData?.departments?.reduce((acc, d) => acc + (d.actualSemestersCount || 0), 0) || semesters.length}
+                  </Title>
+                  <Text size="10px" c="dimmed">Active academic terms</Text>
+                </Paper>
+
+                <Paper p="sm" radius="md" withBorder bg="teal.0" style={{ borderColor: "#a7f3d0" }}>
+                  <Text size="xs" fw={700} c="teal.8" tt="uppercase">
+                    Active Courses
+                  </Text>
+                  <Title order={3} c="teal.9" mt={4}>
+                    {reportData?.departments?.reduce((acc, d) => acc + (d.totalCoursesCount || 0), 0) || courses.length}
+                  </Title>
+                  <Text size="10px" c="dimmed">Across all semesters</Text>
+                </Paper>
+
+                <Paper p="sm" radius="md" withBorder bg="green.0" style={{ borderColor: "#bbf7d0" }}>
+                  <Text size="xs" fw={700} c="green.8" tt="uppercase">
+                    Enrolled Students
+                  </Text>
+                  <Title order={3} c="green.9" mt={4}>
+                    {reportData?.departments?.reduce((acc, d) => acc + (d.totalEnrolledStudents || 0), 0) || enrollments.length}
+                  </Title>
+                  <Text size="10px" c="dimmed">With unique roll numbers</Text>
+                </Paper>
+              </SimpleGrid>
+            </Paper>
+
+            {/* SECTION 1: Department Curriculum & Semester Allocation Overview */}
+            <Paper p="md" radius="md" withBorder bg="white">
+              <Group justify="space-between" mb="sm">
+                <div>
+                  <Title order={4} c="dark.9">
+                    Department & Semester Curriculum Hierarchy
+                  </Title>
+                  <Text size="xs" c="dimmed">
+                    Overview of courses, instructors, dates, and average progress for each department track.
+                  </Text>
+                </div>
+              </Group>
+
+              {loadingReport ? (
+                <Center py={40}>
+                  <Loader size="md" color="indigo" />
+                </Center>
+              ) : !reportData || reportData.departments.length === 0 ? (
+                <Center py={30}>
+                  <Text size="sm" c="dimmed">No department data available to display.</Text>
+                </Center>
+              ) : (
+                <Stack gap="md">
+                  {reportData.departments.map((d) => (
+                    <Card key={d.id} p="md" radius="md" withBorder bg="gray.0">
+                      <Group justify="space-between" align="center" mb="xs">
+                        <div>
+                          <Group gap="xs">
+                            <Badge color="blue" size="lg" variant="filled">
+                              {d.code}
+                            </Badge>
+                            <Text fw={700} size="md" c="dark.9">
+                              {d.name}
+                            </Text>
+                          </Group>
+                          <Text size="xs" c="dimmed" mt={2}>
+                            Lead Instructor: <b>{d.headOfDepartment || "Not Assigned"}</b> • {d.totalSemesters || 4} Semesters Configured • {d.totalCoursesCount} Courses
+                          </Text>
+                        </div>
+                        <Badge color="indigo" variant="light" size="sm">
+                          {d.totalEnrolledStudents} Students Enrolled
+                        </Badge>
+                      </Group>
+
+                      {/* Semesters & Courses Grid */}
+                      <SimpleGrid cols={{ base: 1, md: 2 }} spacing="sm" mt="sm">
+                        {d.semesters.map((sem) => (
+                          <Paper key={sem.id} p="xs" radius="md" withBorder bg="white">
+                            <Group justify="space-between" align="center" mb={6}>
+                              <Badge color="indigo" variant="outline" size="xs">
+                                Semester {sem.semesterNumber}: {sem.title || sem.academicYear}
+                              </Badge>
+                              <Badge color={sem.isActive !== false ? "teal" : "gray"} size="xs" variant="dot">
+                                {sem.isActive !== false ? "Active" : "Disabled"}
+                              </Badge>
+                            </Group>
+
+                            {sem.courses.length === 0 ? (
+                              <Text size="11px" c="dimmed" fs="italic">
+                                No courses assigned to this semester yet.
+                              </Text>
+                            ) : (
+                              <Stack gap={6}>
+                                {sem.courses.map((c) => (
+                                  <Group key={c.id} justify="space-between" p={6} bg="gray.0" style={{ borderRadius: 6 }}>
+                                    <div>
+                                      <Text size="xs" fw={700} c="dark.9">
+                                        [{c.code}] {c.title}
+                                      </Text>
+                                      <Text size="10px" c="dimmed">
+                                        Teacher: <b>{c.instructorName}</b> • {c.totalLectures} Lectures {c.hasExam && "• Final Exam Configured"}
+                                      </Text>
+                                    </div>
+                                    <Badge color={c.averageCoursePercentage >= 75 ? "teal" : "blue"} size="xs" variant="light">
+                                      {c.averageCoursePercentage}% Avg
+                                    </Badge>
+                                  </Group>
+                                ))}
+                              </Stack>
+                            )}
+                          </Paper>
+                        ))}
+                      </SimpleGrid>
+                    </Card>
+                  ))}
+                </Stack>
+              )}
+            </Paper>
+
+            {/* SECTION 2: Individual Student Watch Progress & Tracking Table */}
+            <Paper p="md" radius="md" withBorder bg="white">
+              <Group justify="space-between" mb="md" wrap="wrap">
+                <div>
+                  <Title order={4} c="dark.9">
+                    Student Progress & Lecture Watch Audit
+                  </Title>
+                  <Text size="xs" c="dimmed">
+                    Detailed per-student breakdown: lectures watched, lessons remaining, percentage completion, and examination results.
+                  </Text>
+                </div>
+              </Group>
+
+              {loadingReport ? (
+                <Center py={40}>
+                  <Loader size="md" color="indigo" />
+                </Center>
+              ) : (
+                <Table.ScrollContainer minWidth={850}>
+                  <Table verticalSpacing="sm" highlightOnHover striped withTableBorder>
                     <Table.Thead>
                       <Table.Tr>
                         <Table.Th>Roll Number</Table.Th>
                         <Table.Th>Student Name</Table.Th>
-                        <Table.Th>Email</Table.Th>
+                        <Table.Th>Dept & Semester</Table.Th>
+                        <Table.Th>Course</Table.Th>
                         <Table.Th>Lectures Watched</Table.Th>
-                        <Table.Th>Course Coverage (%)</Table.Th>
-                        <Table.Th>Exam Score</Table.Th>
-                        <Table.Th style={{ textAlign: "right" }}>Actions</Table.Th>
+                        <Table.Th>What is Left</Table.Th>
+                        <Table.Th>Completion (%)</Table.Th>
+                        <Table.Th>Exam Outcome</Table.Th>
+                        <Table.Th>Watch Time</Table.Th>
                       </Table.Tr>
                     </Table.Thead>
                     <Table.Tbody>
-                      {auditData.students.length === 0 ? (
-                        <Table.Tr>
-                          <Table.Td colSpan={7} style={{ textAlign: "center" }} c="dimmed">
-                            No students enrolled in this department yet.
-                          </Table.Td>
-                        </Table.Tr>
-                      ) : (
-                        auditData.students.map((st) => (
-                          <Table.Tr key={st.studentId}>
+                      {(() => {
+                        const allStudentRows = [];
+                        if (reportData?.departments) {
+                          for (const d of reportData.departments) {
+                            for (const sem of d.semesters) {
+                              for (const c of sem.courses) {
+                                for (const st of c.students) {
+                                  allStudentRows.push({
+                                    deptCode: d.code,
+                                    deptName: d.name,
+                                    semNumber: sem.semesterNumber,
+                                    courseCode: c.code,
+                                    courseTitle: c.title,
+                                    ...st,
+                                  });
+                                }
+                              }
+                            }
+                          }
+                        }
+
+                        if (allStudentRows.length === 0) {
+                          return (
+                            <Table.Tr>
+                              <Table.Td colSpan={9} style={{ textAlign: "center" }} c="dimmed" py="lg">
+                                No student progress records found. Enroll students into departments and courses to see live tracking.
+                              </Table.Td>
+                            </Table.Tr>
+                          );
+                        }
+
+                        return allStudentRows.map((row, idx) => (
+                          <Table.Tr key={`${row.studentId}_${row.courseCode}_${idx}`}>
                             <Table.Td>
                               <Badge color="dark" variant="outline">
-                                {st.rollNumber}
+                                {row.rollNumber}
                               </Badge>
                             </Table.Td>
-                            <Table.Td fw={600}>{st.name}</Table.Td>
-                            <Table.Td c="dimmed" size="xs">{st.email}</Table.Td>
+                            <Table.Td>
+                              <Text fw={600} size="sm">{row.name}</Text>
+                              <Text size="11px" c="dimmed">{row.email}</Text>
+                            </Table.Td>
                             <Table.Td>
                               <Badge color="indigo" variant="light" size="xs">
-                                {st.completedLecturesCount} / {st.totalLecturesCount}
+                                {row.deptCode} - Sem {row.semNumber}
                               </Badge>
                             </Table.Td>
                             <Table.Td>
-                              <Group gap="xs" style={{ minWidth: 160 }}>
+                              <Text size="xs" fw={600} lineClamp={1}>
+                                [{row.courseCode}] {row.courseTitle}
+                              </Text>
+                            </Table.Td>
+                            <Table.Td>
+                              <Badge color="teal" variant="light" size="xs">
+                                {row.completedLecturesCount} / {row.totalLecturesCount}
+                              </Badge>
+                            </Table.Td>
+                            <Table.Td>
+                              <Text size="xs" c={row.remainingLecturesCount === 0 ? "teal.7" : "orange.8"} fw={600}>
+                                {row.remainingLecturesCount === 0 ? "All Complete ✔" : `${row.remainingLecturesCount} left`}
+                              </Text>
+                            </Table.Td>
+                            <Table.Td>
+                              <Group gap="xs" style={{ minWidth: 140 }}>
                                 <Progress
-                                  value={st.totalCoursePercentage}
-                                  color="teal"
+                                  value={row.totalCoursePercentage}
+                                  color={row.totalCoursePercentage >= 75 ? "teal" : "blue"}
                                   size="sm"
                                   style={{ flex: 1 }}
                                   radius="xl"
                                 />
-                                <Text size="xs" fw={700} c="teal.8" style={{ width: "38px" }}>
-                                  {st.totalCoursePercentage}%
+                                <Text size="xs" fw={700} style={{ width: "36px" }}>
+                                  {row.totalCoursePercentage}%
                                 </Text>
                               </Group>
                             </Table.Td>
                             <Table.Td>
-                              {st.isExamPassed ? (
+                              {row.isExamPassed ? (
                                 <Badge color="green" variant="filled" size="xs">
-                                  Passed ({st.examHighestScore}%)
+                                  Passed ({row.examHighestScore}%)
                                 </Badge>
-                              ) : st.examAttemptsCount > 0 ? (
+                              ) : row.examAttemptsCount > 0 ? (
                                 <Badge color="orange" variant="light" size="xs">
-                                  {st.examHighestScore}% ({st.examAttemptsCount} att.)
+                                  {row.examHighestScore}% ({row.examAttemptsCount} att.)
                                 </Badge>
                               ) : (
                                 <Badge color="gray" variant="outline" size="xs">
@@ -1602,29 +1923,20 @@ export function UniversitySuperUserView({ currentUser }) {
                                 </Badge>
                               )}
                             </Table.Td>
-                            <Table.Td style={{ textAlign: "right" }}>
-                              <Button
-                                size="compact-xs"
-                                variant="light"
-                                color="indigo"
-                                leftSection={<IconEye size={12} />}
-                                onClick={() => {
-                                  setSelectedStudentAudit(st);
-                                  setStudentAuditModalOpen(true);
-                                }}
-                              >
-                                Audit Detail
-                              </Button>
+                            <Table.Td>
+                              <Text size="xs" c="dimmed">
+                                {row.watchTimeMinutes ? `${(row.watchTimeMinutes / 60).toFixed(1)} hrs` : "0 min"}
+                              </Text>
                             </Table.Td>
                           </Table.Tr>
-                        ))
-                      )}
+                        ));
+                      })()}
                     </Table.Tbody>
                   </Table>
                 </Table.ScrollContainer>
-              </Stack>
-            )}
-          </Paper>
+              )}
+            </Paper>
+          </Stack>
         </Tabs.Panel>
 
       </Tabs>
@@ -2135,6 +2447,209 @@ export function UniversitySuperUserView({ currentUser }) {
             </Group>
           </Stack>
         )}
+      </Modal>
+
+    
+      {/* MODAL 1: DEPARTMENT DELETION ELIGIBILITY & SAFETY MODAL */}
+      <Modal
+        opened={deleteDeptModalOpened}
+        onClose={() => setDeleteDeptModalOpened(false)}
+        title={
+          <Group gap="xs">
+            <ThemeIcon color={deletionEligibility?.canDelete ? "orange" : "red"} variant="light" size="md">
+              {deletionEligibility?.canDelete ? <IconTrash size={18} /> : <IconAlertTriangle size={18} />}
+            </ThemeIcon>
+            <Text fw={700}>
+              {deletionEligibility?.canDelete ? "Confirm Department Deletion" : "Department Deletion Blocked"}
+            </Text>
+          </Group>
+        }
+        size="lg"
+      >
+        {checkingEligibility ? (
+          <Center py={40}>
+            <Loader size="md" color="indigo" />
+            <Text size="sm" ml="md">Checking affiliated courses and exams...</Text>
+          </Center>
+        ) : deletionEligibility && !deletionEligibility.canDelete ? (
+          <Stack gap="md">
+            <Alert color="red" variant="light" icon={<IconShieldLock size={20} />} title="Deletion Not Allowed">
+              The department <b>{deptToDelete?.name} ({deptToDelete?.code})</b> cannot be deleted because it has <b>{deletionEligibility.totalCourses} course(s)</b> and affiliated exams assigned to it.
+            </Alert>
+
+            <Text size="xs" c="dark.7" fw={500}>
+              You must first reassign or clear these courses from the department before you can delete it:
+            </Text>
+
+            <Table.ScrollContainer minWidth={450}>
+              <Table verticalSpacing="xs" striped highlightOnHover withTableBorder>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Code</Table.Th>
+                    <Table.Th>Course Title</Table.Th>
+                    <Table.Th>Semester</Table.Th>
+                    <Table.Th>Exam</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {deletionEligibility.courses.map((c) => (
+                    <Table.Tr key={c.id}>
+                      <Table.Td><Badge color="indigo" size="xs">{c.code}</Badge></Table.Td>
+                      <Table.Td fw={600} size="xs">{c.title}</Table.Td>
+                      <Table.Td size="xs">Semester {c.semesterNumber}</Table.Td>
+                      <Table.Td>
+                        {c.hasExam ? (
+                          <Badge color="green" variant="light" size="xs">Exam Linked</Badge>
+                        ) : (
+                          <Badge color="gray" variant="outline" size="xs">No Exam</Badge>
+                        )}
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </Table.ScrollContainer>
+
+            <Alert color="blue" variant="outline" size="xs">
+              💡 <b>Administrative Protection:</b> To preserve academic records and student progression transcripts, departments containing active courses cannot be removed without first deleting or reassigning those courses.
+            </Alert>
+
+            <Group justify="flex-end" mt="sm">
+              <Button variant="default" onClick={() => setDeleteDeptModalOpened(false)}>
+                Close & Return
+              </Button>
+              <Button disabled color="red">
+                Delete Blocked (Courses Affiliated)
+              </Button>
+            </Group>
+          </Stack>
+        ) : (
+          <Stack gap="md">
+            <Alert color="orange" variant="light" icon={<IconAlertTriangle size={20} />} title="Confirm Removal">
+              Are you sure you want to delete department <b>{deptToDelete?.name} ({deptToDelete?.code})</b>?
+            </Alert>
+            <Text size="sm" c="dark.7">
+              This department currently has <b>0 courses</b>. Deleting it will safely remove all {deletionEligibility?.totalSemesters || deptToDelete?.totalSemesters || 4} empty semester shells. This action cannot be undone.
+            </Text>
+            <Group justify="flex-end" mt="sm">
+              <Button variant="default" onClick={() => setDeleteDeptModalOpened(false)}>
+                Cancel
+              </Button>
+              <Button color="red" loading={deletingDept} onClick={confirmDeleteDepartment}>
+                Confirm & Delete Department
+              </Button>
+            </Group>
+          </Stack>
+        )}
+      </Modal>
+
+      {/* MODAL 2: DEPARTMENT UPDATE ERROR / WARNING MODAL */}
+      <Modal
+        opened={deptErrorModal.opened}
+        onClose={() => setDeptErrorModal({ opened: false, title: "", message: "" })}
+        title={
+          <Group gap="xs">
+            <ThemeIcon color="red" variant="light">
+              <IconAlertTriangle size={18} />
+            </ThemeIcon>
+            <Text fw={700} c="red.9">{deptErrorModal.title || "Department Action Notice"}</Text>
+          </Group>
+        }
+        size="md"
+      >
+        <Stack gap="md">
+          <Alert color="red" variant="light" icon={<IconShieldLock size={20} />}>
+            {deptErrorModal.message}
+          </Alert>
+          <Text size="xs" c="dimmed">
+            Semesters that contain active courses or exams cannot be deleted or pruned automatically. Please move or clear those courses first before reducing total semesters.
+          </Text>
+          <Button fullWidth variant="default" onClick={() => setDeptErrorModal({ opened: false, title: "", message: "" })}>
+            Understood
+          </Button>
+        </Stack>
+      </Modal>
+
+      {/* MODAL 3: SEMESTER DETAILS EDIT MODAL */}
+      <Modal
+        opened={semModalOpened}
+        onClose={() => setSemModalOpened(false)}
+        title={
+          <Group gap="xs">
+            <ThemeIcon color="indigo" variant="light">
+              <IconSchool size={18} />
+            </ThemeIcon>
+            <Text fw={700}>
+              Edit Semester Details - {selectedSemForEdit?.title || `Semester ${selectedSemForEdit?.semesterNumber}`}
+            </Text>
+          </Group>
+        }
+        size="md"
+      >
+        <Stack gap="sm">
+          <TextInput
+            label="Semester Title"
+            required
+            placeholder="e.g. Semester 1 - Foundation & Fundamentals"
+            value={semForm.title}
+            onChange={(e) => setSemForm({ ...semForm, title: e.target.value })}
+          />
+          <TextInput
+            label="Academic Term / Year"
+            required
+            placeholder="e.g. 2026-2027"
+            value={semForm.academicYear}
+            onChange={(e) => setSemForm({ ...semForm, academicYear: e.target.value })}
+          />
+          <Group grow>
+            <TextInput
+              label="Term Start Date"
+              type="date"
+              value={semForm.startDate}
+              onChange={(e) => setSemForm({ ...semForm, startDate: e.target.value })}
+            />
+            <TextInput
+              label="Term End Date"
+              type="date"
+              value={semForm.endDate}
+              onChange={(e) => setSemForm({ ...semForm, endDate: e.target.value })}
+            />
+          </Group>
+          <Switch
+            label="Semester Status (Active / Disabled)"
+            description="Controls whether students can access courses within this semester"
+            checked={semForm.isActive}
+            onChange={(e) => setSemForm({ ...semForm, isActive: e.currentTarget.checked })}
+            color="teal"
+          />
+
+          <Divider my="xs" label="Affiliated Courses" labelPosition="center" />
+          {courses.filter((c) => (c.semesterId?._id || c.semesterId) === (selectedSemForEdit?._id || selectedSemForEdit?.id)).length === 0 ? (
+            <Text size="xs" c="dimmed" ta="center">
+              No courses assigned to this semester yet.
+            </Text>
+          ) : (
+            <Stack gap={4}>
+              {courses
+                .filter((c) => (c.semesterId?._id || c.semesterId) === (selectedSemForEdit?._id || selectedSemForEdit?.id))
+                .map((c) => (
+                  <Group key={c._id || c.id} justify="space-between" p="xs" bg="gray.0" style={{ borderRadius: 6 }}>
+                    <div>
+                      <Text size="xs" fw={700}>[{c.code}] {c.title}</Text>
+                      <Text size="10px" c="dimmed">Instructor: {c.instructorName || "Not assigned"}</Text>
+                    </div>
+                    <Badge color={c.isActive !== false ? "teal" : "gray"} size="xs">
+                      {c.isActive !== false ? "Active" : "Disabled"}
+                    </Badge>
+                  </Group>
+                ))}
+            </Stack>
+          )}
+
+          <Button fullWidth mt="md" color="indigo" onClick={handleSaveSemester}>
+            Save Semester Details
+          </Button>
+        </Stack>
       </Modal>
 
     </Box>

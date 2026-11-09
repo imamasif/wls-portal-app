@@ -38,6 +38,16 @@ export const universityApi = {
     return res.data?.data || res.data;
   },
 
+  checkDepartmentDeletionEligibility: async (id) => {
+    const res = await axios.get(`${API_BASE}/departments/${id}/deletion-eligibility`);
+    return res.data?.data || res.data;
+  },
+
+  getAnalyticsReport: async (params = {}) => {
+    const res = await axios.get(`${API_BASE}/analytics-report`, { params });
+    return res.data?.data || res.data;
+  },
+
   deleteDepartment: async (id) => {
     const res = await axios.delete(`${API_BASE}/departments/${id}`);
     return res.data?.data || res.data;
