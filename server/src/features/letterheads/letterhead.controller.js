@@ -15,7 +15,7 @@ import {
   DEFAULT_BOARD_MEETING_MINUTES,
 } from './boardMeeting.service.js';
 import { sendBoardMeetingMinutesEmail } from '../../common/services/email.service.js';
-import { User } from '../users/user.model.js';
+import { UserModel } from '../users/user.model.js';
 
 const router = express.Router();
 
@@ -41,30 +41,69 @@ const upload = multer({
   },
 });
 
-// Middleware: restrict to SUPER_USER
+// Middleware: restrict to SUPER_USER or WLS_ADMIN
 function requireSuperUser(req, res, next) {
   const role = (
     req.headers['x-user-role'] ||
     req.headers['role'] ||
     req.body?.userRole ||
     req.query?.userRole ||
+    req.user?.role ||
     ''
   ).toUpperCase();
 
   if (
     role === 'SUPER_USER' ||
     role === 'UNIVERSITY_SUPER_USER' ||
-    role.includes('SUPER')
+    role.includes('SUPER') ||
+    role === 'WLS_ADMIN'
   ) {
     return next();
   }
 
-  if (req.user && (req.user.role === 'SUPER_USER' || req.user.role === 'university_super_user')) {
+  if (req.user && (req.user.role === 'SUPER_USER' || req.user.role === 'university_super_user' || req.user.role === 'WLS_ADMIN')) {
     return next();
   }
 
   return res.status(403).json({
-    error: 'Access Denied: Only Super Users are authorized to access Letterhead Studio.',
+    error: 'Access Denied: Only Super Users are authorized to perform this administrative operation.',
+  });
+}
+
+// Middleware: allow Super Users, WLS Admins, or any authenticated user/signatory to view and sign
+function requireSignatoryOrSuperUser(req, res, next) {
+  const role = (
+    req.headers['x-user-role'] ||
+    req.headers['role'] ||
+    req.body?.userRole ||
+    req.query?.userRole ||
+    req.user?.role ||
+    ''
+  ).toUpperCase();
+
+  if (
+    role === 'SUPER_USER' ||
+    role === 'UNIVERSITY_SUPER_USER' ||
+    role.includes('SUPER') ||
+    role === 'WLS_ADMIN'
+  ) {
+    return next();
+  }
+
+  const userEmail = (
+    req.user?.email ||
+    req.headers['x-user-email'] ||
+    req.body?.userEmail ||
+    req.query?.userEmail ||
+    ''
+  ).toLowerCase().trim();
+
+  if (userEmail || req.user) {
+    return next();
+  }
+
+  return res.status(403).json({
+    error: 'Access Denied: Please log in with your account to view and sign Board Meeting Minutes.',
   });
 }
 
@@ -290,8 +329,8 @@ router.get('/preview/:id', (req, res) => {
 // CARD 5: BOARD MEETING MINUTES & DIRECTOR SIGNATURE WORKFLOW
 // --------------------------------------------------------------------------
 
-// 6. Get Active Board Meeting Minutes
-router.get('/meeting-minutes', requireSuperUser, async (req, res) => {
+// 6. Get Active Board Meeting Minutes (Accessible to Super Users & Signatories)
+router.get('/meeting-minutes', requireSignatoryOrSuperUser, async (req, res) => {
   try {
     let doc = await MeetingMinutes.findOne().sort({ createdAt: -1 });
     if (!doc) {
@@ -318,24 +357,28 @@ router.post('/meeting-minutes/reset-default', requireSuperUser, async (req, res)
   }
 });
 
-// 8. Sign Document as a Signatory
-router.post('/meeting-minutes/:id/sign', requireSuperUser, async (req, res) => {
+// 8. Sign Document as a Signatory (Accessible to Signatory or Super User)
+router.post('/meeting-minutes/:id/sign', requireSignatoryOrSuperUser, async (req, res) => {
   try {
     const { id } = req.params;
-    const { signatoryId, signatureDataUrl, signDate, signTime } = req.body;
-
-    if (!signatoryId) {
-      return res.status(400).json({ error: 'Signatory ID is required' });
-    }
+    const { signatoryId, signatureDataUrl, signDate, signTime, userEmail } = req.body;
 
     const doc = await MeetingMinutes.findById(id);
     if (!doc) {
       return res.status(404).json({ error: 'Meeting minutes document not found' });
     }
 
-    const signatory = doc.signatories.id(signatoryId);
+    let signatory = null;
+    if (signatoryId) {
+      signatory = doc.signatories.id(signatoryId);
+    } else if (userEmail) {
+      signatory = doc.signatories.find(
+        (s) => s.email && s.email.toLowerCase().trim() === userEmail.toLowerCase().trim()
+      );
+    }
+
     if (!signatory) {
-      return res.status(404).json({ error: 'Signatory not found on document' });
+      return res.status(404).json({ error: 'Signatory record not found on this document' });
     }
 
     signatory.isSigned = true;
@@ -343,6 +386,10 @@ router.post('/meeting-minutes/:id/sign', requireSuperUser, async (req, res) => {
     signatory.signDate = signDate || new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     signatory.signTime = signTime || new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     signatory.signedAt = new Date();
+
+    if (userEmail && !signatory.email) {
+      signatory.email = userEmail.toLowerCase().trim();
+    }
 
     // Check if all signatories have signed
     const allSigned = doc.signatories.every((s) => s.isSigned);
@@ -358,7 +405,7 @@ router.post('/meeting-minutes/:id/sign', requireSuperUser, async (req, res) => {
   }
 });
 
-// 9. Update Meeting Minutes Details / Signatories
+// 9. Update Meeting Minutes Details / Signatories (Super User Only)
 router.put('/meeting-minutes/:id', requireSuperUser, async (req, res) => {
   try {
     const { id } = req.params;
@@ -448,10 +495,10 @@ router.post('/meeting-minutes/:id/finalize', requireSuperUser, async (req, res) 
   }
 });
 
-// 11. Get Portal Users (for choosing signatories from system)
+// 11. Get Portal Users (for Super User to choose signatories from database)
 router.get('/portal-users', requireSuperUser, async (req, res) => {
   try {
-    const users = await User.find({ isActive: true })
+    const users = await UserModel.find({})
       .select('name email role')
       .sort({ name: 1 })
       .lean();

@@ -17,6 +17,7 @@ import {
   IconUserCircle,
   IconNotes,
   IconBook,
+  IconUsersGroup,
 } from "@tabler/icons-react";
 
 export function UserDB({ setActiveTab }) {
@@ -69,6 +70,14 @@ export function UserDB({ setActiveTab }) {
       color: "grape",
       badge: "Account",
       tab: AppTab.EDIT_PROFILE,
+    },
+    {
+      title: "Board Meeting Minutes",
+      description: "Review and sign official IIPC Canada board meeting minutes.",
+      icon: IconUsersGroup,
+      color: "teal",
+      badge: "Signatures",
+      tab: AppTab.LETTERHEADS,
     },
   ];
 

@@ -100,13 +100,13 @@ export const DEFAULT_BOARD_MEETING_MINUTES = {
     </div>
   `,
   signatories: [
-    { role: 'SECRETARY', name: 'AAZIM KAMAL OMER', isSigned: false },
-    { role: 'EXECUTIVE DIRECTOR', name: 'ALAM MOHAMMAD', isSigned: false },
-    { role: 'MANAGING DIRECTOR', name: 'FAWAD GILANI', isSigned: false },
-    { role: 'DIRECTOR', name: 'MOIN UR REHMAN', isSigned: false },
-    { role: 'DIRECTOR', name: 'EISHA OMAR', isSigned: false },
-    { role: 'DIRECTOR', name: 'ASIF IMAM', isSigned: false },
-    { role: 'DIRECTOR', name: 'ADNAN KALEEMI', isSigned: false },
+    { role: 'SECRETARY', name: 'AAZIM KAMAL OMER', email: 'aazimkamal@iipccanada.com', isSigned: false },
+    { role: 'EXECUTIVE DIRECTOR', name: 'ALAM MOHAMMAD', email: 'alammuhammed@iipccanada.com', isSigned: false },
+    { role: 'MANAGING DIRECTOR', name: 'FAWAD GILANI', email: 'fawadgilani@iipccanada.com', isSigned: false },
+    { role: 'DIRECTOR', name: 'MOIN UR REHMAN', email: 'moin@unitrustib.com', isSigned: false },
+    { role: 'DIRECTOR', name: 'EISHA OMAR', email: 'eisha@iipccanada.com', isSigned: false },
+    { role: 'DIRECTOR', name: 'ASIF IMAM', email: 'syedimam@iipccanada.com', isSigned: false },
+    { role: 'DIRECTOR', name: 'ADNAN KALEEMI', email: 'kaleemi.adnan@gmail.com', isSigned: false },
   ],
 };
 
@@ -120,6 +120,24 @@ export async function ensureDefaultMeetingMinutes() {
       ...DEFAULT_BOARD_MEETING_MINUTES,
       status: 'PENDING_SIGNATURES',
     });
+  } else {
+    let updated = false;
+    for (const sig of doc.signatories) {
+      if (!sig.email) {
+        const match = DEFAULT_BOARD_MEETING_MINUTES.signatories.find(
+          (d) =>
+            d.name.toLowerCase().trim() === sig.name.toLowerCase().trim() ||
+            sig.name.toLowerCase().includes(d.name.split(' ')[0].toLowerCase())
+        );
+        if (match && match.email) {
+          sig.email = match.email;
+          updated = true;
+        }
+      }
+    }
+    if (updated) {
+      await doc.save();
+    }
   }
   return doc;
 }

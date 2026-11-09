@@ -27,9 +27,71 @@ import { DocumentCustomizerCard } from './components/DocumentCustomizerCard';
 import { UniversalMergerCard } from './components/UniversalMergerCard';
 import { BoardMeetingMinutesCard } from './components/BoardMeetingMinutesCard';
 
-export function LetterheadStudio({ user }) {
-  const [activeStudioTab, setActiveStudioTab] = useState('all');
+export function LetterheadStudio({ user, isSuperAdmin, isWlsAdmin }) {
+  const getInitialTab = () => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab') || params.get('sub');
+      if (tabParam === 'board-minutes' || tabParam === 'board_minutes' || tabParam === 'meeting-minutes') {
+        return 'board-minutes';
+      }
+      if (tabParam === 'iipc' || tabParam === 'bp' || tabParam === 'universal' || tabParam === 'customizer') {
+        return tabParam;
+      }
+    } catch {}
+    return 'all';
+  };
+
+  const [activeStudioTab, setActiveStudioTab] = useState(getInitialTab);
   const userRole = (user?.role || 'SUPER_USER').toUpperCase();
+  const hasSuperAccess =
+    isSuperAdmin ||
+    isWlsAdmin ||
+    userRole === 'SUPER_USER' ||
+    userRole === 'UNIVERSITY_SUPER_USER' ||
+    userRole.includes('SUPER') ||
+    userRole === 'WLS_ADMIN';
+
+  // If user is not an administrator, show only Board Meeting Minutes view
+  if (!hasSuperAccess) {
+    return (
+      <Container size="xl" py="lg">
+        <Stack gap="lg">
+          <Paper
+            p="lg"
+            radius="md"
+            style={{
+              background: 'linear-gradient(135deg, #042f2e 0%, #064e3b 50%, #0f766e 100%)',
+              color: '#ffffff',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+            }}
+          >
+            <Group justify="space-between" align="flex-start" wrap="wrap" gap="md">
+              <div>
+                <Group gap="xs" mb={6}>
+                  <ThemeIcon size="lg" radius="md" color="teal" variant="filled">
+                    <IconUsersGroup size={22} />
+                  </ThemeIcon>
+                  <Title order={2} style={{ color: '#ffffff', fontWeight: 800 }}>
+                    IIPC Canada — Board Meeting Minutes Sign-off Portal
+                  </Title>
+                </Group>
+                <Text size="sm" style={{ color: '#ccfbf1', maxWidth: '820px' }}>
+                  Welcome, <strong>{user?.name || user?.email}</strong>. Please review the official Board Meeting Minutes below and apply your digital signature in your assigned box.
+                </Text>
+              </div>
+
+              <Badge color="teal" variant="filled" size="md">
+                Signatory Sign-off Mode
+              </Badge>
+            </Group>
+          </Paper>
+
+          <BoardMeetingMinutesCard user={user} userRole={userRole} />
+        </Stack>
+      </Container>
+    );
+  }
 
   return (
     <Container size="xl" py="lg">

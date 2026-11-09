@@ -44,6 +44,10 @@ import {
   IconEdit,
   IconShieldCheck,
   IconCircleCheck,
+  IconMail,
+  IconCopy,
+  IconUserCheck,
+  IconLock,
 } from '@tabler/icons-react';
 import { SignaturePadModal } from './SignaturePadModal';
 import { letterheadApi } from '../api/letterheadApi';
@@ -55,6 +59,13 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
+
+  const roleUpper = (userRole || user?.role || '').toUpperCase();
+  const isSuperUser =
+    roleUpper === 'SUPER_USER' ||
+    roleUpper === 'UNIVERSITY_SUPER_USER' ||
+    roleUpper.includes('SUPER') ||
+    roleUpper === 'WLS_ADMIN';
 
   // Signing modal state
   const [signingModalOpen, setSigningModalOpen] = useState(false);
@@ -80,6 +91,7 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
   // Add signatory modal
   const [addSigModalOpen, setAddSigModalOpen] = useState(false);
   const [newSigName, setNewSigName] = useState('');
+  const [newSigEmail, setNewSigEmail] = useState('');
   const [newSigRole, setNewSigRole] = useState('DIRECTOR');
   const [portalUsers, setPortalUsers] = useState([]);
 
@@ -117,14 +129,16 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
 
   useEffect(() => {
     fetchMinutes();
-    // Load portal users for signatory picker
-    letterheadApi
-      .getPortalUsers(userRole)
-      .then((res) => {
-        if (res?.users) setPortalUsers(res.users);
-      })
-      .catch((e) => console.warn('Could not load portal users:', e));
-  }, []);
+    // Load portal users for signatory picker (Super Users only)
+    if (isSuperUser) {
+      letterheadApi
+        .getPortalUsers(userRole)
+        .then((res) => {
+          if (res?.users) setPortalUsers(res.users);
+        })
+        .catch((e) => console.warn('Could not load portal users:', e));
+    }
+  }, [userRole, isSuperUser]);
 
   const signatories = meetingMinute?.signatories || [];
   const signedCount = signatories.filter((s) => s.isSigned).length;
@@ -155,6 +169,7 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
         signDate,
         signTime,
         userRole,
+        userEmail: user?.email,
       });
 
       if (res?.meetingMinute) {
@@ -197,7 +212,6 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
   const handleUploadDocxChange = async (file) => {
     setUploadDocx(file);
     if (!file || !meetingMinute) return;
-
     try {
       setUploadingDocx(true);
       setError(null);
@@ -276,13 +290,23 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
 
   // Add new signatory
   const handleAddSignatory = async () => {
-    if (!newSigName.trim() || !meetingMinute) return;
+    if (!newSigName.trim()) {
+      setError('Officer Name is required');
+      return;
+    }
+    if (!newSigEmail.trim()) {
+      setError('Officer Login Email is required');
+      return;
+    }
+    if (!meetingMinute) return;
+
     try {
       setActionLoading(true);
       const updatedSigs = [
         ...signatories,
         {
           name: newSigName.trim().toUpperCase(),
+          email: newSigEmail.trim().toLowerCase(),
           role: newSigRole.toUpperCase(),
           isSigned: false,
         },
@@ -295,6 +319,7 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
       if (res?.meetingMinute) {
         setMeetingMinute(res.meetingMinute);
         setNewSigName('');
+        setNewSigEmail('');
         setAddSigModalOpen(false);
         setSuccessMsg(`Signatory ${newSigName} added successfully!`);
       }
@@ -326,6 +351,15 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
     }
   };
 
+  // Copy Direct Link to clipboard
+  const handleCopyDirectLink = () => {
+    const directUrl = `${window.location.origin}/?tab=board-minutes`;
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(directUrl);
+    }
+    setSuccessMsg(`Direct signing link copied to clipboard: ${directUrl}`);
+  };
+
   return (
     <Card shadow="md" padding="lg" radius="md" withBorder style={{ background: '#ffffff' }}>
       <LoadingOverlay visible={loading || actionLoading} overlayProps={{ radius: 'md', blur: 2 }} />
@@ -352,7 +386,7 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
               IIPC Letterhead
             </Badge>
             <Badge color={allSigned ? 'green' : 'orange'} variant="filled" size="sm">
-              {allSigned ? 'All 7 Signed' : `${signedCount} of ${totalSignatories} Signed`}
+              {allSigned ? `All ${totalSignatories} Signed` : `${signedCount} of ${totalSignatories} Signed`}
             </Badge>
             {meetingMinute?.emailDispatched && (
               <Badge color="blue" variant="light" size="sm" leftSection={<IconMailForward size={12} />}>
@@ -377,7 +411,7 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
         {/* Progress & Quick Stats Card */}
         <Paper p="sm" withBorder radius="md" style={{ background: '#f0fdfa', borderColor: '#ccfbf1' }}>
           <Stack gap="xs">
-            <Group justify="space-between" align="center">
+            <Group justify="space-between" align="center" wrap="wrap">
               <Group gap="xs">
                 <Text size="xs" fw={700} c="teal.9">
                   Board Sign-off Progress:
@@ -388,15 +422,29 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
               </Group>
 
               <Group gap="xs">
-                <Button size="compact-xs" variant="light" color="teal" leftSection={<IconEdit size={12} />} onClick={() => setEditMetaModalOpen(true)}>
-                  Edit Meeting Meta
+                <Button
+                  size="compact-xs"
+                  variant="light"
+                  color="indigo"
+                  leftSection={<IconCopy size={12} />}
+                  onClick={handleCopyDirectLink}
+                  title="Copy direct link for board members to log in and sign"
+                >
+                  Copy Sign-off Link
                 </Button>
-                <Button size="compact-xs" variant="light" color="indigo" leftSection={<IconPlus size={12} />} onClick={() => setAddSigModalOpen(true)}>
-                  Add Signatory
-                </Button>
-                <Button size="compact-xs" variant="subtle" color="gray" leftSection={<IconRefresh size={12} />} onClick={handleResetDefault}>
-                  Reset to Template
-                </Button>
+                {isSuperUser && (
+                  <>
+                    <Button size="compact-xs" variant="light" color="teal" leftSection={<IconEdit size={12} />} onClick={() => setEditMetaModalOpen(true)}>
+                      Edit Details
+                    </Button>
+                    <Button size="compact-xs" variant="light" color="indigo" leftSection={<IconPlus size={12} />} onClick={() => setAddSigModalOpen(true)}>
+                      Add Signatory
+                    </Button>
+                    <Button size="compact-xs" variant="subtle" color="gray" leftSection={<IconRefresh size={12} />} onClick={handleResetDefault}>
+                      Reset to Template
+                    </Button>
+                  </>
+                )}
               </Group>
             </Group>
 
@@ -458,14 +506,20 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
               </Badge>
             </Group>
             <Text size="11px" c="dimmed">
-              Each officer can sign directly via screen canvas pad or image upload with verification date &amp; time.
+              Each officer can sign in with their email, verify date &amp; time, and execute via digital screen pad or image.
             </Text>
           </Group>
 
           <Grid gutter="sm">
             {signatories.map((sig) => {
+              const userEmail = (user?.email || '').toLowerCase().trim();
+              const sigEmail = (sig.email || '').toLowerCase().trim();
+              const userName = (user?.name || '').toLowerCase().trim();
               const isCurrentLoggedUser =
-                user?.name && sig.name && user.name.toLowerCase().includes(sig.name.split(' ')[0].toLowerCase());
+                (userEmail && sigEmail && userEmail === sigEmail) ||
+                (userName && sig.name && userName.includes(sig.name.split(' ')[0].toLowerCase()));
+
+              const canSignThis = isSuperUser || isCurrentLoggedUser;
 
               return (
                 <Grid.Col span={{ base: 12, sm: 6, md: 4, lg: 3.4 }} key={sig._id || sig.name}>
@@ -474,14 +528,23 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
                     withBorder
                     radius="md"
                     style={{
-                      background: sig.isSigned ? '#f0fdf4' : isCurrentLoggedUser ? '#eef2ff' : '#ffffff',
-                      borderColor: sig.isSigned ? '#86efac' : isCurrentLoggedUser ? '#818cf8' : '#e2e8f0',
+                      background: sig.isSigned
+                        ? '#f0fdf4'
+                        : isCurrentLoggedUser
+                        ? '#f5f3ff'
+                        : '#ffffff',
+                      borderColor: sig.isSigned
+                        ? '#86efac'
+                        : isCurrentLoggedUser
+                        ? '#6366f1'
+                        : '#e2e8f0',
+                      borderWidth: isCurrentLoggedUser ? '2px' : '1px',
                       transition: 'all 0.2s ease',
                       height: '100%',
                       display: 'flex',
                       flexDirection: 'column',
                       justifyContent: 'space-between',
-                      boxShadow: isCurrentLoggedUser ? '0 4px 12px rgba(99, 102, 241, 0.15)' : 'none',
+                      boxShadow: isCurrentLoggedUser ? '0 6px 20px rgba(99, 102, 241, 0.22)' : 'none',
                     }}
                   >
                     <div>
@@ -493,15 +556,22 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
                             sig.role.includes('SECRETARY')
                               ? 'teal'
                               : sig.role.includes('EXECUTIVE')
-                              ? 'indigo'
+                              ? 'grape'
                               : sig.role.includes('MANAGING')
                               ? 'blue'
-                              : 'cyan'
+                              : sig.role.includes('CHAIRMAN')
+                              ? 'red'
+                              : 'indigo'
                           }
                         >
                           {sig.role}
                         </Badge>
                         <Group gap={4}>
+                          {isCurrentLoggedUser && (
+                            <Badge color="indigo" size="xs" variant="light" leftSection={<IconUserCheck size={10} />}>
+                              Your Box
+                            </Badge>
+                          )}
                           {sig.isSigned ? (
                             <Badge color="green" size="xs" variant="light" leftSection={<IconCheck size={10} />}>
                               Signed
@@ -511,21 +581,31 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
                               Pending
                             </Badge>
                           )}
-                          <ActionIcon
-                            size="xs"
-                            color="gray"
-                            variant="subtle"
-                            onClick={() => handleDeleteSignatory(sig._id)}
-                            title="Remove Signatory"
-                          >
-                            <IconTrash size={12} />
-                          </ActionIcon>
+                          {isSuperUser && (
+                            <ActionIcon
+                              size="xs"
+                              color="gray"
+                              variant="subtle"
+                              onClick={() => handleDeleteSignatory(sig._id)}
+                              title="Remove Signatory"
+                            >
+                              <IconTrash size={12} />
+                            </ActionIcon>
+                          )}
                         </Group>
                       </Group>
 
                       <Text fw={700} size="sm" c="dark.9" mt={2}>
                         {sig.name}
                       </Text>
+
+                      {/* Display Officer Email */}
+                      <Group gap={4} mt={2}>
+                        <IconMail size={12} color="#64748b" />
+                        <Text size="11px" c="dimmed" truncate style={{ maxWidth: '190px' }}>
+                          {sig.email || 'No email assigned'}
+                        </Text>
+                      </Group>
 
                       {/* Signature Box Area */}
                       <Box
@@ -571,12 +651,19 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
                       mt="xs"
                       size="xs"
                       fullWidth
-                      variant={sig.isSigned ? 'light' : 'filled'}
-                      color={sig.isSigned ? 'teal' : 'indigo'}
+                      variant={isCurrentLoggedUser ? 'filled' : sig.isSigned ? 'light' : 'filled'}
+                      color={isCurrentLoggedUser ? 'indigo' : sig.isSigned ? 'teal' : 'blue'}
                       leftSection={<IconWriting size={14} />}
                       onClick={() => handleOpenSignModal(sig)}
+                      disabled={!canSignThis}
                     >
-                      {sig.isSigned ? 'Update / Re-sign' : 'Sign & Date'}
+                      {isCurrentLoggedUser
+                        ? sig.isSigned
+                          ? 'Update Your Signature'
+                          : 'Sign & Date as You'
+                        : sig.isSigned
+                        ? 'Update / Re-sign'
+                        : 'Sign & Date'}
                     </Button>
                   </Paper>
                 </Grid.Col>
@@ -598,21 +685,23 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
                 </Text>
               </Group>
 
-              <Group gap="xs">
-                <FileInput
-                  size="xs"
-                  placeholder="Upload Word File (.docx)..."
-                  accept=".docx,.doc"
-                  value={uploadDocx}
-                  onChange={handleUploadDocxChange}
-                  leftSection={<IconUpload size={14} />}
-                  clearable
-                  style={{ width: '220px' }}
-                />
-                <Button size="xs" variant="light" color="teal" leftSection={<IconEdit size={13} />} onClick={() => setEditContentModalOpen(true)}>
-                  Edit Text
-                </Button>
-              </Group>
+              {isSuperUser && (
+                <Group gap="xs">
+                  <FileInput
+                    size="xs"
+                    placeholder="Upload Word File (.docx)..."
+                    accept=".docx,.doc"
+                    value={uploadDocx}
+                    onChange={handleUploadDocxChange}
+                    leftSection={<IconUpload size={14} />}
+                    clearable
+                    style={{ width: '220px' }}
+                  />
+                  <Button size="xs" variant="light" color="teal" leftSection={<IconEdit size={13} />} onClick={() => setEditContentModalOpen(true)}>
+                    Edit Text
+                  </Button>
+                </Group>
+              )}
             </Group>
 
             {/* Document Canvas Preview Box */}
@@ -642,7 +731,7 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
               </Text>
 
               <div
-                style={{ fontSize: '13px', lineHeight: 1.6, color: '#1e293b' }}
+                style={{ fontSize: '13px', lineHeights: 1.6, color: '#1e293b' }}
                 dangerouslySetInnerHTML={{ __html: meetingMinute?.contentHtml || '<p>No content</p>' }}
               />
 
@@ -689,20 +778,26 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
                 </Text>
               </div>
 
-              <Button
-                size="md"
-                color="teal"
-                variant="filled"
-                leftSection={<IconSparkles size={18} />}
-                onClick={handleFinalizeAndDispatch}
-                loading={actionLoading}
-                style={{
-                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                  boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)',
-                }}
-              >
-                Finalize &amp; Send to info@ and accounts@iipccanada.com
-              </Button>
+              {isSuperUser ? (
+                <Button
+                  size="md"
+                  color="teal"
+                  variant="filled"
+                  leftSection={<IconSparkles size={18} />}
+                  onClick={handleFinalizeAndDispatch}
+                  loading={actionLoading}
+                  style={{
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)',
+                  }}
+                >
+                  Finalize &amp; Send to info@ and accounts@iipccanada.com
+                </Button>
+              ) : (
+                <Badge color="yellow" variant="filled" size="md">
+                  Awaiting Super Admin Dispatch
+                </Badge>
+              )}
             </Group>
 
             {/* Generated Downloads if available */}
@@ -918,30 +1013,73 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
       </Modal>
 
       {/* MODAL 3: Add Signatory */}
-      <Modal opened={addSigModalOpen} onClose={() => setAddSigModalOpen(false)} title="Add Board Signatory / Officer" size="sm" centered>
+      <Modal
+        opened={addSigModalOpen}
+        onClose={() => setAddSigModalOpen(false)}
+        title={
+          <Group gap="xs">
+            <ThemeIcon color="indigo" size="sm" radius="md">
+              <IconPlus size={14} />
+            </ThemeIcon>
+            <Text fw={700} size="sm">
+              Add Board Signatory / Officer
+            </Text>
+          </Group>
+        }
+        size="md"
+        centered
+      >
         <Stack gap="xs">
+          <Text size="xs" c="dimmed">
+            Pick a registered user from the database or enter custom officer info. The email will be used for sign-off authentication.
+          </Text>
+
           {portalUsers.length > 0 && (
             <Select
               size="xs"
-              label="Select from Portal Users"
-              placeholder="Pick registered user..."
-              data={portalUsers.map((u) => ({ value: u.name, label: `${u.name} (${u.email})` }))}
-              onChange={(val) => {
-                if (val) setNewSigName(val);
-              }}
+              label="Choose from Registered Portal Users (Auto-fills Name & Email)"
+              placeholder="Search user by name or email..."
+              searchable
               clearable
+              data={portalUsers.map((u) => ({
+                value: u.email,
+                label: `${u.name} — ${u.email} (${u.role})`,
+              }))}
+              onChange={(val) => {
+                if (val) {
+                  const sel = portalUsers.find((u) => u.email === val);
+                  if (sel) {
+                    setNewSigName(sel.name);
+                    setNewSigEmail(sel.email);
+                  }
+                }
+              }}
             />
           )}
+
           <TextInput
             size="xs"
             label="Officer Full Name"
-            placeholder="e.g. John Doe"
+            placeholder="e.g. FAWAD GILANI"
+            required
             value={newSigName}
             onChange={(e) => setNewSigName(e.target.value)}
           />
+
+          <TextInput
+            size="xs"
+            label="Officer Portal Email (Login Email)"
+            placeholder="e.g. fawadgilani@iipccanada.com"
+            required
+            description="The officer logs in with this email to access and apply their signature."
+            leftSection={<IconMail size={14} />}
+            value={newSigEmail}
+            onChange={(e) => setNewSigEmail(e.target.value)}
+          />
+
           <Select
             size="xs"
-            label="Role / Title"
+            label="Role / Board Title (Chosen by Super User)"
             value={newSigRole}
             onChange={setNewSigRole}
             data={[
@@ -949,15 +1087,21 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
               { value: 'EXECUTIVE DIRECTOR', label: 'EXECUTIVE DIRECTOR' },
               { value: 'MANAGING DIRECTOR', label: 'MANAGING DIRECTOR' },
               { value: 'DIRECTOR', label: 'DIRECTOR' },
-              { value: 'TREASURER', label: 'TREASURER' },
+              { value: 'CHAIRMAN', label: 'CHAIRMAN' },
               { value: 'PRESIDENT', label: 'PRESIDENT' },
+              { value: 'VICE PRESIDENT', label: 'VICE PRESIDENT' },
+              { value: 'TREASURER', label: 'TREASURER' },
+              { value: 'BOARD MEMBER', label: 'BOARD MEMBER' },
+              { value: 'LEGAL COUNSEL', label: 'LEGAL COUNSEL' },
+              { value: 'AUDITOR / OBSERVER', label: 'AUDITOR / OBSERVER' },
             ]}
           />
+
           <Group justify="flex-end" mt="md">
             <Button size="xs" variant="default" onClick={() => setAddSigModalOpen(false)}>
               Cancel
             </Button>
-            <Button size="xs" color="indigo" onClick={handleAddSignatory}>
+            <Button size="xs" color="indigo" onClick={handleAddSignatory} loading={actionLoading}>
               Add Signatory
             </Button>
           </Group>

@@ -48,9 +48,32 @@ const ViewLoadingFallback = () => (
 
 export default function App() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState(
-    user ? AppTab.DASHBOARD : AppTab.LOGIN,
-  );
+
+  // Check if URL has tab parameter (?tab=board-minutes or ?tab=letterheads)
+  const getRequestedTabFromUrl = () => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get("tab") || params.get("page");
+      if (
+        tab === "board-minutes" ||
+        tab === "board_minutes" ||
+        tab === "letterheads" ||
+        tab === "meeting-minutes" ||
+        tab === "letterhead"
+      ) {
+        return AppTab.LETTERHEADS;
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  };
+
+  const [activeTab, setActiveTab] = useState(() => {
+    const requested = getRequestedTabFromUrl();
+    if (requested) return requested;
+    return user ? AppTab.DASHBOARD : AppTab.LOGIN;
+  });
   const [selectedQuizForEdit, setSelectedQuizForEdit] = useState(null);
 
   // Check if URL has public campaign link parameter (?event=... or ?eventId=...)
@@ -66,8 +89,16 @@ export default function App() {
   const [publicEventId, setPublicEventId] = useState(getPublicEventIdFromUrl());
 
   useEffect(() => {
-    if (!user) setActiveTab(AppTab.LOGIN);
-    else if (user && activeTab === AppTab.LOGIN) setActiveTab(AppTab.DASHBOARD);
+    if (!user) {
+      setActiveTab(AppTab.LOGIN);
+    } else {
+      const requested = getRequestedTabFromUrl();
+      if (requested) {
+        setActiveTab(requested);
+      } else if (activeTab === AppTab.LOGIN || !activeTab) {
+        setActiveTab(AppTab.DASHBOARD);
+      }
+    }
   }, [user]);
 
   // Robust role variables supporting single role and roles array
@@ -239,8 +270,8 @@ export default function App() {
           {(activeTab === AppTab.USER_EVENTS || (activeTab === AppTab.IIPC_EVENTS && !isSuperAdmin)) && (
             <IipcEventsUserView user={user} />
           )}
-          {activeTab === AppTab.LETTERHEADS && (isSuperAdmin || isWlsAdmin) && (
-            <LetterheadStudio user={user} />
+          {activeTab === AppTab.LETTERHEADS && (
+            <LetterheadStudio user={user} isSuperAdmin={isSuperAdmin} isWlsAdmin={isWlsAdmin} />
           )}
         </Suspense>
       </Container>

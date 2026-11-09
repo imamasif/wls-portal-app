@@ -20,6 +20,7 @@ import {
   IconHeartHandshake,
   IconCategory,
   IconBuildingBank,
+  IconUsersGroup,
 } from "@tabler/icons-react";
 
 export function UserMenu({ activeTab, setActiveTab }) {
@@ -184,6 +185,15 @@ export function UserMenu({ activeTab, setActiveTab }) {
             }
           >
             IIPC Events & Pledges
+          </Menu.Item>
+          <Menu.Divider />
+          <Menu.Item
+            onClick={() => setActiveTab(AppTab.LETTERHEADS)}
+            leftSection={
+              <IconUsersGroup size={16} color="var(--mantine-color-teal-6)" />
+            }
+          >
+            Board Meeting Minutes
           </Menu.Item>
         </Menu.Dropdown>
       </Menu>
