@@ -38,6 +38,7 @@ import {
   IconVideo,
   IconUsers,
   IconUser,
+  IconUserPlus,
   IconAward,
   IconPlus,
   IconEdit,
