@@ -24,8 +24,8 @@ import {
   Accordion,
   Tooltip,
   ThemeIcon,
-  Collapse,
   TextInput,
+  Table,
 } from "@mantine/core";
 import {
   IconSchool,
@@ -34,7 +34,6 @@ import {
   IconLock,
   IconCheck,
   IconCircleCheck,
-  IconCircleDot,
   IconAward,
   IconMessageDots,
   IconSend,
@@ -49,11 +48,12 @@ import {
   IconChevronRight,
   IconChevronLeft,
   IconUser,
-  IconPlus,
   IconFileText,
   IconCertificate,
-  IconTrash,
   IconPencil,
+  IconChecklist,
+  IconPuzzle,
+  IconHelpCircle,
 } from "@tabler/icons-react";
 import ReactPlayer from "react-player";
 import { universityApi } from "../api/universityApi";
@@ -65,6 +65,9 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
   const [courses, setCourses] = useState([]);
   const [selectedCourseId, setSelectedCourseId] = useState(null);
   const [isPlayerOpen, setIsPlayerOpen] = useState(false);
+
+  // Content mode inside player: "video" or "quiz"
+  const [contentMode, setContentMode] = useState("video");
 
   // Course Progress & Lectures
   const [courseData, setCourseData] = useState(null);
@@ -90,25 +93,24 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
   const [chatInput, setChatInput] = useState("");
   const [sendingMsg, setSendingMsg] = useState(false);
 
-  // Exam / Quiz Modal State
+  // Exam / Quiz Taking State (Image 3)
   const [examModalOpened, setExamModalOpened] = useState(false);
-  const [activeQuiz, setActiveQuiz] = useState(null);
   const [quizAnswers, setQuizAnswers] = useState({});
   const [submittingExam, setSubmittingExam] = useState(false);
-  const [examResult, setExamResult] = useState(null);
-  const [examTimer, setExamTimer] = useState(300); // 5 min demo timer
+  const [examTimeRemaining, setExamTimeRemaining] = useState(7200); // 2 hours in seconds
+  const [timerActive, setTimerActive] = useState(false);
 
   // Certificates State
   const [certificates, setCertificates] = useState([]);
   const [activeCertToView, setActiveCertToView] = useState(null);
   const [viewCertModalOpened, setViewCertModalOpened] = useState(false);
 
-  // Notification state
+  // Anti-cheat notification state
   const [antiCheatWarning, setAntiCheatWarning] = useState(null);
 
   const studentId = currentUser?._id || currentUser?.id;
 
-  // 1. Load Student Enrollment and Available Courses
+  // 1. Initial Load: Student Enrollment & Available Courses
   const loadStudentData = async () => {
     setLoading(true);
     try {
@@ -121,12 +123,10 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
       setEnrollment(userEnrollment);
       setCertificates(certsRes || []);
 
-      // Load all available courses
       const cList = await universityApi.getCourses();
       setCourses(cList || []);
 
       if (cList && cList.length > 0 && !selectedCourseId) {
-        // Prefer "Color Coded Quran (Urdu Language)" if present
         const ccqUrdu = cList.find((c) => c.code === "CCQ-URDU-101") || cList[0];
         setSelectedCourseId(ccqUrdu._id || ccqUrdu.id);
       }
@@ -151,18 +151,21 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
       setCourseData(data);
 
       if (data?.lectures && data.lectures.length > 0) {
-        // Default to first unlocked incomplete lecture or first lecture
-        const currentActive = activeLecture
-          ? data.lectures.find((l) => (l.lectureId || l._id) === (activeLecture.lectureId || activeLecture._id))
-          : null;
+        if (contentMode === "video") {
+          const currentActive = activeLecture
+            ? data.lectures.find(
+                (l) => (l.lectureId || l._id) === (activeLecture.lectureId || activeLecture._id)
+              )
+            : null;
 
-        if (currentActive) {
-          selectLecture(currentActive);
-        } else {
-          const nextToWatch =
-            data.lectures.find((l) => l.isUnlocked && !l.isCompleted) ||
-            data.lectures[0];
-          selectLecture(nextToWatch);
+          if (currentActive) {
+            selectLecture(currentActive);
+          } else {
+            const nextToWatch =
+              data.lectures.find((l) => l.isUnlocked && !l.isCompleted) ||
+              data.lectures[0];
+            selectLecture(nextToWatch);
+          }
         }
       }
     } catch (err) {
@@ -195,9 +198,10 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
       .catch((err) => console.warn("Failed to load lecture notes:", err));
   };
 
-  // Helper: Select active lecture and initialize anti-cheat watch bounds
+  // Helper: Select active lecture and initialize anti-cheat bounds
   const selectLecture = (lecture) => {
     if (!lecture) return;
+    setContentMode("video");
     setActiveLecture(lecture);
     const initialUrl =
       Array.isArray(lecture.videoUrls) && lecture.videoUrls.length > 0
@@ -214,9 +218,17 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
     loadNotes(lecture.lectureId || lecture._id);
   };
 
-  // 5. Anti-Cheat Video Watch Logic
+  // Select Quiz Mode (Image 3)
+  const selectQuiz = () => {
+    setContentMode("quiz");
+    setActiveLecture(null);
+    setAntiCheatWarning(null);
+  };
+
+  // 5. Anti-Cheat Video Watch Logic:
+  // If lecture is ALREADY completed -> student can re-watch freely anytime with NO restrictions!
+  // If lecture is NOT completed and mandatory -> prevent scrubbing ahead!
   const handleProgress = ({ playedSeconds: currentSecs }) => {
-    // ANTI-CHEAT: Prevent skipping ahead past what has been watched!
     if (activeLecture?.isMandatory && !isCompletedState) {
       if (currentSecs > maxWatchedSeconds + 3) {
         if (playerRef.current) {
@@ -271,12 +283,11 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
     }
   };
 
-  // 6. Manual Mark Completed Action (Image 5 center pill button)
+  // 6. Manual Mark Completed Action (Image 5 center green pill button)
   const handleManualMarkCompleted = async () => {
     if (!activeLecture) return;
     await saveProgressToBackend(durationSeconds || playedSeconds || 60, true);
     setIsCompletedState(true);
-    // Proceed to next lecture
     handleNextLecture();
   };
 
@@ -287,16 +298,25 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
   );
 
   const handleNextLecture = () => {
-    if (currentLectureIndex >= 0 && currentLectureIndex < allLecturesList.length - 1) {
-      const nextLec = allLecturesList[currentLectureIndex + 1];
-      if (nextLec.isUnlocked || isCompletedState) {
-        selectLecture(nextLec);
+    if (contentMode === "video") {
+      if (currentLectureIndex >= 0 && currentLectureIndex < allLecturesList.length - 1) {
+        const nextLec = allLecturesList[currentLectureIndex + 1];
+        if (nextLec.isUnlocked || isCompletedState) {
+          selectLecture(nextLec);
+        }
+      } else if (courseData?.exam?.isExamUnlocked) {
+        // Reached end of lectures -> open Quiz!
+        selectQuiz();
       }
     }
   };
 
   const handlePrevLecture = () => {
-    if (currentLectureIndex > 0) {
+    if (contentMode === "quiz") {
+      if (allLecturesList.length > 0) {
+        selectLecture(allLecturesList[allLecturesList.length - 1]);
+      }
+    } else if (currentLectureIndex > 0) {
       selectLecture(allLecturesList[currentLectureIndex - 1]);
     }
   };
@@ -323,6 +343,74 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
     }
   };
 
+  // 9. Exam / Quiz Submission (Image 3)
+  const handleStartExam = () => {
+    setQuizAnswers({});
+    setExamTimeRemaining(7200); // 2 hours
+    setTimerActive(true);
+    setExamModalOpened(true);
+  };
+
+  const handleSubmitExam = async () => {
+    const questions = courseData?.exam?.questions || [];
+    let correctCount = 0;
+    const formattedAnswers = questions.map((q, qIdx) => {
+      const selected = quizAnswers[qIdx];
+      const isCorrect = Array.isArray(q.correctAnswers)
+        ? q.correctAnswers.includes(selected)
+        : false;
+      if (isCorrect) correctCount++;
+      return {
+        questionId: q._id || qIdx,
+        selectedAnswer: selected,
+        isCorrect,
+      };
+    });
+
+    const score = correctCount * 10;
+    const maxScore = questions.length * 10;
+    const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+    const passingPct = courseData?.exam?.passingPercentage || 75;
+    const isPassed = percentage >= passingPct;
+
+    setSubmittingExam(true);
+    try {
+      await universityApi.submitExamAttempt({
+        studentId,
+        courseId: selectedCourseId,
+        quizId: courseData?.exam?.quizId,
+        attemptNumber: (courseData?.exam?.attemptsCount || 0) + 1,
+        score,
+        maxScore,
+        percentage,
+        isPassed,
+        answers: formattedAnswers,
+      });
+
+      setTimerActive(false);
+      setExamModalOpened(false);
+      loadCourseLectures(selectedCourseId);
+    } catch (err) {
+      alert("Failed to submit exam: " + (err.response?.data?.message || err.message));
+    } finally {
+      setSubmittingExam(false);
+    }
+  };
+
+  // Exam timer countdown
+  useEffect(() => {
+    let interval = null;
+    if (timerActive && examTimeRemaining > 0) {
+      interval = setInterval(() => {
+        setExamTimeRemaining((prev) => prev - 1);
+      }, 1000);
+    } else if (examTimeRemaining <= 0 && timerActive) {
+      setTimerActive(false);
+      handleSubmitExam();
+    }
+    return () => clearInterval(interval);
+  }, [timerActive, examTimeRemaining]);
+
   // Format seconds to mm:ss or hh:mm:ss
   const formatTime = (secs) => {
     if (!secs) return "00:00";
@@ -336,6 +424,9 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
     return `${String(mins).padStart(2, "0")}:${String(remSecs).padStart(2, "0")}`;
   };
 
+  // Format 2-digit index (e.g. 01, 02, 03...)
+  const formatIndex = (idx) => String(idx + 1).padStart(2, "0");
+
   // Group lectures by topicName
   const groupedTopics = {};
   allLecturesList.forEach((lec) => {
@@ -346,8 +437,9 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
 
   const activeCourse = courses.find((c) => (c._id || c.id) === selectedCourseId) || courses[0];
   const courseCoverage = courseData?.totalCoursePercentage || 0;
+  const completedLecturesCount = courseData?.completedCount || 0;
+  const remainingLecturesCount = courseData?.remainingCount || 0;
 
-  // Calculate total study time across watched lectures
   const totalWatchedSeconds = (courseData?.lectures || []).reduce(
     (sum, l) => sum + (l.watchedSeconds || 0),
     0
@@ -363,7 +455,7 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
   }
 
   // =========================================================================
-  // VIEW MODE 1: CONTINUOUS COURSE PLAYER (Images 1, 2, 5)
+  // VIEW MODE 1: CONTINUOUS COURSE PLAYER & EXAM (Images 1, 2, 3, 5)
   // =========================================================================
   if (isPlayerOpen && activeCourse) {
     return (
@@ -411,10 +503,10 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
         {/* 2-Column Split Workspace */}
         <Box px={{ base: "xs", md: "md" }}>
           <SimpleGrid cols={{ base: 1, md: 12 }} spacing="md">
-            {/* LEFT COLUMN: Sidebar with Progress & Collapsible Topics (Cols: 4) */}
+            {/* LEFT COLUMN: Sidebar with Progress & Sequential Topics (Cols: 4) */}
             <Box style={{ gridColumn: "span 4" }}>
               <Paper p="md" radius="md" withBorder bg="white" shadow="xs" mb="md">
-                {/* Progress Card (Matching Images 1, 2, 5) */}
+                {/* Progress Card (Image 1, 2, 5) */}
                 <Group justify="space-between" align="center" mb={6}>
                   <Text fw={700} size="sm" c="dark.8">
                     {courseCoverage}% Completed
@@ -437,7 +529,7 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
                 />
               </Paper>
 
-              {/* Topics & Lectures Accordion */}
+              {/* Topics & Lectures Accordion List */}
               <Paper radius="md" withBorder bg="white" shadow="xs" p="xs">
                 <Accordion
                   multiple
@@ -455,7 +547,7 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
                         <Group gap="xs" wrap="nowrap">
                           <ThemeIcon size={20} radius="xl" color="indigo" variant="light">
                             <Text size="10px" fw={700}>
-                              {tIdx + 1}
+                              {formatIndex(tIdx)}
                             </Text>
                           </ThemeIcon>
                           <Text size="xs" fw={700} c="dark.8" lineClamp={1}>
@@ -465,10 +557,11 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
                       </Accordion.Control>
                       <Accordion.Panel>
                         <Stack gap={3}>
-                          {topicLectures.map((lec) => {
+                          {topicLectures.map((lec, lIdx) => {
                             const isSelected =
+                              contentMode === "video" &&
                               (lec.lectureId || lec._id) ===
-                              (activeLecture?.lectureId || activeLecture?._id);
+                                (activeLecture?.lectureId || activeLecture?._id);
                             const isCompleted = Boolean(lec.isCompleted);
                             const isLocked = !lec.isUnlocked && !isCompleted;
 
@@ -478,9 +571,7 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
                                 p="8px 12px"
                                 style={{
                                   borderRadius: "6px",
-                                  backgroundColor: isSelected
-                                    ? "#f1f5f9"
-                                    : "transparent",
+                                  backgroundColor: isSelected ? "#f1f5f9" : "transparent",
                                   borderLeft: isSelected
                                     ? "3.5px solid #2563eb"
                                     : "3.5px solid transparent",
@@ -496,7 +587,7 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
                                     ) : isLocked ? (
                                       <IconLock size={16} color="#94a3b8" />
                                     ) : (
-                                      <IconVideo
+                                      <IconPlayerPlay
                                         size={18}
                                         color={isSelected ? "#2563eb" : "#64748b"}
                                       />
@@ -508,6 +599,9 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
                                         c={isSelected ? "blue.8" : isLocked ? "dimmed" : "dark.8"}
                                         lineClamp={1}
                                       >
+                                        <Text span fw={600} mr={4} c="dimmed">
+                                          {formatIndex(lIdx)}.
+                                        </Text>
                                         {lec.title}
                                       </Text>
                                       <Text size="11px" c="dimmed">
@@ -523,163 +617,179 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
                       </Accordion.Panel>
                     </Accordion.Item>
                   ))}
+
+                  {/* Capstone Item: Course Quiz / Exam (Image 2 & 3) */}
+                  {courseData?.exam && (
+                    <Box
+                      p="10px 14px"
+                      mt="xs"
+                      style={{
+                        borderRadius: "6px",
+                        backgroundColor: contentMode === "quiz" ? "#f1f5f9" : "transparent",
+                        borderLeft:
+                          contentMode === "quiz"
+                            ? "3.5px solid #2563eb"
+                            : "3.5px solid transparent",
+                        cursor: courseData.exam.isExamUnlocked ? "pointer" : "not-allowed",
+                        transition: "all 0.15s ease",
+                      }}
+                      onClick={() => courseData.exam.isExamUnlocked && selectQuiz()}
+                    >
+                      <Group justify="space-between" align="center" wrap="nowrap">
+                        <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+                          {courseData.exam.hasPassedExam ? (
+                            <IconCircleCheck size={18} color="#10b981" />
+                          ) : !courseData.exam.isExamUnlocked ? (
+                            <IconLock size={16} color="#94a3b8" />
+                          ) : (
+                            <IconAward
+                              size={18}
+                              color={contentMode === "quiz" ? "#2563eb" : "#eab308"}
+                            />
+                          )}
+                          <Box style={{ minWidth: 0, flex: 1 }}>
+                            <Text
+                              size="xs"
+                              fw={contentMode === "quiz" ? 700 : 600}
+                              c={
+                                contentMode === "quiz"
+                                  ? "blue.8"
+                                  : !courseData.exam.isExamUnlocked
+                                  ? "dimmed"
+                                  : "dark.8"
+                              }
+                              lineClamp={1}
+                            >
+                              {courseData.exam.quizTitle}
+                            </Text>
+                            <Text size="11px" c="dimmed">
+                              Quiz • Pass {courseData.exam.passingPercentage}% • Max {courseData.exam.maxAttempts} Attempts
+                            </Text>
+                          </Box>
+                        </Group>
+                      </Group>
+                    </Box>
+                  )}
                 </Accordion>
               </Paper>
             </Box>
 
-            {/* RIGHT COLUMN: Video Player, Notes, Tabs & Action Bar (Cols: 8) */}
+            {/* RIGHT COLUMN: Video Player or Exam Card (Cols: 8) */}
             <Box style={{ gridColumn: "span 8" }}>
-              <Paper p="md" radius="md" withBorder bg="white" shadow="xs" mb="md">
-                {/* Lecture Title & Compliance Alert */}
-                <Group justify="space-between" mb="xs" align="center">
-                  <div>
-                    <Title order={3} c="dark.9" style={{ fontSize: "1.2rem" }}>
-                      {activeLecture?.title || "Video Lecture"}
-                    </Title>
-                    <Text size="xs" c="dimmed">
-                      {activeLecture?.topicName || "Curriculum"}
-                    </Text>
-                  </div>
-                  {activeLecture?.isMandatory ? (
-                    <Badge color="red" variant="light" size="sm">
-                      Mandatory Video
-                    </Badge>
-                  ) : (
-                    <Badge color="gray" variant="light" size="sm">
-                      Optional Lesson
-                    </Badge>
-                  )}
-                </Group>
-
-                {antiCheatWarning && (
-                  <Alert
-                    icon={<IconAlertCircle size={16} />}
-                    color="red"
-                    mb="sm"
-                    withCloseButton
-                    onClose={() => setAntiCheatWarning(null)}
-                  >
-                    {antiCheatWarning}
-                  </Alert>
-                )}
-
-                {/* Video Player */}
-                <Box
-                  style={{
-                    position: "relative",
-                    paddingTop: "56.25%",
-                    backgroundColor: "#000000",
-                    borderRadius: "8px",
-                    overflow: "hidden",
-                    boxShadow: "0 4px 15px rgba(0,0,0,0.2)",
-                  }}
-                  mb="md"
-                >
-                  {selectedVideoUrl ? (
-                    <ReactPlayer
-                      ref={playerRef}
-                      url={selectedVideoUrl}
-                      controls
-                      playing={isPlaying}
-                      width="100%"
-                      height="100%"
-                      style={{ position: "absolute", top: 0, left: 0 }}
-                      onProgress={handleProgress}
-                      onDuration={handleDuration}
-                      onEnded={handleEnded}
-                      onPlay={() => setIsPlaying(true)}
-                      onPause={() => setIsPlaying(false)}
-                    />
-                  ) : (
-                    <Center style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}>
-                      <Text c="white">No video stream loaded</Text>
-                    </Center>
-                  )}
-                </Box>
-
-                {/* Sub-Video Tabs (Overview, Notes, Comments, Exam) */}
-                <Tabs defaultValue="overview" color="indigo">
-                  <Tabs.List justify="space-between">
-                    <Group gap="xs">
-                      <Tabs.Tab value="overview" leftSection={<IconBook2 size={16} />}>
-                        Overview
-                      </Tabs.Tab>
-                      <Tabs.Tab value="notes" leftSection={<IconNotes size={16} />}>
-                        Notes ({notes.length})
-                      </Tabs.Tab>
-                      <Tabs.Tab value="qa" leftSection={<IconMessageDots size={16} />}>
-                        Instructor Q&A
-                      </Tabs.Tab>
-                    </Group>
-
-                    <Button
-                      variant="subtle"
-                      color="indigo"
-                      size="xs"
-                      leftSection={<IconPencil size={14} />}
-                      onClick={() => setNoteModalOpen(true)}
-                    >
-                      Take Note
-                    </Button>
-                  </Tabs.List>
-
-                  {/* 1. Overview Tab */}
-                  <Tabs.Panel value="overview" pt="sm">
-                    <Stack gap="xs">
-                      <Text size="sm" c="dark.8">
-                        {activeLecture?.description ||
-                          "Study this lecture carefully to master the grammatical structures and word-by-word meanings of Quranic verses."}
-                      </Text>
+              {/* CASE A: VIDEO PLAYER MODE (Images 1, 2, 5) */}
+              {contentMode === "video" && (
+                <Paper p="md" radius="md" withBorder bg="white" shadow="xs" mb="md">
+                  <Group justify="space-between" mb="xs" align="center">
+                    <div>
+                      <Title order={3} c="dark.9" style={{ fontSize: "1.2rem" }}>
+                        {activeLecture?.title || "Video Lecture"}
+                      </Title>
                       <Text size="xs" c="dimmed">
-                        Duration: {formatTime(activeLecture?.durationSeconds || 900)} mins |
-                        Watch progress: {formatTime(playedSeconds)} / {formatTime(durationSeconds || activeLecture?.durationSeconds || 900)}
+                        {activeLecture?.topicName || "Curriculum"}
                       </Text>
-                    </Stack>
-                  </Tabs.Panel>
+                    </div>
+                    {isCompletedState ? (
+                      <Badge color="green" variant="light" size="sm">
+                        Completed (Watch Anytime)
+                      </Badge>
+                    ) : activeLecture?.isMandatory ? (
+                      <Badge color="red" variant="light" size="sm">
+                        Mandatory Video
+                      </Badge>
+                    ) : (
+                      <Badge color="gray" variant="light" size="sm">
+                        Optional Lesson
+                      </Badge>
+                    )}
+                  </Group>
 
-                  {/* 2. Notes Tab (Image 5 Note-taking area) */}
-                  <Tabs.Panel value="notes" pt="sm">
-                    <Stack gap="sm">
-                      {/* Inline quick note input */}
-                      <Group gap="xs" align="flex-end">
-                        <TextInput
-                          placeholder="Type your note here to save for later..."
-                          value={noteInput}
-                          onChange={(e) => setNoteInput(e.target.value)}
-                          style={{ flex: 1 }}
-                          size="sm"
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") handleSaveNote();
-                          }}
-                        />
-                        <Button
-                          color="indigo"
-                          size="sm"
-                          onClick={handleSaveNote}
-                          loading={savingNote}
-                        >
-                          Save Note
-                        </Button>
-                      </Group>
+                  {antiCheatWarning && (
+                    <Alert
+                      icon={<IconAlertCircle size={16} />}
+                      color="red"
+                      mb="sm"
+                      withCloseButton
+                      onClose={() => setAntiCheatWarning(null)}
+                    >
+                      {antiCheatWarning}
+                    </Alert>
+                  )}
 
-                      {/* Notes list */}
+                  {/* Video Player */}
+                  <Box
+                    style={{
+                      position: "relative",
+                      paddingTop: "56.25%",
+                      backgroundColor: "#000000",
+                      borderRadius: "8px",
+                      overflow: "hidden",
+                      boxShadow: "0 4px 15px rgba(0,0,0,0.2)",
+                    }}
+                    mb="md"
+                  >
+                    {selectedVideoUrl ? (
+                      <ReactPlayer
+                        ref={playerRef}
+                        url={selectedVideoUrl}
+                        controls
+                        playing={isPlaying}
+                        width="100%"
+                        height="100%"
+                        style={{ position: "absolute", top: 0, left: 0 }}
+                        onProgress={handleProgress}
+                        onDuration={handleDuration}
+                        onEnded={handleEnded}
+                        onPlay={() => setIsPlaying(true)}
+                        onPause={() => setIsPlaying(false)}
+                      />
+                    ) : (
+                      <Center style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}>
+                        <Text c="white">No video stream loaded</Text>
+                      </Center>
+                    )}
+                  </Box>
+
+                  {/* Note Taking Area (Images 1, 2, 5) */}
+                  <Paper p="sm" withBorder radius="md" bg="gray.0" mb="md">
+                    <Stack gap="xs">
+                      <TextInput
+                        placeholder="Type your note here to save for later..."
+                        value={noteInput}
+                        onChange={(e) => setNoteInput(e.target.value)}
+                        size="sm"
+                        rightSection={
+                          <ActionIcon
+                            variant="filled"
+                            color="indigo"
+                            size="sm"
+                            onClick={handleSaveNote}
+                            loading={savingNote}
+                          >
+                            <IconPencil size={14} />
+                          </ActionIcon>
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleSaveNote();
+                        }}
+                      />
+
                       {notes.length === 0 ? (
-                        <Center py="xl">
-                          <Stack align="center" gap={4}>
-                            <ThemeIcon size={40} radius="xl" color="gray" variant="light">
-                              <IconFileText size={20} />
+                        <Center py="md">
+                          <Stack align="center" gap={2}>
+                            <ThemeIcon size={36} radius="xl" color="gray" variant="light">
+                              <IconFileText size={18} />
                             </ThemeIcon>
                             <Text size="xs" c="dimmed">
-                              No Notes Have Been Added Yet!
+                              No Notes Have Been Added!
                             </Text>
                           </Stack>
                         </Center>
                       ) : (
-                        <Stack gap="xs">
+                        <Stack gap="xs" mt={4}>
                           {notes.map((n, idx) => (
-                            <Paper key={n.noteId || idx} p="xs" withBorder radius="md" bg="gray.0">
+                            <Paper key={n.noteId || idx} p="xs" withBorder radius="sm" bg="white">
                               <Group justify="space-between" align="center">
-                                <Text size="sm" c="dark.8">
+                                <Text size="xs" c="dark.8">
                                   {n.text}
                                 </Text>
                                 <Button
@@ -700,157 +810,247 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
                         </Stack>
                       )}
                     </Stack>
-                  </Tabs.Panel>
+                  </Paper>
 
-                  {/* 3. Instructor Q&A Tab */}
-                  <Tabs.Panel value="qa" pt="sm">
-                    <Paper p="sm" withBorder radius="md" bg="gray.0" mb="sm">
-                      <Stack gap="xs" style={{ maxHeight: "200px", overflowY: "auto" }}>
-                        {messages.length === 0 ? (
-                          <Text size="xs" c="dimmed" ta="center">
-                            No direct messages yet. Send a question to your instructor below.
-                          </Text>
-                        ) : (
-                          messages.map((m, idx) => {
-                            const isMe = m.senderRole === "student";
-                            return (
-                              <Group
-                                key={m._id || idx}
-                                justify={isMe ? "flex-end" : "flex-start"}
-                              >
-                                <Paper
-                                  p="xs"
-                                  radius="md"
-                                  bg={isMe ? "indigo.6" : "white"}
-                                  c={isMe ? "white" : "dark.8"}
-                                  withBorder={!isMe}
-                                  style={{ maxWidth: "75%" }}
-                                >
-                                  <Text size="xs" fw={700} c={isMe ? "indigo.1" : "blue.7"}>
-                                    {m.senderName} ({m.senderRole})
-                                  </Text>
-                                  <Text size="xs">{m.message}</Text>
-                                </Paper>
-                              </Group>
-                            );
-                          })
-                        )}
-                      </Stack>
+                  {/* Bottom Action Bar (Image 5: Previous, Completed, Next) */}
+                  <Divider my="md" />
+                  <Group justify="space-between" align="center">
+                    <Button
+                      variant="default"
+                      size="sm"
+                      leftSection={<IconChevronLeft size={16} />}
+                      onClick={handlePrevLecture}
+                      disabled={currentLectureIndex <= 0}
+                    >
+                      Previous
+                    </Button>
+
+                    <Button
+                      color="teal"
+                      size="md"
+                      radius="xl"
+                      leftSection={<IconCheck size={18} />}
+                      onClick={handleManualMarkCompleted}
+                    >
+                      {isCompletedState ? "Completed ✔" : "Mark as Complete"}
+                    </Button>
+
+                    <Button
+                      variant="default"
+                      size="sm"
+                      rightSection={<IconChevronRight size={16} />}
+                      onClick={handleNextLecture}
+                    >
+                      Next
+                    </Button>
+                  </Group>
+                </Paper>
+              )}
+
+              {/* CASE B: QUIZ / EXAM SCREEN (Image 3) */}
+              {contentMode === "quiz" && (
+                <Paper p="xl" radius="md" withBorder bg="white" shadow="xs">
+                  {/* Top Illustration Banner (Image 3) */}
+                  <Center
+                    p="xl"
+                    mb="lg"
+                    style={{
+                      background: "linear-gradient(180deg, #f1f5f9 0%, #ffffff 100%)",
+                      borderRadius: "12px",
+                      border: "1px solid #e2e8f0",
+                    }}
+                  >
+                    <ThemeIcon size={80} radius="xl" color="indigo" variant="light">
+                      <IconPuzzle size={44} />
+                    </ThemeIcon>
+                  </Center>
+
+                  {/* Title & Description */}
+                  <Title order={2} c="dark.9" mb={4}>
+                    {courseData?.exam?.quizTitle || "Course Final Quiz"}
+                  </Title>
+                  <Text size="sm" c="dimmed" mb="lg">
+                    {courseData?.exam?.quizDescription ||
+                      "Alfaaz ke rang aur maienay ki shanakht karen."}
+                  </Text>
+
+                  {/* Info Table (Image 3) */}
+                  <Table withTableBorder withColumnBorders mb="xl" verticalSpacing="sm">
+                    <Table.Tbody>
+                      <Table.Tr>
+                        <Table.Td fw={600} style={{ width: "40%" }}>
+                          Questions
+                        </Table.Td>
+                        <Table.Td>{courseData?.exam?.questionsCount || 20}</Table.Td>
+                      </Table.Tr>
+                      <Table.Tr>
+                        <Table.Td fw={600}>Quiz Time</Table.Td>
+                        <Table.Td>{courseData?.exam?.quizTime || "2 Hours"}</Table.Td>
+                      </Table.Tr>
+                      <Table.Tr>
+                        <Table.Td fw={600}>Total Marks</Table.Td>
+                        <Table.Td>{(courseData?.exam?.questionsCount || 20) * 10}</Table.Td>
+                      </Table.Tr>
+                      <Table.Tr>
+                        <Table.Td fw={600}>Passing Grade</Table.Td>
+                        <Table.Td fw={700} c="indigo.7">
+                          {courseData?.exam?.passingPercentage || 75}%
+                        </Table.Td>
+                      </Table.Tr>
+                      <Table.Tr>
+                        <Table.Td fw={600}>Earned Grade</Table.Td>
+                        <Table.Td fw={700} c={courseData?.exam?.hasPassedExam ? "green.7" : "dark.8"}>
+                          {courseData?.exam?.highestScore > 0
+                            ? `${courseData.exam.highestScore}%`
+                            : "-"}
+                        </Table.Td>
+                      </Table.Tr>
+                    </Table.Tbody>
+                  </Table>
+
+                  {/* Attempts History (Image 3) */}
+                  <Title order={4} mb="xs" c="dark.8">
+                    Attempts History
+                  </Title>
+
+                  {courseData?.exam?.attempts?.length === 0 ? (
+                    <Paper p="md" withBorder radius="md" bg="gray.0" mb="lg">
+                      <Text size="xs" c="dimmed" ta="center">
+                        No attempts made yet. You have {courseData?.exam?.maxAttempts || 5} attempts available.
+                      </Text>
                     </Paper>
+                  ) : (
+                    <Stack gap="sm" mb="lg">
+                      {courseData?.exam?.attempts?.map((att, idx) => (
+                        <Paper key={att._id || idx} p="md" withBorder radius="md" bg="gray.0">
+                          <Group justify="space-between" align="center" wrap="wrap">
+                            <div>
+                              <Text size="sm" fw={700}>
+                                Attempt {att.attemptNumber} of {courseData?.exam?.maxAttempts || 5}
+                              </Text>
+                              <Text size="xs" c="dimmed">
+                                {activeCourse.title} • {new Date(att.attemptedAt || att.createdAt).toLocaleString()}
+                              </Text>
+                            </div>
 
-                    <Group gap="xs">
-                      <TextInput
-                        placeholder="Ask your instructor a question..."
-                        value={chatInput}
-                        onChange={(e) => setChatInput(e.target.value)}
-                        style={{ flex: 1 }}
-                        size="sm"
-                      />
+                            <Group gap="md">
+                              <Badge
+                                size="lg"
+                                color={att.isPassed ? "green" : "red"}
+                                variant="light"
+                              >
+                                {att.percentage}%
+                              </Badge>
+                              <Badge color={att.isPassed ? "green" : "red"} variant="filled">
+                                {att.isPassed ? "Passed" : "Failed"}
+                              </Badge>
+                            </Group>
+                          </Group>
+                        </Paper>
+                      ))}
+                    </Stack>
+                  )}
+
+                  {/* Start Exam Button */}
+                  <Group justify="flex-end">
+                    {courseData?.exam?.hasPassedExam ? (
                       <Button
-                        color="indigo"
-                        size="sm"
-                        leftSection={<IconSend size={14} />}
-                        onClick={async () => {
-                          if (!chatInput.trim() || !selectedCourseId || !studentId) return;
-                          setSendingMsg(true);
-                          try {
-                            const sent = await universityApi.sendMessage({
-                              courseId: selectedCourseId,
-                              studentId,
-                              senderId: studentId,
-                              senderName: currentUser?.name || "Student",
-                              senderRole: "student",
-                              message: chatInput.trim(),
-                            });
-                            setMessages((prev) => [...prev, sent]);
-                            setChatInput("");
-                          } catch (err) {
-                            alert("Failed to send message: " + err.message);
-                          } finally {
-                            setSendingMsg(false);
-                          }
-                        }}
-                        loading={sendingMsg}
+                        size="md"
+                        color="teal"
+                        radius="md"
+                        leftSection={<IconCheck size={18} />}
+                        onClick={() => setIsPlayerOpen(false)}
                       >
-                        Send
+                        Continue Lesson
                       </Button>
-                    </Group>
-                  </Tabs.Panel>
-                </Tabs>
-
-                {/* Bottom Action Bar (Image 5: Previous, Completed, Next) */}
-                <Divider my="md" />
-                <Group justify="space-between" align="center">
-                  <Button
-                    variant="default"
-                    size="sm"
-                    leftSection={<IconChevronLeft size={16} />}
-                    onClick={handlePrevLecture}
-                    disabled={currentLectureIndex <= 0}
-                  >
-                    Previous
-                  </Button>
-
-                  <Button
-                    color="teal"
-                    size="md"
-                    radius="xl"
-                    leftSection={<IconCheck size={18} />}
-                    onClick={handleManualMarkCompleted}
-                  >
-                    {isCompletedState ? "Completed ✔" : "Mark as Complete"}
-                  </Button>
-
-                  <Button
-                    variant="default"
-                    size="sm"
-                    rightSection={<IconChevronRight size={16} />}
-                    onClick={handleNextLecture}
-                    disabled={currentLectureIndex >= allLecturesList.length - 1}
-                  >
-                    Next
-                  </Button>
-                </Group>
-              </Paper>
+                    ) : (courseData?.exam?.attemptsCount || 0) <
+                      (courseData?.exam?.maxAttempts || 5) ? (
+                      <Button
+                        size="md"
+                        color="indigo"
+                        radius="md"
+                        leftSection={<IconAward size={18} />}
+                        onClick={handleStartExam}
+                      >
+                        Start Quiz / Exam (Attempt {(courseData?.exam?.attemptsCount || 0) + 1} of{" "}
+                        {courseData?.exam?.maxAttempts || 5})
+                      </Button>
+                    ) : (
+                      <Alert color="red" title="Maximum Attempts Reached">
+                        You have used all {courseData?.exam?.maxAttempts || 5} attempts. Please contact your instructor.
+                      </Alert>
+                    )}
+                  </Group>
+                </Paper>
+              )}
             </Box>
           </SimpleGrid>
         </Box>
 
-        {/* Modal: Take Time-stamped Note (Image 1 & 2 popup) */}
+        {/* Modal: Interactive Exam Taking (Image 3) */}
         <Modal
-          opened={noteModalOpen}
-          onClose={() => setNoteModalOpen(false)}
+          opened={examModalOpened}
+          onClose={() => setExamModalOpened(false)}
           title={
-            <Group gap="xs">
-              <IconPencil size={18} color="#2563eb" />
-              <Text fw={700}>Take Note</Text>
-              <Badge color="blue" size="sm" variant="light">
-                {formatTime(playedSeconds)}
+            <Group justify="space-between" style={{ width: "100%" }}>
+              <Group gap="xs">
+                <IconAward size={20} color="#4f46e5" />
+                <Text fw={700}>{courseData?.exam?.quizTitle || "Course Exam"}</Text>
+              </Group>
+              <Badge color="blue" size="md" variant="filled">
+                ⏱ {formatTime(examTimeRemaining)}
               </Badge>
             </Group>
           }
+          size="lg"
           centered
         >
-          <Stack gap="md">
-            <Textarea
-              placeholder="Use case of grids, vocabulary, or questions..."
-              value={noteInput}
-              onChange={(e) => setNoteInput(e.target.value)}
-              minRows={4}
-              autosize
-            />
+          <Stack gap="lg">
+            {(courseData?.exam?.questions || []).map((q, qIdx) => (
+              <Paper key={q._id || qIdx} p="md" withBorder radius="md">
+                <Group justify="space-between" mb="xs">
+                  <Text fw={700} size="sm">
+                    Question {qIdx + 1} of {(courseData?.exam?.questions || []).length}
+                  </Text>
+                  <Badge color="gray" size="xs">
+                    10 Points
+                  </Badge>
+                </Group>
+                <Text size="sm" c="dark.8" mb="md">
+                  {q.questionText}
+                </Text>
+
+                <Radio.Group
+                  value={quizAnswers[qIdx] || ""}
+                  onChange={(val) =>
+                    setQuizAnswers((prev) => ({ ...prev, [qIdx]: val }))
+                  }
+                >
+                  <Stack gap="xs">
+                    {(q.options || []).map((opt, oIdx) => (
+                      <Radio key={oIdx} value={opt} label={opt} />
+                    ))}
+                  </Stack>
+                </Radio.Group>
+              </Paper>
+            ))}
+
             <Group justify="flex-end" gap="xs">
-              <Button variant="default" onClick={() => setNoteModalOpen(false)}>
-                Cancel
+              <Button variant="default" onClick={() => setExamModalOpened(false)}>
+                Quit Exam
               </Button>
-              <Button color="indigo" onClick={handleSaveNote} loading={savingNote}>
-                Save Note
+              <Button
+                color="indigo"
+                onClick={handleSubmitExam}
+                loading={submittingExam}
+              >
+                Submit Exam
               </Button>
             </Group>
           </Stack>
         </Modal>
 
-        {/* Bottom Floating Role Perspective Pill (Images 1, 2, 3) */}
+        {/* Floating Bottom Perspective Switcher Pill (Images 1, 2, 3) */}
         {onSwitchPerspective && (
           <Paper
             p="6px 14px"
@@ -906,7 +1106,7 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
   // =========================================================================
   return (
     <Box style={{ backgroundColor: "#f8fafc", minHeight: "100vh", paddingBottom: "80px" }}>
-      {/* Hero Welcome Card (Image 4 continuous dashboard) */}
+      {/* Hero Welcome Card (Image 4) */}
       <Paper
         p="xl"
         radius="lg"
@@ -925,16 +1125,22 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
               </Badge>
               {enrollment?.rollNumber && (
                 <Badge color="indigo" size="md" variant="light">
-                  Roll No: {enrollment.rollNumber}
+                  Roll: {enrollment.rollNumber}
                 </Badge>
               )}
             </Group>
             <Title order={1} style={{ color: "#ffffff", letterSpacing: "-0.5px", fontSize: "1.75rem" }}>
               Hi, {currentUser?.name || "Student"}! 👋
             </Title>
-            <Text size="sm" c="gray.3" style={{ maxWidth: "600px" }}>
-              The continuous dashboard — Learning feels like one continuous space, not a maze of pages.
-              Lessons, progress, and course info live together so you never lose momentum.
+            <Text size="xs" c="gray.3">
+              Department:{" "}
+              <strong>
+                {enrollment?.departmentName ||
+                  enrollment?.departmentId?.name ||
+                  "Quranic Arabic & Translation"}
+              </strong>{" "}
+              | Current Semester:{" "}
+              <strong>Semester {enrollment?.currentSemesterNumber || 1}</strong>
             </Text>
           </Stack>
 
@@ -953,7 +1159,7 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
         </Group>
       </Paper>
 
-      {/* 4 Metric Cards in a Grid (Matching Image 4) */}
+      {/* 4 Stat Metric Cards (Image 4) */}
       <SimpleGrid cols={{ base: 2, md: 4 }} spacing="md" mb="xl">
         <Paper p="md" radius="md" withBorder bg="white" shadow="xs">
           <Group justify="space-between" align="center" mb="xs">
@@ -968,7 +1174,7 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
             {courses.length}
           </Text>
           <Text size="11px" c="dimmed">
-            Active department tracks
+            Active courses
           </Text>
         </Paper>
 
@@ -992,17 +1198,17 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
         <Paper p="md" radius="md" withBorder bg="white" shadow="xs">
           <Group justify="space-between" align="center" mb="xs">
             <Text size="xs" fw={700} c="dimmed" tt="uppercase">
-              Completed
+              Lessons Completed
             </Text>
             <ThemeIcon color="green" variant="light" size="md" radius="md">
               <IconCircleCheck size={18} />
             </ThemeIcon>
           </Group>
           <Text size="xl" fw={800} c="green.7">
-            {courseCoverage >= 100 ? 1 : 0}
+            {completedLecturesCount}
           </Text>
           <Text size="11px" c="dimmed">
-            Courses completed
+            {remainingLecturesCount} lessons left
           </Text>
         </Paper>
 
@@ -1024,69 +1230,9 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
         </Paper>
       </SimpleGrid>
 
-      {/* Centralized Resource Hub Cards (Image 4) */}
-      <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md" mb="xl">
-        <Paper p="md" radius="md" withBorder bg="white" shadow="xs">
-          <Group gap="sm" mb="xs">
-            <ThemeIcon color="indigo" variant="light" size="lg" radius="md">
-              <IconNotes size={20} />
-            </ThemeIcon>
-            <div>
-              <Text fw={700} size="sm">
-                Note Taking Hub
-              </Text>
-              <Text size="xs" c="dimmed">
-                Time-stamped video notes
-              </Text>
-            </div>
-          </Group>
-          <Text size="xs" c="dark.7">
-            Review all notes you take during video lectures with direct timestamp jumping back into lessons.
-          </Text>
-        </Paper>
-
-        <Paper p="md" radius="md" withBorder bg="white" shadow="xs">
-          <Group gap="sm" mb="xs">
-            <ThemeIcon color="blue" variant="light" size="lg" radius="md">
-              <IconMessageDots size={20} />
-            </ThemeIcon>
-            <div>
-              <Text fw={700} size="sm">
-                Direct Q&A
-              </Text>
-              <Text size="xs" c="dimmed">
-                Private instructor support
-              </Text>
-            </div>
-          </Group>
-          <Text size="xs" c="dark.7">
-            A dedicated 1-on-1 space for learners to get direct answers from instructors, course by course.
-          </Text>
-        </Paper>
-
-        <Paper p="md" radius="md" withBorder bg="white" shadow="xs">
-          <Group gap="sm" mb="xs">
-            <ThemeIcon color="teal" variant="light" size="lg" radius="md">
-              <IconCertificate size={20} />
-            </ThemeIcon>
-            <div>
-              <Text fw={700} size="sm">
-                Certifications
-              </Text>
-              <Text size="xs" c="dimmed">
-                Official IIPC Awards
-              </Text>
-            </div>
-          </Group>
-          <Text size="xs" c="dark.7">
-            Complete your courses and pass final exams to unlock formal verifiable semester certificates.
-          </Text>
-        </Paper>
-      </SimpleGrid>
-
       {/* Course Cards Grid */}
       <Title order={3} mb="md" c="dark.9">
-        Continue Your Learning
+        Your Enrolled Courses
       </Title>
 
       <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
@@ -1112,9 +1258,14 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
                 <Badge color="indigo" size="sm">
                   {c.code}
                 </Badge>
-                <Badge color="gray" variant="outline" size="sm">
-                  {c.credits || 4} Credits
-                </Badge>
+                <Group gap="xs">
+                  <Badge color="green" variant="light" size="xs">
+                    Pass {c.examPassingPercentage || 75}%
+                  </Badge>
+                  <Badge color="gray" variant="outline" size="xs">
+                    {c.credits || 4} Credits
+                  </Badge>
+                </Group>
               </Group>
 
               <Title order={4} mb="xs" c="dark.9">
@@ -1145,6 +1296,7 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
                 fullWidth
                 onClick={() => {
                   setSelectedCourseId(cId);
+                  setContentMode("video");
                   setIsPlayerOpen(true);
                 }}
               >

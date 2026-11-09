@@ -1,3 +1,4 @@
+import { QuizModel } from "../quizzes/quiz.model.js";
 import mongoose from "mongoose";
 import {
   UniversityModel,
@@ -82,6 +83,70 @@ export async function syncUniversityCurriculum() {
         examMaxAttempts: 3,
         isActive: true,
       });
+    }
+
+
+    // Ensure "Allah and Aaliha Quiz" exists (Image 3)
+    let quiz = await QuizModel.findOne({ title: "Allah and Aaliha Quiz" });
+    if (!quiz) {
+      quiz = await QuizModel.create({
+        title: "Allah and Aaliha Quiz",
+        description: "Alfaaz ke rang aur maienay ki shanakht karen.",
+        isPublished: true,
+        isActive: true,
+        createdBy: "super_user",
+        questions: [
+          {
+            questionText: "Quran mein 'Aalihah' ka lafzi mafhoom kya hai?",
+            questionType: "SINGLE_SELECT",
+            points: 10,
+            options: ["Ma'bood / Deities", "Rabb", "Rasool", "Malaika"],
+            correctAnswers: ["Ma'bood / Deities"],
+          },
+          {
+            questionText: "Color coded translation mein Noun (Ism) ka aam taur par kaun sa rang makhsoos hai?",
+            questionType: "SINGLE_SELECT",
+            points: 10,
+            options: ["Blue", "Red", "Green", "Black"],
+            correctAnswers: ["Blue"],
+          },
+          {
+            questionText: "Surah Al-Baqarah mein Tauheed ka bunyadi pegham kis lafz se wazeh hota hai?",
+            questionType: "SINGLE_SELECT",
+            points: 10,
+            options: ["La Ilaha Illa Allah", "Al-Kitab", "Al-Hikmah", "Al-Furqan"],
+            correctAnswers: ["La Ilaha Illa Allah"],
+          },
+          {
+            questionText: "Munsarif Asma ki pehchan kya hai?",
+            questionType: "SINGLE_SELECT",
+            points: 10,
+            options: [
+              "Teenon aeraab qabool kartay hain",
+              "Sirf do aeraab letay hain",
+              "Mabnee rehtay hain",
+              "In mein se koi nahi",
+            ],
+            correctAnswers: ["Teenon aeraab qabool kartay hain"],
+          },
+        ],
+      });
+    }
+
+    // Update Courses with 75% Passing Grade and 5 Max Attempts (Image 3)
+    if (urduCourse) {
+      urduCourse.examQuizId = quiz._id;
+      urduCourse.examPassingPercentage = 75;
+      urduCourse.examMaxAttempts = 5;
+      urduCourse.isExamAvailable = true;
+      await urduCourse.save();
+    }
+    if (engCourse) {
+      engCourse.examQuizId = quiz._id;
+      engCourse.examPassingPercentage = 75;
+      engCourse.examMaxAttempts = 5;
+      engCourse.isExamAvailable = true;
+      await engCourse.save();
     }
 
     // Check if Urdu lectures already seeded

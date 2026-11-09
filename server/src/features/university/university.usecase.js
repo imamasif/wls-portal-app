@@ -448,22 +448,35 @@ export class UniversityUseCase {
       course.isExamAvailable &&
       (attemptsCount < maxAttempts || hasPassedExam);
 
+    const completedCount = lecturesWithStatus.filter((l) => l.isCompleted).length;
+    const totalPercentage = lectures.length > 0
+      ? Math.round((completedCount / lectures.length) * 100)
+      : 0;
+
     return {
       course,
       lectures: lecturesWithStatus,
       totalLectures: lectures.length,
       totalMandatory,
       completedMandatory,
+      completedCount,
+      remainingCount: Math.max(0, lectures.length - completedCount),
+      totalCoursePercentage: totalPercentage,
       allMandatoryDone,
       exam: {
         isExamAvailable: course.isExamAvailable,
         isExamUnlocked,
         quizId: course.examQuizId?._id || course.examQuizId,
-        quizTitle: course.examQuizId?.title || "Course Final Exam",
+        quizTitle: course.examQuizId?.title || "Allah and Aaliha Quiz",
+        quizDescription: course.examQuizId?.description || "Alfaaz ke rang aur maienay ki shanakht karen.",
+        questionsCount: course.examQuizId?.questions?.length || 69,
+        questions: course.examQuizId?.questions || [],
+        quizTime: "2 Hours",
         attemptsCount,
-        maxAttempts,
+        maxAttempts: course.examMaxAttempts || 5,
         hasPassedExam,
-        passingPercentage: course.examPassingPercentage || 70,
+        passingPercentage: course.examPassingPercentage || 75,
+        highestScore: examAttempts.reduce((max, a) => Math.max(max, a.percentage || 0), 0),
         attempts: examAttempts,
       },
     };
