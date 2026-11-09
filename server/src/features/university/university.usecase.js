@@ -291,7 +291,14 @@ export class UniversityUseCase {
   // 4. COURSES
   // =========================================================================
   static async listCourses(filter = {}) {
-    const query = { isActive: true };
+    const query = {};
+    if (filter.includeInactive === "true" || filter.includeInactive === true) {
+      if (filter.isActive !== undefined) {
+        query.isActive = filter.isActive === "true" || filter.isActive === true;
+      }
+    } else {
+      query.isActive = true;
+    }
     if (filter.departmentId) {
       const dId = filter.departmentId?._id || filter.departmentId;
       if (mongoose.Types.ObjectId.isValid(dId)) query.departmentId = dId;
@@ -350,6 +357,16 @@ export class UniversityUseCase {
       new: true,
       runValidators: true,
     });
+    if (!course) throw new Error("Course not found");
+    return course;
+  }
+
+  static async toggleCourseActive(id, isActive) {
+    const course = await CourseModel.findByIdAndUpdate(
+      id,
+      { isActive: Boolean(isActive) },
+      { new: true }
+    );
     if (!course) throw new Error("Course not found");
     return course;
   }

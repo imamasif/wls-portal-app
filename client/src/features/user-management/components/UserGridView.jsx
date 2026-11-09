@@ -9,6 +9,8 @@ import {
   Text, 
   Badge, 
   Button,
+  Menu,
+  ActionIcon,
   Notification,
   Modal,
   Container,
@@ -18,7 +20,10 @@ import { DataTable } from 'mantine-datatable';
 import { 
   IconSearch, 
   IconArrowLeft, 
-  IconCheck, 
+  IconCheck,
+  IconPlus,
+  IconBuildingBank,
+  IconSchool, 
   IconX, 
   IconUsers 
 } from '@tabler/icons-react';
@@ -81,6 +86,46 @@ export function UserGridView({ currentUser }) {
       }
     } catch (err) {
       showToast('Server error while updating role.', 'error');
+    } finally {
+      setUpdatingUserId(null);
+    }
+  };
+
+  const handleToggleUniversityRole = async (targetUser, roleToToggle) => {
+    const targetId = targetUser._id || targetUser.id;
+    setUpdatingUserId(targetId);
+    try {
+      const currentRoles = Array.isArray(targetUser.roles)
+        ? [...targetUser.roles]
+        : ['university_student'];
+      const hasRole = currentRoles.includes(roleToToggle);
+      let updatedRoles = hasRole
+        ? currentRoles.filter((r) => r !== roleToToggle)
+        : [...currentRoles, roleToToggle];
+
+      if (!updatedRoles.includes('university_student')) {
+        updatedRoles.push('university_student');
+      }
+
+      const res = await fetch(`/api/users/${targetId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...targetUser, roles: updatedRoles }),
+      });
+
+      if (res.ok) {
+        const updatedUser = await res.json();
+        setUsers((prev) =>
+          prev.map((u) => ((u._id || u.id) === targetId ? updatedUser : u))
+        );
+        showToast(
+          `${hasRole ? 'Revoked' : 'Assigned'} ${roleToToggle} for ${targetUser.name || 'user'}!`
+        );
+      } else {
+        showToast('Failed to update university permissions.', 'error');
+      }
+    } catch (err) {
+      showToast('Server error while toggling university role.', 'error');
     } finally {
       setUpdatingUserId(null);
     }
@@ -264,20 +309,23 @@ export function UserGridView({ currentUser }) {
               },
               {
                 accessor: 'role',
-                title: 'Role',
-                width: 160,
+                title: 'Role & University Status',
+                width: 230,
                 sortable: true,
                 render: (u) => {
                   const currentUserId = currentUser?._id || currentUser?.id;
                   const isSelf = Boolean(currentUserId && (u._id || u.id) === currentUserId);
+                  const userRoles = Array.isArray(u.roles) ? u.roles : ['university_student'];
+                  const isUniAdmin = userRoles.includes(UserRole.UNIVERSITY_ADMIN);
+                  const isUniSuper = userRoles.includes(UserRole.UNIVERSITY_SUPER_USER);
 
-                  if (isSuperAdmin && !isSelf) {
-                    return (
-                      <div onClick={(e) => e.stopPropagation()}>
+                  return (
+                    <div onClick={(e) => e.stopPropagation()}>
+                      {isSuperAdmin && !isSelf ? (
                         <Select
                           size="xs"
-                          w={130}
-                          comboboxProps={{ width: 150, zIndex: 1000 }}
+                          w={150}
+                          comboboxProps={{ width: 160, zIndex: 1000 }}
                           value={u.role || UserRole.USER}
                           disabled={updatingUserId === (u._id || u.id)}
                           onChange={(val) => handleRoleChangeRequest(u, val)}
@@ -290,10 +338,55 @@ export function UserGridView({ currentUser }) {
                             { value: UserRole.UNIVERSITY_STUDENT, label: 'UNI STUDENT' },
                           ]}
                         />
-                      </div>
-                    );
-                  }
-                  return <Badge size="sm" variant="light">{u.role || UserRole.USER}</Badge>;
+                      ) : (
+                        <Badge size="sm" variant="light">
+                          {u.role || UserRole.USER}
+                        </Badge>
+                      )}
+
+                      {/* University Roles Under Each User */}
+                      <Group gap={4} mt={6} wrap="wrap">
+                        <Badge size="xs" color="indigo" variant="light">
+                          Uni Student
+                        </Badge>
+                        {isUniAdmin && (
+                          <Badge size="xs" color="teal" variant="filled">
+                            Uni Admin
+                          </Badge>
+                        )}
+                        {isUniSuper && (
+                          <Badge size="xs" color="violet" variant="filled">
+                            Uni Super User
+                          </Badge>
+                        )}
+
+                        {isSuperAdmin && !isSelf && (
+                          <Menu shadow="md" width={180} position="bottom-start">
+                            <Menu.Target>
+                              <ActionIcon size="xs" variant="subtle" color="gray" title="Manage University Access">
+                                <IconPlus size={12} />
+                              </ActionIcon>
+                            </Menu.Target>
+                            <Menu.Dropdown>
+                              <Menu.Label>University Roles</Menu.Label>
+                              <Menu.Item
+                                leftSection={isUniAdmin ? <IconCheck size={14} color="#10b981" /> : <IconSchool size={14} />}
+                                onClick={() => handleToggleUniversityRole(u, UserRole.UNIVERSITY_ADMIN)}
+                              >
+                                {isUniAdmin ? 'Revoke Uni Admin' : 'Assign Uni Admin'}
+                              </Menu.Item>
+                              <Menu.Item
+                                leftSection={isUniSuper ? <IconCheck size={14} color="#10b981" /> : <IconBuildingBank size={14} />}
+                                onClick={() => handleToggleUniversityRole(u, UserRole.UNIVERSITY_SUPER_USER)}
+                              >
+                                {isUniSuper ? 'Revoke Uni Super' : 'Assign Uni Super User'}
+                              </Menu.Item>
+                            </Menu.Dropdown>
+                          </Menu>
+                        )}
+                      </Group>
+                    </div>
+                  );
                 },
               },
               {

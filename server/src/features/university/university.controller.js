@@ -204,6 +204,18 @@ export class UniversityController {
     }
   }
 
+  static async toggleCourseActive(req, res, next) {
+    try {
+      const course = await UniversityUseCase.toggleCourseActive(
+        req.params.id,
+        req.body.isActive
+      );
+      res.status(200).json({ success: true, data: CourseMapper.toDTO(course) });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   static async toggleExamAvailability(req, res, next) {
     try {
       const { isExamAvailable } = req.body;

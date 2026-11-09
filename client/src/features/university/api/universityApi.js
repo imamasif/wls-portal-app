@@ -100,6 +100,13 @@ export const universityApi = {
     return res.data?.data || res.data;
   },
 
+  toggleCourseActive: async (id, isActive) => {
+    const res = await axios.patch(`${API_BASE}/courses/${id}/toggle-active`, {
+      isActive,
+    });
+    return res.data?.data || res.data;
+  },
+
   toggleExamAvailability: async (id, isExamAvailable) => {
     const res = await axios.patch(`${API_BASE}/courses/${id}/toggle-exam`, {
       isExamAvailable,

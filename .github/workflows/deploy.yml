@@ -48,6 +48,7 @@ jobs:
 
             echo "🌱 [Deploy] Populating clean web curriculum into production DB..."
             node scripts/populate_clean_curriculum.js || true
+            node scripts/migrate_all_users_to_university_student.cjs || true
 
             echo "🔄 [Deploy] Restarting backend process with PM2..."
             pm2 restart wls-backend || pm2 start "npx tsx server.js" --name wls-backend

@@ -54,6 +54,7 @@ router.get("/courses/:id", UniversityController.getCourseById);
 router.post("/courses", UniversityController.createCourse);
 router.put("/courses/:id", UniversityController.updateCourse);
 router.patch("/courses/:id/toggle-exam", UniversityController.toggleExamAvailability);
+router.patch("/courses/:id/toggle-active", UniversityController.toggleCourseActive);
 router.delete("/courses/:id", UniversityController.deleteCourse);
 
 // Course Lectures

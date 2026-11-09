@@ -93,6 +93,7 @@ router.post("/", async (req, res) => {
       password: password,
       name: name || cleanEmail.split("@")[0],
       role: "USER",
+      roles: ["university_student"],
       gender: gender || "",
       groupNumbers: assignedGroups,
       phones: Array.isArray(phones) ? phones : [],
@@ -462,6 +463,16 @@ router.put("/:id", async (req, res) => {
       } else if (!body.role) {
         user.role = UserRole.USER;
       }
+    }
+
+    if (Array.isArray(body.roles)) {
+      const sanitized = body.roles.map((r) => String(r).trim()).filter(Boolean);
+      if (!sanitized.includes("university_student")) {
+        sanitized.push("university_student");
+      }
+      user.roles = sanitized;
+    } else if (!Array.isArray(user.roles) || !user.roles.includes("university_student")) {
+      user.roles = Array.isArray(user.roles) ? [...user.roles, "university_student"] : ["university_student"];
     }
 
     user.gender = body.gender ?? user.gender;

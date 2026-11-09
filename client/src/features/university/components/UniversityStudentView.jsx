@@ -65,7 +65,8 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
   const [loading, setLoading] = useState(true);
   const [enrollment, setEnrollment] = useState(null);
   const [courses, setCourses] = useState([]);
-  const [deptFilter, setDeptFilter] = useState("all");
+  const [selectedDeptCode, setSelectedDeptCode] = useState("QGE");
+  const [departments, setDepartments] = useState([]);
   const [selectedCourseId, setSelectedCourseId] = useState(null);
   const [isPlayerOpen, setIsPlayerOpen] = useState(false);
 
@@ -117,10 +118,12 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
   const loadStudentData = async () => {
     setLoading(true);
     try {
-      const [enrollsRes, certsRes] = await Promise.all([
+      const [enrollsRes, certsRes, deptsRes] = await Promise.all([
         universityApi.getEnrollments({ studentId }),
         universityApi.getCertificates({ studentId }),
+        universityApi.getDepartments(),
       ]);
+      setDepartments(deptsRes || []);
 
       const userEnrollment = enrollsRes && enrollsRes.length > 0 ? enrollsRes[0] : null;
       setEnrollment(userEnrollment);
@@ -1228,29 +1231,25 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
         </Paper>
       </SimpleGrid>
 
-      {/* Course Cards Separated Cleanly by Academic Department */}
+      {/* Course Cards for Selected Academic Department Trade */}
       {(() => {
-        const englishCourses = courses.filter(
+        const deptCourses = courses.filter(
           (c) =>
-            c.departmentCode === "QGE" ||
-            c.code?.startsWith("QGE") ||
-            (c.departmentName && c.departmentName.toLowerCase().includes("english"))
+            (c.departmentCode === selectedDeptCode || c.code?.startsWith(selectedDeptCode)) &&
+            c.isActive !== false
         );
-        const urduCourses = courses.filter(
-          (c) =>
-            c.departmentCode === "QGU" ||
-            c.code?.startsWith("QGU") ||
-            (c.departmentName && c.departmentName.toLowerCase().includes("urdu"))
-        );
-        const otherCourses = courses.filter(
-          (c) => !englishCourses.includes(c) && !urduCourses.includes(c)
-        );
+
+        const curDept = departments.find((d) => d.code === selectedDeptCode) ||
+          (selectedDeptCode === "QGU"
+            ? { name: "Quranic Grammer - Urdu", headOfDepartment: "Br Aazim Kamal" }
+            : { name: "Quranic Grammer - English", headOfDepartment: "Sister Isha" });
+
+        const isEnglish = selectedDeptCode === "QGE";
 
         const renderCourseCard = (c) => {
           const cId = c._id || c.id;
           const isSelected = cId === selectedCourseId;
           const pct = isSelected ? courseCoverage : 0;
-          const isEnglish = c.departmentCode === "QGE" || c.code?.startsWith("QGE");
 
           return (
             <Card
@@ -1319,156 +1318,48 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
 
         return (
           <Box>
-            <Group justify="space-between" align="center" mb="lg" wrap="wrap">
-              <div>
-                <Title order={3} c="dark.9">
-                  Your Enrolled Courses
-                </Title>
-                <Text size="xs" c="dimmed">
-                  Curriculum organized systematically by Academic Department
-                </Text>
-              </div>
-
-              <SegmentedControl
-                size="xs"
-                color="indigo"
-                value={deptFilter}
-                onChange={setDeptFilter}
-                data={[
-                  { value: "all", label: `All Departments (${courses.length})` },
-                  { value: "qge", label: `English - QGE (${englishCourses.length})` },
-                  { value: "qgu", label: `Urdu - QGU (${urduCourses.length})` },
-                ]}
-              />
-            </Group>
-
-            {/* Department 1: Quranic Grammer - English (QGE) */}
-            {(deptFilter === "all" || deptFilter === "qge") && englishCourses.length > 0 && (
-              <Paper p="lg" radius="lg" withBorder bg="white" shadow="xs" mb="xl">
-                <Group justify="space-between" align="center" mb="md" pb="xs" style={{ borderBottom: "1.5px solid #f1f5f9" }}>
-                  <Group gap="sm">
-                    <ThemeIcon size={38} radius="md" color="indigo" variant="light">
-                      <IconLanguage size={22} />
-                    </ThemeIcon>
-                    <div>
-                      <Group gap="xs">
-                        <Text fw={800} size="md" c="dark.9">
-                          Quranic Grammer - English
-                        </Text>
-                        <Badge color="indigo" size="xs">
-                          QGE
-                        </Badge>
-                      </Group>
-                      <Text size="xs" c="dimmed">
-                        Instructor: Sister Isha • Semester 1 Core Curriculum
+            <Paper p="lg" radius="lg" withBorder bg="white" shadow="xs" mb="xl">
+              <Group justify="space-between" align="center" mb="md" pb="xs" style={{ borderBottom: "1.5px solid #f1f5f9" }}>
+                <Group gap="sm">
+                  <ThemeIcon size={38} radius="md" color={isEnglish ? "indigo" : "teal"} variant="light">
+                    <IconLanguage size={22} />
+                  </ThemeIcon>
+                  <div>
+                    <Group gap="xs">
+                      <Text fw={800} size="md" c="dark.9">
+                        {curDept.name}
                       </Text>
-                    </div>
-                  </Group>
-                  <Badge color="indigo" variant="outline" size="sm">
-                    {englishCourses.length} Courses
-                  </Badge>
+                      <Badge color={isEnglish ? "indigo" : "teal"} size="xs">
+                        {selectedDeptCode}
+                      </Badge>
+                    </Group>
+                    <Text size="xs" c="dimmed">
+                      Instructor: {curDept.headOfDepartment} • Semester 1 Core Curriculum
+                    </Text>
+                  </div>
                 </Group>
+                <Badge color={isEnglish ? "indigo" : "teal"} variant="outline" size="sm">
+                  {deptCourses.length} Active Courses
+                </Badge>
+              </Group>
 
+              {deptCourses.length === 0 ? (
+                <Center py={40}>
+                  <Text size="sm" c="dimmed">
+                    No active courses found for this department currently.
+                  </Text>
+                </Center>
+              ) : (
                 <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
-                  {englishCourses.map(renderCourseCard)}
+                  {deptCourses.map(renderCourseCard)}
                 </SimpleGrid>
-              </Paper>
-            )}
-
-            {/* Department 2: Quranic Grammer - Urdu (QGU) */}
-            {(deptFilter === "all" || deptFilter === "qgu") && urduCourses.length > 0 && (
-              <Paper p="lg" radius="lg" withBorder bg="white" shadow="xs" mb="xl">
-                <Group justify="space-between" align="center" mb="md" pb="xs" style={{ borderBottom: "1.5px solid #f1f5f9" }}>
-                  <Group gap="sm">
-                    <ThemeIcon size={38} radius="md" color="teal" variant="light">
-                      <IconLanguage size={22} />
-                    </ThemeIcon>
-                    <div>
-                      <Group gap="xs">
-                        <Text fw={800} size="md" c="dark.9">
-                          Quranic Grammer - Urdu
-                        </Text>
-                        <Badge color="teal" size="xs">
-                          QGU
-                        </Badge>
-                      </Group>
-                      <Text size="xs" c="dimmed">
-                        Instructor: Br Aazim Kamal • Semester 1 Core Curriculum
-                      </Text>
-                    </div>
-                  </Group>
-                  <Badge color="teal" variant="outline" size="sm">
-                    {urduCourses.length} Courses
-                  </Badge>
-                </Group>
-
-                <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
-                  {urduCourses.map(renderCourseCard)}
-                </SimpleGrid>
-              </Paper>
-            )}
-
-            {/* Other Courses if any */}
-            {deptFilter === "all" && otherCourses.length > 0 && (
-              <Paper p="lg" radius="lg" withBorder bg="white" shadow="xs" mb="xl">
-                <Title order={4} mb="md">Other Courses</Title>
-                <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
-                  {otherCourses.map(renderCourseCard)}
-                </SimpleGrid>
-              </Paper>
-            )}
+              )}
+            </Paper>
           </Box>
         );
       })()}
 
-      {/* Floating Bottom Role Switcher Pill */}
-      {onSwitchPerspective && (
-        <Paper
-          p="6px 14px"
-          radius="xl"
-          withBorder
-          shadow="md"
-          bg="white"
-          style={{
-            position: "fixed",
-            bottom: "16px",
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: 100,
-          }}
-        >
-          <Group gap="xs">
-            <Button
-              size="compact-xs"
-              variant="filled"
-              color="indigo"
-              radius="xl"
-              leftSection={<IconSchool size={12} />}
-            >
-              Learner
-            </Button>
-            <Button
-              size="compact-xs"
-              variant="subtle"
-              color="gray"
-              radius="xl"
-              onClick={() => onSwitchPerspective("instructor")}
-            >
-              Instructor
-            </Button>
-            <Button
-              size="compact-xs"
-              variant="subtle"
-              color="gray"
-              radius="xl"
-              onClick={() => onSwitchPerspective("super_user")}
-            >
-              Super User
-            </Button>
-          </Group>
-        </Paper>
-      )}
-    </Box>
+          </Box>
   );
 }
 

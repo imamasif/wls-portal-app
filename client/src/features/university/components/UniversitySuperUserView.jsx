@@ -373,7 +373,7 @@ export function UniversitySuperUserView({ currentUser }) {
     try {
       const [sems, cList] = await Promise.all([
         universityApi.getSemesters(deptId),
-        universityApi.getCourses({ departmentId: deptId }),
+        universityApi.getCourses({ departmentId: deptId, includeInactive: true }),
       ]);
       setSemesters(sems || []);
       if (sems && sems.length > 0) {
@@ -546,10 +546,26 @@ export function UniversitySuperUserView({ currentUser }) {
       setCourseModalOpened(false);
       setEditingItem(null);
       // Reload courses
-      const cList = await universityApi.getCourses({ departmentId: selectedDeptId });
+      const cList = await universityApi.getCourses({ departmentId: selectedDeptId, includeInactive: true });
       setCourses(cList || []);
     } catch (err) {
       showNotification(err.response?.data?.message || err.message, "error");
+    }
+  };
+
+  const handleToggleCourseActive = async (courseId, newActive) => {
+    try {
+      await universityApi.toggleCourseActive(courseId, newActive);
+      setCourses((prev) =>
+        prev.map((c) =>
+          (c._id || c.id) === courseId ? { ...c, isActive: newActive } : c
+        )
+      );
+      showNotification(
+        `Course ${newActive ? 'activated (visible to students)' : 'deactivated (hidden from students)'}`
+      );
+    } catch (err) {
+      showNotification('Failed to toggle course active status: ' + err.message, 'error');
     }
   };
 
@@ -1094,6 +1110,7 @@ export function UniversitySuperUserView({ currentUser }) {
                       <Table.Th>Instructor</Table.Th>
                       <Table.Th>Exam Status</Table.Th>
                       <Table.Th>Exam Visibility</Table.Th>
+                      <Table.Th>Course Status</Table.Th>
                       <Table.Th style={{ textAlign: "right" }}>Actions</Table.Th>
                     </Table.Tr>
                   </Table.Thead>
@@ -1164,6 +1181,21 @@ export function UniversitySuperUserView({ currentUser }) {
                                 offLabel={<IconLock size={12} />}
                               />
                             </Tooltip>
+                          </Table.Td>
+                          <Table.Td>
+                            <Group gap={6} wrap="nowrap">
+                              <Tooltip label={c.isActive !== false ? "Click to deactivate/hide from students" : "Click to activate/make visible to students"}>
+                                <Switch
+                                  checked={c.isActive !== false}
+                                  onChange={(e) => handleToggleCourseActive(cId, e.currentTarget.checked)}
+                                  color="teal"
+                                  size="sm"
+                                />
+                              </Tooltip>
+                              <Badge color={c.isActive !== false ? "teal" : "orange"} size="xs" variant={c.isActive !== false ? "light" : "outline"}>
+                                {c.isActive !== false ? "Active" : "Draft / Hidden"}
+                              </Badge>
+                            </Group>
                           </Table.Td>
                           <Table.Td style={{ textAlign: "right" }}>
                             <Group gap={4} justify="flex-end">

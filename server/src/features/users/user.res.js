@@ -7,9 +7,13 @@ export class UserResDTO {
     this.name = doc.name || '';
     this.email = doc.email || '';
     this.role = doc.role || 'USER';
-    this.roles = Array.isArray(doc.roles) && doc.roles.length > 0 
-      ? doc.roles 
+    let rawRoles = Array.isArray(doc.roles) && doc.roles.length > 0 
+      ? [...doc.roles] 
       : (doc.role ? [doc.role] : ['USER']);
+    if (!rawRoles.includes('university_student')) {
+      rawRoles.push('university_student');
+    }
+    this.roles = rawRoles;
     this.gender = doc.gender || '';
     this.phones = Array.isArray(doc.phones) && doc.phones.length > 0 
       ? doc.phones 
