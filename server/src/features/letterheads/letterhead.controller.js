@@ -8,6 +8,14 @@ import {
   generateCustomizedDocument,
   mergeTwoFilesToDocxAndPdf,
 } from './letterhead.service.js';
+import { MeetingMinutes } from './meetingMinutes.model.js';
+import {
+  ensureDefaultMeetingMinutes,
+  generateBoardMeetingMinutesDocument,
+  DEFAULT_BOARD_MEETING_MINUTES,
+} from './boardMeeting.service.js';
+import { sendBoardMeetingMinutesEmail } from '../../common/services/email.service.js';
+import { User } from '../users/user.model.js';
 
 const router = express.Router();
 
@@ -274,6 +282,182 @@ router.get('/preview/:id', (req, res) => {
     return stream.pipe(res);
   } catch (err) {
     console.error('Preview error:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// --------------------------------------------------------------------------
+// CARD 5: BOARD MEETING MINUTES & DIRECTOR SIGNATURE WORKFLOW
+// --------------------------------------------------------------------------
+
+// 6. Get Active Board Meeting Minutes
+router.get('/meeting-minutes', requireSuperUser, async (req, res) => {
+  try {
+    let doc = await MeetingMinutes.findOne().sort({ createdAt: -1 });
+    if (!doc) {
+      doc = await ensureDefaultMeetingMinutes();
+    }
+    return res.status(200).json({ success: true, meetingMinute: doc });
+  } catch (err) {
+    console.error('Error fetching meeting minutes:', err);
+    return res.status(500).json({ error: err.message || 'Failed to fetch meeting minutes' });
+  }
+});
+
+// 7. Reset / Re-seed Default Board Meeting Minutes
+router.post('/meeting-minutes/reset-default', requireSuperUser, async (req, res) => {
+  try {
+    const doc = await MeetingMinutes.create({
+      ...DEFAULT_BOARD_MEETING_MINUTES,
+      status: 'PENDING_SIGNATURES',
+    });
+    return res.status(200).json({ success: true, meetingMinute: doc });
+  } catch (err) {
+    console.error('Error resetting meeting minutes:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// 8. Sign Document as a Signatory
+router.post('/meeting-minutes/:id/sign', requireSuperUser, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { signatoryId, signatureDataUrl, signDate, signTime } = req.body;
+
+    if (!signatoryId) {
+      return res.status(400).json({ error: 'Signatory ID is required' });
+    }
+
+    const doc = await MeetingMinutes.findById(id);
+    if (!doc) {
+      return res.status(404).json({ error: 'Meeting minutes document not found' });
+    }
+
+    const signatory = doc.signatories.id(signatoryId);
+    if (!signatory) {
+      return res.status(404).json({ error: 'Signatory not found on document' });
+    }
+
+    signatory.isSigned = true;
+    signatory.signatureDataUrl = signatureDataUrl || null;
+    signatory.signDate = signDate || new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    signatory.signTime = signTime || new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    signatory.signedAt = new Date();
+
+    // Check if all signatories have signed
+    const allSigned = doc.signatories.every((s) => s.isSigned);
+    if (allSigned && doc.status === 'PENDING_SIGNATURES') {
+      doc.status = 'COMPLETED';
+    }
+
+    await doc.save();
+    return res.status(200).json({ success: true, meetingMinute: doc, allSigned });
+  } catch (err) {
+    console.error('Error signing document:', err);
+    return res.status(500).json({ error: err.message || 'Failed to record signature' });
+  }
+});
+
+// 9. Update Meeting Minutes Details / Signatories
+router.put('/meeting-minutes/:id', requireSuperUser, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, meetingDate, meetingTime, location, callToOrder, contentHtml, signatories } = req.body;
+
+    const doc = await MeetingMinutes.findById(id);
+    if (!doc) {
+      return res.status(404).json({ error: 'Meeting minutes document not found' });
+    }
+
+    if (title !== undefined) doc.title = title;
+    if (meetingDate !== undefined) doc.meetingDate = meetingDate;
+    if (meetingTime !== undefined) doc.meetingTime = meetingTime;
+    if (location !== undefined) doc.location = location;
+    if (callToOrder !== undefined) doc.callToOrder = callToOrder;
+    if (contentHtml !== undefined) doc.contentHtml = contentHtml;
+    if (Array.isArray(signatories)) doc.signatories = signatories;
+
+    await doc.save();
+    return res.status(200).json({ success: true, meetingMinute: doc });
+  } catch (err) {
+    console.error('Error updating meeting minutes:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// 10. Finalize Document with IIPC Letterhead & Send Email to info@ & accounts@iipccanada.com
+router.post('/meeting-minutes/:id/finalize', requireSuperUser, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const doc = await MeetingMinutes.findById(id);
+    if (!doc) {
+      return res.status(404).json({ error: 'Meeting minutes document not found' });
+    }
+
+    const docId = `bmm_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    const outputDocxPath = path.join(generatedDir, `${docId}.docx`);
+    const outputPdfPath = path.join(generatedDir, `${docId}.pdf`);
+
+    // 1. Generate Word & PDF with IIPC Letterhead and all signatures
+    await generateBoardMeetingMinutesDocument({
+      meetingMinute: doc,
+      outputDocxPath,
+      outputPdfPath,
+    });
+
+    const safeDate = (doc.meetingDate || 'Nov_2026').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const docxName = `Board_Meeting_Minutes_${safeDate}.docx`;
+    const pdfName = `Board_Meeting_Minutes_${safeDate}.pdf`;
+
+    // 2. Dispatch Email to info@iipccanada.com and accounts@iipccanada.com
+    const emailResult = await sendBoardMeetingMinutesEmail({
+      to: ['info@iipccanada.com', 'accounts@iipccanada.com'],
+      meetingDate: doc.meetingDate,
+      meetingTime: doc.meetingTime,
+      title: doc.title,
+      signatories: doc.signatories,
+      docxPath: outputDocxPath,
+      pdfPath: outputPdfPath,
+      docxName,
+      pdfName,
+    });
+
+    doc.status = 'DISPATCHED';
+    doc.generatedDocxPath = outputDocxPath;
+    doc.generatedPdfPath = outputPdfPath;
+    doc.docxUrl = `/api/letterheads/download/${docId}/docx?name=${encodeURIComponent(docxName)}`;
+    doc.pdfUrl = `/api/letterheads/download/${docId}/pdf?name=${encodeURIComponent(pdfName)}`;
+    doc.emailDispatched = true;
+    doc.emailDispatchedAt = new Date();
+    doc.emailRecipients = ['info@iipccanada.com', 'accounts@iipccanada.com'];
+
+    await doc.save();
+
+    return res.status(200).json({
+      success: true,
+      docId,
+      meetingMinute: doc,
+      docxUrl: doc.docxUrl,
+      pdfUrl: doc.pdfUrl,
+      previewUrl: `/api/letterheads/preview/${docId}`,
+      emailResult,
+    });
+  } catch (err) {
+    console.error('Error finalizing meeting minutes:', err);
+    return res.status(500).json({ error: err.message || 'Failed to finalize meeting minutes' });
+  }
+});
+
+// 11. Get Portal Users (for choosing signatories from system)
+router.get('/portal-users', requireSuperUser, async (req, res) => {
+  try {
+    const users = await User.find({ isActive: true })
+      .select('name email role')
+      .sort({ name: 1 })
+      .lean();
+    return res.status(200).json({ success: true, users });
+  } catch (err) {
+    console.error('Error fetching portal users:', err);
     return res.status(500).json({ error: err.message });
   }
 });

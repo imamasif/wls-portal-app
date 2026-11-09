@@ -53,6 +53,53 @@ export const letterheadApi = {
     return res.data;
   },
 
+  // Board Meeting Minutes API
+  async getMeetingMinutes(userRole = 'SUPER_USER') {
+    const res = await axios.get(`${API_BASE}/meeting-minutes`, {
+      headers: { 'x-user-role': userRole },
+    });
+    return res.data;
+  },
+
+  async resetDefaultMeetingMinutes(userRole = 'SUPER_USER') {
+    const res = await axios.post(`${API_BASE}/meeting-minutes/reset-default`, {}, {
+      headers: { 'x-user-role': userRole },
+    });
+    return res.data;
+  },
+
+  async signMeetingMinute({ id, signatoryId, signatureDataUrl, signDate, signTime, userRole = 'SUPER_USER' }) {
+    const res = await axios.post(
+      `${API_BASE}/meeting-minutes/${id}/sign`,
+      { signatoryId, signatureDataUrl, signDate, signTime },
+      { headers: { 'x-user-role': userRole } }
+    );
+    return res.data;
+  },
+
+  async updateMeetingMinutes({ id, data, userRole = 'SUPER_USER' }) {
+    const res = await axios.put(`${API_BASE}/meeting-minutes/${id}`, data, {
+      headers: { 'x-user-role': userRole },
+    });
+    return res.data;
+  },
+
+  async finalizeAndDispatchMeetingMinutes({ id, userRole = 'SUPER_USER' }) {
+    const res = await axios.post(
+      `${API_BASE}/meeting-minutes/${id}/finalize`,
+      {},
+      { headers: { 'x-user-role': userRole } }
+    );
+    return res.data;
+  },
+
+  async getPortalUsers(userRole = 'SUPER_USER') {
+    const res = await axios.get(`${API_BASE}/portal-users`, {
+      headers: { 'x-user-role': userRole },
+    });
+    return res.data;
+  },
+
   getDownloadUrl(docId, type, fileName) {
     const query = fileName ? `?name=${encodeURIComponent(fileName)}` : '';
     return `${API_BASE}/download/${docId}/${type}${query}`;

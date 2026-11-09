@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import fs from 'fs';
 
 let transporter = null;
 
@@ -109,5 +110,121 @@ export const sendPasswordResetEmail = async ({ to, userName, resetUrl }) => {
   } catch (err) {
     console.error(`❌ Failed to send password reset email to ${to}:`, err.message);
     return { success: false, simulated: true, error: err.message, resetUrl };
+  }
+};
+
+export const sendBoardMeetingMinutesEmail = async ({
+  to = ['info@iipccanada.com', 'accounts@iipccanada.com'],
+  meetingDate = 'November 7th, 2026',
+  meetingTime = '9:00 AM Eastern Time',
+  title = 'Board Meeting Minutes',
+  signatories = [],
+  docxPath,
+  pdfPath,
+  docxName = 'Board_Meeting_Minutes.docx',
+  pdfName = 'Board_Meeting_Minutes.pdf',
+}) => {
+  const mailTransporter = getTransporter();
+  const fromEmail = process.env.SMTP_FROM || process.env.SMTP_USER || 'no-reply@iipccanada.com';
+  const recipients = Array.isArray(to) ? to.join(', ') : to;
+  const subject = `Board Meeting Minutes : ${meetingDate} ${meetingTime}`;
+
+  const signatoriesHtml = (signatories || [])
+    .map(
+      (s) => `
+        <li style="margin-bottom: 6px;">
+          <strong>${s.role}:</strong> ${s.name} 
+          <span style="color: #16a34a; font-weight: bold;">(Signed ${s.signDate || ''} ${s.signTime || ''})</span>
+        </li>
+      `
+    )
+    .join('');
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8">
+      <title>${subject}</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #1e293b; margin: 0; padding: 24px; }
+        .card { max-width: 650px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+        .header { background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%); color: #ffffff; padding: 24px; text-align: center; }
+        .header h1 { margin: 0; font-size: 20px; font-weight: 700; color: #ffffff; }
+        .header p { margin: 6px 0 0 0; font-size: 13px; opacity: 0.9; }
+        .content { padding: 28px 24px; font-size: 14px; line-height: 1.6; }
+        .meta-box { background: #f0fdfa; border: 1px solid #ccfbf1; border-radius: 8px; padding: 14px 18px; margin-bottom: 20px; }
+        .meta-box p { margin: 4px 0; font-size: 13.5px; }
+        .signatories-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 18px; margin-bottom: 20px; }
+        .footer { padding: 16px 24px; background-color: #f1f5f9; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b; text-align: center; }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <div class="header">
+          <h1>Islamic Information &amp; Predestination Centre (IIPC Canada)</h1>
+          <p>Official Board of Directors Documentation</p>
+        </div>
+        <div class="content">
+          <p>Dear IIPC Administration &amp; Accounts Team,</p>
+          <p>Please find attached the official, ratified <strong>Board Meeting Minutes</strong> formatted with the official IIPC Canada letterhead and verified digital signatures of all directors and executive officers.</p>
+          <div class="meta-box">
+            <p><strong>Title:</strong> ${title}</p>
+            <p><strong>Meeting Date:</strong> ${meetingDate}</p>
+            <p><strong>Meeting Time:</strong> ${meetingTime}</p>
+            <p><strong>Location:</strong> Online - Zoom</p>
+          </div>
+          <div class="signatories-box">
+            <h4 style="margin: 0 0 10px 0; color: #0f766e;">Ratified Signatories:</h4>
+            <ul style="padding-left: 20px; margin: 0;">
+              ${signatoriesHtml}
+            </ul>
+          </div>
+          <p style="font-size: 13px; color: #64748b;">
+            📎 <strong>Attached Files:</strong><br/>
+            1. <strong>${docxName}</strong> (Official Microsoft Word Document with Letterhead &amp; Signatures)<br/>
+            2. <strong>${pdfName}</strong> (Official Print-Ready PDF with Letterhead &amp; Signatures)
+          </p>
+        </div>
+        <div class="footer">
+          &copy; ${new Date().getFullYear()} IIPC Canada. All rights reserved. &bull; <a href="https://iipccanada.com" style="color: #0d9488;">iipccanada.com</a>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const attachments = [];
+  if (docxPath && fs.existsSync(docxPath)) {
+    attachments.push({ filename: docxName, path: docxPath });
+  }
+  if (pdfPath && fs.existsSync(pdfPath)) {
+    attachments.push({ filename: pdfName, path: pdfPath });
+  }
+
+  if (!mailTransporter) {
+    console.log('\n=============================================================');
+    console.log('📧 [DEV EMAIL SIMULATOR] Board Meeting Minutes Email');
+    console.log(`To: ${recipients}`);
+    console.log(`Subject: ${subject}`);
+    console.log(`Attachments: ${attachments.map((a) => a.filename).join(', ')}`);
+    console.log('(SMTP credentials not configured in .env - Simulated sending)');
+    console.log('=============================================================\n');
+    return { success: true, simulated: true, subject, recipients };
+  }
+
+  try {
+    const info = await mailTransporter.sendMail({
+      from: `"IIPC Board Secretary" <${fromEmail}>`,
+      to: recipients,
+      subject,
+      html: htmlContent,
+      attachments,
+    });
+    console.log(`✅ Board Meeting Minutes email successfully sent to ${recipients}: ${info.messageId}`);
+    return { success: true, simulated: false, messageId: info.messageId, subject, recipients };
+  } catch (err) {
+    console.error(`❌ Failed to send Board Meeting Minutes email to ${recipients}:`, err.message);
+    return { success: false, simulated: true, error: err.message, subject, recipients };
   }
 };

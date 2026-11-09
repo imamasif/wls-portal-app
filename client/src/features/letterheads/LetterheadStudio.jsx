@@ -20,10 +20,12 @@ import {
   IconShieldLock,
   IconSparkles,
   IconFileStack,
+  IconUsersGroup,
 } from '@tabler/icons-react';
 import { LetterheadGeneratorCard } from './components/LetterheadGeneratorCard';
 import { DocumentCustomizerCard } from './components/DocumentCustomizerCard';
 import { UniversalMergerCard } from './components/UniversalMergerCard';
+import { BoardMeetingMinutesCard } from './components/BoardMeetingMinutesCard';
 
 export function LetterheadStudio({ user }) {
   const [activeStudioTab, setActiveStudioTab] = useState('all');
@@ -49,12 +51,12 @@ export function LetterheadStudio({ user }) {
                   <IconFileCertificate size={22} />
                 </ThemeIcon>
                 <Title order={2} style={{ color: '#ffffff', fontWeight: 800 }}>
-                  Official Letterhead & Document Studio
+                  Official Letterhead &amp; Document Studio
                 </Title>
               </Group>
               <Text size="sm" style={{ color: '#cbd5e1', maxWidth: '820px' }}>
                 Generate official institutional letterheads for <strong>IIPC Canada</strong> and{' '}
-                <strong>Blessed Properties (BP)</strong>, merge any custom template header/footer with content files, or use the interactive canvas studio to place live signatures, dates, checkboxes, and form fields.
+                <strong>Blessed Properties (BP)</strong>, manage <strong>Board Meeting Minutes</strong> multi-director sign-offs with auto-dispatch to info@ and accounts@, merge custom templates, or use the interactive canvas studio.
               </Text>
             </div>
 
@@ -63,7 +65,7 @@ export function LetterheadStudio({ user }) {
                 Super User Only
               </Badge>
               <Badge color="teal" variant="light" size="md" leftSection={<IconSparkles size={14} />}>
-                Word (.docx) & PDF (.pdf)
+                Word (.docx) &amp; PDF (.pdf)
               </Badge>
             </Group>
           </Group>
@@ -112,6 +114,9 @@ export function LetterheadStudio({ user }) {
             <Tabs.Tab value="all" leftSection={<IconFileCertificate size={18} />}>
               All Studio Cards
             </Tabs.Tab>
+            <Tabs.Tab value="board-minutes" leftSection={<IconUsersGroup size={18} />}>
+              Board Meeting Minutes
+            </Tabs.Tab>
             <Tabs.Tab value="iipc" leftSection={<IconBuildingBank size={18} />}>
               IIPC Canada Letterhead
             </Tabs.Tab>
@@ -122,12 +127,19 @@ export function LetterheadStudio({ user }) {
               2-File Template Merger
             </Tabs.Tab>
             <Tabs.Tab value="customizer" leftSection={<IconForms size={18} />}>
-              Interactive Customizer & Signatures
+              Interactive Customizer &amp; Signatures
             </Tabs.Tab>
           </Tabs.List>
         </Tabs>
 
-        {/* TOP ROW: IIPC and BP Letterhead Generators */}
+        {/* CARD 5: Board Meeting Minutes & Multi-Signatory Dispatch */}
+        {(activeStudioTab === 'all' || activeStudioTab === 'board-minutes') && (
+          <Box mb={activeStudioTab === 'all' ? 'md' : 0}>
+            <BoardMeetingMinutesCard user={user} userRole={userRole} />
+          </Box>
+        )}
+
+        {/* ROW: IIPC and BP Letterhead Generators */}
         {(activeStudioTab === 'all' || activeStudioTab === 'iipc' || activeStudioTab === 'bp') && (
           <Grid gutter="lg">
             {/* CARD 1: IIPC Canada Letterhead */}
@@ -157,7 +169,7 @@ export function LetterheadStudio({ user }) {
                   title="Blessed Properties (BP) Letterhead Generator"
                   badgeLabel="Blessed Properties"
                   badgeColor="red"
-                  subtitle="Real Estate & Brokerage Operations • Official Letterhead"
+                  subtitle="Real Estate &amp; Brokerage Operations • Official Letterhead"
                   headerImg="/letterheads/bp_header.jpeg"
                   footerImg="/letterheads/bp_footer.png"
                   watermarkImg="/letterheads/bp_watermark.png"
