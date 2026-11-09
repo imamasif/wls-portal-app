@@ -292,9 +292,18 @@ export class UniversityUseCase {
   // =========================================================================
   static async listCourses(filter = {}) {
     const query = { isActive: true };
-    if (filter.departmentId) query.departmentId = filter.departmentId;
-    if (filter.semesterId) query.semesterId = filter.semesterId;
-    if (filter.instructorId) query.instructorId = filter.instructorId;
+    if (filter.departmentId) {
+      const dId = filter.departmentId?._id || filter.departmentId;
+      if (mongoose.Types.ObjectId.isValid(dId)) query.departmentId = dId;
+    }
+    if (filter.semesterId) {
+      const sId = filter.semesterId?._id || filter.semesterId;
+      if (mongoose.Types.ObjectId.isValid(sId)) query.semesterId = sId;
+    }
+    if (filter.instructorId) {
+      const iId = filter.instructorId?._id || filter.instructorId;
+      if (mongoose.Types.ObjectId.isValid(iId)) query.instructorId = iId;
+    }
 
     return await CourseModel.find(query)
       .populate("departmentId", "name code")
@@ -461,8 +470,14 @@ export class UniversityUseCase {
 
   static async listEnrollments(filter = {}) {
     const query = {};
-    if (filter.departmentId) query.departmentId = filter.departmentId;
-    if (filter.studentId) query.studentId = filter.studentId;
+    if (filter.departmentId) {
+      const dId = filter.departmentId?._id || filter.departmentId;
+      if (mongoose.Types.ObjectId.isValid(dId)) query.departmentId = dId;
+    }
+    if (filter.studentId) {
+      const sId = filter.studentId?._id || filter.studentId;
+      if (mongoose.Types.ObjectId.isValid(sId)) query.studentId = sId;
+    }
     if (filter.status) query.status = filter.status;
 
     return await StudentEnrollmentModel.find(query)

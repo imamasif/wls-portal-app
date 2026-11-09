@@ -32,6 +32,7 @@ import {
   IconBuildingBank,
   IconSchool,
   IconBooks,
+  IconBook2,
   IconVideo,
   IconUsers,
   IconUser,
@@ -677,6 +678,31 @@ export function UniversitySuperUserView({ currentUser }) {
     );
   }
 
+  const selectedDept = departments.find((d) => (d._id || d.id) === selectedDeptId);
+  const selectedSem = semesters.find((s) => (s._id || s.id) === selectedSemesterId);
+  const semesterCourses = courses.filter(
+    (c) =>
+      c.semesterId === selectedSemesterId ||
+      c.semesterId?._id === selectedSemesterId
+  );
+  const selectedCourse =
+    courses.find((c) => (c._id || c.id) === selectedCourseId) ||
+    (semesterCourses.length > 0 ? semesterCourses[0] : null);
+
+  const displayedCourses = selectedSemesterId
+    ? courses.filter(
+        (c) =>
+          c.semesterId === selectedSemesterId ||
+          c.semesterId?._id === selectedSemesterId
+      )
+    : courses;
+
+  const formatSeqIndex = (idx) => (idx + 1 < 10 ? `0${idx + 1}` : `${idx + 1}`);
+  const formatLectureDuration = (secs) => {
+    const m = Math.floor((secs || 1800) / 60);
+    return `${m} mins`;
+  };
+
   return (
     <Box>
       {/* Toast Notification Banner */}
@@ -1003,12 +1029,16 @@ export function UniversitySuperUserView({ currentUser }) {
                 />
                 <Select
                   label="Filter by Semester"
-                  data={semesters.map((s) => ({
-                    value: s._id || s.id,
-                    label: `Semester ${s.semesterNumber} (${s.title})`,
-                  }))}
-                  value={selectedSemesterId}
-                  onChange={setSelectedSemesterId}
+                  placeholder="All Semesters"
+                  data={[
+                    { value: "", label: "All Semesters" },
+                    ...semesters.map((s) => ({
+                      value: s._id || s.id,
+                      label: `Semester ${s.semesterNumber} (${s.title})`,
+                    })),
+                  ]}
+                  value={selectedSemesterId || ""}
+                  onChange={(val) => setSelectedSemesterId(val || null)}
                   size="xs"
                   w={240}
                   clearable
@@ -1043,7 +1073,7 @@ export function UniversitySuperUserView({ currentUser }) {
             </Group>
 
             {/* Courses Table / Cards */}
-            {courses.length === 0 ? (
+            {displayedCourses.length === 0 ? (
               <Center py={40}>
                 <Stack align="center" gap="xs">
                   <IconBooks size={40} color="#94a3b8" />
@@ -1068,7 +1098,7 @@ export function UniversitySuperUserView({ currentUser }) {
                     </Table.Tr>
                   </Table.Thead>
                   <Table.Tbody>
-                    {courses.map((c) => {
+                    {displayedCourses.map((c) => {
                       const cId = c._id || c.id;
                       return (
                         <Table.Tr
@@ -1093,7 +1123,7 @@ export function UniversitySuperUserView({ currentUser }) {
                           </Table.Td>
                           <Table.Td>
                             <Badge color="cyan" variant="outline" size="xs">
-                              Sem {c.semesterId?.semesterNumber || 1}
+                              Sem {c.semesterNumber || c.semesterId?.semesterNumber || 1}
                             </Badge>
                           </Table.Td>
                           <Table.Td>

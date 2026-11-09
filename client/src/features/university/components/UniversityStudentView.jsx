@@ -9,6 +9,7 @@ import {
   Stack,
   Card,
   SimpleGrid,
+  SegmentedControl,
   Badge,
   Button,
   Progress,
@@ -29,6 +30,7 @@ import {
 } from "@mantine/core";
 import {
   IconSchool,
+  IconLanguage,
   IconVideo,
   IconBooks,
   IconLock,
@@ -55,7 +57,7 @@ import {
   IconPuzzle,
   IconHelpCircle,
 } from "@tabler/icons-react";
-import ReactPlayer from "react-player";
+import { UniversityVideoPlayer } from "./UniversityVideoPlayer";
 import { universityApi } from "../api/universityApi";
 import { CertificateModal } from "./CertificateModal";
 
@@ -63,6 +65,7 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
   const [loading, setLoading] = useState(true);
   const [enrollment, setEnrollment] = useState(null);
   const [courses, setCourses] = useState([]);
+  const [deptFilter, setDeptFilter] = useState("all");
   const [selectedCourseId, setSelectedCourseId] = useState(null);
   const [isPlayerOpen, setIsPlayerOpen] = useState(false);
 
@@ -723,38 +726,25 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
                     </Alert>
                   )}
 
-                  {/* Video Player */}
-                  <Box
-                    style={{
-                      position: "relative",
-                      paddingTop: "56.25%",
-                      backgroundColor: "#000000",
-                      borderRadius: "8px",
-                      overflow: "hidden",
-                      boxShadow: "0 4px 15px rgba(0,0,0,0.2)",
-                    }}
-                    mb="md"
-                  >
-                    {selectedVideoUrl ? (
-                      <ReactPlayer
-                        ref={playerRef}
-                        url={selectedVideoUrl}
-                        controls
-                        playing={isPlaying}
-                        width="100%"
-                        height="100%"
-                        style={{ position: "absolute", top: 0, left: 0 }}
-                        onProgress={handleProgress}
-                        onDuration={handleDuration}
-                        onEnded={handleEnded}
-                        onPlay={() => setIsPlaying(true)}
-                        onPause={() => setIsPlaying(false)}
-                      />
-                    ) : (
-                      <Center style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}>
-                        <Text c="white">No video stream loaded</Text>
-                      </Center>
-                    )}
+                  {/* Enhanced University Video Player with YouTube IFrame API & Anti-Cheat Scrub Locking */}
+                  <Box mb="md">
+                    <UniversityVideoPlayer
+                      videoUrl={selectedVideoUrl}
+                      isMandatory={Boolean(activeLecture?.isMandatory)}
+                      isCompleted={isCompletedState}
+                      initialPosition={activeLecture?.lastPositionSeconds || 0}
+                      onProgress={({ playedSeconds }) => {
+                        setPlayedSeconds(playedSeconds);
+                        if (Math.round(playedSeconds) > 0 && Math.round(playedSeconds) % 10 === 0) {
+                          saveProgressToBackend(playedSeconds, false);
+                        }
+                      }}
+                      onEnded={() => {
+                        saveProgressToBackend(playedSeconds, true);
+                        handleMarkComplete();
+                      }}
+                      onCheatDetected={(warning) => setAntiCheatWarning(warning)}
+                    />
                   </Box>
 
                   {/* Note Taking Area (Images 1, 2, 5) */}
@@ -1238,16 +1228,29 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
         </Paper>
       </SimpleGrid>
 
-      {/* Course Cards Grid */}
-      <Title order={3} mb="md" c="dark.9">
-        Your Enrolled Courses
-      </Title>
+      {/* Course Cards Separated Cleanly by Academic Department */}
+      {(() => {
+        const englishCourses = courses.filter(
+          (c) =>
+            c.departmentCode === "QGE" ||
+            c.code?.startsWith("QGE") ||
+            (c.departmentName && c.departmentName.toLowerCase().includes("english"))
+        );
+        const urduCourses = courses.filter(
+          (c) =>
+            c.departmentCode === "QGU" ||
+            c.code?.startsWith("QGU") ||
+            (c.departmentName && c.departmentName.toLowerCase().includes("urdu"))
+        );
+        const otherCourses = courses.filter(
+          (c) => !englishCourses.includes(c) && !urduCourses.includes(c)
+        );
 
-      <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
-        {courses.map((c) => {
+        const renderCourseCard = (c) => {
           const cId = c._id || c.id;
           const isSelected = cId === selectedCourseId;
           const pct = isSelected ? courseCoverage : 0;
+          const isEnglish = c.departmentCode === "QGE" || c.code?.startsWith("QGE");
 
           return (
             <Card
@@ -1263,7 +1266,7 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
               }}
             >
               <Group justify="space-between" mb="xs">
-                <Badge color="indigo" size="sm">
+                <Badge color={isEnglish ? "indigo" : "teal"} size="sm">
                   {c.code}
                 </Badge>
                 <Group gap="xs">
@@ -1271,7 +1274,7 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
                     Pass {c.examPassingPercentage || 75}%
                   </Badge>
                   <Badge color="gray" variant="outline" size="xs">
-                    {c.credits || 4} Credits
+                    {c.credits || 3} Credits
                   </Badge>
                 </Group>
               </Group>
@@ -1298,7 +1301,7 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
               </Box>
 
               <Button
-                color="indigo"
+                color={isEnglish ? "indigo" : "teal"}
                 radius="md"
                 leftSection={<IconPlayerPlay size={16} />}
                 fullWidth
@@ -1312,8 +1315,111 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
               </Button>
             </Card>
           );
-        })}
-      </SimpleGrid>
+        };
+
+        return (
+          <Box>
+            <Group justify="space-between" align="center" mb="lg" wrap="wrap">
+              <div>
+                <Title order={3} c="dark.9">
+                  Your Enrolled Courses
+                </Title>
+                <Text size="xs" c="dimmed">
+                  Curriculum organized systematically by Academic Department
+                </Text>
+              </div>
+
+              <SegmentedControl
+                size="xs"
+                color="indigo"
+                value={deptFilter}
+                onChange={setDeptFilter}
+                data={[
+                  { value: "all", label: `All Departments (${courses.length})` },
+                  { value: "qge", label: `English - QGE (${englishCourses.length})` },
+                  { value: "qgu", label: `Urdu - QGU (${urduCourses.length})` },
+                ]}
+              />
+            </Group>
+
+            {/* Department 1: Quranic Grammer - English (QGE) */}
+            {(deptFilter === "all" || deptFilter === "qge") && englishCourses.length > 0 && (
+              <Paper p="lg" radius="lg" withBorder bg="white" shadow="xs" mb="xl">
+                <Group justify="space-between" align="center" mb="md" pb="xs" style={{ borderBottom: "1.5px solid #f1f5f9" }}>
+                  <Group gap="sm">
+                    <ThemeIcon size={38} radius="md" color="indigo" variant="light">
+                      <IconLanguage size={22} />
+                    </ThemeIcon>
+                    <div>
+                      <Group gap="xs">
+                        <Text fw={800} size="md" c="dark.9">
+                          Quranic Grammer - English
+                        </Text>
+                        <Badge color="indigo" size="xs">
+                          QGE
+                        </Badge>
+                      </Group>
+                      <Text size="xs" c="dimmed">
+                        Instructor: Sister Isha • Semester 1 Core Curriculum
+                      </Text>
+                    </div>
+                  </Group>
+                  <Badge color="indigo" variant="outline" size="sm">
+                    {englishCourses.length} Courses
+                  </Badge>
+                </Group>
+
+                <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
+                  {englishCourses.map(renderCourseCard)}
+                </SimpleGrid>
+              </Paper>
+            )}
+
+            {/* Department 2: Quranic Grammer - Urdu (QGU) */}
+            {(deptFilter === "all" || deptFilter === "qgu") && urduCourses.length > 0 && (
+              <Paper p="lg" radius="lg" withBorder bg="white" shadow="xs" mb="xl">
+                <Group justify="space-between" align="center" mb="md" pb="xs" style={{ borderBottom: "1.5px solid #f1f5f9" }}>
+                  <Group gap="sm">
+                    <ThemeIcon size={38} radius="md" color="teal" variant="light">
+                      <IconLanguage size={22} />
+                    </ThemeIcon>
+                    <div>
+                      <Group gap="xs">
+                        <Text fw={800} size="md" c="dark.9">
+                          Quranic Grammer - Urdu
+                        </Text>
+                        <Badge color="teal" size="xs">
+                          QGU
+                        </Badge>
+                      </Group>
+                      <Text size="xs" c="dimmed">
+                        Instructor: Br Aazim Kamal • Semester 1 Core Curriculum
+                      </Text>
+                    </div>
+                  </Group>
+                  <Badge color="teal" variant="outline" size="sm">
+                    {urduCourses.length} Courses
+                  </Badge>
+                </Group>
+
+                <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
+                  {urduCourses.map(renderCourseCard)}
+                </SimpleGrid>
+              </Paper>
+            )}
+
+            {/* Other Courses if any */}
+            {deptFilter === "all" && otherCourses.length > 0 && (
+              <Paper p="lg" radius="lg" withBorder bg="white" shadow="xs" mb="xl">
+                <Title order={4} mb="md">Other Courses</Title>
+                <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
+                  {otherCourses.map(renderCourseCard)}
+                </SimpleGrid>
+              </Paper>
+            )}
+          </Box>
+        );
+      })()}
 
       {/* Floating Bottom Role Switcher Pill */}
       {onSwitchPerspective && (
