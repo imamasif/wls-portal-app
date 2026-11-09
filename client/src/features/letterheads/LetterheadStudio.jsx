@@ -69,22 +69,59 @@ export function LetterheadStudio({ user }) {
           </Group>
         </Paper>
 
-        {/* View Mode Navigation Tabs */}
-        <Tabs value={activeStudioTab} onChange={setActiveStudioTab} variant="pills" color="teal">
-          <Tabs.List>
-            <Tabs.Tab value="all" leftSection={<IconFileCertificate size={16} />}>
+        {/* Main Tabs Navigation (Exact University Mantine Tabs Style) */}
+        <style>{`
+          .letterhead-tabs-bar {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            padding: 6px;
+            border-radius: 14px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.05), 0 2px 6px -1px rgba(15, 23, 42, 0.03);
+            margin-bottom: 20px;
+          }
+          .letterhead-tabs-bar .mantine-Tabs-tab {
+            font-weight: 600;
+            font-size: 13.5px;
+            padding: 9px 18px;
+            border-radius: 10px;
+            color: #475569;
+            border: 1px solid transparent;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          }
+          .letterhead-tabs-bar .mantine-Tabs-tab:hover {
+            background: #f1f5f9;
+            color: #1e293b;
+            transform: translateY(-1px);
+          }
+          .letterhead-tabs-bar .mantine-Tabs-tab[data-active] {
+            background: linear-gradient(135deg, #4f46e5 0%, #6366f1 50%, #7c3aed 100%) !important;
+            color: #ffffff !important;
+            box-shadow: 0 6px 18px -2px rgba(79, 70, 229, 0.45);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
+          }
+          .letterhead-tabs-bar .mantine-Tabs-tab[data-active] svg {
+            color: #ffffff !important;
+          }
+        `}</style>
+        <Tabs value={activeStudioTab} onChange={setActiveStudioTab} variant="pills" radius="md">
+          <Tabs.List className="letterhead-tabs-bar">
+            <Tabs.Tab value="all" leftSection={<IconFileCertificate size={18} />}>
               All Studio Cards
             </Tabs.Tab>
-            <Tabs.Tab value="iipc" leftSection={<IconBuildingBank size={16} />}>
+            <Tabs.Tab value="iipc" leftSection={<IconBuildingBank size={18} />}>
               IIPC Canada Letterhead
             </Tabs.Tab>
-            <Tabs.Tab value="bp" leftSection={<IconBuildingSkyscraper size={16} />}>
+            <Tabs.Tab value="bp" leftSection={<IconBuildingSkyscraper size={18} />}>
               Blessed Properties (BP)
             </Tabs.Tab>
-            <Tabs.Tab value="universal" leftSection={<IconFileStack size={16} />}>
+            <Tabs.Tab value="universal" leftSection={<IconFileStack size={18} />}>
               2-File Template Merger
             </Tabs.Tab>
-            <Tabs.Tab value="customizer" leftSection={<IconForms size={16} />}>
+            <Tabs.Tab value="customizer" leftSection={<IconForms size={18} />}>
               Interactive Customizer & Signatures
             </Tabs.Tab>
           </Tabs.List>

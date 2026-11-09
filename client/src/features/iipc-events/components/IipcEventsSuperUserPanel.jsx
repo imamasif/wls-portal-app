@@ -298,17 +298,54 @@ export function IipcEventsSuperUserPanel({ user }) {
         )}
 
         {/* Main Tabs Navigation */}
-        <Tabs value={activeTab} onChange={setActiveTab}>
-          <Tabs.List>
+        <style>{`
+          .events-tabs-bar {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            padding: 6px;
+            border-radius: 14px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.05), 0 2px 6px -1px rgba(15, 23, 42, 0.03);
+            margin-bottom: 20px;
+          }
+          .events-tabs-bar .mantine-Tabs-tab {
+            font-weight: 600;
+            font-size: 13.5px;
+            padding: 9px 18px;
+            border-radius: 10px;
+            color: #475569;
+            border: 1px solid transparent;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          }
+          .events-tabs-bar .mantine-Tabs-tab:hover {
+            background: #f1f5f9;
+            color: #1e293b;
+            transform: translateY(-1px);
+          }
+          .events-tabs-bar .mantine-Tabs-tab[data-active] {
+            background: linear-gradient(135deg, #4f46e5 0%, #6366f1 50%, #7c3aed 100%) !important;
+            color: #ffffff !important;
+            box-shadow: 0 6px 18px -2px rgba(79, 70, 229, 0.45);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
+          }
+          .events-tabs-bar .mantine-Tabs-tab[data-active] svg {
+            color: #ffffff !important;
+          }
+        `}</style>
+        <Tabs value={activeTab} onChange={setActiveTab} variant="pills" radius="md">
+          <Tabs.List className="events-tabs-bar">
             <Tabs.Tab
               value="projects"
-              leftSection={<IconCalendarHeart size={16} />}
+              leftSection={<IconCalendarHeart size={18} />}
             >
               Active Projects ({events.length})
             </Tabs.Tab>
             <Tabs.Tab
               value="report"
-              leftSection={<IconChartBar size={16} />}
+              leftSection={<IconChartBar size={18} />}
             >
               Executive Report & Donor Tracker
             </Tabs.Tab>

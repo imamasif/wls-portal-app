@@ -81,28 +81,33 @@ export function SignaturePadModal({ opened, onClose, onSaveSignature }) {
 
   const getCanvasCoords = (e) => {
     const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
+    if (e.touches && e.touches.length > 0) {
+      return {
+        x: (e.touches[0].clientX - rect.left) * scaleX,
+        y: (e.touches[0].clientY - rect.top) * scaleY,
+      };
+    }
     return {
-      x: (clientX - rect.left) * (canvas.width / rect.width),
-      y: (clientY - rect.top) * (canvas.height / rect.height),
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY,
     };
   };
 
   const startDrawing = (e) => {
     e.preventDefault();
     setIsDrawing(true);
-    const pt = getCanvasCoords(e);
-    setCurrentStroke([pt]);
-  };
-
-  const draw = (e) => {
-    if (!isDrawing) return;
-    e.preventDefault();
-    const pt = getCanvasCoords(e);
-    const updated = [...currentStroke, pt];
-    setCurrentStroke(updated);
+    const coords = getCanvasCoords(e);
+    const newStroke = {
+      color: penColor,
+      width: penWidth,
+      points: [coords],
+    };
+    setCurrentStroke(newStroke);
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
@@ -110,22 +115,34 @@ export function SignaturePadModal({ opened, onClose, onSaveSignature }) {
     ctx.lineWidth = penWidth;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(coords.x, coords.y);
+  };
 
-    if (updated.length > 1) {
-      const prev = updated[updated.length - 2];
-      ctx.beginPath();
-      ctx.moveTo(prev.x, prev.y);
-      ctx.lineTo(pt.x, pt.y);
-      ctx.stroke();
-    }
+  const draw = (e) => {
+    if (!isDrawing) return;
+    e.preventDefault();
+    const coords = getCanvasCoords(e);
+
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    ctx.lineTo(coords.x, coords.y);
+    ctx.stroke();
+
+    setCurrentStroke((prev) => {
+      if (!prev || !prev.points) return prev;
+      return {
+        ...prev,
+        points: [...prev.points, coords],
+      };
+    });
   };
 
   const stopDrawing = () => {
     if (!isDrawing) return;
     setIsDrawing(false);
-    if (currentStroke.length > 1) {
-      const newStrokes = [...strokes, { points: currentStroke, color: penColor, width: penWidth }];
-      setStrokes(newStrokes);
+    if (currentStroke && currentStroke.points && currentStroke.points.length > 0) {
+      setStrokes((prev) => [...prev, currentStroke]);
     }
     setCurrentStroke([]);
   };
@@ -197,14 +214,24 @@ export function SignaturePadModal({ opened, onClose, onSaveSignature }) {
       }
 
       const dataUrl = offscreen.toDataURL('image/png');
-      onSaveSignature(dataUrl);
+      onSaveSignature({
+        type: 'draw',
+        dataUrl,
+        strokes,
+        width: canvas.width,
+        height: canvas.height,
+      });
       onClose();
     } else {
       if (!uploadedPreview) {
-        alert('Please select or upload a signature image first.');
+        alert('Please select a signature image first.');
         return;
       }
-      onSaveSignature(uploadedPreview);
+      onSaveSignature({
+        type: 'upload',
+        dataUrl: uploadedPreview,
+        file: uploadedImage,
+      });
       onClose();
     }
   };
@@ -215,15 +242,51 @@ export function SignaturePadModal({ opened, onClose, onSaveSignature }) {
       onClose={onClose}
       title={
         <Group gap="xs">
-          <IconWriting size={20} color="var(--mantine-color-blue-6)" />
-          <Text fw={600} size="md">Add Electronic Signature</Text>
+          <IconWriting size={20} color="var(--mantine-color-indigo-6)" />
+          <Text fw={700} size="md">Add Electronic Signature</Text>
         </Group>
       }
       size="lg"
       radius="md"
     >
-      <Tabs value={activeTab} onChange={setActiveTab} mb="md">
-        <Tabs.List grow>
+      {/* University Styled Modal Tabs */}
+      <style>{`
+        .signature-modal-tabs {
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          padding: 5px;
+          border-radius: 12px;
+          display: flex;
+          gap: 6px;
+          margin-bottom: 16px;
+          box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
+        }
+        .signature-modal-tabs .mantine-Tabs-tab {
+          font-weight: 600;
+          font-size: 13.5px;
+          padding: 8px 18px;
+          border-radius: 9px;
+          color: #475569;
+          border: 1px solid transparent;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .signature-modal-tabs .mantine-Tabs-tab:hover {
+          background: #e2e8f0;
+          color: #1e293b;
+          transform: translateY(-1px);
+        }
+        .signature-modal-tabs .mantine-Tabs-tab[data-active] {
+          background: linear-gradient(135deg, #4f46e5 0%, #6366f1 50%, #7c3aed 100%) !important;
+          color: #ffffff !important;
+          box-shadow: 0 4px 14px -2px rgba(79, 70, 229, 0.45);
+          transform: translateY(-1px);
+        }
+        .signature-modal-tabs .mantine-Tabs-tab[data-active] svg {
+          color: #ffffff !important;
+        }
+      `}</style>
+      <Tabs value={activeTab} onChange={setActiveTab} variant="pills" radius="md" mb="md">
+        <Tabs.List className="signature-modal-tabs" grow>
           <Tabs.Tab value="draw" leftSection={<IconWriting size={16} />}>
             Draw on Screen
           </Tabs.Tab>
@@ -334,7 +397,7 @@ export function SignaturePadModal({ opened, onClose, onSaveSignature }) {
           Cancel
         </Button>
         <Button
-          color="blue"
+          color="indigo"
           leftSection={<IconCheck size={16} />}
           onClick={handleApply}
         >
@@ -344,3 +407,5 @@ export function SignaturePadModal({ opened, onClose, onSaveSignature }) {
     </Modal>
   );
 }
+
+export default SignaturePadModal;
