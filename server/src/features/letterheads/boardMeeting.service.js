@@ -3,6 +3,7 @@ import path from 'path';
 import { execFileSync } from 'child_process';
 import JSZip from 'jszip';
 import { getBrowserPath, escapeHtml, getLetterheadAssetsDir, getUploadsDir } from './letterhead.service.js';
+import { generateMeetingMinutesPdfBuffer } from './meetingPdfGenerator.js';
 import { MeetingMinutes } from './meetingMinutes.model.js';
 import { sendBoardMeetingMinutesEmail } from '../../common/services/email.service.js';
 
@@ -269,6 +270,7 @@ export async function generateBoardMeetingMinutesDocument({
   const tempHtmlPath = path.join(uploadsDir, `bmm_${Date.now()}_${Math.random().toString(36).substring(7)}.html`);
   fs.writeFileSync(tempHtmlPath, fullPdfHtml, 'utf8');
 
+  let pdfDone = false;
   try {
     const browserPath = getBrowserPath();
     if (browserPath) {
@@ -282,75 +284,118 @@ export async function generateBoardMeetingMinutesDocument({
         `--print-to-pdf=${absPdfPath}`,
         tempHtmlPath,
       ]);
-    } else {
-      fs.writeFileSync(outputPdfPath, Buffer.from('%PDF-1.4\n%EOF\n'));
+      if (fs.existsSync(outputPdfPath) && fs.statSync(outputPdfPath).size > 1000) {
+        pdfDone = true;
+      }
     }
   } catch (pdfErr) {
-    console.warn('PDF generation note in board meeting service:', pdfErr.message);
-    if (!fs.existsSync(outputPdfPath)) {
-      fs.writeFileSync(outputPdfPath, Buffer.from('%PDF-1.4\n%EOF\n'));
-    }
+    console.warn('Browser print note, falling back to native PDF generator:', pdfErr.message);
   } finally {
     if (fs.existsSync(tempHtmlPath)) {
       try { fs.unlinkSync(tempHtmlPath); } catch {}
     }
   }
 
+  // If browser is missing or print failed, generate 100% compliant PDF natively!
+  if (!pdfDone) {
+    console.log('Generating official Board Meeting Minutes PDF with native generator...');
+    const pdfBuf = generateMeetingMinutesPdfBuffer({
+      title: meetingMinute.title,
+      meetingDate: meetingMinute.meetingDate,
+      meetingTime: meetingMinute.meetingTime,
+      location: meetingMinute.location,
+      callToOrder: meetingMinute.callToOrder,
+      contentHtml: meetingMinute.contentHtml,
+      signatories: meetingMinute.signatories,
+      assetsDir,
+    });
+    fs.writeFileSync(outputPdfPath, pdfBuf);
+  }
+
   // Generate DOCX with IIPC Template & JSZip
   const templatePath = path.join(assetsDir, 'iipc_template.docx');
-  let tplZip;
+  const tplZip = new JSZip();
+
   if (fs.existsSync(templatePath)) {
     const tplData = fs.readFileSync(templatePath);
-    tplZip = await JSZip.loadAsync(tplData);
+    const rawZip = await JSZip.loadAsync(tplData);
+    // CRITICAL: Normalize all keys to standard forward slashes so word/document.xml is properly replaced
+    for (const [key, file] of Object.entries(rawZip.files)) {
+      if (file.dir) continue;
+      const cleanKey = key.replace(/\\/g, '/');
+      const buf = await file.async('nodebuffer');
+      tplZip.file(cleanKey, buf);
+    }
   } else {
-    console.warn(`Template file not found at ${templatePath}, creating minimal fallback DOCX template.`);
-    tplZip = new JSZip();
     tplZip.file('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="xml" ContentType="application/xml"/><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');
     tplZip.file('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
     tplZip.file('word/document.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body></w:body></w:document>');
   }
 
   // Convert signatories into OpenXML paragraphs
-  let sigDocxXml = '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="28"/><w:color w:val="1E3A8A"/></w:rPr><w:t>BOARD OF DIRECTORS RATIFICATION &amp; SIGNATURES</w:t></w:r></w:p>';
+  let sigDocxXml = '<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="280" w:after="160"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="28"/><w:color w:val="1E3A8A"/></w:rPr><w:t>BOARD OF DIRECTORS RATIFICATION &amp; SIGNATURES</w:t></w:r></w:p>';
 
   for (const s of signatories) {
     const sDate = s.signDate || meetingMinute.meetingDate || '';
     const sTime = s.signTime || meetingMinute.meetingTime || '';
     sigDocxXml += `
-      <w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="22"/><w:color w:val="1E3A8A"/></w:rPr><w:t>${escapeHtml(s.role)}:</w:t></w:r></w:p>
-      <w:p><w:r><w:rPr><w:rFonts w:ascii="Brush Script MT"/><w:i/><w:sz w:val="32"/><w:color w:val="0F172A"/></w:rPr><w:t>${s.isSigned ? 'Signed digitally by: ' + escapeHtml(s.name) : '(Signature &amp; Date)'}</w:t></w:r></w:p>
-      <w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="24"/></w:rPr><w:t>${escapeHtml(s.name)}</w:t></w:r></w:p>
-      <w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:sz w:val="20"/><w:color w:val="64748B"/></w:rPr><w:t>Date: ${escapeHtml(sDate)} | Time: ${escapeHtml(sTime)}</w:t></w:r></w:p>
-      <w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="CBD5E1"/></w:pBdr></w:pPr></w:p>
+      <w:p><w:pPr><w:spacing w:before="120" w:after="40"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="22"/><w:color w:val="1E3A8A"/></w:rPr><w:t>${escapeHtml(s.role)}:</w:t></w:r></w:p>
+      <w:p><w:pPr><w:spacing w:after="40"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Brush Script MT"/><w:i/><w:sz w:val="30"/><w:color w:val="0F172A"/></w:rPr><w:t>${s.isSigned ? 'Signed digitally by: ' + escapeHtml(s.name) : '(Signature &amp; Date)'}</w:t></w:r></w:p>
+      <w:p><w:pPr><w:spacing w:after="40"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="24"/></w:rPr><w:t>${escapeHtml(s.name)}</w:t></w:r></w:p>
+      <w:p><w:pPr><w:spacing w:after="80"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:sz w:val="20"/><w:color w:val="64748B"/></w:rPr><w:t>Date: ${escapeHtml(sDate)} | Time: ${escapeHtml(sTime)}</w:t></w:r></w:p>
+      <w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="CBD5E1"/></w:pBdr><w:spacing w:after="160"/></w:pPr></w:p>
     `;
   }
 
   // Convert Meeting Minutes Text / Meta into OpenXML
   let meetingBodyXml = `
-    <w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="36"/><w:color w:val="0F172A"/></w:rPr><w:t>${escapeHtml(meetingMinute.title || 'BOARD MEETING MINUTES')}</w:t></w:r></w:p>
-    <w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="22"/></w:rPr><w:t>DATE: ${escapeHtml(meetingMinute.meetingDate || '')}</w:t></w:r></w:p>
-    <w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="22"/></w:rPr><w:t>TIME: ${escapeHtml(meetingMinute.meetingTime || '')}</w:t></w:r></w:p>
-    <w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="22"/></w:rPr><w:t>LOCATION: ${escapeHtml(meetingMinute.location || 'Online- Zoom')}</w:t></w:r></w:p>
-    <w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="22"/><w:color w:val="1E3A8A"/></w:rPr><w:t>CALL TO ORDER: ${escapeHtml(meetingMinute.callToOrder || '')}</w:t></w:r></w:p>
+    <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="180" w:after="140"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="34"/><w:color w:val="0F172A"/></w:rPr><w:t>${escapeHtml(meetingMinute.title || 'BOARD MEETING MINUTES')}</w:t></w:r></w:p>
+    <w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="22"/><w:color w:val="1E3A8A"/></w:rPr><w:t>DATE: </w:t></w:r><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:sz w:val="22"/></w:rPr><w:t>${escapeHtml(meetingMinute.meetingDate || '')}</w:t></w:r></w:p>
+    <w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="22"/><w:color w:val="1E3A8A"/></w:rPr><w:t>TIME: </w:t></w:r><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:sz w:val="22"/></w:rPr><w:t>${escapeHtml(meetingMinute.meetingTime || '')}</w:t></w:r></w:p>
+    <w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="22"/><w:color w:val="1E3A8A"/></w:rPr><w:t>LOCATION: </w:t></w:r><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:sz w:val="22"/></w:rPr><w:t>${escapeHtml(meetingMinute.location || 'Online- Zoom')}</w:t></w:r></w:p>
+    <w:p><w:pPr><w:spacing w:after="180"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="22"/><w:color w:val="1E3A8A"/></w:rPr><w:t>CALL TO ORDER: </w:t></w:r><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:sz w:val="22"/></w:rPr><w:t>${escapeHtml(meetingMinute.callToOrder || '')}</w:t></w:r></w:p>
   `;
 
-  if (meetingMinute.contentHtml) {
-    const rawParagraphs = meetingMinute.contentHtml
-      .replace(/<table[\s\S]*?<\/table>/gi, '')
-      .split(/<\/(?:p|h[1-6]|li)>/gi)
-      .map((p) => p.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim())
-      .filter(Boolean);
+  function tableHtmlToOpenXml(tableHtml) {
+    const rowMatches = tableHtml.match(/<tr[\s\S]*?<\/tr>/gi) || [];
+    let tblXml = '<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:tblBorders><w:top w:val="single" w:sz="6" w:space="0" w:color="CBD5E1"/><w:bottom w:val="single" w:sz="6" w:space="0" w:color="CBD5E1"/><w:insideH w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/><w:insideV w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/></w:tblBorders></w:tblPr>';
 
-    for (const p of rawParagraphs) {
-      meetingBodyXml += `<w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:sz w:val="22"/></w:rPr><w:t>${escapeHtml(p)}</w:t></w:r></w:p>`;
+    for (const r of rowMatches) {
+      tblXml += '<w:tr>';
+      const isHeaderRow = /<th[\s\S]*?>/i.test(r);
+      const cellMatches = r.match(/<(?:td|th)[\s\S]*?<\/(?:td|th)>/gi) || [];
+      for (const c of cellMatches) {
+        const cleanText = c.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+        tblXml += `<w:tc><w:tcPr><w:tcMar><w:top w:w="120" w:type="dxa"/><w:bottom w:w="120" w:type="dxa"/><w:left w:w="160" w:type="dxa"/><w:right w:w="160" w:type="dxa"/></w:tcMar>${isHeaderRow ? '<w:shd w:val="clear" w:color="auto" w:fill="F1F5F9"/>' : ''}</w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/>${isHeaderRow ? '<w:b/>' : ''}<w:sz w:val="20"/></w:rPr><w:t>${escapeHtml(cleanText)}</w:t></w:r></w:p></w:tc>`;
+      }
+      tblXml += '</w:tr>';
+    }
+    tblXml += '</w:tbl>';
+    return tblXml;
+  }
+
+  if (meetingMinute.contentHtml) {
+    const rawParts = meetingMinute.contentHtml.split(/(<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>|<table[^>]*>[\s\S]*?<\/table>)/gi);
+    for (const part of rawParts) {
+      const trimmed = part.trim();
+      if (!trimmed) continue;
+      if (/<h[1-6]/i.test(trimmed)) {
+        const hText = trimmed.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+        meetingBodyXml += `<w:p><w:pPr><w:spacing w:before="240" w:after="100"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="26"/><w:color w:val="1E3A8A"/></w:rPr><w:t>${escapeHtml(hText)}</w:t></w:r></w:p>`;
+      } else if (/<table/i.test(trimmed)) {
+        meetingBodyXml += tableHtmlToOpenXml(trimmed);
+      } else {
+        const paras = trimmed.split(/<\/(?:p|div|li)>/gi)
+          .map((p) => p.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim())
+          .filter(Boolean);
+        for (const p of paras) {
+          meetingBodyXml += `<w:p><w:pPr><w:spacing w:after="120"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:sz w:val="22"/><w:color w:val="1E293B"/></w:rPr><w:t>${escapeHtml(p)}</w:t></w:r></w:p>`;
+        }
+      }
     }
   }
 
-  const tplDocXmlFile =
-    tplZip.file('word/document.xml') ||
-    Object.values(tplZip.files).find((f) => f.name.replace(/\\/g, '/').toLowerCase() === 'word/document.xml');
-
-  const docXml = tplDocXmlFile ? await tplDocXmlFile.async('text') : '';
+  const docXml = await tplZip.file('word/document.xml').async('text');
   const tplSectMatch = docXml.match(/(<w:sectPr[\s\S]*?<\/w:sectPr>)/s);
   const tplSectPr = tplSectMatch ? tplSectMatch[1] : '';
 

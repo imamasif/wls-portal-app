@@ -4,6 +4,7 @@ import { execFileSync } from 'child_process';
 import os from 'os';
 import JSZip from 'jszip';
 import { fileURLToPath } from 'url';
+import { generateGenericLetterheadPdfBuffer } from './meetingPdfGenerator.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -50,6 +51,18 @@ export function getGeneratedDir() {
     try { fs.mkdirSync(defaultDir, { recursive: true }); } catch {}
   }
   return defaultDir;
+}
+
+
+export async function normalizeZip(zip) {
+  const cleanZip = new JSZip();
+  for (const [key, file] of Object.entries(zip.files)) {
+    if (file.dir) continue;
+    const cleanKey = key.replace(/\\/g, '/');
+    const buf = await file.async('nodebuffer');
+    cleanZip.file(cleanKey, buf);
+  }
+  return cleanZip;
 }
 
 const CHROME_PATHS = [
@@ -205,7 +218,8 @@ export async function mergeDocxWithTemplate(templateDocxPath, userDocxPath, outp
   const tplData = fs.readFileSync(templateDocxPath);
   const userData = fs.readFileSync(userDocxPath);
 
-  const tplZip = await JSZip.loadAsync(tplData);
+  const rawTplZip = await JSZip.loadAsync(tplData);
+  const tplZip = await normalizeZip(rawTplZip);
   const userZip = await JSZip.loadAsync(userData);
 
   const userDocXmlFile =
@@ -378,6 +392,7 @@ export async function generatePdfFromDocx(userDocxPath, templateType, outputPdfP
   const tempHtmlPath = path.join(getUploadsDir(), `temp_${Date.now()}_${Math.random().toString(36).substring(7)}.html`);
   fs.writeFileSync(tempHtmlPath, fullHtml, 'utf8');
 
+  let pdfDone = false;
   try {
     if (browserPath) {
       const absPdfPath = path.resolve(outputPdfPath);
@@ -388,15 +403,27 @@ export async function generatePdfFromDocx(userDocxPath, templateType, outputPdfP
         `--print-to-pdf=${absPdfPath}`,
         tempHtmlPath,
       ]);
-    } else {
-      // In case no headless browser binary exists on the server, create mock placeholder
-      fs.copyFileSync(tempHtmlPath, outputPdfPath.replace(/\.pdf$/, '.html'));
-      fs.writeFileSync(outputPdfPath, Buffer.from('%PDF-1.4\n%EOF\n'));
+      if (fs.existsSync(outputPdfPath) && fs.statSync(outputPdfPath).size > 1000) {
+        pdfDone = true;
+      }
     }
+  } catch (err) {
+    console.warn('Browser print failed in generatePdfFromDocx:', err.message);
   } finally {
     if (fs.existsSync(tempHtmlPath)) {
       try { fs.unlinkSync(tempHtmlPath); } catch {}
     }
+  }
+
+  if (!pdfDone) {
+    const assetsDir = getLetterheadAssetsDir();
+    const pdfBuf = generateGenericLetterheadPdfBuffer({
+      title: options.title || '',
+      htmlContent: bodyHtml,
+      templateType,
+      assetsDir,
+    });
+    fs.writeFileSync(outputPdfPath, pdfBuf);
   }
 }
 
@@ -407,7 +434,8 @@ export async function mergeTwoFilesToDocxAndPdf({
   outputPdfPath,
 }) {
   const tplData = fs.readFileSync(templateFilePath);
-  const tplZip = await JSZip.loadAsync(tplData);
+  const rawTplZip = await JSZip.loadAsync(tplData);
+  const tplZip = await normalizeZip(rawTplZip);
 
   const contentExt = path.extname(contentFilePath).toLowerCase();
   let userBodyContent = '';
@@ -721,7 +749,8 @@ export async function generateCustomizedDocument({
   let userBody = '';
   if (userDocxPath && fs.existsSync(userDocxPath)) {
     const uData = fs.readFileSync(userDocxPath);
-    const uZip = await JSZip.loadAsync(uData);
+    const rawUZip = await JSZip.loadAsync(uData);
+    const uZip = await normalizeZip(rawUZip);
     const uDocXmlFile =
       uZip.file('word/document.xml') ||
       Object.values(uZip.files).find((f) => f.name.replace(/\\/g, '/').toLowerCase() === 'word/document.xml');

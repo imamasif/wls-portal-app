@@ -4,6 +4,7 @@ import { execFileSync } from "child_process";
 import { BuildingMaintenanceModel } from "./buildingMaintenance.model.js";
 import { BuildingMaintenanceMapper } from "./buildingMaintenance.mapper.js";
 import { getBrowserPath, escapeHtml, getLetterheadAssetsDir, getUploadsDir } from "../letterheads/letterhead.service.js";
+import { generateGenericLetterheadPdfBuffer } from "../letterheads/meetingPdfGenerator.js";
 
 export const DEFAULT_MAINTENANCE_TEMPLATE = [
   {
@@ -881,6 +882,7 @@ export class BuildingMaintenanceUseCase {
     const tempHtmlPath = path.join(uploadsDir, `temp_maint_${Date.now()}_${Math.random().toString(36).substring(7)}.html`);
     fs.writeFileSync(tempHtmlPath, fullHtml, "utf8");
 
+    let pdfDone = false;
     try {
       const browserPath = getBrowserPath();
       if (browserPath) {
@@ -893,13 +895,26 @@ export class BuildingMaintenanceUseCase {
           `--print-to-pdf=${outputPdfPath}`,
           tempHtmlPath,
         ]);
-      } else {
-        fs.writeFileSync(outputPdfPath, Buffer.from("%PDF-1.4\n%EOF\n"));
+        if (fs.existsSync(outputPdfPath) && fs.statSync(outputPdfPath).size > 1000) {
+          pdfDone = true;
+        }
       }
+    } catch (e) {
+      console.warn("Headless chrome print failed, using native PDF generator:", e.message);
     } finally {
       if (fs.existsSync(tempHtmlPath)) {
         try { fs.unlinkSync(tempHtmlPath); } catch {}
       }
+    }
+
+    if (!pdfDone) {
+      const pdfBuf = generateGenericLetterheadPdfBuffer({
+        title: "BUILDING MANAGER & MAINTENANCE DAILY INSPECTION LOG",
+        htmlContent: fullHtml,
+        templateType: "iipc",
+        assetsDir,
+      });
+      fs.writeFileSync(outputPdfPath, pdfBuf);
     }
 
     doc.pdfUrl = `/api/building-maintenance/download/${doc._id}/pdf`;
