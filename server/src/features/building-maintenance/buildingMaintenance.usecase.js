@@ -200,9 +200,11 @@ export class BuildingMaintenanceUseCase {
       const now = new Date();
       return now.toISOString().split("T")[0];
     }
-    const trimmed = rawDate.trim();
+    const trimmed = String(rawDate).trim();
+    if (trimmed.includes("T")) return trimmed.split("T")[0];
     if (trimmed.includes("/")) {
-      const parts = trimmed.split("/");
+      const [datePart] = trimmed.split(",");
+      const parts = datePart.trim().split("/");
       if (parts.length === 3) {
         let month = parts[0].padStart(2, "0");
         let day = parts[1].padStart(2, "0");

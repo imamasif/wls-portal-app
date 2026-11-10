@@ -24,6 +24,7 @@ import {
   SegmentedControl,
   Tabs,
 } from "@mantine/core";
+import { DateTimePicker, DatePickerInput } from "@mantine/dates";
 import {
   IconTools,
   IconBuildingBank,
@@ -52,14 +53,93 @@ import { ManageAreasTasksModal } from "./components/ManageAreasTasksModal";
 import { MaintenancePdfModal } from "./components/MaintenancePdfModal";
 import { GoogleDriveModal } from "./components/GoogleDriveModal";
 
+const getTodayIsoDate = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const getTodayDisplayDateTime = () => {
+  const d = new Date();
+  return d.toLocaleString("en-US", {
+    month: "numeric",
+    day: "numeric",
+    year: "2-digit",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+};
+
+const formatToDisplayDate = (dateObj) => {
+  if (!dateObj) return "";
+  const d = new Date(dateObj);
+  if (isNaN(d.getTime())) return String(dateObj);
+  return d.toLocaleDateString("en-US", {
+    month: "numeric",
+    day: "numeric",
+    year: "2-digit",
+  });
+};
+
+const formatToDisplayDateTime = (dateObj) => {
+  if (!dateObj) return "";
+  const d = new Date(dateObj);
+  if (isNaN(d.getTime())) return String(dateObj);
+  return d.toLocaleString("en-US", {
+    month: "numeric",
+    day: "numeric",
+    year: "2-digit",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+};
+
+function parseToDateObject(val) {
+  if (!val) return null;
+  if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
+  if (typeof val === "string") {
+    const trimmed = val.trim();
+    if (trimmed.includes("/")) {
+      const [datePart, timePart] = trimmed.split(",");
+      const parts = datePart.trim().split("/");
+      if (parts.length === 3) {
+        let m = parseInt(parts[0], 10) - 1;
+        let d = parseInt(parts[1], 10);
+        let y = parseInt(parts[2], 10);
+        if (y < 100) y += 2000;
+        const dateObj = new Date(y, m, d);
+        if (timePart) {
+          const timeMatch = timePart.trim().match(/(\d+):(\d+)(?::(\d+))?\s*(AM|PM)?/i);
+          if (timeMatch) {
+            let h = parseInt(timeMatch[1], 10);
+            const min = parseInt(timeMatch[2], 10);
+            const ampm = timeMatch[4]?.toUpperCase();
+            if (ampm === "PM" && h < 12) h += 12;
+            if (ampm === "AM" && h === 12) h = 0;
+            dateObj.setHours(h, min, 0, 0);
+          }
+        }
+        return isNaN(dateObj.getTime()) ? null : dateObj;
+      }
+    }
+    const parsed = new Date(val);
+    if (!isNaN(parsed.getTime())) return parsed;
+  }
+  return null;
+}
+
 export function BuildingMaintenanceView({ user }) {
   const userRole = (user?.role || "SUPER_USER").toUpperCase();
 
   // Active date selection (defaults to sample 6/11/26 or today)
-  const [selectedDate, setSelectedDate] = useState("6/11/26");
+  const [selectedDate, setSelectedDate] = useState(getTodayIsoDate);
   const [report, setReport] = useState(null);
   const [items, setItems] = useState([]);
-  const [effectiveDate, setEffectiveDate] = useState("6/11/26");
+  const [effectiveDate, setEffectiveDate] = useState(getTodayDisplayDateTime);
   const [checkedByGlobal, setCheckedByGlobal] = useState("Yahya");
   const [verifiedBy, setVerifiedBy] = useState("Super Admin");
   const [generalNotes, setGeneralNotes] = useState("");
@@ -128,7 +208,11 @@ export function BuildingMaintenanceView({ user }) {
   const handleItemChange = (index, field, value) => {
     setItems((prev) => {
       const updated = [...prev];
-      updated[index] = { ...updated[index], [field]: value };
+      const current = { ...updated[index], [field]: value };
+      if (field === "status" && value === "Completed" && !current.date) {
+        current.date = getTodayDisplayDateTime();
+      }
+      updated[index] = current;
       return updated;
     });
   };
@@ -141,6 +225,7 @@ export function BuildingMaintenanceView({ user }) {
         status: "Completed",
         checkedBy: it.checkedBy || checkedByGlobal || "Yahya",
         initial: it.initial || "YK",
+        date: it.date || getTodayDisplayDateTime(),
       }))
     );
     setSuccess("Marked all items as Completed!");
@@ -359,26 +444,37 @@ export function BuildingMaintenanceView({ user }) {
                   <IconCalendar size={14} />
                 </ThemeIcon>
                 <Text size="xs" fw={700} c="dark.8">
-                  Effective Inspection Date:
+                  Inspection Date &amp; Time:
                 </Text>
-                <TextInput
+                <DateTimePicker
                   size="xs"
-                  placeholder="e.g. 6/11/26"
-                  value={effectiveDate}
-                  onChange={(e) => {
-                    setEffectiveDate(e.target.value);
+                  placeholder="Pick date & time"
+                  value={parseToDateObject(effectiveDate) || new Date()}
+                  onChange={(val) => {
+                    if (val) {
+                      const iso = formatToDisplayDate(val);
+                      const disp = formatToDisplayDateTime(val);
+                      setEffectiveDate(disp);
+                      setSelectedDate(iso);
+                    }
                   }}
-                  style={{ width: "120px" }}
+                  valueFormat="M/D/YY hh:mm A"
+                  clearable={false}
+                  style={{ minWidth: "195px" }}
                 />
                 <Button
                   size="compact-xs"
-                  variant="light"
+                  variant="filled"
                   color="teal"
+                  leftSection={<IconClock size={13} />}
                   onClick={() => {
-                    setSelectedDate(effectiveDate);
+                    const now = new Date();
+                    setSelectedDate(getTodayIsoDate());
+                    setEffectiveDate(getTodayDisplayDateTime());
                   }}
+                  title="Reset to today's date & current time"
                 >
-                  Load Date
+                  Today &amp; Now
                 </Button>
 
                 <Divider orientation="vertical" />
@@ -588,14 +684,14 @@ export function BuildingMaintenanceView({ user }) {
           <Table highlightOnHover withTableBorder withColumnBorders style={{ minWidth: "1050px" }}>
             <Table.Thead style={{ background: "#0f766e" }}>
               <Table.Tr>
-                <Table.Th style={{ color: "#ffffff", width: "150px" }}>Area</Table.Th>
-                <Table.Th style={{ color: "#ffffff", minWidth: "260px" }}>Daily Task</Table.Th>
-                <Table.Th style={{ color: "#ffffff", width: "95px", textAlign: "center" }}>Date</Table.Th>
-                <Table.Th style={{ color: "#ffffff", width: "115px", textAlign: "center" }}>Checked by</Table.Th>
-                <Table.Th style={{ color: "#ffffff", width: "140px", textAlign: "center" }}>Status</Table.Th>
-                <Table.Th style={{ color: "#ffffff", width: "75px", textAlign: "center" }}>Initial</Table.Th>
-                <Table.Th style={{ color: "#ffffff", width: "100px", textAlign: "center" }}>Due Date</Table.Th>
-                <Table.Th style={{ color: "#ffffff", minWidth: "180px" }}>Notes / Issues / Action Taken</Table.Th>
+                <Table.Th style={{ color: "#ffffff", width: "140px" }}>Area</Table.Th>
+                <Table.Th style={{ color: "#ffffff", minWidth: "250px" }}>Daily Task</Table.Th>
+                <Table.Th style={{ color: "#ffffff", width: "190px", textAlign: "center" }}>Date &amp; Time</Table.Th>
+                <Table.Th style={{ color: "#ffffff", width: "110px", textAlign: "center" }}>Checked by</Table.Th>
+                <Table.Th style={{ color: "#ffffff", width: "145px", textAlign: "center" }}>Status</Table.Th>
+                <Table.Th style={{ color: "#ffffff", width: "65px", textAlign: "center" }}>Initial</Table.Th>
+                <Table.Th style={{ color: "#ffffff", width: "135px", textAlign: "center" }}>Due Date</Table.Th>
+                <Table.Th style={{ color: "#ffffff", minWidth: "175px" }}>Notes / Issues / Action Taken</Table.Th>
                 <Table.Th style={{ color: "#ffffff", width: "45px", textAlign: "center" }}>Del</Table.Th>
               </Table.Tr>
             </Table.Thead>
@@ -643,13 +739,19 @@ export function BuildingMaintenanceView({ user }) {
                         </Text>
                       </Table.Td>
 
-                      {/* 3. Date */}
+                      {/* 3. Date & Time Mantine Control */}
                       <Table.Td style={{ verticalAlign: "top" }}>
-                        <TextInput
+                        <DateTimePicker
                           size="xs"
-                          value={item.date || effectiveDate}
-                          onChange={(e) => handleItemChange(realIdx, "date", e.target.value)}
-                          style={{ minWidth: "80px" }}
+                          placeholder="M/D/YY hh:mm A"
+                          value={parseToDateObject(item.date || effectiveDate)}
+                          onChange={(val) => {
+                            const formatted = val ? formatToDisplayDateTime(val) : "";
+                            handleItemChange(realIdx, "date", formatted);
+                          }}
+                          valueFormat="M/D/YY hh:mm A"
+                          clearable
+                          style={{ minWidth: "180px" }}
                         />
                       </Table.Td>
 
@@ -690,14 +792,19 @@ export function BuildingMaintenanceView({ user }) {
                         />
                       </Table.Td>
 
-                      {/* 7. Due Date */}
+                      {/* 7. Due Date Mantine Control */}
                       <Table.Td style={{ verticalAlign: "top" }}>
-                        <TextInput
+                        <DatePickerInput
                           size="xs"
-                          value={item.dueDate || ""}
-                          onChange={(e) => handleItemChange(realIdx, "dueDate", e.target.value)}
-                          placeholder="M/D/YY"
-                          style={{ minWidth: "85px" }}
+                          placeholder="Pick Due Date"
+                          value={parseToDateObject(item.dueDate)}
+                          onChange={(val) => {
+                            const formatted = val ? formatToDisplayDate(val) : "";
+                            handleItemChange(realIdx, "dueDate", formatted);
+                          }}
+                          valueFormat="M/D/YY"
+                          clearable
+                          style={{ minWidth: "125px" }}
                         />
                       </Table.Td>
 
