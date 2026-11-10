@@ -196,4 +196,5 @@ export enum AppTab {
   IIPC_EVENTS = "iipc-events",
   USER_EVENTS = "user-events",
   LETTERHEADS = "letterheads",
+  BUILDING_MAINTENANCE = "building-maintenance",
 }

@@ -230,10 +230,16 @@ export function SuperUserMenu({ activeTab, setActiveTab }) {
       </Menu>
 
       {/* Miscellaneous Dropdown */}
-      <Menu shadow="md" width={220} trigger="hover">
+      <Menu shadow="md" width={240} trigger="hover">
         <Menu.Target>
           <Button
-            variant={activeTab === AppTab.IIPC_EVENTS || activeTab === AppTab.LETTERHEADS ? "filled" : "subtle"}
+            variant={
+              activeTab === AppTab.IIPC_EVENTS ||
+              activeTab === AppTab.LETTERHEADS ||
+              activeTab === AppTab.BUILDING_MAINTENANCE
+                ? "filled"
+                : "subtle"
+            }
             color="violet"
             leftSection={<IconCategory size={18} />}
             rightSection={<IconChevronDown size={14} />}
@@ -257,6 +263,13 @@ export function SuperUserMenu({ activeTab, setActiveTab }) {
             leftSection={<IconFileCertificate size={16} color="var(--mantine-color-teal-6)" />}
           >
             Letterhead & Doc Studio
+          </Menu.Item>
+          <Menu.Divider />
+          <Menu.Item
+            onClick={() => setActiveTab(AppTab.BUILDING_MAINTENANCE)}
+            leftSection={<IconTools size={16} color="var(--mantine-color-indigo-6)" />}
+          >
+            Building Maintenance
           </Menu.Item>
         </Menu.Dropdown>
       </Menu>

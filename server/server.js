@@ -27,6 +27,7 @@ import { quranRoutes } from "./src/features/quran/index.js";
 import ayatsRoutes from "./src/features/ayats/index.js";
 import iipcEventsRoutes from "./src/features/iipc-events/index.js";
 import letterheadRoutes from "./src/features/letterheads/index.js";
+import buildingMaintenanceRoutes, { BuildingMaintenanceUseCase } from "./src/features/building-maintenance/index.js";
 
 const app = express();
 
@@ -56,6 +57,11 @@ connectDB().then(async () => {
   } catch (uErr) {
     console.warn("University background sync note:", uErr.message);
   }
+  try {
+    BuildingMaintenanceUseCase.seedInitialDataIfEmpty().catch(() => {});
+  } catch (bmErr) {
+    console.warn("Building maintenance auto-seed note:", bmErr.message);
+  }
 });
 
 app.get("/api/health", (req, res) => {
@@ -82,6 +88,7 @@ app.use("/api/quran", quranRoutes);
 app.use("/api/ayats", ayatsRoutes);
 app.use("/api/iipc-events", iipcEventsRoutes);
 app.use("/api/letterheads", letterheadRoutes);
+app.use("/api/building-maintenance", buildingMaintenanceRoutes);
 
 // 3. Seed Route
 app.post("/api/seed", async (req, res) => {

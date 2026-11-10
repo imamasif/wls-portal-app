@@ -17,6 +17,7 @@ import {
   IconNotes,
   IconBook,
   IconFileCertificate,
+  IconTools,
 } from "@tabler/icons-react";
 
 export function SuperUserDB({ setActiveTab }) {

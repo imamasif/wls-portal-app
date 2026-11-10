@@ -34,6 +34,7 @@ const IipcEventsSuperUserPanel = lazy(() => import("./features/iipc-events").the
 const IipcEventsUserView = lazy(() => import("./features/iipc-events").then(m => ({ default: m.IipcEventsUserView })));
 const PublicEventDonationPage = lazy(() => import("./features/iipc-events").then(m => ({ default: m.PublicEventDonationPage })));
 const LetterheadStudio = lazy(() => import("./features/letterheads/LetterheadStudio").then(m => ({ default: m.LetterheadStudio || m.default })));
+const BuildingMaintenanceView = lazy(() => import("./features/building-maintenance/BuildingMaintenanceView").then(m => ({ default: m.BuildingMaintenanceView || m.default })));
 
 const QuizListScreen = lazy(() => import("./features/quiz-management").then(m => ({ default: m.QuizListScreen })));
 const QuizCreatorStudio = lazy(() => import("./features/quiz-management").then(m => ({ default: m.QuizCreatorStudio })));
@@ -62,6 +63,13 @@ export default function App() {
         tab === "letterhead"
       ) {
         return AppTab.LETTERHEADS;
+      }
+      if (
+        tab === "building-maintenance" ||
+        tab === "building_maintenance" ||
+        tab === "maintenance"
+      ) {
+        return AppTab.BUILDING_MAINTENANCE;
       }
     } catch {
       return null;
@@ -272,6 +280,9 @@ export default function App() {
           )}
           {activeTab === AppTab.LETTERHEADS && (
             <LetterheadStudio user={user} isSuperAdmin={isSuperAdmin} isWlsAdmin={isWlsAdmin} />
+          )}
+          {activeTab === AppTab.BUILDING_MAINTENANCE && isSuperAdmin && (
+            <BuildingMaintenanceView user={user} />
           )}
         </Suspense>
       </Container>
