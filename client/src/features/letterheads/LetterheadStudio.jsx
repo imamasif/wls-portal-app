@@ -21,11 +21,13 @@ import {
   IconSparkles,
   IconFileStack,
   IconUsersGroup,
+  IconFileTypePdf,
 } from '@tabler/icons-react';
 import { LetterheadGeneratorCard } from './components/LetterheadGeneratorCard';
 import { DocumentCustomizerCard } from './components/DocumentCustomizerCard';
 import { UniversalMergerCard } from './components/UniversalMergerCard';
 import { BoardMeetingMinutesCard } from './components/BoardMeetingMinutesCard';
+import { PdfMakerCard } from './components/PdfMakerCard';
 
 export function LetterheadStudio({ user, isSuperAdmin, isWlsAdmin }) {
   const getInitialTab = () => {
@@ -35,7 +37,7 @@ export function LetterheadStudio({ user, isSuperAdmin, isWlsAdmin }) {
       if (tabParam === 'board-minutes' || tabParam === 'board_minutes' || tabParam === 'meeting-minutes') {
         return 'board-minutes';
       }
-      if (tabParam === 'iipc' || tabParam === 'bp' || tabParam === 'universal' || tabParam === 'customizer') {
+      if (tabParam === 'iipc' || tabParam === 'bp' || tabParam === 'universal' || tabParam === 'customizer' || tabParam === 'pdf-maker' || tabParam === 'pdf_maker' || tabParam === 'pdfmaker') {
         return tabParam;
       }
     } catch {}
@@ -188,6 +190,9 @@ export function LetterheadStudio({ user, isSuperAdmin, isWlsAdmin }) {
             <Tabs.Tab value="universal" leftSection={<IconFileStack size={18} />}>
               2-File Template Merger
             </Tabs.Tab>
+            <Tabs.Tab value="pdf-maker" leftSection={<IconFileTypePdf size={18} />}>
+              PDF Maker
+            </Tabs.Tab>
             <Tabs.Tab value="customizer" leftSection={<IconForms size={18} />}>
               Interactive Customizer &amp; Signatures
             </Tabs.Tab>
@@ -202,6 +207,11 @@ export function LetterheadStudio({ user, isSuperAdmin, isWlsAdmin }) {
         )}
 
         {/* ROW: IIPC and BP Letterhead Generators */}
+        {(activeStudioTab === 'all' || activeStudioTab === 'pdf-maker') && (
+          <Box mb={activeStudioTab === 'all' ? 'md' : 0}>
+            <PdfMakerCard userRole={userRole} />
+          </Box>
+        )}
         {(activeStudioTab === 'all' || activeStudioTab === 'iipc' || activeStudioTab === 'bp') && (
           <Grid gutter="lg">
             {/* CARD 1: IIPC Canada Letterhead */}
