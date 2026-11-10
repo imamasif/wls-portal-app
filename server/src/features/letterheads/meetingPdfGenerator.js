@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { parseSignatureDataUrl, decodePngToRgb } from './signatureImageHelper.js';
 
 /**
  * Extracts width and height from JPEG bytes (SOF0/SOF2 markers).
@@ -57,7 +58,7 @@ function wrapText(text, maxChars) {
 
 /**
  * Pure JavaScript PDF Generator for Board Meeting Minutes.
- * Generates 100% compliant PDF 1.4 with zero external dependencies.
+ * Generates 100% compliant PDF 1.4 with real embedded signature images.
  */
 export function generateMeetingMinutesPdfBuffer({
   title = 'BOARD MEETING MINUTES',
@@ -99,6 +100,38 @@ export function generateMeetingMinutesPdfBuffer({
     if (fs.existsSync(bPath)) {
       bismillahBuf = fs.readFileSync(bPath);
       bismillahDim = getJpegDimensions(bismillahBuf);
+    }
+  }
+
+  // Pre-process signature images from signatories
+  const sigImages = [];
+  for (let sIdx = 0; sIdx < signatories.length; sIdx++) {
+    const s = signatories[sIdx];
+    if (s.isSigned && s.signatureDataUrl) {
+      const parsed = parseSignatureDataUrl(s.signatureDataUrl);
+      if (parsed) {
+        if (parsed.format === 'png') {
+          const dec = decodePngToRgb(parsed.buffer);
+          if (dec) {
+            sigImages.push({
+              sIdx,
+              format: 'png',
+              width: dec.width,
+              height: dec.height,
+              data: dec.compressedRgb,
+            });
+          }
+        } else if (parsed.format === 'jpeg') {
+          const dim = getJpegDimensions(parsed.buffer);
+          sigImages.push({
+            sIdx,
+            format: 'jpeg',
+            width: dim.width,
+            height: dim.height,
+            data: parsed.buffer,
+          });
+        }
+      }
     }
   }
 
@@ -158,7 +191,7 @@ export function generateMeetingMinutesPdfBuffer({
   // Title
   const titleLines = wrapText(title, 55);
   for (const tl of titleLines) {
-    addText(tl, MARGIN_LEFT, curY, '/F2', 14, 0.06, 0.09, 0.16); // Bold dark navy
+    addText(tl, MARGIN_LEFT, curY, '/F2', 14, 0.06, 0.09, 0.16);
     curY -= 18;
   }
   curY -= 4;
@@ -172,7 +205,7 @@ export function generateMeetingMinutesPdfBuffer({
   addText(`CALL TO ORDER: ${callToOrder}`, MARGIN_LEFT + 270, curY - 38, '/F2', 9.5, 0.12, 0.23, 0.54);
   curY -= (metaBoxHeight + 16);
 
-  // Parse HTML content into structured sections: headings, paragraphs, and tables
+  // Parse HTML content into structured sections
   const sections = [];
   const rawParts = contentHtml.split(/(<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>|<table[^>]*>[\s\S]*?<\/table>)/gi);
 
@@ -209,7 +242,6 @@ export function generateMeetingMinutesPdfBuffer({
       checkPageSpace(32);
       curY -= 6;
       addText(sec.text, MARGIN_LEFT, curY, '/F2', 11, 0.12, 0.23, 0.54);
-      // Underline rule
       curStream.push(`q\n0.8 0.85 0.9 RG\n1 w\n${MARGIN_LEFT} ${(curY - 3).toFixed(2)} m ${(MARGIN_LEFT + USABLE_WIDTH)} ${(curY - 3).toFixed(2)} l S\nQ\n`);
       curY -= 15;
     } else if (sec.type === 'para') {
@@ -226,7 +258,6 @@ export function generateMeetingMinutesPdfBuffer({
         : [35, 170, USABLE_WIDTH - 205];
 
       for (const row of sec.rows) {
-        // Calculate cell wrapped lines to get row height
         const cellLines = row.cells.map((c, idx) => {
           const maxChar = Math.floor(colWidths[idx] / 5.5);
           return wrapText(c, maxChar);
@@ -236,14 +267,12 @@ export function generateMeetingMinutesPdfBuffer({
 
         checkPageSpace(rowHeight);
 
-        // Background for header row
         if (row.isHeader) {
           addRect(MARGIN_LEFT, curY - rowHeight, USABLE_WIDTH, rowHeight, 0.94, 0.96, 0.98, 0.75, 0.8, 0.85);
         } else {
           addRect(MARGIN_LEFT, curY - rowHeight, USABLE_WIDTH, rowHeight, 1, 1, 1, 0.82, 0.86, 0.9);
         }
 
-        // Render text in cells
         let curX = MARGIN_LEFT;
         for (let colIdx = 0; colIdx < row.cells.length; colIdx++) {
           const w = colWidths[colIdx];
@@ -273,15 +302,15 @@ export function generateMeetingMinutesPdfBuffer({
   }
 
   // Ratification & Signatures Heading
-  checkPageSpace(45);
+  checkPageSpace(50);
   curY -= 10;
   addText('BOARD OF DIRECTORS RATIFICATION & SIGNATURES', MARGIN_LEFT, curY, '/F2', 11.5, 0.12, 0.23, 0.54);
   curStream.push(`q\n0.12 0.23 0.54 RG\n1.5 w\n${MARGIN_LEFT} ${(curY - 3).toFixed(2)} m ${(MARGIN_LEFT + USABLE_WIDTH)} ${(curY - 3).toFixed(2)} l S\nQ\n`);
   curY -= 16;
 
-  // Render 2-Column Signatories Grid
+  // Render 2-Column Signatories Grid (height 78pt accommodates real signature images)
   const colWidth = (USABLE_WIDTH - 14) / 2;
-  const sigBoxHeight = 65;
+  const sigBoxHeight = 78;
 
   for (let idx = 0; idx < signatories.length; idx += 2) {
     checkPageSpace(sigBoxHeight + 8);
@@ -289,13 +318,13 @@ export function generateMeetingMinutesPdfBuffer({
     const rightSig = signatories[idx + 1];
 
     const sigsToRender = [
-      { s: leftSig, x: MARGIN_LEFT },
-      { s: rightSig, x: MARGIN_LEFT + colWidth + 14 },
+      { s: leftSig, sIdx: idx, x: MARGIN_LEFT },
+      { s: rightSig, sIdx: idx + 1, x: MARGIN_LEFT + colWidth + 14 },
     ];
 
     for (const item of sigsToRender) {
       if (!item.s) continue;
-      const { s, x } = item;
+      const { s, sIdx, x } = item;
 
       // Box border & fill
       addRect(x, curY - sigBoxHeight, colWidth, sigBoxHeight, 0.97, 0.98, 0.99, 0.78, 0.83, 0.88);
@@ -303,19 +332,33 @@ export function generateMeetingMinutesPdfBuffer({
       // Role
       addText(`${s.role}:`, x + 10, curY - 14, '/F2', 8.5, 0.12, 0.23, 0.54);
 
-      // Signature status line
-      if (s.isSigned) {
-        addText(`Signed Digitally by: ${s.name}`, x + 10, curY - 28, '/F3', 9.5, 0.05, 0.55, 0.25);
+      // Signature: check if real signature image exists
+      const sigImg = sigImages.find((img) => img.sIdx === sIdx);
+      if (sigImg) {
+        const maxW = colWidth - 28;
+        const maxH = 28;
+        const aspect = sigImg.height / sigImg.width;
+        let dw = maxW;
+        let dh = dw * aspect;
+        if (dh > maxH) {
+          dh = maxH;
+          dw = dh / aspect;
+        }
+        const dx = x + (colWidth - dw) / 2;
+        const dy = curY - 18 - dh;
+        curStream.push(`q\n${dw.toFixed(2)} 0 0 ${dh.toFixed(2)} ${dx.toFixed(2)} ${dy.toFixed(2)} cm\n/ImSig_${sIdx} Do\nQ\n`);
+      } else if (s.isSigned) {
+        addText(`Signed Digitally by: ${s.name}`, x + 10, curY - 32, '/F3', 9, 0.05, 0.55, 0.25);
       } else {
-        addText('(Signature & Date)', x + 10, curY - 28, '/F3', 8.5, 0.6, 0.65, 0.7);
+        addText('(Signature & Date)', x + 10, curY - 32, '/F3', 8.5, 0.6, 0.65, 0.7);
       }
 
       // Signatory Name
-      addText(s.name, x + 10, curY - 42, '/F2', 9, 0.06, 0.09, 0.16);
+      addText(s.name, x + 10, curY - 54, '/F2', 9, 0.06, 0.09, 0.16);
 
       // Date & Time
       const dateText = `Date: ${s.signDate || meetingDate} | Time: ${s.signTime || meetingTime}`;
-      addText(dateText, x + 10, curY - 54, '/F1', 7.5, 0.4, 0.45, 0.5);
+      addText(dateText, x + 10, curY - 68, '/F1', 7.5, 0.4, 0.45, 0.5);
     }
 
     curY -= (sigBoxHeight + 8);
@@ -335,26 +378,27 @@ export function generateMeetingMinutesPdfBuffer({
 
   // Assemble PDF Objects
   const objects = [];
-  const addObj = (content) => {
-    objects.push(content);
-    return objects.length;
-  };
-
   const catalogId = 1;
   const pagesTreeId = 2;
   const fontF1Id = 3;
   const fontF2Id = 4;
   const fontF3Id = 5;
 
+  let nextObjId = 6;
   let imgHeaderId = null;
   let imgFooterId = null;
   let imgBismillahId = null;
 
-  if (headerBuf) imgHeaderId = 6;
-  if (footerBuf) imgFooterId = headerBuf ? 7 : 6;
-  if (bismillahBuf) imgBismillahId = (headerBuf ? 7 : 6) + (footerBuf ? 1 : 0);
+  if (headerBuf) imgHeaderId = nextObjId++;
+  if (footerBuf) imgFooterId = nextObjId++;
+  if (bismillahBuf) imgBismillahId = nextObjId++;
 
-  const firstPageObjId = (bismillahBuf ? imgBismillahId : (imgFooterId || imgHeaderId || fontF3Id)) + 1;
+  // Assign Object IDs to signature images
+  for (const img of sigImages) {
+    img.objId = nextObjId++;
+  }
+
+  const firstPageObjId = nextObjId;
   const totalPages = pages.length;
 
   // 1 0 obj - Catalog
@@ -376,7 +420,7 @@ export function generateMeetingMinutesPdfBuffer({
   // 5 0 obj - Helvetica-Oblique
   objects.push(`<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Oblique /Encoding /WinAnsiEncoding >>`);
 
-  // Image XObjects
+  // Image XObjects: Header, Footer, Bismillah
   if (headerBuf) {
     objects.push(
       `<< /Type /XObject /Subtype /Image /Width ${headerDim.width} /Height ${headerDim.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${headerBuf.length} >>\nstream\n`
@@ -393,11 +437,27 @@ export function generateMeetingMinutesPdfBuffer({
     );
   }
 
+  // Image XObjects: Signatures
+  for (const img of sigImages) {
+    if (img.format === 'png') {
+      objects.push(
+        `<< /Type /XObject /Subtype /Image /Width ${img.width} /Height ${img.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode /Length ${img.data.length} >>\nstream\n`
+      );
+    } else {
+      objects.push(
+        `<< /Type /XObject /Subtype /Image /Width ${img.width} /Height ${img.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${img.data.length} >>\nstream\n`
+      );
+    }
+  }
+
   // Build XObject Dictionary
   let xobjDict = '';
   if (imgHeaderId) xobjDict += `/ImHeader ${imgHeaderId} 0 R `;
   if (imgFooterId) xobjDict += `/ImFooter ${imgFooterId} 0 R `;
   if (imgBismillahId) xobjDict += `/ImBismillah ${imgBismillahId} 0 R `;
+  for (const img of sigImages) {
+    xobjDict += `/ImSig_${img.sIdx} ${img.objId} 0 R `;
+  }
 
   // Page Objects and Content Streams
   for (let i = 0; i < totalPages; i++) {
@@ -425,15 +485,18 @@ export function generateMeetingMinutesPdfBuffer({
   let curOffset = chunks[0].length;
 
   let objIdx = 1;
-  // Handle image stream objects with binary image data
   for (const obj of objects) {
     xrefOffsets.push(curOffset);
 
-    if (obj.includes('/Filter /DCTDecode')) {
+    if (obj.includes('/Filter /DCTDecode') || obj.includes('/Filter /FlateDecode')) {
       let imgData = null;
-      if (obj.includes(`Length ${headerBuf?.length}`)) imgData = headerBuf;
-      else if (obj.includes(`Length ${footerBuf?.length}`)) imgData = footerBuf;
-      else if (obj.includes(`Length ${bismillahBuf?.length}`)) imgData = bismillahBuf;
+      if (headerBuf && obj.includes(`Length ${headerBuf.length}`)) imgData = headerBuf;
+      else if (footerBuf && obj.includes(`Length ${footerBuf.length}`)) imgData = footerBuf;
+      else if (bismillahBuf && obj.includes(`Length ${bismillahBuf.length}`)) imgData = bismillahBuf;
+      else {
+        const foundSig = sigImages.find((img) => obj.includes(`Length ${img.data.length}`));
+        if (foundSig) imgData = foundSig.data;
+      }
 
       const head = Buffer.from(`${objIdx} 0 obj\n${obj}`, 'utf8');
       const tail = Buffer.from('\nendstream\nendobj\n', 'utf8');
@@ -461,7 +524,6 @@ export function generateMeetingMinutesPdfBuffer({
 
   return Buffer.concat(chunks);
 }
-
 
 /**
  * Universal Native PDF Generator for any Letterhead Document (Cards 1, 2, 3, 4).
@@ -556,7 +618,6 @@ export function generateGenericLetterheadPdfBuffer({
     curY -= 6;
   }
 
-  // Parse HTML
   const sections = [];
   const rawParts = (htmlContent || '').split(/(<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>|<table[^>]*>[\s\S]*?<\/table>)/gi);
   for (const part of rawParts) {
@@ -621,7 +682,6 @@ export function generateGenericLetterheadPdfBuffer({
     }
   }
 
-  // Draw header on Page 1 and footer on every page
   if (headerBuf) {
     const hY = PAGE_HEIGHT - headerHeightPt;
     pages[0].unshift(`q\n${PAGE_WIDTH.toFixed(2)} 0 0 ${headerHeightPt.toFixed(2)} 0 ${hY.toFixed(2)} cm\n/ImHeader Do\nQ\n`);
@@ -632,7 +692,6 @@ export function generateGenericLetterheadPdfBuffer({
     }
   }
 
-  // Assemble PDF Objects
   const objects = [];
   const catalogId = 1;
   const pagesTreeId = 2;

@@ -4,6 +4,7 @@ import { execFileSync } from 'child_process';
 import JSZip from 'jszip';
 import { getBrowserPath, escapeHtml, getLetterheadAssetsDir, getUploadsDir } from './letterhead.service.js';
 import { generateMeetingMinutesPdfBuffer } from './meetingPdfGenerator.js';
+import { parseSignatureDataUrl, createDocxDrawingXml } from './signatureImageHelper.js';
 import { MeetingMinutes } from './meetingMinutes.model.js';
 import { sendBoardMeetingMinutesEmail } from '../../common/services/email.service.js';
 
@@ -327,25 +328,79 @@ export async function generateBoardMeetingMinutesDocument({
       tplZip.file(cleanKey, buf);
     }
   } else {
-    tplZip.file('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="xml" ContentType="application/xml"/><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');
+    tplZip.file('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="xml" ContentType="application/xml"/><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="png" ContentType="image/png"/><Default Extension="jpg" ContentType="image/jpeg"/><Default Extension="jpeg" ContentType="image/jpeg"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');
     tplZip.file('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
-    tplZip.file('word/document.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body></w:body></w:document>');
+    tplZip.file('word/_rels/document.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>');
+    tplZip.file('word/document.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body></w:body></w:document>');
+  }
+
+  // Ensure [Content_Types].xml contains png and jpg/jpeg
+  let contentTypesXml = (await tplZip.file('[Content_Types].xml')?.async('text')) || '';
+  if (contentTypesXml) {
+    if (!contentTypesXml.includes('Extension="png"')) {
+      contentTypesXml = contentTypesXml.replace('</Types>', '<Default Extension="png" ContentType="image/png"/></Types>');
+    }
+    if (!contentTypesXml.includes('Extension="jpeg"')) {
+      contentTypesXml = contentTypesXml.replace('</Types>', '<Default Extension="jpeg" ContentType="image/jpeg"/></Types>');
+    }
+    if (!contentTypesXml.includes('Extension="jpg"')) {
+      contentTypesXml = contentTypesXml.replace('</Types>', '<Default Extension="jpg" ContentType="image/jpeg"/></Types>');
+    }
+    tplZip.file('[Content_Types].xml', contentTypesXml);
+  }
+
+  // Ensure word/_rels/document.xml.rels is present
+  let relsXml = (await tplZip.file('word/_rels/document.xml.rels')?.async('text')) || '';
+  if (!relsXml) {
+    relsXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>';
   }
 
   // Convert signatories into OpenXML paragraphs
   let sigDocxXml = '<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="280" w:after="160"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="28"/><w:color w:val="1E3A8A"/></w:rPr><w:t>BOARD OF DIRECTORS RATIFICATION &amp; SIGNATURES</w:t></w:r></w:p>';
 
-  for (const s of signatories) {
+  for (let sIdx = 0; sIdx < signatories.length; sIdx++) {
+    const s = signatories[sIdx];
     const sDate = s.signDate || meetingMinute.meetingDate || '';
     const sTime = s.signTime || meetingMinute.meetingTime || '';
+
+    let signVisualXml = '';
+    const parsedSig = s.isSigned && s.signatureDataUrl ? parseSignatureDataUrl(s.signatureDataUrl) : null;
+    if (parsedSig) {
+      const ext = parsedSig.format === 'png' ? 'png' : 'jpg';
+      const rId = `rIdSig_${sIdx}`;
+      const mediaRelPath = `media/sig_img_${sIdx}.${ext}`;
+      const mediaZipPath = `word/${mediaRelPath}`;
+
+      // Store image in docx zip
+      tplZip.file(mediaZipPath, parsedSig.buffer);
+
+      // Register image relationship in relsXml
+      const relSnippet = `<Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="${mediaRelPath}"/>`;
+      relsXml = relsXml.replace('</Relationships>', `${relSnippet}</Relationships>`);
+
+      // OpenXML drawing XML
+      signVisualXml = createDocxDrawingXml(rId, 1600000, 500000, 1000 + sIdx, 'left');
+    } else if (s.isSigned) {
+      signVisualXml = `
+        <w:p><w:pPr><w:spacing w:after="40"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Brush Script MT"/><w:i/><w:sz w:val="28"/><w:color w:val="0F172A"/></w:rPr><w:t>Signed digitally by: ${escapeHtml(s.name)}</w:t></w:r></w:p>
+      `;
+    } else {
+      signVisualXml = `
+        <w:p><w:pPr><w:spacing w:after="40"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:sz w:val="22"/><w:color w:val="94A3B8"/></w:rPr><w:t>(Signature &amp; Date)</w:t></w:r></w:p>
+      `;
+    }
+
     sigDocxXml += `
       <w:p><w:pPr><w:spacing w:before="120" w:after="40"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="22"/><w:color w:val="1E3A8A"/></w:rPr><w:t>${escapeHtml(s.role)}:</w:t></w:r></w:p>
-      <w:p><w:pPr><w:spacing w:after="40"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Brush Script MT"/><w:i/><w:sz w:val="30"/><w:color w:val="0F172A"/></w:rPr><w:t>${s.isSigned ? 'Signed digitally by: ' + escapeHtml(s.name) : '(Signature &amp; Date)'}</w:t></w:r></w:p>
+      ${signVisualXml}
       <w:p><w:pPr><w:spacing w:after="40"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="24"/></w:rPr><w:t>${escapeHtml(s.name)}</w:t></w:r></w:p>
       <w:p><w:pPr><w:spacing w:after="80"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:sz w:val="20"/><w:color w:val="64748B"/></w:rPr><w:t>Date: ${escapeHtml(sDate)} | Time: ${escapeHtml(sTime)}</w:t></w:r></w:p>
       <w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="CBD5E1"/></w:pBdr><w:spacing w:after="160"/></w:pPr></w:p>
     `;
   }
+
+  // Update relsXml in zip
+  tplZip.file('word/_rels/document.xml.rels', relsXml);
 
   // Convert Meeting Minutes Text / Meta into OpenXML
   let meetingBodyXml = `
