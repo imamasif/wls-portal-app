@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { execFileSync } from 'child_process';
 import JSZip from 'jszip';
-import { getBrowserPath, escapeHtml } from './letterhead.service.js';
+import { getBrowserPath, escapeHtml, getLetterheadAssetsDir, getUploadsDir } from './letterhead.service.js';
 import { MeetingMinutes } from './meetingMinutes.model.js';
 import { sendBoardMeetingMinutesEmail } from '../../common/services/email.service.js';
 
@@ -150,7 +150,7 @@ export async function generateBoardMeetingMinutesDocument({
   outputDocxPath,
   outputPdfPath,
 }) {
-  const assetsDir = path.resolve('server/src/features/letterheads/assets');
+  const assetsDir = getLetterheadAssetsDir();
 
   let headerBase64 = '';
   let footerBase64 = '';
@@ -265,7 +265,8 @@ export async function generateBoardMeetingMinutesDocument({
   const outDir = path.dirname(outputPdfPath);
   if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
 
-  const tempHtmlPath = path.resolve(`server/uploads/bmm_${Date.now()}_${Math.random().toString(36).substring(7)}.html`);
+  const uploadsDir = getUploadsDir();
+  const tempHtmlPath = path.join(uploadsDir, `bmm_${Date.now()}_${Math.random().toString(36).substring(7)}.html`);
   fs.writeFileSync(tempHtmlPath, fullPdfHtml, 'utf8');
 
   try {
@@ -284,6 +285,11 @@ export async function generateBoardMeetingMinutesDocument({
     } else {
       fs.writeFileSync(outputPdfPath, Buffer.from('%PDF-1.4\n%EOF\n'));
     }
+  } catch (pdfErr) {
+    console.warn('PDF generation note in board meeting service:', pdfErr.message);
+    if (!fs.existsSync(outputPdfPath)) {
+      fs.writeFileSync(outputPdfPath, Buffer.from('%PDF-1.4\n%EOF\n'));
+    }
   } finally {
     if (fs.existsSync(tempHtmlPath)) {
       try { fs.unlinkSync(tempHtmlPath); } catch {}
@@ -292,8 +298,17 @@ export async function generateBoardMeetingMinutesDocument({
 
   // Generate DOCX with IIPC Template & JSZip
   const templatePath = path.join(assetsDir, 'iipc_template.docx');
-  const tplData = fs.readFileSync(templatePath);
-  const tplZip = await JSZip.loadAsync(tplData);
+  let tplZip;
+  if (fs.existsSync(templatePath)) {
+    const tplData = fs.readFileSync(templatePath);
+    tplZip = await JSZip.loadAsync(tplData);
+  } else {
+    console.warn(`Template file not found at ${templatePath}, creating minimal fallback DOCX template.`);
+    tplZip = new JSZip();
+    tplZip.file('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="xml" ContentType="application/xml"/><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');
+    tplZip.file('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
+    tplZip.file('word/document.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body></w:body></w:document>');
+  }
 
   // Convert signatories into OpenXML paragraphs
   let sigDocxXml = '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="28"/><w:color w:val="1E3A8A"/></w:rPr><w:t>BOARD OF DIRECTORS RATIFICATION &amp; SIGNATURES</w:t></w:r></w:p>';

@@ -3,7 +3,7 @@ import path from "path";
 import { execFileSync } from "child_process";
 import { BuildingMaintenanceModel } from "./buildingMaintenance.model.js";
 import { BuildingMaintenanceMapper } from "./buildingMaintenance.mapper.js";
-import { getBrowserPath, escapeHtml } from "../letterheads/letterhead.service.js";
+import { getBrowserPath, escapeHtml, getLetterheadAssetsDir, getUploadsDir } from "../letterheads/letterhead.service.js";
 
 export const DEFAULT_MAINTENANCE_TEMPLATE = [
   {
@@ -660,7 +660,7 @@ export class BuildingMaintenanceUseCase {
     const doc = await BuildingMaintenanceModel.findById(reportId);
     if (!doc) throw new Error("Maintenance report not found.");
 
-    const assetsDir = path.resolve("server/src/features/letterheads/assets");
+    const assetsDir = getLetterheadAssetsDir();
     let headerBase64 = "";
 
     if (fs.existsSync(path.join(assetsDir, "iipc_header.jpg"))) {
@@ -870,14 +870,15 @@ export class BuildingMaintenanceUseCase {
 </body>
 </html>`;
 
-    const reportsDir = path.resolve("server/uploads/maintenance-reports");
+    const uploadsDir = getUploadsDir();
+    const reportsDir = path.join(uploadsDir, "maintenance-reports");
     if (!fs.existsSync(reportsDir)) fs.mkdirSync(reportsDir, { recursive: true });
 
     const safeDate = (doc.reportDate || "report").replace(/[^a-zA-Z0-9_-]/g, "_");
     const outputPdfName = `IIPC_Maintenance_Report_${safeDate}_${doc._id}.pdf`;
     const outputPdfPath = path.join(reportsDir, outputPdfName);
 
-    const tempHtmlPath = path.resolve(`server/uploads/temp_maint_${Date.now()}_${Math.random().toString(36).substring(7)}.html`);
+    const tempHtmlPath = path.join(uploadsDir, `temp_maint_${Date.now()}_${Math.random().toString(36).substring(7)}.html`);
     fs.writeFileSync(tempHtmlPath, fullHtml, "utf8");
 
     try {

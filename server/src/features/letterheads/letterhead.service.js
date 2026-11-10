@@ -3,6 +3,54 @@ import path from 'path';
 import { execFileSync } from 'child_process';
 import os from 'os';
 import JSZip from 'jszip';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+export function getLetterheadAssetsDir() {
+  const candidates = [
+    path.join(__dirname, 'assets'),
+    path.resolve('src/features/letterheads/assets'),
+    path.resolve('server/src/features/letterheads/assets'),
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return path.join(__dirname, 'assets');
+}
+
+export function getUploadsDir() {
+  const candidates = [
+    path.resolve(__dirname, '../../../uploads'),
+    path.resolve('uploads'),
+    path.resolve('server/uploads'),
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  const defaultDir = path.resolve(__dirname, '../../../uploads');
+  if (!fs.existsSync(defaultDir)) {
+    try { fs.mkdirSync(defaultDir, { recursive: true }); } catch {}
+  }
+  return defaultDir;
+}
+
+export function getGeneratedDir() {
+  const candidates = [
+    path.resolve(__dirname, '../../../generated_documents'),
+    path.resolve('generated_documents'),
+    path.resolve('server/generated_documents'),
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  const defaultDir = path.resolve(__dirname, '../../../generated_documents');
+  if (!fs.existsSync(defaultDir)) {
+    try { fs.mkdirSync(defaultDir, { recursive: true }); } catch {}
+  }
+  return defaultDir;
+}
 
 const CHROME_PATHS = [
   'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
@@ -215,7 +263,7 @@ export async function generatePdfFromDocx(userDocxPath, templateType, outputPdfP
   const userXml = await readDocxBodyXml(userDocxPath);
   const bodyHtml = docxXmlToHtml(userXml);
 
-  const assetsDir = path.resolve('server/src/features/letterheads/assets');
+  const assetsDir = getLetterheadAssetsDir();
 
   let headerBase64 = '';
   let footerBase64 = '';
@@ -327,7 +375,7 @@ export async function generatePdfFromDocx(userDocxPath, templateType, outputPdfP
   const outDir = path.dirname(outputPdfPath);
   if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
 
-  const tempHtmlPath = path.resolve(`server/uploads/temp_${Date.now()}_${Math.random().toString(36).substring(7)}.html`);
+  const tempHtmlPath = path.join(getUploadsDir(), `temp_${Date.now()}_${Math.random().toString(36).substring(7)}.html`);
   fs.writeFileSync(tempHtmlPath, fullHtml, 'utf8');
 
   try {
@@ -442,7 +490,7 @@ export async function generateCustomizedDocument({
   outputPdfPath,
   options = {},
 }) {
-  const assetsDir = path.resolve('server/src/features/letterheads/assets');
+  const assetsDir = getLetterheadAssetsDir();
 
   let headerBase64 = '';
   let footerBase64 = '';
@@ -593,7 +641,7 @@ export async function generateCustomizedDocument({
   const outDir = path.dirname(outputPdfPath);
   if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
 
-  const tempHtmlPath = path.resolve(`server/uploads/custom_temp_${Date.now()}_${Math.random().toString(36).substring(7)}.html`);
+  const tempHtmlPath = path.join(getUploadsDir(), `custom_temp_${Date.now()}_${Math.random().toString(36).substring(7)}.html`);
   fs.writeFileSync(tempHtmlPath, fullPdfHtml, 'utf8');
 
   try {

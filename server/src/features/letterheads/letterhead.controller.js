@@ -7,6 +7,9 @@ import {
   generatePdfFromDocx,
   generateCustomizedDocument,
   mergeTwoFilesToDocxAndPdf,
+  getLetterheadAssetsDir,
+  getUploadsDir,
+  getGeneratedDir,
 } from './letterhead.service.js';
 import { MeetingMinutes } from './meetingMinutes.model.js';
 import {
@@ -19,8 +22,8 @@ import { UserModel } from '../users/user.model.js';
 
 const router = express.Router();
 
-const uploadsDir = path.resolve('server/uploads');
-const generatedDir = path.resolve('server/generated_documents');
+const uploadsDir = getUploadsDir();
+const generatedDir = getGeneratedDir();
 
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 if (!fs.existsSync(generatedDir)) fs.mkdirSync(generatedDir, { recursive: true });
@@ -119,7 +122,7 @@ router.post('/generate', upload.single('file'), requireSuperUser, async (req, re
     const includeWatermark = req.body.includeWatermark === 'true' || req.body.includeWatermark === true;
     const customDate = req.body.customDate || null;
 
-    const assetsDir = path.resolve('server/src/features/letterheads/assets');
+    const assetsDir = getLetterheadAssetsDir();
     const templatePath =
       templateType === 'bp'
         ? path.join(assetsDir, 'bp_template.docx')
