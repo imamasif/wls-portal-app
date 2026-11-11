@@ -8,6 +8,10 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    optimizeDeps: {
+      include: ['@mantine/core', '@mantine/dates', '@mantine/hooks', 'dayjs', 'axios'],
+      exclude: ['pdfjs-dist'],
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),

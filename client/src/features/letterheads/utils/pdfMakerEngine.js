@@ -1,14 +1,21 @@
 import { PDFDocument, rgb, degrees, StandardFonts } from 'pdf-lib';
-import * as pdfjsLib from 'pdfjs-dist';
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.js?url';
 import { parseDocxFile } from './docxPreviewParser.js';
 
-// Initialize PDF.js worker using Vite's static asset URL with CDN fallback
-try {
-  pdfjsLib.GlobalWorkerOptions.workerSrc =
-    pdfWorkerUrl || 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-} catch (e) {
-  console.warn('PDF.js worker initialization note:', e);
+let pdfjsLibCache = null;
+
+async function getPdfJs() {
+  if (pdfjsLibCache) return pdfjsLibCache;
+  try {
+    const mod = await import('pdfjs-dist');
+    pdfjsLibCache = mod.default || mod;
+    if (pdfjsLibCache.GlobalWorkerOptions) {
+      pdfjsLibCache.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+  } catch (err) {
+    console.warn('Could not load pdfjs-dist dynamically:', err);
+  }
+  return pdfjsLibCache;
 }
 
 // Standard A4 dimensions in points (72 points per inch)
@@ -27,7 +34,9 @@ export function uid(prefix = 'obj') {
  */
 export async function renderPdfPageToDataUrl(pdfBytes, pageNumber = 1, scale = 1.0) {
   try {
-    const loadingTask = pdfjsLib.getDocument({
+    const pdfjs = await getPdfJs();
+    if (!pdfjs) throw new Error('PDF.js unavailable');
+    const loadingTask = pdfjs.getDocument({
       data: pdfBytes instanceof Uint8Array ? pdfBytes : new Uint8Array(pdfBytes),
       useSystemFonts: true,
     });

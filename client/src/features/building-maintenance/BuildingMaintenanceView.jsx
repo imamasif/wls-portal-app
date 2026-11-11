@@ -691,7 +691,7 @@ export function BuildingMaintenanceView({ user }) {
                 <Table.Th style={{ color: "#ffffff", width: "145px", textAlign: "center" }}>Status</Table.Th>
                 <Table.Th style={{ color: "#ffffff", width: "65px", textAlign: "center" }}>Initial</Table.Th>
                 <Table.Th style={{ color: "#ffffff", width: "135px", textAlign: "center" }}>Due Date</Table.Th>
-                <Table.Th style={{ color: "#ffffff", minWidth: "175px" }}>Notes / Issues / Action Taken</Table.Th>
+                <Table.Th style={{ color: "#ffffff", minWidth: "220px" }}>Notes / Issues / Action Taken</Table.Th>
                 <Table.Th style={{ color: "#ffffff", width: "45px", textAlign: "center" }}>Del</Table.Th>
               </Table.Tr>
             </Table.Thead>
@@ -810,11 +810,22 @@ export function BuildingMaintenanceView({ user }) {
 
                       {/* 8. Notes / Issues / Action Taken notes / Description / Comments */}
                       <Table.Td style={{ verticalAlign: "top" }}>
-                        <TextInput
+                        <Textarea
                           size="xs"
-                          placeholder="Add comments, issues or action taken..."
+                          placeholder="Add comments, issues or action taken notes..."
                           value={item.notes || ""}
                           onChange={(e) => handleItemChange(realIdx, "notes", e.target.value)}
+                          autosize
+                          minRows={2}
+                          maxRows={10}
+                          styles={{
+                            input: {
+                              resize: "vertical",
+                              fontSize: "12px",
+                              lineHeight: 1.45,
+                              minHeight: "44px",
+                            },
+                          }}
                         />
                       </Table.Td>
 

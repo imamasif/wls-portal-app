@@ -27,7 +27,7 @@ import { LetterheadGeneratorCard } from './components/LetterheadGeneratorCard';
 import { DocumentCustomizerCard } from './components/DocumentCustomizerCard';
 import { UniversalMergerCard } from './components/UniversalMergerCard';
 import { BoardMeetingMinutesCard } from './components/BoardMeetingMinutesCard';
-import { PdfMakerCard } from './components/PdfMakerCard';
+const PdfMakerCard = React.lazy(() => import('./components/PdfMakerCard'));
 
 export function LetterheadStudio({ user, isSuperAdmin, isWlsAdmin }) {
   const getInitialTab = () => {
@@ -209,7 +209,9 @@ export function LetterheadStudio({ user, isSuperAdmin, isWlsAdmin }) {
         {/* ROW: IIPC and BP Letterhead Generators */}
         {(activeStudioTab === 'all' || activeStudioTab === 'pdf-maker') && (
           <Box mb={activeStudioTab === 'all' ? 'md' : 0}>
-            <PdfMakerCard userRole={userRole} />
+            <React.Suspense fallback={<Paper p="xl" withBorder radius="md" style={{ textAlign: "center" }}><Text size="sm" c="dimmed">Loading PDF Maker Studio...</Text></Paper>}>
+              <PdfMakerCard userRole={userRole} />
+            </React.Suspense>
           </Box>
         )}
         {(activeStudioTab === 'all' || activeStudioTab === 'iipc' || activeStudioTab === 'bp') && (
