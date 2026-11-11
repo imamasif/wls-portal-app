@@ -47,7 +47,7 @@ export function SuperUserDB({ setActiveTab }) {
       tab: AppTab.WLS_ADMIN,
     },
     {
-      title: "Letterhead & Doc Studio",
+      title: "Activity Tasks",
       description: "Generate IIPC/BP letterheads, merge docs, and sign documents.",
       icon: IconFileCertificate,
       color: "teal",

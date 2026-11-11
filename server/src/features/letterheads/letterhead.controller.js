@@ -19,6 +19,8 @@ import {
 } from './boardMeeting.service.js';
 import { sendBoardMeetingMinutesEmail } from '../../common/services/email.service.js';
 import { UserModel } from '../users/user.model.js';
+import { Voucher } from './voucher.model.js';
+import { generateVoucherDocument, uploadVoucherToGoogleDrive } from './voucher.service.js';
 
 const router = express.Router();
 
@@ -509,6 +511,238 @@ router.get('/portal-users', requireSuperUser, async (req, res) => {
   } catch (err) {
     console.error('Error fetching portal users:', err);
     return res.status(500).json({ error: err.message });
+  }
+});
+
+
+// ============================================================================
+// VOUCHER & PETTY CASH RECEIPTS ENDPOINTS
+// ============================================================================
+
+// 12. Upload supporting receipt or document file
+router.post('/vouchers/upload-receipt', requireSuperUser, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+    const relativeUrl = `/api/letterheads/receipt-file/${req.file.filename}`;
+    return res.status(200).json({
+      success: true,
+      filename: req.file.originalname,
+      storedName: req.file.filename,
+      filePath: req.file.path,
+      url: relativeUrl,
+    });
+  } catch (err) {
+    console.error('Receipt upload error:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Serve uploaded receipt files
+router.get('/receipt-file/:filename', (req, res) => {
+  const filePath = path.join(uploadsDir, req.params.filename);
+  if (fs.existsSync(filePath)) {
+    return res.sendFile(path.resolve(filePath));
+  }
+  return res.status(404).send('Receipt file not found');
+});
+
+// 13. Get all vouchers / petty cash receipts
+router.get('/vouchers', requireSuperUser, async (req, res) => {
+  try {
+    const vouchers = await Voucher.find({}).sort({ createdAt: -1 }).lean();
+    return res.status(200).json({ success: true, vouchers });
+  } catch (err) {
+    console.error('Error fetching vouchers:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// 14. Create a new Voucher / Petty Cash Receipt
+router.post('/vouchers', requireSuperUser, async (req, res) => {
+  try {
+    const data = req.body;
+    if (!data.voucherNumber) {
+      data.voucherNumber = `VCH-${Date.now().toString().slice(-6)}`;
+    }
+
+    const voucher = await Voucher.create(data);
+
+    // Generate initial PDF and DOCX
+    const docId = `vch_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    const outputPdfPath = path.join(generatedDir, `${docId}.pdf`);
+    const outputDocxPath = path.join(generatedDir, `${docId}.docx`);
+
+    await generateVoucherDocument({
+      voucher,
+      outputPdfPath,
+      outputDocxPath,
+    });
+
+    voucher.pdfLocalPath = outputPdfPath;
+    voucher.docxLocalPath = outputDocxPath;
+    voucher.pdfUrl = `/api/letterheads/vouchers/${voucher._id}/download/pdf`;
+    voucher.docxUrl = `/api/letterheads/vouchers/${voucher._id}/download/docx`;
+    await voucher.save();
+
+    return res.status(201).json({
+      success: true,
+      voucher,
+      pdfUrl: voucher.pdfUrl,
+      docxUrl: voucher.docxUrl,
+    });
+  } catch (err) {
+    console.error('Error creating voucher:', err);
+    return res.status(500).json({ error: err.message || 'Failed to create voucher' });
+  }
+});
+
+// 15. Get single voucher
+router.get('/vouchers/:id', requireSuperUser, async (req, res) => {
+  try {
+    const voucher = await Voucher.findById(req.params.id);
+    if (!voucher) return res.status(404).json({ error: 'Voucher not found' });
+    return res.status(200).json({ success: true, voucher });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// 16. Update Voucher and re-compile documents
+router.put('/vouchers/:id', requireSuperUser, async (req, res) => {
+  try {
+    const voucher = await Voucher.findById(req.params.id);
+    if (!voucher) return res.status(404).json({ error: 'Voucher not found' });
+
+    Object.assign(voucher, req.body);
+
+    const docId = `vch_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    const outputPdfPath = path.join(generatedDir, `${docId}.pdf`);
+    const outputDocxPath = path.join(generatedDir, `${docId}.docx`);
+
+    await generateVoucherDocument({
+      voucher,
+      outputPdfPath,
+      outputDocxPath,
+    });
+
+    voucher.pdfLocalPath = outputPdfPath;
+    voucher.docxLocalPath = outputDocxPath;
+    voucher.pdfUrl = `/api/letterheads/vouchers/${voucher._id}/download/pdf`;
+    voucher.docxUrl = `/api/letterheads/vouchers/${voucher._id}/download/docx`;
+    await voucher.save();
+
+    return res.status(200).json({
+      success: true,
+      voucher,
+      pdfUrl: voucher.pdfUrl,
+      docxUrl: voucher.docxUrl,
+    });
+  } catch (err) {
+    console.error('Error updating voucher:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// 17. Delete Voucher
+router.delete('/vouchers/:id', requireSuperUser, async (req, res) => {
+  try {
+    const voucher = await Voucher.findByIdAndDelete(req.params.id);
+    if (!voucher) return res.status(404).json({ error: 'Voucher not found' });
+    if (voucher.pdfLocalPath && fs.existsSync(voucher.pdfLocalPath)) {
+      try { fs.unlinkSync(voucher.pdfLocalPath); } catch {}
+    }
+    if (voucher.docxLocalPath && fs.existsSync(voucher.docxLocalPath)) {
+      try { fs.unlinkSync(voucher.docxLocalPath); } catch {}
+    }
+    return res.status(200).json({ success: true, message: 'Voucher deleted successfully' });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// 18. Save / Upload Voucher to Google Drive folder specified by user
+router.post('/vouchers/:id/drive', requireSuperUser, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { folderIdOrUrl } = req.body;
+
+    const result = await uploadVoucherToGoogleDrive({
+      voucherId: id,
+      folderIdOrUrl,
+    });
+
+    const updatedVoucher = await Voucher.findById(id);
+
+    return res.status(200).json({
+      success: true,
+      ...result,
+      voucher: updatedVoucher,
+    });
+  } catch (err) {
+    console.error('Google drive upload error for voucher:', err);
+    return res.status(500).json({ error: err.message || 'Failed to upload to Google Drive' });
+  }
+});
+
+// 19. Download Voucher PDF
+router.get('/vouchers/:id/download/pdf', async (req, res) => {
+  try {
+    const voucher = await Voucher.findById(req.params.id);
+    if (!voucher) return res.status(404).send('Voucher not found');
+
+    let pdfPath = voucher.pdfLocalPath;
+    if (!pdfPath || !fs.existsSync(pdfPath)) {
+      const docId = `vch_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+      pdfPath = path.join(generatedDir, `${docId}.pdf`);
+      const docxPath = path.join(generatedDir, `${docId}.docx`);
+      await generateVoucherDocument({ voucher, outputPdfPath: pdfPath, outputDocxPath: docxPath });
+      voucher.pdfLocalPath = pdfPath;
+      voucher.docxLocalPath = docxPath;
+      await voucher.save();
+    }
+
+    const safeNumber = (voucher.voucherNumber || 'voucher').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const safeType = (voucher.type || 'Voucher').toLowerCase();
+    const fileName = `${safeType}_${safeNumber}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    return fs.createReadStream(pdfPath).pipe(res);
+  } catch (err) {
+    console.error('Error downloading voucher PDF:', err);
+    return res.status(500).send('Error downloading PDF');
+  }
+});
+
+// 20. Download Voucher DOCX
+router.get('/vouchers/:id/download/docx', async (req, res) => {
+  try {
+    const voucher = await Voucher.findById(req.params.id);
+    if (!voucher) return res.status(404).send('Voucher not found');
+
+    let docxPath = voucher.docxLocalPath;
+    if (!docxPath || !fs.existsSync(docxPath)) {
+      const docId = `vch_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+      const pdfPath = path.join(generatedDir, `${docId}.pdf`);
+      docxPath = path.join(generatedDir, `${docId}.docx`);
+      await generateVoucherDocument({ voucher, outputPdfPath: pdfPath, outputDocxPath: docxPath });
+      voucher.pdfLocalPath = pdfPath;
+      voucher.docxLocalPath = docxPath;
+      await voucher.save();
+    }
+
+    const safeNumber = (voucher.voucherNumber || 'voucher').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const safeType = (voucher.type || 'Voucher').toLowerCase();
+    const fileName = `${safeType}_${safeNumber}.docx`;
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    return fs.createReadStream(docxPath).pipe(res);
+  } catch (err) {
+    console.error('Error downloading voucher Word doc:', err);
+    return res.status(500).send('Error downloading Word file');
   }
 });
 

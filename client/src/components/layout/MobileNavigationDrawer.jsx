@@ -444,7 +444,7 @@ export function MobileNavigationDrawer({
               />
               {(isSuperAdmin || isWlsAdmin) && (
                 <NavLink
-                  label="Letterhead & Doc Studio"
+                  label="Activity Tasks"
                   leftSection={<IconFileCertificate size={16} color="var(--mantine-color-teal-6)" />}
                   active={activeTab === AppTab.LETTERHEADS}
                   onClick={() => handleNav(AppTab.LETTERHEADS)}

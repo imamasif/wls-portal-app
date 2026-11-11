@@ -22,11 +22,13 @@ import {
   IconFileStack,
   IconUsersGroup,
   IconFileTypePdf,
+  IconReceiptTax,
 } from '@tabler/icons-react';
 import { LetterheadGeneratorCard } from './components/LetterheadGeneratorCard';
 import { DocumentCustomizerCard } from './components/DocumentCustomizerCard';
 import { UniversalMergerCard } from './components/UniversalMergerCard';
 import { BoardMeetingMinutesCard } from './components/BoardMeetingMinutesCard';
+import { VoucherReceiptCard } from './components/VoucherReceiptCard';
 const PdfMakerCard = React.lazy(() => import('./components/PdfMakerCard'));
 
 export function LetterheadStudio({ user, isSuperAdmin, isWlsAdmin }) {
@@ -37,6 +39,7 @@ export function LetterheadStudio({ user, isSuperAdmin, isWlsAdmin }) {
       if (tabParam === 'board-minutes' || tabParam === 'board_minutes' || tabParam === 'meeting-minutes') {
         return 'board-minutes';
       }
+      if (tabParam === 'voucher' || tabParam === 'vouchers' || tabParam === 'petty-cash') return 'voucher';
       if (tabParam === 'iipc' || tabParam === 'bp' || tabParam === 'universal' || tabParam === 'customizer' || tabParam === 'pdf-maker' || tabParam === 'pdf_maker' || tabParam === 'pdfmaker') {
         return tabParam;
       }
@@ -115,7 +118,7 @@ export function LetterheadStudio({ user, isSuperAdmin, isWlsAdmin }) {
                   <IconFileCertificate size={22} />
                 </ThemeIcon>
                 <Title order={2} style={{ color: '#ffffff', fontWeight: 800 }}>
-                  Official Letterhead &amp; Document Studio
+                  Activity Tasks — Official Letterhead, Vouchers &amp; Document Studio
                 </Title>
               </Group>
               <Text size="sm" style={{ color: '#cbd5e1', maxWidth: '820px' }}>
@@ -198,6 +201,13 @@ export function LetterheadStudio({ user, isSuperAdmin, isWlsAdmin }) {
             </Tabs.Tab>
           </Tabs.List>
         </Tabs>
+
+        {/* CARD: Create Voucher & Petty Cash Receipts */}
+        {(activeStudioTab === 'all' || activeStudioTab === 'voucher') && (
+          <Box mb={activeStudioTab === 'all' ? 'md' : 0}>
+            <VoucherReceiptCard userRole={userRole} />
+          </Box>
+        )}
 
         {/* CARD 5: Board Meeting Minutes & Multi-Signatory Dispatch */}
         {(activeStudioTab === 'all' || activeStudioTab === 'board-minutes') && (

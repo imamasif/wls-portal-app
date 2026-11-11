@@ -206,7 +206,7 @@ export function WlsAdminMenu({ activeTab, setActiveTab }) {
             onClick={() => setActiveTab(AppTab.LETTERHEADS)}
             leftSection={<IconFileCertificate size={16} color="var(--mantine-color-teal-6)" />}
           >
-            Letterhead & Doc Studio
+            Activity Tasks
           </Menu.Item>
         </Menu.Dropdown>
       </Menu>
