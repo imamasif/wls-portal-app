@@ -129,7 +129,11 @@ export const sendBoardMeetingMinutesEmail = async ({
   const recipients = Array.isArray(to) ? to.join(', ') : to;
   const subject = `Board Meeting Minutes : ${meetingDate} ${meetingTime}`;
 
-  const signatoriesHtml = (signatories || [])
+  const allSignatories = signatories || [];
+  const attendingSignatories = allSignatories.filter((s) => s.attending !== false);
+  const absentSignatories = allSignatories.filter((s) => s.attending === false);
+
+  const signatoriesHtml = attendingSignatories
     .map(
       (s) => `
         <li style="margin-bottom: 6px;">
@@ -139,6 +143,15 @@ export const sendBoardMeetingMinutesEmail = async ({
       `
     )
     .join('');
+
+  const absentHtml = absentSignatories.length > 0
+    ? `
+      <div style="margin-top: 14px; padding: 10px 14px; background: #f1f5f9; border-radius: 6px; font-size: 12.5px; color: #475569;">
+        <strong style="color: #334155;">Officers Excused / Not Attending This Meeting:</strong><br/>
+        ${absentSignatories.map((s) => `${s.name} (${s.role})`).join(', ')}
+      </div>
+    `
+    : '';
 
   const htmlContent = `
     <!DOCTYPE html>
@@ -167,7 +180,7 @@ export const sendBoardMeetingMinutesEmail = async ({
         </div>
         <div class="content">
           <p>Dear IIPC Administration &amp; Accounts Team,</p>
-          <p>Please find attached the official, ratified <strong>Board Meeting Minutes</strong> formatted with the official IIPC Canada letterhead and verified digital signatures of all directors and executive officers.</p>
+          <p>Please find attached the official, ratified <strong>Board Meeting Minutes</strong> formatted with the official IIPC Canada letterhead and verified digital signatures of all attending directors and executive officers.</p>
           <div class="meta-box">
             <p><strong>Title:</strong> ${title}</p>
             <p><strong>Meeting Date:</strong> ${meetingDate}</p>
@@ -179,6 +192,7 @@ export const sendBoardMeetingMinutesEmail = async ({
             <ul style="padding-left: 20px; margin: 0;">
               ${signatoriesHtml}
             </ul>
+            ${absentHtml}
           </div>
           <p style="font-size: 13px; color: #64748b;">
             📎 <strong>Attached Files:</strong><br/>

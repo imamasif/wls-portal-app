@@ -22,6 +22,8 @@ import {
   Tooltip,
   Accordion,
   Select,
+  Switch,
+  Table,
 } from '@mantine/core';
 import {
   IconUsersGroup,
@@ -44,10 +46,14 @@ import {
   IconEdit,
   IconShieldCheck,
   IconCircleCheck,
+  IconCircleMinus,
   IconMail,
   IconCopy,
   IconUserCheck,
   IconLock,
+  IconSend,
+  IconAlertTriangle,
+  IconListCheck,
 } from '@tabler/icons-react';
 import { SignaturePadModal } from './SignaturePadModal';
 import { letterheadApi } from '../api/letterheadApi';
@@ -93,11 +99,21 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
   const [newSigName, setNewSigName] = useState('');
   const [newSigEmail, setNewSigEmail] = useState('');
   const [newSigRole, setNewSigRole] = useState('DIRECTOR');
+  const [newSigAttending, setNewSigAttending] = useState(true);
   const [portalUsers, setPortalUsers] = useState([]);
+
+  // Attendance Manager Modal
+  const [attendanceModalOpen, setAttendanceModalOpen] = useState(false);
 
   // Preview modal
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewPdfUrl, setPreviewPdfUrl] = useState(null);
+
+  // Standard Mantine Dialogs replacing window.confirm
+  const [finalizeModalOpen, setFinalizeModalOpen] = useState(false);
+  const [resetModalOpen, setResetModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [signatoryToDelete, setSignatoryToDelete] = useState(null);
 
   // Upload Word document replacement
   const [uploadDocx, setUploadDocx] = useState(null);
@@ -140,11 +156,75 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
     }
   }, [userRole, isSuperUser]);
 
+  // Signatories partitioning based on attendance
   const signatories = meetingMinute?.signatories || [];
-  const signedCount = signatories.filter((s) => s.isSigned).length;
+  const attendingSignatories = signatories.filter((s) => s.attending !== false);
+  const absentSignatories = signatories.filter((s) => s.attending === false);
+
   const totalSignatories = signatories.length;
-  const percentSigned = totalSignatories > 0 ? Math.round((signedCount / totalSignatories) * 100) : 0;
-  const allSigned = totalSignatories > 0 && signedCount === totalSignatories;
+  const totalAttending = attendingSignatories.length;
+  const signedCount = attendingSignatories.filter((s) => s.isSigned).length;
+  const percentSigned = totalAttending > 0 ? Math.round((signedCount / totalAttending) * 100) : 0;
+  const allSigned = totalAttending > 0 && signedCount === totalAttending;
+
+  // Toggle single officer attendance
+  const handleToggleAttending = async (sigIdOrName, newAttending) => {
+    if (!meetingMinute) return;
+    try {
+      const updatedSigs = signatories.map((s) => {
+        if (s._id === sigIdOrName || s.name === sigIdOrName) {
+          return { ...s, attending: newAttending };
+        }
+        return s;
+      });
+
+      // Optimistic local update
+      setMeetingMinute((prev) => ({ ...prev, signatories: updatedSigs }));
+
+      const res = await letterheadApi.updateMeetingMinutes({
+        id: meetingMinute._id,
+        data: { signatories: updatedSigs },
+        userRole,
+      });
+
+      if (res?.meetingMinute) {
+        setMeetingMinute(res.meetingMinute);
+      }
+    } catch (err) {
+      console.error('Toggle attendance error:', err);
+      setError(err.response?.data?.error || err.message || 'Failed to update attendance status');
+      fetchMinutes(); // Rollback
+    }
+  };
+
+  // Bulk update attendance
+  const handleSetAllAttendance = async (markAllAttending = true) => {
+    if (!meetingMinute) return;
+    try {
+      setActionLoading(true);
+      const updatedSigs = signatories.map((s) => ({ ...s, attending: markAllAttending }));
+      setMeetingMinute((prev) => ({ ...prev, signatories: updatedSigs }));
+
+      const res = await letterheadApi.updateMeetingMinutes({
+        id: meetingMinute._id,
+        data: { signatories: updatedSigs },
+        userRole,
+      });
+
+      if (res?.meetingMinute) {
+        setMeetingMinute(res.meetingMinute);
+        setSuccessMsg(
+          markAllAttending
+            ? 'All officers marked as Attending this meeting!'
+            : 'All officers marked as Not Attending.'
+        );
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   // Open Signing Modal for specific signatory
   const handleOpenSignModal = (signatory) => {
@@ -239,15 +319,15 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
     }
   };
 
-  // Reset to default
-  const handleResetDefault = async () => {
-    if (!window.confirm('Reset this meeting minute to the official 2026 3rd Quarter template?')) return;
+  // Reset to default template via standard Mantine dialog
+  const handleConfirmReset = async () => {
     try {
       setActionLoading(true);
       setError(null);
       const res = await letterheadApi.resetDefaultMeetingMinutes(userRole);
       if (res?.meetingMinute) {
         setMeetingMinute(res.meetingMinute);
+        setResetModalOpen(false);
         setSuccessMsg('Meeting minute reset to default official template!');
       }
     } catch (err) {
@@ -257,13 +337,9 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
     }
   };
 
-  // Finalize & Dispatch Email to info@ & accounts@iipccanada.com
-  const handleFinalizeAndDispatch = async () => {
+  // Finalize & Dispatch Email to info@ & accounts@iipccanada.com via standard Mantine dialog
+  const handleConfirmFinalize = async () => {
     if (!meetingMinute) return;
-    const confirmMsg =
-      'Finalize this Board Meeting Minute with IIPC Letterhead and send official Word & PDF files to info@iipccanada.com and accounts@iipccanada.com?';
-    if (!window.confirm(confirmMsg)) return;
-
     try {
       setActionLoading(true);
       setError(null);
@@ -276,6 +352,7 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
 
       if (res?.meetingMinute) {
         setMeetingMinute(res.meetingMinute);
+        setFinalizeModalOpen(false);
         setSuccessMsg(
           'Official Board Meeting Minutes generated with IIPC Letterhead and dispatched via email to info@iipccanada.com and accounts@iipccanada.com!'
         );
@@ -308,6 +385,7 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
           name: newSigName.trim().toUpperCase(),
           email: newSigEmail.trim().toLowerCase(),
           role: newSigRole.toUpperCase(),
+          attending: newSigAttending,
           isSigned: false,
         },
       ];
@@ -320,8 +398,9 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
         setMeetingMinute(res.meetingMinute);
         setNewSigName('');
         setNewSigEmail('');
+        setNewSigAttending(true);
         setAddSigModalOpen(false);
-        setSuccessMsg(`Signatory ${newSigName} added successfully!`);
+        setSuccessMsg(`Officer ${newSigName} added successfully!`);
       }
     } catch (err) {
       setError(err.response?.data?.error || err.message);
@@ -330,12 +409,12 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
     }
   };
 
-  // Delete signatory
-  const handleDeleteSignatory = async (sigId) => {
-    if (!window.confirm('Remove this signatory from the board minutes?')) return;
+  // Delete signatory via standard Mantine dialog
+  const handleConfirmDeleteSignatory = async () => {
+    if (!signatoryToDelete || !meetingMinute) return;
     try {
       setActionLoading(true);
-      const updatedSigs = signatories.filter((s) => s._id !== sigId);
+      const updatedSigs = signatories.filter((s) => s._id !== signatoryToDelete._id && s.name !== signatoryToDelete.name);
       const res = await letterheadApi.updateMeetingMinutes({
         id: meetingMinute._id,
         data: { signatories: updatedSigs },
@@ -343,6 +422,9 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
       });
       if (res?.meetingMinute) {
         setMeetingMinute(res.meetingMinute);
+        setDeleteModalOpen(false);
+        setSignatoryToDelete(null);
+        setSuccessMsg(`Officer ${signatoryToDelete.name} removed from list.`);
       }
     } catch (err) {
       setError(err.response?.data?.error || err.message);
@@ -351,52 +433,66 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
     }
   };
 
-  // Copy Direct Link to clipboard
+  // Copy Direct Link for Board Members
   const handleCopyDirectLink = () => {
-    const directUrl = `${window.location.origin}/?tab=board-minutes`;
-    if (navigator?.clipboard?.writeText) {
-      navigator.clipboard.writeText(directUrl);
-    }
-    setSuccessMsg(`Direct signing link copied to clipboard: ${directUrl}`);
+    const url = window.location.origin + '/login?redirect=' + encodeURIComponent(window.location.pathname + window.location.search);
+    navigator.clipboard?.writeText(url);
+    setSuccessMsg('Sign-off portal link copied to clipboard! Share with directors to sign.');
   };
 
+  if (loading) {
+    return (
+      <Paper p="xl" withBorder radius="md" style={{ position: 'relative', minHeight: 200 }}>
+        <LoadingOverlay visible={true} />
+        <Text size="sm" c="dimmed" ta="center">Loading official Board Meeting Minutes...</Text>
+      </Paper>
+    );
+  }
+
   return (
-    <Card shadow="md" padding="lg" radius="md" withBorder style={{ background: '#ffffff' }}>
-      <LoadingOverlay visible={loading || actionLoading} overlayProps={{ radius: 'md', blur: 2 }} />
+    <Card shadow="sm" padding="lg" radius="md" withBorder style={{ position: 'relative' }}>
+      <LoadingOverlay visible={actionLoading} />
 
       <Stack gap="md">
-        {/* Card Header Banner */}
-        <Group justify="space-between" align="flex-start" wrap="wrap" gap="sm">
-          <Group gap="xs">
-            <ThemeIcon color="teal" size="xl" radius="md" variant="gradient" gradient={{ from: 'teal', to: 'indigo', deg: 135 }}>
-              <IconUsersGroup size={24} />
-            </ThemeIcon>
-            <div>
-              <Text fw={700} size="md" c="dark.8">
-                Board Meeting Minutes &amp; Director Signatures
-              </Text>
-              <Text size="xs" c="dimmed">
-                IIPC Canada Official Board Minutes &bull; Multi-Director Sign-off &bull; Auto-Email to info@ &amp; accounts@iipccanada.com
-              </Text>
-            </div>
-          </Group>
+        {/* Header with Title & Badges */}
+        <Group justify="space-between" align="flex-start" wrap="wrap">
+          <div>
+            <Group gap="xs">
+              <ThemeIcon color="teal" size="lg" radius="md">
+                <IconUsersGroup size={20} />
+              </ThemeIcon>
+              <div>
+                <Text fw={700} size="md" c="dark.9">
+                  Board Meeting Minutes &amp; Director Signatures
+                </Text>
+                <Text size="xs" c="dimmed">
+                  IIPC Canada Official Board Minutes &bull; Multi-Director Sign-off &bull; Auto-Email to info@ &amp; accounts@iipccanada.com
+                </Text>
+              </div>
+            </Group>
+          </div>
 
           <Group gap="xs">
             <Badge color="teal" variant="light" size="sm" leftSection={<IconBuildingBank size={12} />}>
-              IIPC Letterhead
+              IIPC LETTERHEAD
             </Badge>
-            <Badge color={allSigned ? 'green' : 'orange'} variant="filled" size="sm">
-              {allSigned ? `All ${totalSignatories} Signed` : `${signedCount} of ${totalSignatories} Signed`}
-            </Badge>
+            {allSigned ? (
+              <Badge color="green" variant="filled" size="sm" leftSection={<IconCheck size={12} />}>
+                ALL {totalAttending} SIGNED
+              </Badge>
+            ) : (
+              <Badge color="orange" variant="light" size="sm" leftSection={<IconClock size={12} />}>
+                {signedCount} OF {totalAttending} SIGNED
+              </Badge>
+            )}
             {meetingMinute?.emailDispatched && (
-              <Badge color="blue" variant="light" size="sm" leftSection={<IconMailForward size={12} />}>
-                Dispatched
+              <Badge color="blue" variant="filled" size="sm" leftSection={<IconMailForward size={12} />}>
+                DISPATCHED
               </Badge>
             )}
           </Group>
         </Group>
 
-        {/* Alerts / Feedback */}
         {error && (
           <Alert icon={<IconAlertCircle size={16} />} color="red" radius="sm" withCloseButton onClose={() => setError(null)}>
             {error}
@@ -412,13 +508,18 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
         <Paper p="sm" withBorder radius="md" style={{ background: '#f0fdfa', borderColor: '#ccfbf1' }}>
           <Stack gap="xs">
             <Group justify="space-between" align="center" wrap="wrap">
-              <Group gap="xs">
+              <Group gap="xs" wrap="wrap">
                 <Text size="xs" fw={700} c="teal.9">
                   Board Sign-off Progress:
                 </Text>
                 <Text size="xs" fw={600} c="dark.7">
-                  {signedCount} of {totalSignatories} Directors / Officers Signed ({percentSigned}%)
+                  {signedCount} of {totalAttending} Attending Directors / Officers Signed ({percentSigned}%)
                 </Text>
+                {absentSignatories.length > 0 && (
+                  <Badge size="xs" color="gray" variant="outline">
+                    {absentSignatories.length} Absent / Excused from this Meeting
+                  </Badge>
+                )}
               </Group>
 
               <Group gap="xs">
@@ -434,13 +535,23 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
                 </Button>
                 {isSuperUser && (
                   <>
+                    <Button
+                      size="compact-xs"
+                      variant="light"
+                      color="cyan"
+                      leftSection={<IconListCheck size={12} />}
+                      onClick={() => setAttendanceModalOpen(true)}
+                      title="Manage which directors are attending vs absent for this meeting"
+                    >
+                      Attendance Roster ({totalAttending}/{totalSignatories})
+                    </Button>
                     <Button size="compact-xs" variant="light" color="teal" leftSection={<IconEdit size={12} />} onClick={() => setEditMetaModalOpen(true)}>
                       Edit Details
                     </Button>
                     <Button size="compact-xs" variant="light" color="indigo" leftSection={<IconPlus size={12} />} onClick={() => setAddSigModalOpen(true)}>
                       Add Signatory
                     </Button>
-                    <Button size="compact-xs" variant="subtle" color="gray" leftSection={<IconRefresh size={12} />} onClick={handleResetDefault}>
+                    <Button size="compact-xs" variant="subtle" color="gray" leftSection={<IconRefresh size={12} />} onClick={() => setResetModalOpen(true)}>
                       Reset to Template
                     </Button>
                   </>
@@ -502,16 +613,25 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
                 Board Signatures Matrix &amp; Execution Boxes
               </Text>
               <Badge size="xs" color="indigo" variant="light">
-                {signatories.length} Listed Officers
+                {totalSignatories} Listed Officers
               </Badge>
+              <Badge size="xs" color="teal" variant="light">
+                {totalAttending} Attending
+              </Badge>
+              {absentSignatories.length > 0 && (
+                <Badge size="xs" color="gray" variant="light">
+                  {absentSignatories.length} Absent / Excluded
+                </Badge>
+              )}
             </Group>
             <Text size="11px" c="dimmed">
-              Each officer can sign in with their email, verify date &amp; time, and execute via digital screen pad or image.
+              Use the toggle switch to mark attending vs absent officers for this meeting. Absent officers are excluded from sign-off.
             </Text>
           </Group>
 
           <Grid gutter="sm">
             {signatories.map((sig) => {
+              const isAttending = sig.attending !== false;
               const userEmail = (user?.email || '').toLowerCase().trim();
               const sigEmail = (sig.email || '').toLowerCase().trim();
               const userName = (user?.name || '').toLowerCase().trim();
@@ -528,32 +648,40 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
                     withBorder
                     radius="md"
                     style={{
-                      background: sig.isSigned
+                      background: !isAttending
+                        ? '#f8fafc'
+                        : sig.isSigned
                         ? '#f0fdf4'
                         : isCurrentLoggedUser
                         ? '#f5f3ff'
                         : '#ffffff',
-                      borderColor: sig.isSigned
+                      borderColor: !isAttending
+                        ? '#cbd5e1'
+                        : sig.isSigned
                         ? '#86efac'
                         : isCurrentLoggedUser
                         ? '#6366f1'
                         : '#e2e8f0',
-                      borderWidth: isCurrentLoggedUser ? '2px' : '1px',
+                      borderWidth: isCurrentLoggedUser && isAttending ? '2px' : '1px',
+                      borderStyle: !isAttending ? 'dashed' : 'solid',
+                      opacity: !isAttending ? 0.85 : 1,
                       transition: 'all 0.2s ease',
                       height: '100%',
                       display: 'flex',
                       flexDirection: 'column',
                       justifyContent: 'space-between',
-                      boxShadow: isCurrentLoggedUser ? '0 6px 20px rgba(99, 102, 241, 0.22)' : 'none',
+                      boxShadow: isCurrentLoggedUser && isAttending ? '0 6px 20px rgba(99, 102, 241, 0.22)' : 'none',
                     }}
                   >
                     <div>
                       <Group justify="space-between" align="flex-start" mb={4}>
                         <Badge
                           size="xs"
-                          variant="filled"
+                          variant={isAttending ? 'filled' : 'outline'}
                           color={
-                            sig.role.includes('SECRETARY')
+                            !isAttending
+                              ? 'gray'
+                              : sig.role.includes('SECRETARY')
                               ? 'teal'
                               : sig.role.includes('EXECUTIVE')
                               ? 'grape'
@@ -566,13 +694,17 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
                         >
                           {sig.role}
                         </Badge>
-                        <Group gap={4}>
-                          {isCurrentLoggedUser && (
+                        <Group gap={6} align="center">
+                          {isCurrentLoggedUser && isAttending && (
                             <Badge color="indigo" size="xs" variant="light" leftSection={<IconUserCheck size={10} />}>
                               Your Box
                             </Badge>
                           )}
-                          {sig.isSigned ? (
+                          {!isAttending ? (
+                            <Badge color="gray" size="xs" variant="light" leftSection={<IconCircleMinus size={10} />}>
+                              Not in Meeting
+                            </Badge>
+                          ) : sig.isSigned ? (
                             <Badge color="green" size="xs" variant="light" leftSection={<IconCheck size={10} />}>
                               Signed
                             </Badge>
@@ -586,8 +718,11 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
                               size="xs"
                               color="gray"
                               variant="subtle"
-                              onClick={() => handleDeleteSignatory(sig._id)}
-                              title="Remove Signatory"
+                              onClick={() => {
+                                setSignatoryToDelete(sig);
+                                setDeleteModalOpen(true);
+                              }}
+                              title="Remove Officer"
                             >
                               <IconTrash size={12} />
                             </ActionIcon>
@@ -595,7 +730,24 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
                         </Group>
                       </Group>
 
-                      <Text fw={700} size="sm" c="dark.9" mt={2}>
+                      {/* Super User Attendance Toggle switch */}
+                      {isSuperUser && (
+                        <Group justify="space-between" align="center" my={4} p={4} style={{ background: isAttending ? '#f0fdfa' : '#f1f5f9', borderRadius: '4px' }}>
+                          <Text size="11px" fw={600} c={isAttending ? 'teal.8' : 'dimmed'}>
+                            {isAttending ? 'Attending Meeting' : 'Absent (Excluded)'}
+                          </Text>
+                          <Tooltip label={isAttending ? "Toggle OFF if this officer is absent (their signature will not be required)" : "Toggle ON to include this officer in the meeting sign-off"}>
+                            <Switch
+                              size="xs"
+                              color="teal"
+                              checked={isAttending}
+                              onChange={(e) => handleToggleAttending(sig._id || sig.name, e.currentTarget.checked)}
+                            />
+                          </Tooltip>
+                        </Group>
+                      )}
+
+                      <Text fw={700} size="sm" c={isAttending ? 'dark.9' : 'dimmed'} mt={2}>
                         {sig.name}
                       </Text>
 
@@ -612,7 +764,7 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
                         mt="xs"
                         p="xs"
                         style={{
-                          background: '#ffffff',
+                          background: !isAttending ? '#f1f5f9' : '#ffffff',
                           border: '1px dashed #cbd5e1',
                           borderRadius: '6px',
                           minHeight: '62px',
@@ -621,7 +773,11 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
                           justifyContent: 'center',
                         }}
                       >
-                        {sig.isSigned && sig.signatureDataUrl ? (
+                        {!isAttending ? (
+                          <Text size="11px" c="dimmed" style={{ fontStyle: 'italic', textAlign: 'center' }}>
+                            (Absent from this meeting &bull; Signature not required)
+                          </Text>
+                        ) : sig.isSigned && sig.signatureDataUrl ? (
                           <img
                             src={sig.signatureDataUrl}
                             alt="Signature"
@@ -640,31 +796,31 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
 
                       {/* Date & Time display */}
                       <Text size="11px" c="dimmed" mt={6}>
-                        <strong>Date:</strong> {sig.signDate || 'Not set'}
+                        <strong>Date:</strong> {sig.signDate || (isAttending ? 'Not set' : 'N/A')}
                       </Text>
                       <Text size="11px" c="dimmed">
-                        <strong>Time:</strong> {sig.signTime || 'Not set'}
+                        <strong>Time:</strong> {sig.signTime || (isAttending ? 'Not set' : 'N/A')}
                       </Text>
                     </div>
 
-                    <Button
-                      mt="xs"
-                      size="xs"
-                      fullWidth
-                      variant={isCurrentLoggedUser ? 'filled' : sig.isSigned ? 'light' : 'filled'}
-                      color={isCurrentLoggedUser ? 'indigo' : sig.isSigned ? 'teal' : 'blue'}
-                      leftSection={<IconWriting size={14} />}
-                      onClick={() => handleOpenSignModal(sig)}
-                      disabled={!canSignThis}
-                    >
-                      {isCurrentLoggedUser
-                        ? sig.isSigned
-                          ? 'Update Your Signature'
-                          : 'Sign & Date as You'
-                        : sig.isSigned
-                        ? 'Update / Re-sign'
-                        : 'Sign & Date'}
-                    </Button>
+                    {!isAttending ? (
+                      <Button size="xs" variant="light" color="gray" disabled fullWidth mt="xs">
+                        Excluded from Meeting Sign-off
+                      </Button>
+                    ) : (
+                      <Button
+                        size="xs"
+                        variant={sig.isSigned ? 'light' : 'filled'}
+                        color={sig.isSigned ? 'teal' : isCurrentLoggedUser ? 'indigo' : 'blue'}
+                        fullWidth
+                        leftSection={<IconWriting size={14} />}
+                        disabled={!canSignThis}
+                        onClick={() => handleOpenSignModal(sig)}
+                        mt="xs"
+                      >
+                        {sig.isSigned ? 'Update / Re-sign' : isCurrentLoggedUser ? 'Sign as Yourself' : 'Sign as Officer'}
+                      </Button>
+                    )}
                   </Paper>
                 </Grid.Col>
               );
@@ -672,73 +828,75 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
           </Grid>
         </div>
 
-        {/* Meeting Minutes Content Viewer & Custom Upload */}
-        <Paper p="sm" withBorder radius="md" style={{ background: '#fdfdfd' }}>
-          <Stack gap="xs">
+        {/* Content Viewer / Upload Replacement Word Document */}
+        <Paper p="md" withBorder radius="md" style={{ background: '#ffffff' }}>
+          <Stack gap="sm">
             <Group justify="space-between" align="center" wrap="wrap">
-              <Group gap="xs">
-                <ThemeIcon color="teal" size="sm" radius="md">
-                  <IconBuildingBank size={14} />
-                </ThemeIcon>
+              <div>
                 <Text fw={700} size="sm" c="dark.8">
-                  Official Meeting Minutes Document Preview (With IIPC Letterhead)
+                  Official Meeting Minutes Document Preview (With IIPC Canada Letterhead)
                 </Text>
-              </Group>
+                <Text size="xs" c="dimmed">
+                  This document content will be merged with the official IIPC Letterhead and signatures upon finalization.
+                </Text>
+              </div>
 
               {isSuperUser && (
                 <Group gap="xs">
                   <FileInput
+                    placeholder="Replace with custom .docx..."
                     size="xs"
-                    placeholder="Upload Word File (.docx)..."
-                    accept=".docx,.doc"
+                    accept=".docx"
                     value={uploadDocx}
                     onChange={handleUploadDocxChange}
                     leftSection={<IconUpload size={14} />}
-                    clearable
+                    loading={uploadingDocx}
                     style={{ width: '220px' }}
                   />
-                  <Button size="xs" variant="light" color="teal" leftSection={<IconEdit size={13} />} onClick={() => setEditContentModalOpen(true)}>
-                    Edit Text
-                  </Button>
+                  {meetingMinute?.uploadedDocxName && (
+                    <Badge color="indigo" size="xs" variant="light">
+                      Custom: {meetingMinute.uploadedDocxName}
+                    </Badge>
+                  )}
                 </Group>
               )}
             </Group>
 
-            {/* Document Canvas Preview Box */}
+            {/* Document Sheet Simulation */}
             <Box
-              p="md"
+              p="xl"
               style={{
                 background: '#ffffff',
                 border: '1px solid #e2e8f0',
                 borderRadius: '8px',
-                maxHeight: '420px',
-                overflowY: 'auto',
-                boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)',
+                boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
+                maxWidth: '820px',
+                margin: '0 auto',
+                width: '100%',
               }}
             >
               {/* IIPC Header Banner */}
               <Box mb="md" ta="center">
-                <img src="/letterheads/iipc_header.jpg" alt="IIPC Header" style={{ width: '100%', maxHeight: '110px', objectFit: 'contain' }} />
+                <img src="/letterheads/iipc_header.jpg" alt="IIPC Header" style={{ width: '100%', maxHeight: '80px', objectFit: 'contain' }} />
               </Box>
 
-              {/* Centered Bismillah */}
               <Box mb="md" ta="center">
-                <img src="/letterheads/iipc_bismillah.jpg" alt="Bismillah" style={{ maxHeight: '36px', objectFit: 'contain' }} />
+                <img src="/letterheads/iipc_bismillah.jpg" alt="Bismillah" style={{ maxHeight: '38px', objectFit: 'contain' }} />
               </Box>
 
-              <Text fw={800} size="md" ta="center" c="dark.9" mb="xs">
+              <Text ta="center" fw={800} size="md" c="dark.9" mb="xs">
                 {meetingMinute?.title || 'BOARD MEETING MINUTES'}
               </Text>
 
               <div
-                style={{ fontSize: '13px', lineHeights: 1.6, color: '#1e293b' }}
+                style={{ fontSize: '13px', lineHeight: 1.6, color: '#1e293b' }}
                 dangerouslySetInnerHTML={{ __html: meetingMinute?.contentHtml || '<p>No content</p>' }}
               />
 
               {/* Signatures Preview Strip */}
-              <Divider my="md" label="Official Board Signatures Strip" labelPosition="center" />
+              <Divider my="md" label="Attending Board Signatures Strip" labelPosition="center" />
               <Grid gutter="xs">
-                {signatories.map((s) => (
+                {attendingSignatories.map((s) => (
                   <Grid.Col span={{ base: 6, sm: 4, md: 3 }} key={`strip-${s._id || s.name}`}>
                     <Box p="xs" style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '4px', textAlign: 'center' }}>
                       <Text size="10px" fw={700} c="blue.8">{s.role}:</Text>
@@ -753,6 +911,12 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
                   </Grid.Col>
                 ))}
               </Grid>
+
+              {absentSignatories.length > 0 && (
+                <Text size="11px" c="dimmed" mt="xs" ta="center" style={{ fontStyle: 'italic' }}>
+                  Officers Excused / Not Attending: {absentSignatories.map((s) => `${s.name} (${s.role})`).join(', ')}
+                </Text>
+              )}
 
               {/* IIPC Footer Banner */}
               <Box mt="lg" ta="center">
@@ -784,7 +948,7 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
                   color="teal"
                   variant="filled"
                   leftSection={<IconSparkles size={18} />}
-                  onClick={handleFinalizeAndDispatch}
+                  onClick={() => setFinalizeModalOpen(true)}
                   loading={actionLoading}
                   style={{
                     background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
@@ -808,7 +972,7 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
                     Ready for Download
                   </Badge>
                   <Text size="xs" c="#ffffff">
-                    Official Files compiled with IIPC Letterhead and all signatures:
+                    Official Files compiled with IIPC Letterhead and signatures:
                   </Text>
                 </Group>
 
@@ -1031,7 +1195,7 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
       >
         <Stack gap="xs">
           <Text size="xs" c="dimmed">
-            Pick a registered user from the database or enter custom officer info. The email will be used for sign-off authentication.
+            Pick a registered user from the database or enter custom officer info. You can also choose whether they are attending this meeting.
           </Text>
 
           {portalUsers.length > 0 && (
@@ -1097,18 +1261,306 @@ export function BoardMeetingMinutesCard({ user, userRole = 'SUPER_USER' }) {
             ]}
           />
 
+          <Paper p="xs" withBorder radius="md" style={{ background: '#f8fafc' }} mt="xs">
+            <Group justify="space-between" align="center">
+              <div>
+                <Text size="xs" fw={600}>Attending this Meeting</Text>
+                <Text size="11px" c="dimmed">If enabled, signature will be required for this meeting.</Text>
+              </div>
+              <Switch
+                color="teal"
+                checked={newSigAttending}
+                onChange={(e) => setNewSigAttending(e.currentTarget.checked)}
+              />
+            </Group>
+          </Paper>
+
           <Group justify="flex-end" mt="md">
             <Button size="xs" variant="default" onClick={() => setAddSigModalOpen(false)}>
               Cancel
             </Button>
             <Button size="xs" color="indigo" onClick={handleAddSignatory} loading={actionLoading}>
-              Add Signatory
+              Add Officer
             </Button>
           </Group>
         </Stack>
       </Modal>
 
-      {/* MODAL 4: PDF Preview */}
+      {/* MODAL 4: Attendance Roster Manager */}
+      <Modal
+        opened={attendanceModalOpen}
+        onClose={() => setAttendanceModalOpen(false)}
+        title={
+          <Group gap="xs">
+            <ThemeIcon color="cyan" size="sm" radius="md">
+              <IconListCheck size={16} />
+            </ThemeIcon>
+            <Text fw={700} size="sm">
+              Board Meeting Attendance Roster
+            </Text>
+          </Group>
+        }
+        size="lg"
+        centered
+      >
+        <Stack gap="sm">
+          <Text size="xs" c="dimmed">
+            Toggle which officers attended this meeting. Officers marked as <strong>Not Attending</strong> are excluded from signature requirements and will not appear in the signed final document.
+          </Text>
+
+          <Group justify="space-between" align="center">
+            <Badge color="cyan" size="sm" variant="light">
+              {totalAttending} Present &bull; {absentSignatories.length} Absent
+            </Badge>
+
+            <Group gap="xs">
+              <Button size="compact-xs" variant="light" color="teal" onClick={() => handleSetAllAttendance(true)}>
+                Mark All Present
+              </Button>
+              <Button size="compact-xs" variant="subtle" color="gray" onClick={() => handleSetAllAttendance(false)}>
+                Clear All
+              </Button>
+            </Group>
+          </Group>
+
+          <Paper withBorder radius="md" p={0} style={{ overflow: 'hidden' }}>
+            <Table striped highlightOnHover verticalSpacing="xs">
+              <Table.Thead style={{ background: '#f8fafc' }}>
+                <Table.Tr>
+                  <Table.Th style={{ width: '40px' }}>#</Table.Th>
+                  <Table.Th>Officer Name &amp; Title</Table.Th>
+                  <Table.Th>Login Email</Table.Th>
+                  <Table.Th style={{ width: '90px', textAlign: 'center' }}>Sign Status</Table.Th>
+                  <Table.Th style={{ width: '130px', textAlign: 'center' }}>Meeting Attendance</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {signatories.map((sig, idx) => {
+                  const isAttending = sig.attending !== false;
+                  return (
+                    <Table.Tr key={sig._id || sig.name}>
+                      <Table.Td>{idx + 1}</Table.Td>
+                      <Table.Td>
+                        <Text size="xs" fw={700} c={isAttending ? 'dark.9' : 'dimmed'}>{sig.name}</Text>
+                        <Badge size="xs" variant="light" color="blue">{sig.role}</Badge>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="xs" c="dimmed">{sig.email || '—'}</Text>
+                      </Table.Td>
+                      <Table.Td style={{ textAlign: 'center' }}>
+                        {sig.isSigned ? (
+                          <Badge color="green" size="xs" variant="light">Signed</Badge>
+                        ) : (
+                          <Badge color="orange" size="xs" variant="light">Pending</Badge>
+                        )}
+                      </Table.Td>
+                      <Table.Td style={{ textAlign: 'center' }}>
+                        <Switch
+                          size="xs"
+                          color="teal"
+                          checked={isAttending}
+                          onChange={(e) => handleToggleAttending(sig._id || sig.name, e.currentTarget.checked)}
+                          label={isAttending ? 'Attending' : 'Absent'}
+                          styles={{ label: { fontSize: '11px', fontWeight: 600, color: isAttending ? '#0d9488' : '#94a3b8' } }}
+                        />
+                      </Table.Td>
+                    </Table.Tr>
+                  );
+                })}
+              </Table.Tbody>
+            </Table>
+          </Paper>
+
+          <Group justify="flex-end" mt="xs">
+            <Button size="xs" color="teal" onClick={() => setAttendanceModalOpen(false)}>
+              Done
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* MODAL 5: Standard Mantine Dialog for Finalize & Dispatch (Replacing window.confirm) */}
+      <Modal
+        opened={finalizeModalOpen}
+        onClose={() => !actionLoading && setFinalizeModalOpen(false)}
+        title={
+          <Group gap="xs">
+            <ThemeIcon color="teal" size="md" radius="md">
+              <IconSend size={18} />
+            </ThemeIcon>
+            <Text fw={700} size="sm">
+              Finalize &amp; Dispatch Board Meeting Minutes
+            </Text>
+          </Group>
+        }
+        size="lg"
+        centered
+        radius="md"
+      >
+        <Stack gap="md">
+          <Alert color="teal" icon={<IconShieldCheck size={18} />} radius="md">
+            You are about to generate official, ratified Board Meeting Minutes with the IIPC Canada Letterhead and verified director signatures, and dispatch them via email.
+          </Alert>
+
+          {/* Details Summary */}
+          <Paper p="sm" withBorder radius="md" style={{ background: '#f8fafc' }}>
+            <Grid gutter="xs">
+              <Grid.Col span={6}>
+                <Text size="xs" c="dimmed">Title:</Text>
+                <Text size="xs" fw={700}>{meetingMinute?.title}</Text>
+              </Grid.Col>
+              <Grid.Col span={6}>
+                <Text size="xs" c="dimmed">Date &amp; Time:</Text>
+                <Text size="xs" fw={700}>{meetingMinute?.meetingDate} &bull; {meetingMinute?.meetingTime}</Text>
+              </Grid.Col>
+              <Grid.Col span={6}>
+                <Text size="xs" c="dimmed">Location:</Text>
+                <Text size="xs" fw={600}>{meetingMinute?.location || 'Online- Zoom'}</Text>
+              </Grid.Col>
+              <Grid.Col span={6}>
+                <Text size="xs" c="dimmed">Call to Order:</Text>
+                <Text size="xs" fw={600}>{meetingMinute?.callToOrder}</Text>
+              </Grid.Col>
+            </Grid>
+          </Paper>
+
+          {/* Signatories Roster in Document */}
+          <div>
+            <Text size="xs" fw={700} c="dark.8" mb={4}>
+              Attending Officers to be Included on Document ({attendingSignatories.length}):
+            </Text>
+            <Paper p="xs" withBorder radius="md">
+              <Grid gutter="xs">
+                {attendingSignatories.map((s) => (
+                  <Grid.Col span={6} key={s._id || s.name}>
+                    <Group justify="space-between">
+                      <Text size="xs" fw={600}>{s.name} ({s.role})</Text>
+                      {s.isSigned ? (
+                        <Badge size="xs" color="green" variant="light" leftSection={<IconCheck size={10} />}>Signed</Badge>
+                      ) : (
+                        <Badge size="xs" color="orange" variant="light" leftSection={<IconClock size={10} />}>Pending</Badge>
+                      )}
+                    </Group>
+                  </Grid.Col>
+                ))}
+              </Grid>
+            </Paper>
+          </div>
+
+          {absentSignatories.length > 0 && (
+            <div>
+              <Text size="xs" fw={700} c="dimmed" mb={4}>
+                Absent / Excused Officers (Excluded from Sign-off):
+              </Text>
+              <Group gap={6}>
+                {absentSignatories.map((s) => (
+                  <Badge key={s._id || s.name} size="xs" color="gray" variant="light">
+                    {s.name} ({s.role})
+                  </Badge>
+                ))}
+              </Group>
+            </div>
+          )}
+
+          {/* Email Recipients */}
+          <Paper p="xs" withBorder radius="md" style={{ background: '#f0fdfa', borderColor: '#ccfbf1' }}>
+            <Group justify="space-between">
+              <div>
+                <Text size="xs" fw={700} c="teal.9">Official Email Recipients:</Text>
+                <Text size="xs" c="teal.8">info@iipccanada.com, accounts@iipccanada.com</Text>
+              </div>
+              <Badge color="teal" size="sm" variant="filled">
+                2 Recipients
+              </Badge>
+            </Group>
+          </Paper>
+
+          {/* Warning if some attending officers have not signed */}
+          {!allSigned && (
+            <Alert color="orange" icon={<IconAlertTriangle size={18} />} radius="md">
+              <strong>Notice:</strong> {totalAttending - signedCount} attending officer(s) have not signed yet. If you proceed now, their signature boxes will display as pending on the official minutes.
+            </Alert>
+          )}
+
+          <Group justify="flex-end" mt="md">
+            <Button variant="default" size="xs" onClick={() => setFinalizeModalOpen(false)} disabled={actionLoading}>
+              Cancel
+            </Button>
+            <Button
+              color="teal"
+              size="xs"
+              variant="filled"
+              leftSection={<IconSend size={15} />}
+              onClick={handleConfirmFinalize}
+              loading={actionLoading}
+            >
+              Confirm &amp; Dispatch Document
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* MODAL 6: Reset Default Template Dialog */}
+      <Modal
+        opened={resetModalOpen}
+        onClose={() => !actionLoading && setResetModalOpen(false)}
+        title={
+          <Group gap="xs">
+            <ThemeIcon color="orange" size="sm" radius="md">
+              <IconRefresh size={14} />
+            </ThemeIcon>
+            <Text fw={700} size="sm">Reset Meeting Minutes Template</Text>
+          </Group>
+        }
+        size="sm"
+        centered
+      >
+        <Stack gap="md">
+          <Text size="xs" c="dimmed">
+            Are you sure you want to reset this meeting minute to the official IIPC Canada 2026 3rd Quarter default template? Any unsaved edits will be restored.
+          </Text>
+          <Group justify="flex-end">
+            <Button size="xs" variant="default" onClick={() => setResetModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button size="xs" color="orange" onClick={handleConfirmReset} loading={actionLoading}>
+              Reset to Template
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* MODAL 7: Delete Officer Confirmation Dialog */}
+      <Modal
+        opened={deleteModalOpen}
+        onClose={() => !actionLoading && setDeleteModalOpen(false)}
+        title={
+          <Group gap="xs">
+            <ThemeIcon color="red" size="sm" radius="md">
+              <IconTrash size={14} />
+            </ThemeIcon>
+            <Text fw={700} size="sm">Remove Board Signatory</Text>
+          </Group>
+        }
+        size="sm"
+        centered
+      >
+        <Stack gap="md">
+          <Text size="xs" c="dimmed">
+            Remove <strong>{signatoryToDelete?.name}</strong> ({signatoryToDelete?.role}) from the board minutes roster?
+          </Text>
+          <Group justify="flex-end">
+            <Button size="xs" variant="default" onClick={() => setDeleteModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button size="xs" color="red" onClick={handleConfirmDeleteSignatory} loading={actionLoading}>
+              Remove Officer
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* MODAL 8: PDF Preview */}
       <Modal
         opened={previewOpen}
         onClose={() => setPreviewOpen(false)}

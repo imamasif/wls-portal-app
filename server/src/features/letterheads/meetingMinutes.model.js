@@ -6,6 +6,7 @@ const signatorySchema = new mongoose.Schema(
     name: { type: String, required: true },
     role: { type: String, required: true }, // e.g. "SECRETARY", "EXECUTIVE DIRECTOR", "MANAGING DIRECTOR", "DIRECTOR"
     email: { type: String, default: '' },
+    attending: { type: Boolean, default: true },
     isSigned: { type: Boolean, default: false },
     signatureDataUrl: { type: String, default: null },
     signDate: { type: String, default: null },

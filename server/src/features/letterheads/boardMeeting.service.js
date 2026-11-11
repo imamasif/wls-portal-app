@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { pathToFileURL } from 'url';
 import { execFileSync } from 'child_process';
 import JSZip from 'jszip';
 import { getBrowserPath, escapeHtml, getLetterheadAssetsDir, getUploadsDir } from './letterhead.service.js';
@@ -102,13 +103,13 @@ export const DEFAULT_BOARD_MEETING_MINUTES = {
     </div>
   `,
   signatories: [
-    { role: 'SECRETARY', name: 'AAZIM KAMAL OMER', email: 'aazimkamal@iipccanada.com', isSigned: false },
-    { role: 'EXECUTIVE DIRECTOR', name: 'ALAM MOHAMMAD', email: 'alammuhammed@iipccanada.com', isSigned: false },
-    { role: 'MANAGING DIRECTOR', name: 'FAWAD GILANI', email: 'fawadgilani@iipccanada.com', isSigned: false },
-    { role: 'DIRECTOR', name: 'MOIN UR REHMAN', email: 'moin@unitrustib.com', isSigned: false },
-    { role: 'DIRECTOR', name: 'EISHA OMAR', email: 'eisha@iipccanada.com', isSigned: false },
-    { role: 'DIRECTOR', name: 'ASIF IMAM', email: 'syedimam@iipccanada.com', isSigned: false },
-    { role: 'DIRECTOR', name: 'ADNAN KALEEMI', email: 'kaleemi.adnan@gmail.com', isSigned: false },
+    { role: 'SECRETARY', name: 'AAZIM KAMAL OMER', email: 'aazimkamal@iipccanada.com', isSigned: false, attending: true },
+    { role: 'EXECUTIVE DIRECTOR', name: 'ALAM MOHAMMAD', email: 'alammuhammed@iipccanada.com', isSigned: false, attending: true },
+    { role: 'MANAGING DIRECTOR', name: 'FAWAD GILANI', email: 'fawadgilani@iipccanada.com', isSigned: false, attending: true },
+    { role: 'DIRECTOR', name: 'MOIN UR REHMAN', email: 'moin@unitrustib.com', isSigned: false, attending: true },
+    { role: 'DIRECTOR', name: 'EISHA OMAR', email: 'eisha@iipccanada.com', isSigned: false, attending: true },
+    { role: 'DIRECTOR', name: 'ASIF IMAM', email: 'syedimam@iipccanada.com', isSigned: false, attending: true },
+    { role: 'DIRECTOR', name: 'ADNAN KALEEMI', email: 'kaleemi.adnan@gmail.com', isSigned: false, attending: true },
   ],
 };
 
@@ -136,6 +137,10 @@ export async function ensureDefaultMeetingMinutes() {
           updated = true;
         }
       }
+      if (sig.attending === undefined) {
+        sig.attending = true;
+        updated = true;
+      }
     }
     if (updated) {
       await doc.save();
@@ -145,7 +150,7 @@ export async function ensureDefaultMeetingMinutes() {
 }
 
 /**
- * Compiles official Meeting Minutes document with IIPC Letterhead and all signatories.
+ * Compiles official Meeting Minutes document with IIPC Letterhead and attending signatories.
  */
 export async function generateBoardMeetingMinutesDocument({
   meetingMinute,
@@ -168,7 +173,9 @@ export async function generateBoardMeetingMinutesDocument({
     bismillahBase64 = `data:image/jpeg;base64,${fs.readFileSync(path.join(assetsDir, 'iipc_bismillah.jpg')).toString('base64')}`;
   }
 
-  const signatories = meetingMinute.signatories || [];
+  // Filter attending signatories only so non-attending members do not appear on final signatures
+  const allSignatories = meetingMinute.signatories || [];
+  const signatories = allSignatories.filter((s) => s.attending !== false);
 
   // Build Signatures HTML Grid (2-column layout for clean, official alignment)
   const sigBlocksHtml = signatories
@@ -276,17 +283,39 @@ export async function generateBoardMeetingMinutesDocument({
     const browserPath = getBrowserPath();
     if (browserPath) {
       const absPdfPath = path.resolve(outputPdfPath);
-      execFileSync(browserPath, [
-        '--headless',
-        '--disable-gpu',
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        `--print-to-pdf=${absPdfPath}`,
-        tempHtmlPath,
-      ]);
+      const fileUrl = pathToFileURL(path.resolve(tempHtmlPath)).href;
+
+      try {
+        execFileSync(browserPath, [
+          '--headless=new',
+          '--disable-gpu',
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          `--print-to-pdf=${absPdfPath}`,
+          fileUrl,
+        ], { timeout: 20000 });
+      } catch {
+        execFileSync(browserPath, [
+          '--headless',
+          '--disable-gpu',
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          `--print-to-pdf=${absPdfPath}`,
+          fileUrl,
+        ], { timeout: 20000 });
+      }
+
       if (fs.existsSync(outputPdfPath) && fs.statSync(outputPdfPath).size > 1000) {
-        pdfDone = true;
+        // Verify valid PDF magic header
+        const fd = fs.openSync(outputPdfPath, 'r');
+        const headerCheck = Buffer.alloc(5);
+        fs.readSync(fd, headerCheck, 0, 5, 0);
+        fs.closeSync(fd);
+        if (headerCheck.toString('ascii') === '%PDF-') {
+          pdfDone = true;
+        }
       }
     }
   } catch (pdfErr) {
@@ -307,7 +336,7 @@ export async function generateBoardMeetingMinutesDocument({
       location: meetingMinute.location,
       callToOrder: meetingMinute.callToOrder,
       contentHtml: meetingMinute.contentHtml,
-      signatories: meetingMinute.signatories,
+      signatories,
       assetsDir,
     });
     fs.writeFileSync(outputPdfPath, pdfBuf);
@@ -355,7 +384,7 @@ export async function generateBoardMeetingMinutesDocument({
     relsXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>';
   }
 
-  // Convert signatories into OpenXML paragraphs
+  // Convert attending signatories into OpenXML paragraphs
   let sigDocxXml = '<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="280" w:after="160"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="28"/><w:color w:val="1E3A8A"/></w:rPr><w:t>BOARD OF DIRECTORS RATIFICATION &amp; SIGNATURES</w:t></w:r></w:p>';
 
   for (let sIdx = 0; sIdx < signatories.length; sIdx++) {

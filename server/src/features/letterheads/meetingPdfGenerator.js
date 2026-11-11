@@ -3,18 +3,37 @@ import path from 'path';
 import { parseSignatureDataUrl, decodePngToRgb } from './signatureImageHelper.js';
 
 /**
- * Extracts width and height from JPEG bytes (SOF0/SOF2 markers).
+ * Extracts width and height from JPEG bytes safely.
  */
 export function getJpegDimensions(buf) {
-  let i = 2;
-  while (i < buf.length - 8) {
-    if (buf[i] === 0xff && (buf[i + 1] === 0xc0 || buf[i + 1] === 0xc2)) {
-      const height = buf.readUInt16BE(i + 5);
-      const width = buf.readUInt16BE(i + 7);
-      return { width, height };
+  try {
+    if (!buf || buf.length < 10) return { width: 800, height: 160 };
+    let i = 2;
+    while (i < buf.length - 8) {
+      if (buf[i] === 0xff && (buf[i + 1] === 0xc0 || buf[i + 1] === 0xc2)) {
+        const height = buf.readUInt16BE(i + 5);
+        const width = buf.readUInt16BE(i + 7);
+        if (width > 0 && height > 0) return { width, height };
+      }
+      if (buf[i] !== 0xff) {
+        i++;
+        continue;
+      }
+      const marker = buf[i + 1];
+      if (marker === 0xd9 || marker === 0xda) break; // EOI or SOS
+      if (marker === 0xd8 || (marker >= 0xd0 && marker <= 0xd7)) {
+        i += 2;
+        continue;
+      }
+      const len = buf.readUInt16BE(i + 2);
+      if (len <= 2) {
+        i += 2;
+      } else {
+        i += 2 + len;
+      }
     }
-    const len = buf.readUInt16BE(i + 2);
-    i += 2 + len;
+  } catch (e) {
+    console.warn('JPEG dimension read notice:', e.message);
   }
   return { width: 800, height: 160 };
 }
@@ -57,6 +76,46 @@ function wrapText(text, maxChars) {
 }
 
 /**
+ * Compiles a list of structured PDF objects into a 100% compliant PDF 1.4 binary.
+ */
+export function compilePdfObjects(pdfObjects, catalogId = 1) {
+  const chunks = [];
+  chunks.push(Buffer.from('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n', 'binary'));
+
+  const xrefOffsets = [0];
+  let curOffset = chunks[0].length;
+
+  for (const obj of pdfObjects) {
+    xrefOffsets.push(curOffset);
+    let headStr = `${obj.id} 0 obj\n${obj.dict}\n`;
+    if (obj.streamBuf) {
+      headStr += 'stream\n';
+      const headBuf = Buffer.from(headStr, 'utf8');
+      const tailBuf = Buffer.from('\nendstream\nendobj\n', 'utf8');
+      chunks.push(headBuf);
+      chunks.push(obj.streamBuf);
+      chunks.push(tailBuf);
+      curOffset += (headBuf.length + obj.streamBuf.length + tailBuf.length);
+    } else {
+      headStr += 'endobj\n';
+      const objBuf = Buffer.from(headStr, 'utf8');
+      chunks.push(objBuf);
+      curOffset += objBuf.length;
+    }
+  }
+
+  const startXref = curOffset;
+  let xrefStr = `xref\n0 ${xrefOffsets.length}\n0000000000 65535 f \n`;
+  for (let i = 1; i < xrefOffsets.length; i++) {
+    xrefStr += `${String(xrefOffsets[i]).padStart(10, '0')} 00000 n \n`;
+  }
+  xrefStr += `trailer\n<< /Size ${xrefOffsets.length} /Root ${catalogId} 0 R >>\nstartxref\n${startXref}\n%%EOF\n`;
+  chunks.push(Buffer.from(xrefStr, 'utf8'));
+
+  return Buffer.concat(chunks);
+}
+
+/**
  * Pure JavaScript PDF Generator for Board Meeting Minutes.
  * Generates 100% compliant PDF 1.4 with real embedded signature images.
  */
@@ -75,6 +134,9 @@ export function generateMeetingMinutesPdfBuffer({
   const MARGIN_LEFT = 36;
   const MARGIN_RIGHT = 36;
   const USABLE_WIDTH = PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT;
+
+  // Filter attending signatories only
+  const activeSignatories = (signatories || []).filter((s) => s.attending !== false);
 
   // 1. Load Asset Images
   let headerBuf = null;
@@ -103,16 +165,16 @@ export function generateMeetingMinutesPdfBuffer({
     }
   }
 
-  // Pre-process signature images from signatories
+  // Pre-process signature images from attending signatories
   const sigImages = [];
-  for (let sIdx = 0; sIdx < signatories.length; sIdx++) {
-    const s = signatories[sIdx];
+  for (let sIdx = 0; sIdx < activeSignatories.length; sIdx++) {
+    const s = activeSignatories[sIdx];
     if (s.isSigned && s.signatureDataUrl) {
       const parsed = parseSignatureDataUrl(s.signatureDataUrl);
       if (parsed) {
         if (parsed.format === 'png') {
           const dec = decodePngToRgb(parsed.buffer);
-          if (dec) {
+          if (dec && dec.compressedRgb) {
             sigImages.push({
               sIdx,
               format: 'png',
@@ -312,10 +374,10 @@ export function generateMeetingMinutesPdfBuffer({
   const colWidth = (USABLE_WIDTH - 14) / 2;
   const sigBoxHeight = 78;
 
-  for (let idx = 0; idx < signatories.length; idx += 2) {
+  for (let idx = 0; idx < activeSignatories.length; idx += 2) {
     checkPageSpace(sigBoxHeight + 8);
-    const leftSig = signatories[idx];
-    const rightSig = signatories[idx + 1];
+    const leftSig = activeSignatories[idx];
+    const rightSig = activeSignatories[idx + 1];
 
     const sigsToRender = [
       { s: leftSig, sIdx: idx, x: MARGIN_LEFT },
@@ -376,78 +438,52 @@ export function generateMeetingMinutesPdfBuffer({
     }
   }
 
-  // Assemble PDF Objects
-  const objects = [];
-  const catalogId = 1;
-  const pagesTreeId = 2;
-  const fontF1Id = 3;
-  const fontF2Id = 4;
-  const fontF3Id = 5;
+  // Assemble PDF Objects with precise object mapping
+  const pdfObjects = [];
+  let nextObjId = 1;
 
-  let nextObjId = 6;
+  function registerObject(dict, streamBuf = null) {
+    const id = nextObjId++;
+    pdfObjects.push({ id, dict, streamBuf });
+    return id;
+  }
+
+  const catalogId = registerObject('<< /Type /Catalog /Pages 2 0 R >>'); // 1
+  const pagesTreeId = registerObject(''); // 2 (placeholder updated below)
+  const fontF1Id = registerObject('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>'); // 3
+  const fontF2Id = registerObject('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>'); // 4
+  const fontF3Id = registerObject('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Oblique /Encoding /WinAnsiEncoding >>'); // 5
+
   let imgHeaderId = null;
   let imgFooterId = null;
   let imgBismillahId = null;
 
-  if (headerBuf) imgHeaderId = nextObjId++;
-  if (footerBuf) imgFooterId = nextObjId++;
-  if (bismillahBuf) imgBismillahId = nextObjId++;
-
-  // Assign Object IDs to signature images
-  for (const img of sigImages) {
-    img.objId = nextObjId++;
-  }
-
-  const firstPageObjId = nextObjId;
-  const totalPages = pages.length;
-
-  // 1 0 obj - Catalog
-  objects.push(`<< /Type /Catalog /Pages ${pagesTreeId} 0 R >>`);
-
-  // 2 0 obj - Pages Tree
-  const pageIds = [];
-  for (let i = 0; i < totalPages; i++) {
-    pageIds.push(`${firstPageObjId + (i * 2)} 0 R`);
-  }
-  objects.push(`<< /Type /Pages /Kids [${pageIds.join(' ')}] /Count ${totalPages} >>`);
-
-  // 3 0 obj - Helvetica
-  objects.push(`<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>`);
-
-  // 4 0 obj - Helvetica-Bold
-  objects.push(`<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>`);
-
-  // 5 0 obj - Helvetica-Oblique
-  objects.push(`<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Oblique /Encoding /WinAnsiEncoding >>`);
-
-  // Image XObjects: Header, Footer, Bismillah
   if (headerBuf) {
-    objects.push(
-      `<< /Type /XObject /Subtype /Image /Width ${headerDim.width} /Height ${headerDim.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${headerBuf.length} >>\nstream\n`
+    imgHeaderId = registerObject(
+      `<< /Type /XObject /Subtype /Image /Width ${headerDim.width} /Height ${headerDim.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${headerBuf.length} >>`,
+      headerBuf
     );
   }
   if (footerBuf) {
-    objects.push(
-      `<< /Type /XObject /Subtype /Image /Width ${footerDim.width} /Height ${footerDim.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${footerBuf.length} >>\nstream\n`
+    imgFooterId = registerObject(
+      `<< /Type /XObject /Subtype /Image /Width ${footerDim.width} /Height ${footerDim.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${footerBuf.length} >>`,
+      footerBuf
     );
   }
   if (bismillahBuf) {
-    objects.push(
-      `<< /Type /XObject /Subtype /Image /Width ${bismillahDim.width} /Height ${bismillahDim.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${bismillahBuf.length} >>\nstream\n`
+    imgBismillahId = registerObject(
+      `<< /Type /XObject /Subtype /Image /Width ${bismillahDim.width} /Height ${bismillahDim.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${bismillahBuf.length} >>`,
+      bismillahBuf
     );
   }
 
-  // Image XObjects: Signatures
+  // Assign Object IDs to signature images
   for (const img of sigImages) {
-    if (img.format === 'png') {
-      objects.push(
-        `<< /Type /XObject /Subtype /Image /Width ${img.width} /Height ${img.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode /Length ${img.data.length} >>\nstream\n`
-      );
-    } else {
-      objects.push(
-        `<< /Type /XObject /Subtype /Image /Width ${img.width} /Height ${img.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${img.data.length} >>\nstream\n`
-      );
-    }
+    const filter = img.format === 'png' ? '/Filter /FlateDecode' : '/Filter /DCTDecode';
+    img.objId = registerObject(
+      `<< /Type /XObject /Subtype /Image /Width ${img.width} /Height ${img.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 ${filter} /Length ${img.data.length} >>`,
+      img.data
+    );
   }
 
   // Build XObject Dictionary
@@ -459,70 +495,36 @@ export function generateMeetingMinutesPdfBuffer({
     xobjDict += `/ImSig_${img.sIdx} ${img.objId} 0 R `;
   }
 
-  // Page Objects and Content Streams
+  const pageIds = [];
+  const totalPages = pages.length;
+
   for (let i = 0; i < totalPages; i++) {
-    const pageId = firstPageObjId + (i * 2);
-    const contentId = pageId + 1;
     const streamData = pages[i].join('');
     const streamBuffer = Buffer.from(streamData, 'utf8');
 
-    // Page Object
-    objects.push(
-      `<< /Type /Page /Parent ${pagesTreeId} 0 R /MediaBox [0 0 ${PAGE_WIDTH.toFixed(2)} ${PAGE_HEIGHT.toFixed(2)}] /Resources << /Font << /F1 ${fontF1Id} 0 R /F2 ${fontF2Id} 0 R /F3 ${fontF3Id} 0 R >> /XObject << ${xobjDict}>> >> /Contents ${contentId} 0 R >>`
-    );
+    const pageId = nextObjId++;
+    const contentId = nextObjId++;
+    pageIds.push(`${pageId} 0 R`);
 
-    // Stream Object
-    objects.push(
-      `<< /Length ${streamBuffer.length} >>\nstream\n${streamData}\nendstream`
-    );
+    pdfObjects.push({
+      id: pageId,
+      dict: `<< /Type /Page /Parent ${pagesTreeId} 0 R /MediaBox [0 0 ${PAGE_WIDTH.toFixed(2)} ${PAGE_HEIGHT.toFixed(2)}] /Resources << /Font << /F1 ${fontF1Id} 0 R /F2 ${fontF2Id} 0 R /F3 ${fontF3Id} 0 R >> /XObject << ${xobjDict}>> >> /Contents ${contentId} 0 R >>`,
+    });
+
+    pdfObjects.push({
+      id: contentId,
+      dict: `<< /Length ${streamBuffer.length} >>`,
+      streamBuf: streamBuffer,
+    });
   }
 
-  // Compile PDF Binary with xref and trailer
-  const chunks = [];
-  chunks.push(Buffer.from('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n', 'binary'));
-
-  const xrefOffsets = [0];
-  let curOffset = chunks[0].length;
-
-  let objIdx = 1;
-  for (const obj of objects) {
-    xrefOffsets.push(curOffset);
-
-    if (obj.includes('/Filter /DCTDecode') || obj.includes('/Filter /FlateDecode')) {
-      let imgData = null;
-      if (headerBuf && obj.includes(`Length ${headerBuf.length}`)) imgData = headerBuf;
-      else if (footerBuf && obj.includes(`Length ${footerBuf.length}`)) imgData = footerBuf;
-      else if (bismillahBuf && obj.includes(`Length ${bismillahBuf.length}`)) imgData = bismillahBuf;
-      else {
-        const foundSig = sigImages.find((img) => obj.includes(`Length ${img.data.length}`));
-        if (foundSig) imgData = foundSig.data;
-      }
-
-      const head = Buffer.from(`${objIdx} 0 obj\n${obj}`, 'utf8');
-      const tail = Buffer.from('\nendstream\nendobj\n', 'utf8');
-      chunks.push(head);
-      if (imgData) chunks.push(imgData);
-      chunks.push(tail);
-      curOffset += (head.length + (imgData ? imgData.length : 0) + tail.length);
-    } else {
-      const objBuf = Buffer.from(`${objIdx} 0 obj\n${obj}\nendobj\n`, 'utf8');
-      chunks.push(objBuf);
-      curOffset += objBuf.length;
-    }
-    objIdx++;
+  // Update Pages Tree object
+  const pagesTreeObj = pdfObjects.find((o) => o.id === pagesTreeId);
+  if (pagesTreeObj) {
+    pagesTreeObj.dict = `<< /Type /Pages /Kids [${pageIds.join(' ')}] /Count ${totalPages} >>`;
   }
 
-  // xref section
-  const startXref = curOffset;
-  let xrefStr = `xref\n0 ${xrefOffsets.length}\n0000000000 65535 f \n`;
-  for (let i = 1; i < xrefOffsets.length; i++) {
-    xrefStr += `${String(xrefOffsets[i]).padStart(10, '0')} 00000 n \n`;
-  }
-  xrefStr += `trailer\n<< /Size ${xrefOffsets.length} /Root ${catalogId} 0 R >>\nstartxref\n${startXref}\n%%EOF\n`;
-
-  chunks.push(Buffer.from(xrefStr, 'utf8'));
-
-  return Buffer.concat(chunks);
+  return compilePdfObjects(pdfObjects, catalogId);
 }
 
 /**
@@ -601,126 +603,121 @@ export function generateGenericLetterheadPdfBuffer({
     );
   }
 
-  if (bismillahBuf) {
+  if (templateType === 'iipc' && bismillahBuf) {
     const bW = 190;
     const bH = (bismillahDim.height / bismillahDim.width) * bW;
     const bX = (PAGE_WIDTH - bW) / 2;
     curStream.push(`q\n${bW.toFixed(2)} 0 0 ${bH.toFixed(2)} ${bX.toFixed(2)} ${(curY - bH).toFixed(2)} cm\n/ImBismillah Do\nQ\n`);
-    curY -= (bH + 12);
+    curY -= (bH + 16);
   }
 
   if (title) {
-    const tLines = wrapText(title, 60);
-    for (const tl of tLines) {
-      addText(tl, MARGIN_LEFT, curY, '/F2', 14, 0.06, 0.09, 0.16);
+    const titleLines = wrapText(title, 55);
+    for (const tl of titleLines) {
+      addText(tl, MARGIN_LEFT, curY, '/F2', 13, 0.06, 0.09, 0.16);
       curY -= 18;
     }
     curY -= 6;
   }
 
-  const sections = [];
+  // Parse HTML
   const rawParts = (htmlContent || '').split(/(<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>|<table[^>]*>[\s\S]*?<\/table>)/gi);
   for (const part of rawParts) {
     const trimmed = part.trim();
     if (!trimmed) continue;
+
     if (/<h[1-6]/i.test(trimmed)) {
-      sections.push({ type: 'heading', text: trimmed.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() });
+      const hText = trimmed.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      checkPageSpace(30);
+      curY -= 6;
+      addText(hText, MARGIN_LEFT, curY, '/F2', 11, 0.12, 0.23, 0.54);
+      curY -= 15;
     } else if (/<table/i.test(trimmed)) {
       const rows = [];
-      const trs = trimmed.match(/<tr[\s\S]*?<\/tr>/gi) || [];
-      for (const tr of trs) {
+      const trMatches = trimmed.match(/<tr[\s\S]*?<\/tr>/gi) || [];
+      for (const tr of trMatches) {
         const isHeader = /<th/i.test(tr);
-        const cells = (tr.match(/<(?:td|th)[\s\S]*?<\/(?:td|th)>/gi) || []).map((c) => c.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
+        const cells = (tr.match(/<(?:td|th)[\s\S]*?<\/(?:td|th)>/gi) || [])
+          .map((c) => c.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
         if (cells.length) rows.push({ isHeader, cells });
       }
-      if (rows.length) sections.push({ type: 'table', rows });
-    } else {
-      const paras = trimmed.split(/<\/(?:p|div|li)>/gi).map((p) => p.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()).filter(Boolean);
-      for (const p of paras) sections.push({ type: 'para', text: p });
-    }
-  }
-
-  for (const sec of sections) {
-    if (sec.type === 'heading') {
-      checkPageSpace(30);
-      curY -= 4;
-      addText(sec.text, MARGIN_LEFT, curY, '/F2', 11, 0.12, 0.23, 0.54);
-      curStream.push(`q\n0.8 0.85 0.9 RG\n1 w\n${MARGIN_LEFT} ${(curY - 3).toFixed(2)} m ${(MARGIN_LEFT + USABLE_WIDTH)} ${(curY - 3).toFixed(2)} l S\nQ\n`);
-      curY -= 14;
-    } else if (sec.type === 'para') {
-      const lines = wrapText(sec.text, 88);
-      for (const l of lines) {
-        checkPageSpace(15);
-        addText(l, MARGIN_LEFT, curY, '/F1', 9.5, 0.15, 0.2, 0.25);
-        curY -= 14;
-      }
-      curY -= 4;
-    } else if (sec.type === 'table') {
-      const numCols = sec.rows[0]?.cells.length || 1;
-      const colWidth = USABLE_WIDTH / numCols;
-      for (const row of sec.rows) {
-        const cellLines = row.cells.map((c) => wrapText(c, Math.floor(colWidth / 5.5)));
-        const maxL = Math.max(...cellLines.map((cl) => cl.length), 1);
-        const rH = maxL * 12 + 10;
-        checkPageSpace(rH);
-
-        let op = `q\n${row.isHeader ? '0.94 0.96 0.98' : '1.0 1.0 1.0'} rg\n0.8 0.85 0.9 RG\n1 w\n${MARGIN_LEFT} ${(curY - rH).toFixed(2)} ${USABLE_WIDTH} ${rH} re B\nQ\n`;
-        curStream.push(op);
-
-        let cx = MARGIN_LEFT;
-        for (let ci = 0; ci < row.cells.length; ci++) {
-          let ty = curY - 12;
-          for (const l of cellLines[ci]) {
-            addText(l, cx + 6, ty, row.isHeader ? '/F2' : '/F1', 8.5, 0.15, 0.2, 0.25);
-            ty -= 11;
+      if (rows.length) {
+        const colCount = Math.max(...rows.map((r) => r.cells.length), 1);
+        const colW = USABLE_WIDTH / colCount;
+        for (const row of rows) {
+          checkPageSpace(24);
+          let curX = MARGIN_LEFT;
+          for (const c of row.cells) {
+            addText(c, curX + 4, curY - 10, row.isHeader ? '/F2' : '/F1', 8.5, 0.1, 0.15, 0.2);
+            curX += colW;
           }
-          cx += colWidth;
+          curY -= 20;
         }
-        curY -= rH;
       }
-      curY -= 8;
+    } else {
+      const paras = trimmed.split(/<\/(?:p|div|li)>/gi)
+        .map((p) => p.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim())
+        .filter(Boolean);
+      for (const p of paras) {
+        const lines = wrapText(p, 88);
+        for (const l of lines) {
+          checkPageSpace(15);
+          addText(l, MARGIN_LEFT, curY, '/F1', 9.5, 0.15, 0.2, 0.25);
+          curY -= 14;
+        }
+        curY -= 4;
+      }
     }
   }
 
+  // Draw Header and Footer
   if (headerBuf) {
     const hY = PAGE_HEIGHT - headerHeightPt;
     pages[0].unshift(`q\n${PAGE_WIDTH.toFixed(2)} 0 0 ${headerHeightPt.toFixed(2)} 0 ${hY.toFixed(2)} cm\n/ImHeader Do\nQ\n`);
   }
+
   if (footerBuf) {
     for (const pStream of pages) {
       pStream.push(`q\n${PAGE_WIDTH.toFixed(2)} 0 0 ${footerHeightPt.toFixed(2)} 0 0 cm\n/ImFooter Do\nQ\n`);
     }
   }
 
-  const objects = [];
-  const catalogId = 1;
-  const pagesTreeId = 2;
-  const fontF1Id = 3;
-  const fontF2Id = 4;
-  const fontF3Id = 5;
+  const pdfObjects = [];
+  let nextObjId = 1;
 
-  let imgHeaderId = headerBuf ? 6 : null;
-  let imgFooterId = footerBuf ? (imgHeaderId ? 7 : 6) : null;
-  let imgBismillahId = bismillahBuf ? ((imgFooterId || imgHeaderId || 5) + 1) : null;
-  const firstPageObjId = (imgBismillahId || imgFooterId || imgHeaderId || fontF3Id) + 1;
-  const totalPages = pages.length;
+  function registerObject(dict, streamBuf = null) {
+    const id = nextObjId++;
+    pdfObjects.push({ id, dict, streamBuf });
+    return id;
+  }
 
-  objects.push(`<< /Type /Catalog /Pages ${pagesTreeId} 0 R >>`);
-  const pageIds = [];
-  for (let i = 0; i < totalPages; i++) pageIds.push(`${firstPageObjId + (i * 2)} 0 R`);
-  objects.push(`<< /Type /Pages /Kids [${pageIds.join(' ')}] /Count ${totalPages} >>`);
-  objects.push(`<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>`);
-  objects.push(`<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>`);
-  objects.push(`<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Oblique /Encoding /WinAnsiEncoding >>`);
+  const catalogId = registerObject('<< /Type /Catalog /Pages 2 0 R >>');
+  const pagesTreeId = registerObject('');
+  const fontF1Id = registerObject('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>');
+  const fontF2Id = registerObject('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>');
+  const fontF3Id = registerObject('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Oblique /Encoding /WinAnsiEncoding >>');
+
+  let imgHeaderId = null;
+  let imgFooterId = null;
+  let imgBismillahId = null;
 
   if (headerBuf) {
-    objects.push(`<< /Type /XObject /Subtype /Image /Width ${headerDim.width} /Height ${headerDim.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${headerBuf.length} >>\nstream\n`);
+    imgHeaderId = registerObject(
+      `<< /Type /XObject /Subtype /Image /Width ${headerDim.width} /Height ${headerDim.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${headerBuf.length} >>`,
+      headerBuf
+    );
   }
   if (footerBuf) {
-    objects.push(`<< /Type /XObject /Subtype /Image /Width ${footerDim.width} /Height ${footerDim.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${footerBuf.length} >>\nstream\n`);
+    imgFooterId = registerObject(
+      `<< /Type /XObject /Subtype /Image /Width ${footerDim.width} /Height ${footerDim.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${footerBuf.length} >>`,
+      footerBuf
+    );
   }
   if (bismillahBuf) {
-    objects.push(`<< /Type /XObject /Subtype /Image /Width ${bismillahDim.width} /Height ${bismillahDim.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${bismillahBuf.length} >>\nstream\n`);
+    imgBismillahId = registerObject(
+      `<< /Type /XObject /Subtype /Image /Width ${bismillahDim.width} /Height ${bismillahDim.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${bismillahBuf.length} >>`,
+      bismillahBuf
+    );
   }
 
   let xobjDict = '';
@@ -728,50 +725,33 @@ export function generateGenericLetterheadPdfBuffer({
   if (imgFooterId) xobjDict += `/ImFooter ${imgFooterId} 0 R `;
   if (imgBismillahId) xobjDict += `/ImBismillah ${imgBismillahId} 0 R `;
 
+  const pageIds = [];
+  const totalPages = pages.length;
+
   for (let i = 0; i < totalPages; i++) {
-    const pageId = firstPageObjId + (i * 2);
-    const contentId = pageId + 1;
     const streamData = pages[i].join('');
     const streamBuffer = Buffer.from(streamData, 'utf8');
-    objects.push(`<< /Type /Page /Parent ${pagesTreeId} 0 R /MediaBox [0 0 ${PAGE_WIDTH.toFixed(2)} ${PAGE_HEIGHT.toFixed(2)}] /Resources << /Font << /F1 ${fontF1Id} 0 R /F2 ${fontF2Id} 0 R /F3 ${fontF3Id} 0 R >> /XObject << ${xobjDict}>> >> /Contents ${contentId} 0 R >>`);
-    objects.push(`<< /Length ${streamBuffer.length} >>\nstream\n${streamData}\nendstream`);
+
+    const pageId = nextObjId++;
+    const contentId = nextObjId++;
+    pageIds.push(`${pageId} 0 R`);
+
+    pdfObjects.push({
+      id: pageId,
+      dict: `<< /Type /Page /Parent ${pagesTreeId} 0 R /MediaBox [0 0 ${PAGE_WIDTH.toFixed(2)} ${PAGE_HEIGHT.toFixed(2)}] /Resources << /Font << /F1 ${fontF1Id} 0 R /F2 ${fontF2Id} 0 R /F3 ${fontF3Id} 0 R >> /XObject << ${xobjDict}>> >> /Contents ${contentId} 0 R >>`,
+    });
+
+    pdfObjects.push({
+      id: contentId,
+      dict: `<< /Length ${streamBuffer.length} >>`,
+      streamBuf: streamBuffer,
+    });
   }
 
-  const chunks = [];
-  chunks.push(Buffer.from('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n', 'binary'));
-  const xrefOffsets = [0];
-  let curOffset = chunks[0].length;
-  let objIdx = 1;
-
-  for (const obj of objects) {
-    xrefOffsets.push(curOffset);
-    if (obj.includes('/Filter /DCTDecode')) {
-      let imgData = null;
-      if (obj.includes(`Length ${headerBuf?.length}`)) imgData = headerBuf;
-      else if (obj.includes(`Length ${footerBuf?.length}`)) imgData = footerBuf;
-      else if (obj.includes(`Length ${bismillahBuf?.length}`)) imgData = bismillahBuf;
-
-      const head = Buffer.from(`${objIdx} 0 obj\n${obj}`, 'utf8');
-      const tail = Buffer.from('\nendstream\nendobj\n', 'utf8');
-      chunks.push(head);
-      if (imgData) chunks.push(imgData);
-      chunks.push(tail);
-      curOffset += (head.length + (imgData ? imgData.length : 0) + tail.length);
-    } else {
-      const objBuf = Buffer.from(`${objIdx} 0 obj\n${obj}\nendobj\n`, 'utf8');
-      chunks.push(objBuf);
-      curOffset += objBuf.length;
-    }
-    objIdx++;
+  const pagesTreeObj = pdfObjects.find((o) => o.id === pagesTreeId);
+  if (pagesTreeObj) {
+    pagesTreeObj.dict = `<< /Type /Pages /Kids [${pageIds.join(' ')}] /Count ${totalPages} >>`;
   }
 
-  const startXref = curOffset;
-  let xrefStr = `xref\n0 ${xrefOffsets.length}\n0000000000 65535 f \n`;
-  for (let i = 1; i < xrefOffsets.length; i++) {
-    xrefStr += `${String(xrefOffsets[i]).padStart(10, '0')} 00000 n \n`;
-  }
-  xrefStr += `trailer\n<< /Size ${xrefOffsets.length} /Root ${catalogId} 0 R >>\nstartxref\n${startXref}\n%%EOF\n`;
-  chunks.push(Buffer.from(xrefStr, 'utf8'));
-
-  return Buffer.concat(chunks);
+  return compilePdfObjects(pdfObjects, catalogId);
 }
