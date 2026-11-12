@@ -181,6 +181,9 @@ export function LetterheadStudio({ user, isSuperAdmin, isWlsAdmin }) {
             <Tabs.Tab value="all" leftSection={<IconFileCertificate size={18} />}>
               All Studio Cards
             </Tabs.Tab>
+            <Tabs.Tab value="voucher" leftSection={<IconReceiptTax size={18} />}>
+              Create Voucher &amp; Petty Cash Receipts
+            </Tabs.Tab>
             <Tabs.Tab value="board-minutes" leftSection={<IconUsersGroup size={18} />}>
               Board Meeting Minutes
             </Tabs.Tab>

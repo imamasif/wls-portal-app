@@ -76,15 +76,15 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
   const [showDirectUrlInput, setShowDirectUrlInput] = useState(false);
 
   // Payee (Vendor / Contractor)
-  const [payeeName, setPayeeName] = useState('Jacobson Carpentry');
-  const [payeeEmail, setPayeeEmail] = useState('wyattjacobson369@gmail.com');
-  const [payeeEmtEmail, setPayeeEmtEmail] = useState('wyattjacobson369@gmail.com');
-  const [payeePhone, setPayeePhone] = useState('2269390265');
-  const [payeeAddress, setPayeeAddress] = useState('465 Barber Ave N, Listowel ON N4W 1G4');
-  const [payeeGstHst, setPayeeGstHst] = useState('727285003 RT 0001');
+  const [payeeName, setPayeeName] = useState('');
+  const [payeeEmail, setPayeeEmail] = useState('');
+  const [payeeEmtEmail, setPayeeEmtEmail] = useState('');
+  const [payeePhone, setPayeePhone] = useState('');
+  const [payeeAddress, setPayeeAddress] = useState('');
+  const [payeeGstHst, setPayeeGstHst] = useState('');
 
   // Payer (Customer / Organization)
-  const [payerName, setPayerName] = useState('Alam Mohammed');
+  const [payerName, setPayerName] = useState('');
   const [payerCompany, setPayerCompany] = useState('IIPC Canada');
   const [payerAddress, setPayerAddress] = useState('132 main st south, Rockwood ON n0b 2k0');
   const [payerEmail, setPayerEmail] = useState('info@iipc.ca');
@@ -93,10 +93,10 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
   const [items, setItems] = useState([
     {
       id: 1,
-      description: 'Fence',
+      description: '',
       quantity: 1,
-      unitPrice: 1250.00,
-      amount: 1250.00,
+      unitPrice: 0,
+      amount: 0,
       taxable: true,
     },
   ]);
@@ -107,9 +107,63 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
   const [taxType, setTaxType] = useState('HST');
 
   // Notes & terms
-  const [termsNotes, setTermsNotes] = useState(
-    'Please arrange payment within 14 days of the invoice date. Payment can be made through E-transfer Wyattjacobson369@gmail.com. Thank you for your business and have a great day!'
-  );
+  const [termsNotes, setTermsNotes] = useState('');
+
+  // Reset / Clear Form to start from beginning
+  const handleClearForm = () => {
+    setVoucherId(null);
+    setVoucherType('PAYMENT_VOUCHER');
+    setVoucherNumber(`VCH-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`);
+    setIssueDate(new Date());
+    setDueDate(null);
+    setTitle('');
+    setLetterheadType('iipc');
+    setCustomLogoUrl('');
+    setCustomLogoFileName('');
+    setShowDirectUrlInput(false);
+
+    // Clear Payee
+    setPayeeName('');
+    setPayeeEmail('');
+    setPayeeEmtEmail('');
+    setPayeePhone('');
+    setPayeeAddress('');
+    setPayeeGstHst('');
+
+    // Reset Payer
+    setPayerName('');
+    setPayerCompany('IIPC Canada');
+    setPayerAddress('132 main st south, Rockwood ON n0b 2k0');
+    setPayerEmail('info@iipc.ca');
+
+    // Fresh blank line item
+    setItems([
+      {
+        id: Date.now(),
+        description: '',
+        quantity: 1,
+        unitPrice: 0,
+        amount: 0,
+        taxable: true,
+      },
+    ]);
+
+    setApplyTax(true);
+    setTaxRate(13.0);
+    setTaxType('HST');
+    setTermsNotes('');
+
+    setReceiptImageUrl(null);
+    setReceiptFile(null);
+    setGeneratedPdfUrl('');
+    setGeneratedDocxUrl('');
+    setDriveResultLink('');
+    setErrorMsg('');
+    setSuccessMsg('Form cleared! Ready to create a new voucher / receipt.');
+
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (logoFileInputRef.current) logoFileInputRef.current.value = '';
+  };
 
   // Attached receipt preview & file
   const [receiptImageUrl, setReceiptImageUrl] = useState(null);
@@ -379,7 +433,7 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
 
       const itemCount = scanned.items?.length || 0;
       setSuccessMsg(
-        `Scanned ${file.name} successfully! Extracted ${itemCount} line item${itemCount === 1 ? '' : 's'}, Payee (${scanned.payee?.name || 'N/A'}), and EMT (${scanned.payee?.emtEmail || 'N/A'}).`
+        `Scanned ${file.name} successfully! Extracted ${itemCount} line item${itemCount === 1 ? '' : 's'} with Description & Amount figures. You can verify, correct, or add more lines below.`
       );
     } catch (err) {
       console.error('File scan error:', err);
@@ -649,6 +703,17 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
             <Badge color="teal" variant="light" size="sm">
               Google Drive Integrated
             </Badge>
+            <Button
+              variant="white"
+              color="red"
+              size="xs"
+              radius="md"
+              leftSection={<IconRefresh size={14} />}
+              onClick={handleClearForm}
+              title="Clear all fields and start a new voucher from scratch"
+            >
+              Clear Form / Start New
+            </Button>
           </Group>
         </Group>
       </Paper>
@@ -669,7 +734,18 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
           withCloseButton
           onClose={() => setSuccessMsg('')}
         >
-          {successMsg}
+          <Group justify="space-between" align="center" wrap="wrap">
+            <Text size="sm">{successMsg}</Text>
+            <Button
+              size="xs"
+              variant="light"
+              color="teal"
+              leftSection={<IconPlus size={14} />}
+              onClick={handleClearForm}
+            >
+              Create Another Voucher (Start Fresh)
+            </Button>
+          </Group>
         </Alert>
       )}
 
@@ -697,9 +773,21 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
               Smart File Scanner (Images, PDF, Excel, or Text)
             </Text>
           </Group>
-          <Text size="xs" c="dimmed">
-            Upload bill/receipt image to automatically extract items, EMT, vendor &amp; HST
-          </Text>
+          <Group gap="xs">
+            <Text size="xs" c="dimmed">
+              Upload bill/receipt image to automatically extract items, EMT, vendor &amp; HST
+            </Text>
+            <Button
+              variant="subtle"
+              color="gray"
+              size="compact-xs"
+              leftSection={<IconClearAll size={14} />}
+              onClick={handleClearForm}
+              title="Clear current inputs and start fresh"
+            >
+              Clear Form
+            </Button>
+          </Group>
         </Group>
 
         <Grid align="center" gutter="md">
@@ -1307,14 +1395,25 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
       {/* SECTION 6: ACTION CONTROLS */}
       <Paper p="md" withBorder radius="md" mb="xl" style={{ background: '#f0fdf4', borderColor: '#bbf7d0' }}>
         <Group justify="space-between" align="center" wrap="wrap">
-          <Button
-            leftSection={<IconDeviceFloppy size={18} />}
-            color="teal"
-            size="md"
-            onClick={handleGenerateVoucher}
-          >
-            {voucherId ? 'Update & Re-compile Voucher' : 'Save & Generate Voucher'}
-          </Button>
+          <Group gap="xs">
+            <Button
+              leftSection={<IconDeviceFloppy size={18} />}
+              color="teal"
+              size="md"
+              onClick={handleGenerateVoucher}
+            >
+              {voucherId ? 'Update & Re-compile Voucher' : 'Save & Generate Voucher'}
+            </Button>
+            <Button
+              leftSection={<IconClearAll size={18} />}
+              variant="default"
+              size="md"
+              onClick={handleClearForm}
+              title="Clear all fields to create a new receipt from scratch"
+            >
+              Clear Form / New Voucher
+            </Button>
+          </Group>
 
           <Group gap="xs" wrap="wrap">
             {generatedPdfUrl && (

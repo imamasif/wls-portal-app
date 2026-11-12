@@ -131,6 +131,56 @@ export async function scanVoucherFile(file, onProgress) {
 }
 
 /**
+ * Helper: Identifies summary, total, tax, or non-item header lines.
+ */
+function isSummaryOrHeaderLine(line) {
+  const l = line.toLowerCase().trim();
+  if (!l) return true;
+  return (
+    l.startsWith('subtotal') ||
+    l.startsWith('sub-total') ||
+    l.startsWith('sub total') ||
+    l.startsWith('total net') ||
+    l.startsWith('grand total') ||
+    l.startsWith('invoice total') ||
+    l.startsWith('total to pay') ||
+    l.startsWith('amount due') ||
+    l.startsWith('balance due') ||
+    l.startsWith('balance') ||
+    l.startsWith('amount paid') ||
+    l.startsWith('tender') ||
+    l.startsWith('change due') ||
+    l.startsWith('change:') ||
+    l.startsWith('payment') ||
+    l.startsWith('terms') ||
+    l.startsWith('bill to') ||
+    l.startsWith('billed to') ||
+    l.startsWith('customer') ||
+    l.startsWith('client') ||
+    l.startsWith('invoice') ||
+    l.startsWith('voucher') ||
+    l.startsWith('receipt') ||
+    l.startsWith('date') ||
+    l.startsWith('time') ||
+    l.startsWith('tel') ||
+    l.startsWith('phone') ||
+    l.startsWith('fax') ||
+    l.startsWith('store') ||
+    l.startsWith('gst') ||
+    l.startsWith('hst') ||
+    l.startsWith('pst') ||
+    l.startsWith('tax') ||
+    l.includes('rt 0001') ||
+    l.includes('interac') ||
+    l.includes('visa') ||
+    l.includes('mastercard') ||
+    l.includes('debit') ||
+    l.includes('cash') ||
+    /^(?:description|item|qty|quantity|amount|price|rate|net|total)\b/i.test(l)
+  );
+}
+
+/**
  * Parses raw text, OCR, or CSV strings and extracts voucher fields.
  */
 export function parseTextIntoVoucher(text, target = {}) {
@@ -147,11 +197,32 @@ export function parseTextIntoVoucher(text, target = {}) {
   let inTable = false;
   const termsLines = [];
 
+  // 1. Generic Payee / Vendor Name Detection (top 1-4 lines)
+  for (let i = 0; i < Math.min(4, lines.length); i++) {
+    const l = lines[i];
+    const low = l.toLowerCase();
+    if (
+      !target.payee.name &&
+      !low.includes('invoice') &&
+      !low.includes('receipt') &&
+      !low.includes('welcome') &&
+      !low.includes('tax') &&
+      !low.includes('gst') &&
+      !low.includes('date') &&
+      !low.includes('store') &&
+      !/^\d+/.test(l) &&
+      /[a-zA-Z]{3,}/.test(l)
+    ) {
+      target.payee.name = l.replace(/^[*#\s]+/, '').trim();
+      break;
+    }
+  }
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const lower = line.toLowerCase();
 
-    // 1. Terms & Payment Instructions
+    // Terms & Payment Instructions
     if (lower.startsWith('terms') || lower.includes('conditions:')) {
       inTerms = true;
       inTable = false;
@@ -166,13 +237,13 @@ export function parseTextIntoVoucher(text, target = {}) {
       continue;
     }
 
-    // 2. Voucher / Invoice Number
+    // Voucher / Invoice Number
     const vchMatch = line.match(/(?:invoice|voucher|bill|receipt|no\.?|number|si)[\s#:.-]+([A-Z0-9_-]{2,20})/i) || line.match(/^(SI[-\s]?\d+)/i);
     if (vchMatch && !target.voucherNumber && !vchMatch[1].toLowerCase().includes('invoice')) {
       target.voucherNumber = vchMatch[1].replace(/\s+/g, '-').trim();
     }
 
-    // 3. EMT / Interac E-transfer
+    // EMT / Interac E-transfer Email
     const emtMatch = line.match(/(?:e-?transfer|emt|interac|pay(?:ment)? to)[\s#:.-]+([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i);
     if (emtMatch) {
       target.payee.emtEmail = emtMatch[1].trim();
@@ -185,19 +256,19 @@ export function parseTextIntoVoucher(text, target = {}) {
       }
     }
 
-    // 4. GST / HST Number (e.g. 727285003 RT 0001)
+    // GST / HST Number (e.g. 727285003 RT 0001)
     const gstMatch = line.match(/(?:gst\/?hst)[\s#:.-]*(\d{9}\s*RT\s*\d{4}|\d{9})/i) || line.match(/(\d{9}\s*RT\s*\d{4})/i);
     if (gstMatch && !target.payee.gstHstNumber) {
       target.payee.gstHstNumber = gstMatch[1].trim();
     }
 
-    // 5. Phone Number
+    // Phone Number
     const phoneMatch = line.match(/(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/) || line.match(/\b\d{10}\b/);
     if (phoneMatch && !target.payee.phone && !line.includes('RT') && !line.includes('GST')) {
       target.payee.phone = phoneMatch[0].trim();
     }
 
-    // 6. Dates
+    // Dates
     const issueDateMatch = line.match(/(?:issued?|date|created)[\s#:.-]+(\d{1,2}\/\d{1,2}\/\d{2,4}|\d{4}-\d{2}-\d{2})/i);
     if (issueDateMatch && !target.issueDate) {
       const parsedD = new Date(issueDateMatch[1]);
@@ -214,49 +285,23 @@ export function parseTextIntoVoucher(text, target = {}) {
       }
     }
 
-    // 7. Bill To / Payer Details (e.g. Alam Mohammed, Rockwood)
-    if (lower.includes('alam') || lower.includes('mohammed') || lower.includes('main st south') || lower.includes('rockwood')) {
-      if (!target.payer.name && !line.includes('st')) {
-        target.payer.name = line;
-      } else if (!target.payer.address) {
-        target.payer.address = line;
-        if (lines[i + 1] && (lines[i + 1].toLowerCase().includes('rockwood') || lines[i + 1].toLowerCase().includes('on'))) {
-          target.payer.address += ', ' + lines[i + 1];
-        }
-      }
+    // Bill To / Payer Details
+    if (lower.startsWith('bill to') || lower.startsWith('billed to') || lower.startsWith('customer:')) {
+      const payerVal = line.replace(/^(?:bill to|billed to|customer:)[\s#:.-]*/i, '').trim();
+      if (payerVal) target.payer.name = payerVal;
     }
 
-    // 8. Payee Details (e.g. Jacobson Carpentry)
-    if (lower.includes('jacobson') || lower.includes('carpentry')) {
-      if (!target.payee.name) {
-        target.payee.name = line;
-      }
-    }
-    if (lower.includes('barber ave') || lower.includes('listowel')) {
-      if (!target.payee.address) {
-        target.payee.address = line;
-        if (lines[i + 1] && lines[i + 1].toLowerCase().includes('listowel')) {
-          target.payee.address += ', ' + lines[i + 1];
-        }
-      }
-    }
-
-    // 9. Table Header Detection
-    if (lower.includes('item') && (lower.includes('tax') || lower.includes('net') || lower.includes('price'))) {
-      inTable = true;
-      continue;
-    }
-
-    // 10. Totals Detection
-    if (lower.includes('total net') || lower.startsWith('subtotal')) {
+    // Subtotal Detection
+    if (lower.includes('subtotal') || lower.includes('sub-total') || lower.includes('total net')) {
       inTable = false;
-      const m = line.match(/([0-9,]+\.[0-9]{2})/);
+      const m = line.match(/([0-9]{1,4}(?:,[0-9]{3})*\.[0-9]{2})/);
       if (m) target.subtotal = parseFloat(m[1].replace(/,/g, ''));
       continue;
     }
 
+    // Tax Detection
     if ((lower.startsWith('hst') || lower.startsWith('gst') || lower.includes('tax:')) && !inTable) {
-      const m = line.match(/([0-9,]+\.[0-9]{2})$/);
+      const m = line.match(/([0-9]{1,4}(?:,[0-9]{3})*\.[0-9]{2})$/);
       if (m) target.taxConfig.taxAmount = parseFloat(m[1].replace(/,/g, ''));
       const rateMatch = line.match(/(\d{1,2}(?:\.\d+)?)\s*%/);
       if (rateMatch) target.taxConfig.rate = parseFloat(rateMatch[1]);
@@ -264,60 +309,89 @@ export function parseTextIntoVoucher(text, target = {}) {
       continue;
     }
 
-    if (lower.includes('total to pay') || lower.includes('invoice total') || lower.includes('grand total')) {
+    // Total Amount Detection
+    if (lower.includes('total') && (lower.includes('invoice') || lower.includes('grand') || lower.includes('total to pay') || lower.startsWith('total'))) {
       inTable = false;
-      const m = line.match(/([0-9,]+\.[0-9]{2})$/);
+      const m = line.match(/([0-9]{1,4}(?:,[0-9]{3})*\.[0-9]{2})/);
       if (m) target.totalAmount = parseFloat(m[1].replace(/,/g, ''));
       continue;
     }
 
-    // 11. Table Row / Line Item Detection (e.g. "Fence HST 13.00% 1,250.00" or "Framing, 1, 1500")
-    if (inTable || (!inTable && !inTerms && /[0-9,]+\.[0-9]{2}/.test(line))) {
-      const allNums = Array.from(line.matchAll(/([0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{2})/g)).map(m => m[1]);
-      if (
-        allNums.length > 0 &&
-        !lower.startsWith('total') &&
-        !lower.startsWith('invoice total') &&
-        !lower.startsWith('due') &&
-        !lower.startsWith('issued') &&
-        !lower.includes('phone') &&
-        !lower.includes('rt 0001')
-      ) {
-        // The last monetary number is the line item net total
-        const netStr = allNums[allNums.length - 1];
-        const amt = parseFloat(netStr.replace(/,/g, ''));
-        if (amt > 0) {
-          // Description is line without net amount and without sales tax label
-          let desc = line
-            .replace(netStr, '')
-            .replace(/HST\s*\d+(\.\d+)?%?/gi, '')
-            .replace(/GST\s*\d+(\.\d+)?%?/gi, '')
-            .replace(/\$|\t/g, ' ')
-            .trim();
+    // Skip summary, headers, and metadata lines from becoming line items
+    if (isSummaryOrHeaderLine(line)) {
+      continue;
+    }
 
-          // Check if there is an explicit quantity
-          const qtyMatch = desc.match(/(?:qty|quantity)[\s#:.-]*(\d+)/i) || desc.match(/^\s*(\d+)\s+x\s+/i);
-          let qty = 1;
-          if (qtyMatch) {
-            qty = parseInt(qtyMatch[1], 10) || 1;
-            desc = desc.replace(qtyMatch[0], '').trim();
-          }
+    // LINE ITEM EXTRACTION:
+    // Pattern A: Line contains Description AND an amount
+    const amtMatches = Array.from(line.matchAll(/([0-9]{1,4}(?:,[0-9]{3})*\.[0-9]{2})/g)).map(m => m[1]);
+    if (amtMatches.length > 0) {
+      const lastAmtStr = amtMatches[amtMatches.length - 1];
+      const amt = parseFloat(lastAmtStr.replace(/,/g, ''));
 
-          if (desc.length > 1) {
-            parsedItems.push({
-              description: desc,
-              quantity: qty,
-              unitPrice: parseFloat((amt / qty).toFixed(2)),
-              amount: amt,
-              taxable: true,
-            });
-          }
+      if (amt > 0) {
+        let desc = line
+          .replace(lastAmtStr, '')
+          .replace(/(?:^|\s)[$S](?=\s*\d)/g, ' ')
+          .replace(/[$]/g, '')
+          .replace(/\bHST\s*\d+(\.\d+)?%?/gi, '')
+          .replace(/\bGST\s*\d+(\.\d+)?%?/gi, '')
+          .trim();
+
+        let qty = 1;
+        const qtyMatch = desc.match(/^\s*(\d+)\s*[xX]\s+/i) || desc.match(/(?:qty|quantity)[\s#:.-]*(\d+)/i);
+        if (qtyMatch) {
+          qty = parseInt(qtyMatch[1], 10) || 1;
+          desc = desc.replace(qtyMatch[0], '').trim();
+        }
+
+        if (desc.length >= 2 && !/^(?:total|subtotal|tax|hst|gst)$/i.test(desc)) {
+          parsedItems.push({
+            description: desc,
+            quantity: qty,
+            unitPrice: parseFloat((amt / qty).toFixed(2)),
+            amount: amt,
+            taxable: true,
+          });
+          continue;
+        }
+      }
+    }
+
+    // Pattern B: Description on line i, Amount on line i+1 (e.g. gas, food, or store receipts)
+    if (i < lines.length - 1) {
+      const nextLine = lines[i + 1].trim();
+      const nextAmtMatch = nextLine.match(/^[$S]?\s*([0-9]{1,4}(?:,[0-9]{3})*\.[0-9]{2})$/);
+      if (nextAmtMatch) {
+        const amt = parseFloat(nextAmtMatch[1].replace(/,/g, ''));
+        if (amt > 0 && line.length >= 2 && !isSummaryOrHeaderLine(line)) {
+          parsedItems.push({
+            description: line.replace(/[$]/g, '').trim(),
+            quantity: 1,
+            unitPrice: amt,
+            amount: amt,
+            taxable: true,
+          });
+          i++; // skip next line as it was consumed as amount
+          continue;
         }
       }
     }
   }
 
-  // Populate line items if found
+  // Fallback: If no individual line items could be parsed, but total or vendor exists
+  if (parsedItems.length === 0 && (target.totalAmount > 0 || target.subtotal > 0)) {
+    const amt = target.subtotal || target.totalAmount;
+    parsedItems.push({
+      description: target.payee?.name ? `${target.payee.name} - Receipt Expense` : 'Receipt Expense',
+      quantity: 1,
+      unitPrice: amt,
+      amount: amt,
+      taxable: true,
+    });
+  }
+
+  // Populate line items
   if (parsedItems.length > 0) {
     target.items = parsedItems;
   }
