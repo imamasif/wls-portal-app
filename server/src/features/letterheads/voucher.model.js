@@ -101,4 +101,5 @@ const voucherSchema = new mongoose.Schema(
 );
 
 export const VoucherModel = mongoose.model('Voucher', voucherSchema);
+export const Voucher = VoucherModel;
 export default VoucherModel;

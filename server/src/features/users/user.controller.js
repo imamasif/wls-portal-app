@@ -3,7 +3,14 @@ import mongoose from "mongoose";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import { userUseCase, UserMapper, UserModel } from "./index.js";
-import { UserRole } from "../types/user.ts";
+const UserRole = {
+  SUPER_USER: "SUPER_USER",
+  WLS_ADMIN: "WLS_ADMIN",
+  USER: "USER",
+  UNIVERSITY_SUPER_USER: "university_super_user",
+  UNIVERSITY_ADMIN: "university_admin",
+  UNIVERSITY_STUDENT: "university_student",
+};
 import { sendPasswordResetEmail } from "../../common/services/email.service.js";
 
 const router = express.Router();
