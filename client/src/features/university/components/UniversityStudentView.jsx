@@ -63,12 +63,25 @@ import { CertificateModal } from "./CertificateModal";
 
 export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
   const [loading, setLoading] = useState(true);
-  const [enrollment, setEnrollment] = useState(null);
+  const [enrollments, setEnrollments] = useState([]);
   const [courses, setCourses] = useState([]);
   const [selectedDeptCode, setSelectedDeptCode] = useState("QGE");
   const [departments, setDepartments] = useState([]);
   const [selectedCourseId, setSelectedCourseId] = useState(null);
   const [isPlayerOpen, setIsPlayerOpen] = useState(false);
+
+  // Dynamic active enrollment matching current selected department track
+  const currentEnrollment = useMemo(() => {
+    if (!enrollments || enrollments.length === 0) return null;
+    return (
+      enrollments.find((e) => {
+        const code = e.departmentCode || e.departmentId?.code;
+        return code === selectedDeptCode;
+      }) || null
+    );
+  }, [enrollments, selectedDeptCode]);
+
+  const enrollment = currentEnrollment;
 
   // Content mode inside player: "video" or "quiz"
   const [contentMode, setContentMode] = useState("video");
@@ -120,40 +133,33 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
   const loadStudentData = async () => {
     setLoading(true);
     try {
-      const [enrollsRes, certsRes, deptsRes] = await Promise.all([
+      const [enrollsRes, certsRes, deptsRes, allCoursesRes] = await Promise.all([
         universityApi.getEnrollments({ studentId }),
         universityApi.getCertificates({ studentId }),
         universityApi.getDepartments(),
+        universityApi.getCourses(),
       ]);
       setDepartments(deptsRes || []);
-
-      const userEnrollment = enrollsRes && enrollsRes.length > 0 ? enrollsRes[0] : null;
-      setEnrollment(userEnrollment);
+      setEnrollments(enrollsRes || []);
       setCertificates(certsRes || []);
+      setCourses(allCoursesRes || []);
 
-      let filter = {};
-      if (userEnrollment?.departmentId) {
-        const deptId = userEnrollment.departmentId._id || userEnrollment.departmentId;
-        filter.departmentId = deptId;
-      }
-      let cList = await universityApi.getCourses(filter);
-      if (!cList || cList.length === 0) {
-        cList = await universityApi.getCourses();
-      }
-      setCourses(cList || []);
-
-      const activeDept = userEnrollment
-        ? (userEnrollment.departmentCode || userEnrollment.departmentId?.code || "QGE")
-        : selectedDeptCode;
-
-      if (userEnrollment) {
-        setSelectedDeptCode(activeDept);
+      let activeDept = selectedDeptCode;
+      if (enrollsRes && enrollsRes.length > 0) {
+        // Default to first enrolled department if current selected is not among enrollments
+        const hasCurrent = enrollsRes.some(
+          (e) => (e.departmentCode || e.departmentId?.code) === selectedDeptCode
+        );
+        if (!hasCurrent) {
+          activeDept = enrollsRes[0].departmentCode || enrollsRes[0].departmentId?.code || "QGE";
+          setSelectedDeptCode(activeDept);
+        }
       }
 
-      if (cList && cList.length > 0 && !selectedCourseId) {
-        const matchedCourse = cList.find(
+      if (allCoursesRes && allCoursesRes.length > 0 && !selectedCourseId) {
+        const matchedCourse = allCoursesRes.find(
           (c) => c.departmentCode === activeDept || c.code?.startsWith(activeDept)
-        ) || cList[0];
+        ) || allCoursesRes[0];
         setSelectedCourseId(matchedCourse._id || matchedCourse.id);
       }
     } catch (err) {

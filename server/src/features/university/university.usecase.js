@@ -1133,6 +1133,14 @@ export class UniversityUseCase {
     ).length;
     const allMandatoryDone = totalMandatory === 0 || completedMandatory >= totalMandatory;
 
+    // Check enrollment
+    const enrollment = await StudentEnrollmentModel.findOne({
+      studentId,
+      departmentId: course.departmentId,
+      status: { $in: ["ENROLLED", "ACTIVE", "PROMOTED", "GRADUATED"] },
+    });
+    const isEnrolled = Boolean(enrollment);
+
     // Check exam attempts
     const examAttempts = await StudentExamAttemptModel.find({
       studentId,
@@ -1144,6 +1152,7 @@ export class UniversityUseCase {
     const hasPassedExam = examAttempts.some((a) => a.isPassed);
 
     const isExamUnlocked =
+      isEnrolled &&
       allMandatoryDone &&
       course.isExamAvailable &&
       (attemptsCount < maxAttempts || hasPassedExam);
@@ -1167,6 +1176,8 @@ export class UniversityUseCase {
 
     return {
       course,
+      isEnrolled,
+      enrollment: enrollment || null,
       lectures: lecturesWithStatus,
       totalLectures: lectures.length,
       totalMandatory,
@@ -1283,11 +1294,46 @@ export class UniversityUseCase {
     const course = await CourseModel.findById(courseId);
     if (!course) throw new Error("Course not found");
 
+    if (!course.isExamAvailable) {
+      throw new Error("The exam for this course is currently not enabled by the university administration.");
+    }
+
     const student = await UserModel.findById(studentId);
+    if (!student) throw new Error("Student not found.");
+
     const enrollment = await StudentEnrollmentModel.findOne({
       studentId,
       departmentId: course.departmentId,
+      status: { $in: ["ENROLLED", "ACTIVE", "PROMOTED", "GRADUATED"] },
     });
+    if (!enrollment) {
+      throw new Error("Student is not enrolled in this department. Admissions and active enrollment are required to take exams.");
+    }
+
+    // Strict Gate Enforcement:
+    // All mandatory lectures must be watched end-to-end before appearing in the exam
+    const mandatoryLectures = await LectureModel.find({
+      courseId,
+      isMandatory: true,
+      isActive: true,
+    });
+
+    if (mandatoryLectures.length > 0) {
+      const mandatoryIds = mandatoryLectures.map((l) => l._id);
+      const completedProgress = await StudentLectureProgressModel.find({
+        studentId,
+        courseId,
+        lectureId: { $in: mandatoryIds },
+        isCompleted: true,
+      });
+
+      if (completedProgress.length < mandatoryLectures.length) {
+        const remaining = mandatoryLectures.length - completedProgress.length;
+        throw new Error(
+          `Exam access denied: You have ${remaining} incomplete mandatory lecture(s). You must watch all mandatory lectures end-to-end before appearing in the exam.`
+        );
+      }
+    }
 
     const existingAttempts = await StudentExamAttemptModel.find({
       studentId,
