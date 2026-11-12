@@ -20,6 +20,7 @@ import {
 } from "@mantine/core";
 import { IconPlus, IconTrash, IconBook, IconVideo } from "@tabler/icons-react";
 import { universityApi } from "../api/universityApi";
+import { modals } from "@mantine/modals";
 
 export function SuperUserCourseManager() {
   const [courses, setCourses] = useState([]);
@@ -58,7 +59,18 @@ export function SuperUserCourseManager() {
   const handleAddLecture = async (e) => {
     e.preventDefault();
     if (!selectedCourseId || !topicName || !lectureName) {
-      alert("Please fill in all required fields.");
+      modals.open({
+        title: "Required Fields Missing",
+        centered: true,
+        children: (
+          <Stack gap="sm">
+            <Text size="sm">Please fill in all required fields (Topic Name, Lecture Title).</Text>
+            <Button fullWidth variant="light" onClick={() => modals.closeAll()}>
+              Close
+            </Button>
+          </Stack>
+        ),
+      });
       return;
     }
 
@@ -74,27 +86,65 @@ export function SuperUserCourseManager() {
       setLectureName("");
       setDurationMinutes(30);
       await fetchCourses();
-      alert("Lecture added successfully!");
+      modals.open({
+        title: "Success",
+        centered: true,
+        children: (
+          <Stack gap="sm">
+            <Text size="sm">Lecture added successfully!</Text>
+            <Button fullWidth color="teal" variant="light" onClick={() => modals.closeAll()}>
+              OK
+            </Button>
+          </Stack>
+        ),
+      });
     } catch (err) {
-      alert(
-        "Failed to add lecture: " + (err.response?.data?.error || err.message),
-      );
+      modals.open({
+        title: "Error Adding Lecture",
+        centered: true,
+        children: (
+          <Stack gap="sm">
+            <Text size="sm">Failed to add lecture: {err.response?.data?.error || err.message}</Text>
+            <Button fullWidth color="red" variant="light" onClick={() => modals.closeAll()}>
+              Close
+            </Button>
+          </Stack>
+        ),
+      });
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDeleteLecture = async (courseId, lectureId) => {
-    if (!confirm("Are you sure you want to delete this lecture?")) return;
-    try {
-      await universityApi.deleteLecture(courseId, lectureId);
-      await fetchCourses();
-    } catch (err) {
-      alert(
-        "Failed to delete lecture: " +
-          (err.response?.data?.error || err.message),
-      );
-    }
+    modals.openConfirmModal({
+      title: "Delete Lecture",
+      centered: true,
+      children: (
+        <Text size="sm">Are you sure you want to delete this lecture? This action cannot be undone.</Text>
+      ),
+      labels: { confirm: "Delete Lecture", cancel: "Cancel" },
+      confirmProps: { color: "red" },
+      onConfirm: async () => {
+        try {
+          await universityApi.deleteLecture(courseId, lectureId);
+          await fetchCourses();
+        } catch (err) {
+          modals.open({
+            title: "Error Deleting Lecture",
+            centered: true,
+            children: (
+              <Stack gap="sm">
+                <Text size="sm">Failed to delete lecture: {err.response?.data?.error || err.message}</Text>
+                <Button fullWidth color="red" variant="light" onClick={() => modals.closeAll()}>
+                  Close
+                </Button>
+              </Stack>
+            ),
+          });
+        }
+      },
+    });
   };
 
   if (loading) {
