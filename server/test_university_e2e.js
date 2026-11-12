@@ -697,6 +697,172 @@ async function runUniversityE2ETest() {
     console.log();
 
     // -------------------------------------------------------------------------
+    // STEP 9: BULK BATCH PROMOTION ENGINE & AUDIT PREVIEW
+    // -------------------------------------------------------------------------
+    console.log(">>> [STEP 9] Testing Bulk Batch Promotion Engine & Audit Preview...");
+
+    // In Urdu track (QGU), Student 2 (Zainab) will complete all courses and exams in Semester 1.
+    // Student 3 (Bilal) has NOT completed courses in Semester 1.
+    console.log("\nSimulating full completion of QGU Semester 1 courses for Student 2 (Zainab)...");
+    const sem1CoursesQGU = await CourseModel.find({
+      departmentId: deptQGU._id,
+      semesterId: sem1QGU._id,
+      isActive: { $ne: false },
+    }).populate("examQuizId");
+
+    for (const semCourse of sem1CoursesQGU) {
+      const courseLectures = await LectureModel.find({ courseId: semCourse._id, isActive: true });
+      const mandatoryCourseLecs = courseLectures.filter((l) => l.isMandatory !== false);
+
+      for (const mLec of mandatoryCourseLecs) {
+        const dur = mLec.durationSeconds || 1800;
+        await UniversityUseCase.updateLectureWatchProgress({
+          studentId: student2._id,
+          courseId: semCourse._id,
+          lectureId: mLec._id,
+          watchedSeconds: dur,
+          totalDurationSeconds: dur,
+          markComplete: true,
+        });
+      }
+
+      if (semCourse.isExamAvailable && semCourse.examQuizId) {
+        await UniversityUseCase.submitExamAttempt({
+          studentId: student2._id,
+          courseId: semCourse._id,
+          quizId: semCourse.examQuizId._id,
+          score: 88,
+          maxScore: 100,
+        });
+      }
+    }
+    console.log(`✓ Completed all Semester 1 courses & exams for Student 2 (Zainab).`);
+
+    // 9.1 Dry-Run Audit on Batch 2026 (QGU)
+    console.log("\nRunning Dry-Run Audit Preview on QGU Batch 2026...");
+    const dryRunResult = await UniversityUseCase.bulkPromoteBatch({
+      batchYear: 2026,
+      departmentId: deptQGU._id,
+      currentSemesterNumber: 1,
+      dryRun: true,
+    });
+    console.log(`Dry-Run Audit Result: Evaluated=${dryRunResult.totalEvaluated}, Eligible=${dryRunResult.eligibleCount}, HeldBack=${dryRunResult.heldBackCount}`);
+
+    const dryRunEligibleZainab = dryRunResult.eligibleStudents.some((s) => s.studentId.toString() === student2._id.toString());
+    const dryRunHeldBackBilal = dryRunResult.heldBackStudents.find((s) => s.studentId.toString() === student3._id.toString());
+
+    // Verify database was NOT changed during dry-run
+    const unpromotedZainabEnroll = await StudentEnrollmentModel.findById(enroll2._id);
+    const hasUncommittedCert = await CertificateModel.findOne({
+      studentId: student2._id,
+      type: "SEMESTER",
+      semesterNumber: 1,
+    });
+
+    if (
+      dryRunResult.eligibleCount === 1 &&
+      dryRunEligibleZainab &&
+      dryRunHeldBackBilal &&
+      dryRunHeldBackBilal.reasons.length > 0 &&
+      unpromotedZainabEnroll.currentSemesterNumber === 1 &&
+      !hasUncommittedCert
+    ) {
+      auditLog.passed.push("Bulk Promotion Dry-Run: Successfully segregated eligible vs held-back students with zero DB mutations.");
+      console.log("✓ PASS: Dry-Run audit accurately identified eligible and held-back students without modifying database!");
+    } else {
+      auditLog.failed.push("Bulk Promotion Dry-Run failed to properly audit cohort or mutated DB during dry-run.");
+      console.log("✗ FAIL: Dry-Run audit failed expectations.");
+    }
+
+    // 9.2 Non-Existent Target Semester Guard
+    console.log("\nTesting Non-Existent Target Semester Guard...");
+    let nonExistentSemBlocked = false;
+    try {
+      await UniversityUseCase.bulkPromoteBatch({
+        batchYear: 2026,
+        departmentId: deptQGU._id,
+        currentSemesterNumber: 99, // Does not exist
+        dryRun: false,
+      });
+    } catch (err) {
+      nonExistentSemBlocked = true;
+      console.log(`✓ PASS: Bulk promotion to invalid semester blocked: "${err.message}"`);
+      auditLog.passed.push("Bulk Promotion Gate: Blocked execution when target semester does not exist in SemesterModel.");
+    }
+    if (!nonExistentSemBlocked) {
+      auditLog.derailments.push("Bulk promotion executed without verifying that target semester exists!");
+    }
+
+    // 9.3 Execute Bulk Batch Promotion (dryRun: false)
+    console.log("\nExecuting Live Bulk Batch Promotion for QGU Batch 2026...");
+    const execResult = await UniversityUseCase.bulkPromoteBatch({
+      batchYear: 2026,
+      departmentId: deptQGU._id,
+      currentSemesterNumber: 1,
+      dryRun: false,
+    });
+    console.log(`Live Execution Result: Promoted=${execResult.promotedStudents?.length || execResult.eligibleCount}, HeldBack=${execResult.heldBackCount}`);
+
+    const promotedZainabEnroll = await StudentEnrollmentModel.findById(enroll2._id);
+    const heldBackBilalEnroll = await StudentEnrollmentModel.findById(enroll3QGU._id);
+    const zainabCert = await CertificateModel.findOne({
+      studentId: student2._id,
+      departmentId: deptQGU._id,
+      type: "SEMESTER",
+    });
+    const bilalCert = await CertificateModel.findOne({
+      studentId: student3._id,
+      departmentId: deptQGU._id,
+      type: "SEMESTER",
+    });
+
+    if (
+      execResult.promotedStudents.length === 1 &&
+      execResult.heldBackCount === 1 &&
+      promotedZainabEnroll.currentSemesterNumber === 2 &&
+      promotedZainabEnroll.status === "PROMOTED" &&
+      zainabCert &&
+      heldBackBilalEnroll.currentSemesterNumber === 1 &&
+      ["ACTIVE", "ENROLLED"].includes(heldBackBilalEnroll.status) &&
+      !bilalCert
+    ) {
+      auditLog.passed.push("Bulk Promotion Engine: Atomically advanced passing students, awarded semester certificates, and preserved held-back students.");
+      console.log("✓ PASS: Bulk Promotion live execution succeeded with 1 promoted + 1 held back and automatic certificate!");
+    } else {
+      auditLog.failed.push("Bulk Promotion Engine execution failed to advance or hold back students correctly.");
+      console.log("✗ FAIL: Bulk Promotion live execution failed expectations.");
+    }
+    console.log();
+
+    // -------------------------------------------------------------------------
+    // STEP 10: ADMINISTRATIVE REMOVAL & STATUS MANAGEMENT
+    // -------------------------------------------------------------------------
+    console.log(">>> [STEP 10] Testing Administrative Status Management & Enrollment Removal...");
+
+    // Test updating enrollment status to 'SUSPENDED'
+    const suspendedEnroll = await UniversityUseCase.updateEnrollmentStatus(enroll5._id, "SUSPENDED");
+    console.log(`✓ Super Admin updated Student 5 enrollment status: ${suspendedEnroll.status}`);
+
+    if (suspendedEnroll.status === "SUSPENDED") {
+      auditLog.passed.push("Admin Status Control: Super admin can update student enrollment status (e.g. SUSPENDED/DROPPED).");
+    } else {
+      auditLog.failed.push("Admin Status Control: Failed to update enrollment status.");
+    }
+
+    // Test deleting enrollment (e.g., student expelled or removed by super user)
+    const deleteResult = await UniversityUseCase.deleteEnrollment(enroll5._id);
+    console.log(`✓ Super Admin deleted Student 5 enrollment: success=${deleteResult.success}`);
+
+    const deletedEnrollCheck = await StudentEnrollmentModel.findById(enroll5._id);
+    if (deleteResult.success && !deletedEnrollCheck) {
+      auditLog.passed.push("Admin Enrollment Removal: Super admin can remove a student from a semester/enrollment.");
+      console.log("✓ PASS: Student enrollment cleanly removed by administrator!");
+    } else {
+      auditLog.failed.push("Admin Enrollment Removal: Failed to cleanly delete student enrollment.");
+    }
+    console.log();
+
+    // -------------------------------------------------------------------------
     // SUMMARY OF FINDINGS
     // -------------------------------------------------------------------------
     console.log("===============================================================================");

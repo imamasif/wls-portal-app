@@ -1530,6 +1530,21 @@ export class UniversityUseCase {
     dryRun = false,
   }) {
     const semNum = Number(currentSemesterNumber) || 1;
+    const targetSemNumber = semNum + 1;
+
+    // Upfront Gating: If departmentId is provided, verify target semester exists before processing
+    if (departmentId && mongoose.Types.ObjectId.isValid(departmentId)) {
+      const targetSem = await SemesterModel.findOne({
+        departmentId,
+        semesterNumber: targetSemNumber,
+      });
+      if (!targetSem) {
+        throw new Error(
+          `Target Semester ${targetSemNumber} has not been created yet by the Super User. Please create Semester ${targetSemNumber} before promoting students.`
+        );
+      }
+    }
+
     const query = {
       status: { $in: ["ACTIVE", "ENROLLED", "PROMOTED"] },
       currentSemesterNumber: semNum,
