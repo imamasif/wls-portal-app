@@ -180,6 +180,11 @@ export const universityApi = {
     return res.data?.data || res.data;
   },
 
+  bulkPromoteBatch: async (payload) => {
+    const res = await axios.post(`${API_BASE}/batches/bulk-promote`, payload);
+    return res.data?.data || res.data;
+  },
+
   // 8. Student Lecture Progress & Anti-Cheat
   getStudentCourseProgress: async (studentId, courseId) => {
     const res = await axios.get(

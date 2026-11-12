@@ -1519,6 +1519,195 @@ export class UniversityUseCase {
     };
   }
 
+  // =========================================================================
+  // 9b. BULK BATCH PROMOTION & AUDIT (COHORT PROGRESSION)
+  // =========================================================================
+  static async bulkPromoteBatch({
+    batchId,
+    batchYear,
+    departmentId,
+    currentSemesterNumber = 1,
+    dryRun = false,
+  }) {
+    const semNum = Number(currentSemesterNumber) || 1;
+    const query = {
+      status: { $in: ["ACTIVE", "ENROLLED", "PROMOTED"] },
+      currentSemesterNumber: semNum,
+    };
+
+    if (batchId && mongoose.Types.ObjectId.isValid(batchId)) {
+      query.batchId = batchId;
+    } else if (batchYear) {
+      query.batchYear = Number(batchYear);
+    }
+
+    if (departmentId && mongoose.Types.ObjectId.isValid(departmentId)) {
+      query.departmentId = departmentId;
+    }
+
+    const enrollments = await StudentEnrollmentModel.find(query)
+      .populate("studentId", "name email")
+      .populate("departmentId", "name code totalSemesters")
+      .populate("batchId", "name year");
+
+    const eligibleStudents = [];
+    const promotedStudents = [];
+    const heldBackStudents = [];
+
+    for (const en of enrollments) {
+      const sId = en.studentId?._id || en.studentId;
+      const dId = en.departmentId?._id || en.departmentId;
+      const deptName = en.departmentId?.name || "Department";
+      const deptCode = en.departmentId?.code || "DEPT";
+      const studentName = en.studentName || en.studentId?.name || "Student";
+      const studentEmail = en.studentEmail || en.studentId?.email || "";
+      const rollNumber = en.rollNumber;
+      const currentSem = en.currentSemesterNumber || semNum;
+      const nextSemNumber = currentSem + 1;
+
+      const reasons = [];
+
+      // 1. Check if Target Next Semester exists (Created by Super User)
+      const nextSem = await SemesterModel.findOne({
+        departmentId: dId,
+        semesterNumber: nextSemNumber,
+      });
+
+      if (!nextSem) {
+        reasons.push(
+          `Target Semester ${nextSemNumber} has not been created yet by the Super User for ${deptCode}.`
+        );
+      }
+
+      // 2. Check all active courses in current semester
+      const currentSemDoc = await SemesterModel.findOne({
+        departmentId: dId,
+        semesterNumber: currentSem,
+      });
+
+      const currentCourses = currentSemDoc
+        ? await CourseModel.find({
+            departmentId: dId,
+            semesterId: currentSemDoc._id,
+            isActive: { $ne: false },
+          })
+        : [];
+
+      if (currentCourses.length === 0) {
+        reasons.push(
+          `No active curriculum courses found for Semester ${currentSem} in ${deptCode}.`
+        );
+      } else {
+        for (const course of currentCourses) {
+          // Check mandatory lectures
+          const mandatoryLectures = await LectureModel.find({
+            courseId: course._id,
+            isMandatory: { $ne: false },
+            isActive: { $ne: false },
+          });
+
+          if (mandatoryLectures.length > 0) {
+            const completedCount = await StudentLectureProgressModel.countDocuments({
+              studentId: sId,
+              courseId: course._id,
+              lectureId: { $in: mandatoryLectures.map((l) => l._id) },
+              isCompleted: true,
+            });
+
+            if (completedCount < mandatoryLectures.length) {
+              reasons.push(
+                `"${course.title}" (${course.code}): Incomplete mandatory lectures (${completedCount}/${mandatoryLectures.length} completed)`
+              );
+              continue;
+            }
+          }
+
+          // Check exam requirement
+          if (course.isExamAvailable && course.examQuizId) {
+            const passedAttempt = await StudentExamAttemptModel.findOne({
+              studentId: sId,
+              courseId: course._id,
+              isPassed: true,
+            });
+
+            if (!passedAttempt) {
+              reasons.push(
+                `"${course.title}" (${course.code}): Final exam not passed`
+              );
+            }
+          }
+        }
+      }
+
+      // 3. Evaluate eligibility
+      if (reasons.length === 0) {
+        if (!dryRun) {
+          try {
+            const promo = await this.promoteStudent(sId, dId);
+            promotedStudents.push({
+              studentId: sId,
+              studentName,
+              studentEmail,
+              rollNumber,
+              departmentCode: deptCode,
+              departmentName: deptName,
+              fromSemester: currentSem,
+              toSemester: promo.nextSemesterNumber || nextSemNumber,
+              status: promo.status || "PROMOTED",
+            });
+          } catch (pErr) {
+            heldBackStudents.push({
+              studentId: sId,
+              studentName,
+              studentEmail,
+              rollNumber,
+              departmentCode: deptCode,
+              departmentName: deptName,
+              currentSemester: currentSem,
+              reasons: [pErr.message],
+            });
+          }
+        } else {
+          eligibleStudents.push({
+            studentId: sId,
+            studentName,
+            studentEmail,
+            rollNumber,
+            departmentCode: deptCode,
+            departmentName: deptName,
+            fromSemester: currentSem,
+            toSemester: nextSemNumber,
+            status: "ELIGIBLE",
+          });
+        }
+      } else {
+        heldBackStudents.push({
+          studentId: sId,
+          studentName,
+          studentEmail,
+          rollNumber,
+          departmentCode: deptCode,
+          departmentName: deptName,
+          currentSemester: currentSem,
+          reasons,
+        });
+      }
+    }
+
+    return {
+      totalEvaluated: enrollments.length,
+      eligibleCount: dryRun ? eligibleStudents.length : promotedStudents.length,
+      heldBackCount: heldBackStudents.length,
+      promotedStudents,
+      eligibleStudents,
+      heldBackStudents,
+      dryRun,
+      batchYear: batchYear || (enrollments[0]?.batchYear ?? 2026),
+      currentSemesterNumber: semNum,
+      targetSemesterNumber: semNum + 1,
+    };
+  }
+
   static async awardCertificate({
     studentId,
     departmentId,

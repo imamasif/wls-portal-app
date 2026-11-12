@@ -82,6 +82,8 @@ router.post("/enrollments/quick-create-and-enroll", UniversityController.quickCr
 router.patch("/enrollments/:id/status", UniversityController.updateEnrollmentStatus);
 router.delete("/enrollments/:id", UniversityController.deleteEnrollment);
 router.post("/enrollments/promote", UniversityController.promoteStudent);
+router.post("/batches/bulk-promote", UniversityController.bulkPromoteBatch);
+router.post("/enrollments/bulk-promote", UniversityController.bulkPromoteBatch);
 
 // Student Watch Progress & Anti-Cheat
 router.get("/progress/student/:studentId/course/:courseId", UniversityController.getStudentCourseProgress);

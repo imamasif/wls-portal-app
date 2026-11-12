@@ -395,6 +395,22 @@ export class UniversityController {
     }
   }
 
+  static async bulkPromoteBatch(req, res, next) {
+    try {
+      const { batchId, batchYear, departmentId, currentSemesterNumber, dryRun } = req.body;
+      const result = await UniversityUseCase.bulkPromoteBatch({
+        batchId,
+        batchYear,
+        departmentId,
+        currentSemesterNumber: Number(currentSemesterNumber) || 1,
+        dryRun: dryRun === true || dryRun === "true",
+      });
+      res.status(200).json({ success: true, data: result });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   // =========================================================================
   // 7. STUDENT PROGRESS & ANTI-CHEAT VIDEO WATCHING
   // =========================================================================

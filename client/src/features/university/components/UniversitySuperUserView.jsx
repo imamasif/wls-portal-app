@@ -118,6 +118,69 @@ export function UniversitySuperUserView({ currentUser }) {
   const [filterBatchId, setFilterBatchId] = useState("");
   const [selectedEnrollBatchId, setSelectedEnrollBatchId] = useState("");
 
+  // Bulk Batch Promotion Modal States
+  const [bulkPromoteModalOpened, setBulkPromoteModalOpened] = useState(false);
+  const [bulkBatchId, setBulkBatchId] = useState("");
+  const [bulkDeptId, setBulkDeptId] = useState("");
+  const [bulkCurrentSem, setBulkCurrentSem] = useState(1);
+  const [bulkEvaluating, setBulkEvaluating] = useState(false);
+  const [bulkExecuting, setBulkExecuting] = useState(false);
+  const [bulkAuditResult, setBulkAuditResult] = useState(null);
+
+  const handleRunBulkAudit = async () => {
+    if (!bulkBatchId) {
+      showNotification("Please select a target Batch cohort to audit.", "error");
+      return;
+    }
+    setBulkEvaluating(true);
+    setBulkAuditResult(null);
+    try {
+      const res = await universityApi.bulkPromoteBatch({
+        batchId: bulkBatchId || undefined,
+        departmentId: bulkDeptId || undefined,
+        currentSemesterNumber: Number(bulkCurrentSem) || 1,
+        dryRun: true,
+      });
+      const data = res.data || res;
+      setBulkAuditResult(data);
+      showNotification(
+        `Audit complete: ${data.eligibleCount} eligible for promotion, ${data.heldBackCount} held back.`
+      );
+    } catch (err) {
+      showNotification(err.response?.data?.message || err.message, "error");
+    } finally {
+      setBulkEvaluating(false);
+    }
+  };
+
+  const handleExecuteBulkPromote = async () => {
+    setBulkExecuting(true);
+    try {
+      const res = await universityApi.bulkPromoteBatch({
+        batchId: bulkBatchId || undefined,
+        departmentId: bulkDeptId || undefined,
+        currentSemesterNumber: Number(bulkCurrentSem) || 1,
+        dryRun: false,
+      });
+      const data = res.data || res;
+      setBulkAuditResult(data);
+      showNotification(
+        `Batch promotion successful! ${data.promotedStudents?.length || 0} students promoted to Semester ${data.targetSemesterNumber}. Certificates issued!`
+      );
+      // Reload enrollments and certificates
+      const [enrolls, certs] = await Promise.all([
+        universityApi.getEnrollments(),
+        universityApi.getCertificates(),
+      ]);
+      setEnrollments(enrolls || []);
+      setCertificates(certs || []);
+    } catch (err) {
+      showNotification(err.response?.data?.message || err.message, "error");
+    } finally {
+      setBulkExecuting(false);
+    }
+  };
+
 
   // Department Deletion Safety & Eligibility Modal States
   const [deleteDeptModalOpened, setDeleteDeptModalOpened] = useState(false);
@@ -1984,14 +2047,31 @@ export function UniversitySuperUserView({ currentUser }) {
                 </Text>
               </Stack>
 
-              <Button
-                leftSection={<IconPlus size={16} />}
-                color="indigo"
-                size="xs"
-                onClick={() => setEnrollModalOpened(true)}
-              >
-                Enroll New Student
-              </Button>
+              <Group gap="xs">
+                <Button
+                  leftSection={<IconAward size={16} />}
+                  color="teal"
+                  variant="light"
+                  size="xs"
+                  onClick={() => {
+                    setBulkAuditResult(null);
+                    if (batches.length > 0 && !bulkBatchId) {
+                      setBulkBatchId(String(batches[0]._id || batches[0].id));
+                    }
+                    setBulkPromoteModalOpened(true);
+                  }}
+                >
+                  Bulk Promote Batch
+                </Button>
+                <Button
+                  leftSection={<IconPlus size={16} />}
+                  color="indigo"
+                  size="xs"
+                  onClick={() => setEnrollModalOpened(true)}
+                >
+                  Enroll New Student
+                </Button>
+              </Group>
             </Group>
 
             {enrollments.length === 0 ? (
@@ -3537,6 +3617,266 @@ export function UniversitySuperUserView({ currentUser }) {
           <Button fullWidth mt="md" color="indigo" onClick={handleSaveBatch} loading={savingBatch}>
             Create Batch & Instantiate Curriculum
           </Button>
+        </Stack>
+      </Modal>
+
+      {/* MODAL: BULK BATCH PROMOTION */}
+      <Modal
+        opened={bulkPromoteModalOpened}
+        onClose={() => setBulkPromoteModalOpened(false)}
+        title={
+          <Group gap="xs">
+            <ThemeIcon color="teal" variant="light" size="lg" radius="md">
+              <IconAward size={20} />
+            </ThemeIcon>
+            <div>
+              <Text fw={700} size="md">
+                Bulk Batch Semester Promotion
+              </Text>
+              <Text size="xs" c="dimmed">
+                Automated academic progression audit & mass promotion with official certification
+              </Text>
+            </div>
+          </Group>
+        }
+        size="xl"
+        radius="md"
+      >
+        <Stack gap="md">
+          <Alert color="teal" variant="light" radius="md">
+            <Text size="xs">
+              <strong>University Cohort Progression Rule:</strong> The audit engine evaluates every student in this batch against 100% of mandatory lectures and required course exams for their current semester. Students who pass all courses are advanced to the next semester and awarded official completion certificates. Ineligible students are safely held back to repeat without disrupting the cohort.
+            </Text>
+          </Alert>
+
+          <Paper p="sm" withBorder radius="md" bg="gray.0">
+            <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
+              <Select
+                label="Target Batch Cohort *"
+                placeholder="Select Batch"
+                required
+                data={dedupeSelectData(
+                  batches.map((b) => ({
+                    value: String(b._id || b.id),
+                    label: `${b.name || `Batch ${b.year}`} (${b.year})`,
+                  }))
+                )}
+                value={bulkBatchId}
+                onChange={(val) => {
+                  setBulkBatchId(val);
+                  setBulkAuditResult(null);
+                }}
+              />
+
+              <Select
+                label="Department Filter"
+                placeholder="All Departments in Batch"
+                data={dedupeSelectData([
+                  { value: "", label: "All Departments" },
+                  ...departments.map((d) => ({
+                    value: String(d._id || d.id),
+                    label: `${d.code} - ${d.name}`,
+                  })),
+                ])}
+                value={bulkDeptId}
+                onChange={(val) => {
+                  setBulkDeptId(val || "");
+                  setBulkAuditResult(null);
+                }}
+                clearable
+              />
+
+              <Select
+                label="Current Semester to Promote From *"
+                required
+                data={[
+                  { value: "1", label: "Semester 1 → Semester 2" },
+                  { value: "2", label: "Semester 2 → Semester 3" },
+                  { value: "3", label: "Semester 3 → Semester 4" },
+                  { value: "4", label: "Semester 4 → Semester 5" },
+                  { value: "5", label: "Semester 5 → Semester 6" },
+                  { value: "6", label: "Semester 6 → Semester 7" },
+                  { value: "7", label: "Semester 7 → Semester 8" },
+                  { value: "8", label: "Semester 8 → Graduation" },
+                ]}
+                value={String(bulkCurrentSem)}
+                onChange={(val) => {
+                  setBulkCurrentSem(Number(val) || 1);
+                  setBulkAuditResult(null);
+                }}
+              />
+            </SimpleGrid>
+
+            <Group justify="flex-end" mt="sm">
+              <Button
+                leftSection={<IconChecklist size={16} />}
+                color="indigo"
+                onClick={handleRunBulkAudit}
+                loading={bulkEvaluating}
+              >
+                Run Academic Audit & Preview
+              </Button>
+            </Group>
+          </Paper>
+
+          {/* AUDIT RESULTS PREVIEW */}
+          {bulkAuditResult && (
+            <Stack gap="sm">
+              <Group grow>
+                <Card withBorder radius="md" p="sm" bg="teal.0">
+                  <Group justify="space-between">
+                    <div>
+                      <Text size="xs" c="teal.9" fw={600}>
+                        ELIGIBLE FOR PROMOTION
+                      </Text>
+                      <Title order={3} c="teal.8">
+                        {bulkAuditResult.eligibleCount || bulkAuditResult.promotedStudents?.length || 0} Students
+                      </Title>
+                      <Text size="xs" c="teal.7">
+                        Passed 100% mandatory courses & exams
+                      </Text>
+                    </div>
+                    <ThemeIcon color="teal" size="xl" radius="xl">
+                      <IconCircleCheck size={28} />
+                    </ThemeIcon>
+                  </Group>
+                </Card>
+
+                <Card withBorder radius="md" p="sm" bg={bulkAuditResult.heldBackCount > 0 ? "orange.0" : "gray.0"}>
+                  <Group justify="space-between">
+                    <div>
+                      <Text size="xs" c={bulkAuditResult.heldBackCount > 0 ? "orange.9" : "dimmed"} fw={600}>
+                        INELIGIBLE / HELD BACK
+                      </Text>
+                      <Title order={3} c={bulkAuditResult.heldBackCount > 0 ? "orange.8" : "gray.6"}>
+                        {bulkAuditResult.heldBackCount || 0} Students
+                      </Title>
+                      <Text size="xs" c="dimmed">
+                        Incomplete lectures or failed exams
+                      </Text>
+                    </div>
+                    <ThemeIcon color={bulkAuditResult.heldBackCount > 0 ? "orange" : "gray"} size="xl" radius="xl">
+                      <IconAlertTriangle size={28} />
+                    </ThemeIcon>
+                  </Group>
+                </Card>
+              </Group>
+
+              {/* LIST OF ELIGIBLE */}
+              {(bulkAuditResult.eligibleStudents?.length > 0 || bulkAuditResult.promotedStudents?.length > 0) && (
+                <Paper withBorder p="sm" radius="md">
+                  <Text size="xs" fw={700} c="teal.8" mb="xs">
+                    ✓ {bulkAuditResult.dryRun ? "Eligible Students (Ready to Promote)" : "Successfully Promoted Students"}:
+                  </Text>
+                  <Table.ScrollContainer minWidth={500}>
+                    <Table verticalSpacing="xs" striped highlightOnHover>
+                      <Table.Thead>
+                        <Table.Tr>
+                          <Table.Th>Roll Number</Table.Th>
+                          <Table.Th>Student</Table.Th>
+                          <Table.Th>Dept</Table.Th>
+                          <Table.Th>Progression</Table.Th>
+                          <Table.Th>Status</Table.Th>
+                        </Table.Tr>
+                      </Table.Thead>
+                      <Table.Tbody>
+                        {(bulkAuditResult.dryRun ? bulkAuditResult.eligibleStudents : bulkAuditResult.promotedStudents).map((s) => (
+                          <Table.Tr key={s.studentId}>
+                            <Table.Td>
+                              <Badge size="xs" color="indigo">{s.rollNumber}</Badge>
+                            </Table.Td>
+                            <Table.Td>
+                              <Text size="xs" fw={600}>{s.studentName}</Text>
+                              <Text size="xs" c="dimmed">{s.studentEmail}</Text>
+                            </Table.Td>
+                            <Table.Td>
+                              <Badge size="xs" variant="light">{s.departmentCode}</Badge>
+                            </Table.Td>
+                            <Table.Td>
+                              <Badge size="xs" color="teal" variant="outline">
+                                Sem {s.fromSemester} → Sem {s.toSemester}
+                              </Badge>
+                            </Table.Td>
+                            <Table.Td>
+                              <Badge size="xs" color="teal">
+                                {bulkAuditResult.dryRun ? "READY TO PROMOTE" : "PROMOTED"}
+                              </Badge>
+                            </Table.Td>
+                          </Table.Tr>
+                        ))}
+                      </Table.Tbody>
+                    </Table>
+                  </Table.ScrollContainer>
+                </Paper>
+              )}
+
+              {/* LIST OF HELD BACK */}
+              {bulkAuditResult.heldBackStudents?.length > 0 && (
+                <Paper withBorder p="sm" radius="md">
+                  <Text size="xs" fw={700} c="orange.9" mb="xs">
+                    ⚠️ Held Back Students (Incomplete Requirements):
+                  </Text>
+                  <Table.ScrollContainer minWidth={500}>
+                    <Table verticalSpacing="xs">
+                      <Table.Thead>
+                        <Table.Tr>
+                          <Table.Th>Roll Number</Table.Th>
+                          <Table.Th>Student</Table.Th>
+                          <Table.Th>Dept</Table.Th>
+                          <Table.Th>Current Sem</Table.Th>
+                          <Table.Th>Unfulfilled Academic Requirements</Table.Th>
+                        </Table.Tr>
+                      </Table.Thead>
+                      <Table.Tbody>
+                        {bulkAuditResult.heldBackStudents.map((s) => (
+                          <Table.Tr key={s.studentId}>
+                            <Table.Td>
+                              <Badge size="xs" color="gray">{s.rollNumber}</Badge>
+                            </Table.Td>
+                            <Table.Td>
+                              <Text size="xs" fw={600}>{s.studentName}</Text>
+                              <Text size="xs" c="dimmed">{s.studentEmail}</Text>
+                            </Table.Td>
+                            <Table.Td>
+                              <Badge size="xs" variant="outline">{s.departmentCode}</Badge>
+                            </Table.Td>
+                            <Table.Td>
+                              <Badge size="xs" color="orange" variant="light">
+                                Sem {s.currentSemester} (Held Back)
+                              </Badge>
+                            </Table.Td>
+                            <Table.Td>
+                              <Stack gap={2}>
+                                {s.reasons.map((r, i) => (
+                                  <Text key={i} size="xs" c="red.7">
+                                    • {r}
+                                  </Text>
+                                ))}
+                              </Stack>
+                            </Table.Td>
+                          </Table.Tr>
+                        ))}
+                      </Table.Tbody>
+                    </Table>
+                  </Table.ScrollContainer>
+                </Paper>
+              )}
+
+              {/* EXECUTE ACTION BUTTON */}
+              {bulkAuditResult.dryRun && bulkAuditResult.eligibleCount > 0 && (
+                <Button
+                  fullWidth
+                  size="md"
+                  color="teal"
+                  leftSection={<IconAward size={20} />}
+                  onClick={handleExecuteBulkPromote}
+                  loading={bulkExecuting}
+                >
+                  Confirm & Promote {bulkAuditResult.eligibleCount} Eligible Student(s) to Semester {bulkAuditResult.targetSemesterNumber}
+                </Button>
+              )}
+            </Stack>
+          )}
         </Stack>
       </Modal>
 
