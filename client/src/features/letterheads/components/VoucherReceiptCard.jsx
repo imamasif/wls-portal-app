@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Paper,
   Title,
@@ -24,6 +24,7 @@ import {
   LoadingOverlay,
   Card,
   Image,
+  SimpleGrid,
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import {
@@ -36,12 +37,10 @@ import {
   IconPlus,
   IconTrash,
   IconBuildingBank,
-  IconBuildingSkyscraper,
   IconPhoto,
   IconCheck,
   IconAlertCircle,
   IconMailDollar,
-  IconCalendar,
   IconExternalLink,
   IconSearch,
   IconRefresh,
@@ -50,6 +49,7 @@ import {
   IconEye,
   IconClipboardCheck,
   IconClearAll,
+  IconReceipt,
 } from '@tabler/icons-react';
 import { voucherApi } from '../api/voucherApi';
 import { scanVoucherFile } from '../utils/voucherFileScanner';
@@ -98,6 +98,8 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
       unitPrice: 0,
       amount: 0,
       taxable: true,
+      receiptNumber: 1,
+      receiptTitle: 'Receipt 1',
     },
   ]);
 
@@ -109,65 +111,15 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
   // Notes & terms
   const [termsNotes, setTermsNotes] = useState('');
 
-  // Reset / Clear Form to start from beginning
-  const handleClearForm = () => {
-    setVoucherId(null);
-    setVoucherType('PAYMENT_VOUCHER');
-    setVoucherNumber(`VCH-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`);
-    setIssueDate(new Date());
-    setDueDate(null);
-    setTitle('');
-    setLetterheadType('iipc');
-    setCustomLogoUrl('');
-    setCustomLogoFileName('');
-    setShowDirectUrlInput(false);
-
-    // Clear Payee
-    setPayeeName('');
-    setPayeeEmail('');
-    setPayeeEmtEmail('');
-    setPayeePhone('');
-    setPayeeAddress('');
-    setPayeeGstHst('');
-
-    // Reset Payer
-    setPayerName('');
-    setPayerCompany('IIPC Canada');
-    setPayerAddress('132 main st south, Rockwood ON n0b 2k0');
-    setPayerEmail('info@iipc.ca');
-
-    // Fresh blank line item
-    setItems([
-      {
-        id: Date.now(),
-        description: '',
-        quantity: 1,
-        unitPrice: 0,
-        amount: 0,
-        taxable: true,
-      },
-    ]);
-
-    setApplyTax(true);
-    setTaxRate(13.0);
-    setTaxType('HST');
-    setTermsNotes('');
-
-    setReceiptImageUrl(null);
-    setReceiptFile(null);
-    setGeneratedPdfUrl('');
-    setGeneratedDocxUrl('');
-    setDriveResultLink('');
-    setErrorMsg('');
-    setSuccessMsg('Form cleared! Ready to create a new voucher / receipt.');
-
-    if (fileInputRef.current) fileInputRef.current.value = '';
-    if (logoFileInputRef.current) logoFileInputRef.current.value = '';
-  };
-
-  // Attached receipt preview & file
+  // Attached receipts collection (Multiple receipts support)
+  const [receiptFiles, setReceiptFiles] = useState([]);
   const [receiptImageUrl, setReceiptImageUrl] = useState(null);
   const [receiptFile, setReceiptFile] = useState(null);
+
+  // Receipt image modal preview
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [modalImageSrc, setModalImageSrc] = useState('');
+  const [modalImageTitle, setModalImageTitle] = useState('');
 
   // Generated document links
   const [generatedPdfUrl, setGeneratedPdfUrl] = useState('');
@@ -211,6 +163,66 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
     }
   };
 
+  // Reset / Clear Form to start from beginning
+  const handleClearForm = () => {
+    setVoucherId(null);
+    setVoucherType('PAYMENT_VOUCHER');
+    setVoucherNumber(`VCH-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`);
+    setIssueDate(new Date());
+    setDueDate(null);
+    setTitle('');
+    setLetterheadType('iipc');
+    setCustomLogoUrl('');
+    setCustomLogoFileName('');
+    setShowDirectUrlInput(false);
+
+    // Clear Payee
+    setPayeeName('');
+    setPayeeEmail('');
+    setPayeeEmtEmail('');
+    setPayeePhone('');
+    setPayeeAddress('');
+    setPayeeGstHst('');
+
+    // Reset Payer
+    setPayerName('');
+    setPayerCompany('IIPC Canada');
+    setPayerAddress('132 main st south, Rockwood ON n0b 2k0');
+    setPayerEmail('info@iipc.ca');
+
+    // Fresh blank line item
+    setItems([
+      {
+        id: Date.now(),
+        description: '',
+        quantity: 1,
+        unitPrice: 0,
+        amount: 0,
+        taxable: true,
+        receiptNumber: 1,
+        receiptTitle: 'Receipt 1',
+      },
+    ]);
+
+    setApplyTax(true);
+    setTaxRate(13.0);
+    setTaxType('HST');
+    setTermsNotes('');
+
+    // Clear attached receipts
+    setReceiptFiles([]);
+    setReceiptImageUrl(null);
+    setReceiptFile(null);
+    setGeneratedPdfUrl('');
+    setGeneratedDocxUrl('');
+    setDriveResultLink('');
+    setErrorMsg('');
+    setSuccessMsg('Form cleared! Ready to create a new voucher / receipt.');
+
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (logoFileInputRef.current) logoFileInputRef.current.value = '';
+  };
+
   // Line item handlers
   const handleItemChange = (index, field, value) => {
     setItems((prev) => {
@@ -227,6 +239,7 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
   };
 
   const addItemRow = () => {
+    const currentMaxRcp = receiptFiles.length > 0 ? receiptFiles.length : 1;
     setItems((prev) => [
       ...prev,
       {
@@ -236,11 +249,14 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
         unitPrice: 0,
         amount: 0,
         taxable: true,
+        receiptNumber: currentMaxRcp,
+        receiptTitle: `Receipt ${currentMaxRcp}`,
       },
     ]);
   };
 
   const addMultipleItemRows = (count = 3) => {
+    const currentMaxRcp = receiptFiles.length > 0 ? receiptFiles.length : 1;
     setItems((prev) => {
       const newRows = [];
       for (let i = 0; i < count; i++) {
@@ -251,35 +267,61 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
           unitPrice: 0,
           amount: 0,
           taxable: true,
+          receiptNumber: currentMaxRcp,
+          receiptTitle: `Receipt ${currentMaxRcp}`,
         });
       }
       return [...prev, ...newRows];
     });
   };
 
+  // Remove individual line item
   const removeItemRow = (index) => {
-    if (items.length <= 1) {
-      // If only one row left, reset it instead of deleting
-      setItems([
-        {
-          id: Date.now(),
-          description: '',
-          quantity: 1,
-          unitPrice: 0,
-          amount: 0,
-          taxable: true,
-        },
-      ]);
-      return;
+    setItems((prev) => {
+      const next = prev.filter((_, idx) => idx !== index);
+      if (next.length === 0) {
+        return [
+          {
+            id: Date.now(),
+            description: '',
+            quantity: 1,
+            unitPrice: 0,
+            amount: 0,
+            taxable: true,
+            receiptNumber: 1,
+            receiptTitle: 'Receipt 1',
+          },
+        ];
+      }
+      return next;
+    });
+  };
+
+  // Remove all line items
+  const handleRemoveAllLines = () => {
+    if (items.length > 1 || (items[0] && (items[0].description || items[0].amount > 0))) {
+      if (window.confirm('Are you sure you want to remove all line items?')) {
+        setItems([
+          {
+            id: Date.now(),
+            description: '',
+            quantity: 1,
+            unitPrice: 0,
+            amount: 0,
+            taxable: true,
+            receiptNumber: 1,
+            receiptTitle: 'Receipt 1',
+          },
+        ]);
+      }
     }
-    setItems((prev) => prev.filter((_, idx) => idx !== index));
   };
 
   const clearEmptyRows = () => {
     setItems((prev) => {
       const filtered = prev.filter((it) => (it.description && it.description.trim()) || Number(it.amount) > 0);
       if (filtered.length === 0) {
-        return [{ id: Date.now(), description: '', quantity: 1, unitPrice: 0, amount: 0, taxable: true }];
+        return [{ id: Date.now(), description: '', quantity: 1, unitPrice: 0, amount: 0, taxable: true, receiptNumber: 1, receiptTitle: 'Receipt 1' }];
       }
       return filtered;
     });
@@ -290,9 +332,9 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
     if (!pasteText.trim()) return;
     const lines = pasteText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
     const newItems = [];
+    const activeReceiptNum = receiptFiles.length > 0 ? receiptFiles.length : 1;
 
     for (const line of lines) {
-      // Split by tab, comma, or pipe
       let parts = line.split('\t');
       if (parts.length < 2) parts = line.split(',');
       if (parts.length < 2) parts = line.split('|');
@@ -317,10 +359,11 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
             unitPrice: price,
             amount: parseFloat((qty * price).toFixed(2)),
             taxable: true,
+            receiptNumber: activeReceiptNum,
+            receiptTitle: `Receipt ${activeReceiptNum}`,
           });
         }
       } else {
-        // Line with description and amount at the end
         const m = line.match(/^(.*?)(?:\s+|\$)+([0-9,]+\.[0-9]{2})$/);
         if (m) {
           const desc = m[1].trim();
@@ -332,6 +375,8 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
             unitPrice: amt,
             amount: amt,
             taxable: true,
+            receiptNumber: activeReceiptNum,
+            receiptTitle: `Receipt ${activeReceiptNum}`,
           });
         }
       }
@@ -339,17 +384,40 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
 
     if (newItems.length > 0) {
       setItems((prev) => {
-        // Remove empty placeholder rows if any
-        const existing = prev.filter((it) => it.description.trim() || it.amount > 0);
+        const existing = prev.filter((it) => (it.description && it.description.trim()) || it.amount > 0);
         return [...existing, ...newItems];
       });
       setPasteText('');
       setPasteModalOpen(false);
       setSuccessMsg(`Imported ${newItems.length} line items successfully!`);
     } else {
-      alert('Could not parse any lines. Please format as "Description, Qty, Price" or "Description, Price".');
+      alert('Could not parse lines. Please format as "Description, Qty, Price" or "Description, Price".');
     }
   };
+
+  // Group line items by receipt dynamically for subtotal breakdown
+  const itemReceiptGroups = useMemo(() => {
+    const groupMap = new Map();
+    const groups = [];
+
+    items.forEach((it, idx) => {
+      const rNum = Number(it.receiptNumber) || 1;
+      const rTitle = it.receiptTitle || (it.receiptNumber ? `Receipt ${it.receiptNumber}` : 'General Items');
+      const key = `${rNum}_${rTitle}`;
+      if (!groupMap.has(key)) {
+        const grp = { number: rNum, title: rTitle, items: [], subtotal: 0 };
+        groupMap.set(key, grp);
+        groups.push(grp);
+      }
+      const grp = groupMap.get(key);
+      grp.items.push({ item: it, originalIndex: idx });
+      grp.subtotal += Number(it.amount) || 0;
+    });
+
+    return groups;
+  }, [items]);
+
+  const hasMultipleReceipts = itemReceiptGroups.length > 1;
 
   // Subtotal & Grand Total calculations
   const calculateSubtotal = () => {
@@ -374,73 +442,142 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
   const taxAmount = calculateTax();
   const grandTotal = calculateGrandTotal();
 
-  // Handle Scanning Files (Image, PDF, Excel, Text)
-  const handleFileScan = async (file) => {
-    if (!file) return;
+  // Multi-File Scanner Handler (Images, PDF, Excel, Text)
+  const handleMultipleFilesScan = async (files) => {
+    if (!files || files.length === 0) return;
+    const fileList = Array.from(files);
+
     try {
       setScanning(true);
-      setScanStatusText('Scanning file and recognizing details...');
       setErrorMsg('');
       setSuccessMsg('');
 
-      const scanned = await scanVoucherFile(file, (p) => {
-        if (p.status === 'ocr') {
-          const pct = Math.round((p.progress || 0) * 100);
-          setScanStatusText(`Recognizing receipt text & line items with OCR... (${pct}%)`);
+      const newReceipts = [];
+      const newItems = [];
+      let firstPayeeDetected = null;
+
+      for (let i = 0; i < fileList.length; i++) {
+        const file = fileList[i];
+        const currentReceiptNum = receiptFiles.length + i + 1;
+        setScanStatusText(`Scanning receipt ${i + 1} of ${fileList.length}: ${file.name}...`);
+
+        const scanned = await scanVoucherFile(file, (p) => {
+          if (p.status === 'ocr') {
+            const pct = Math.round((p.progress || 0) * 100);
+            setScanStatusText(`Receipt ${i + 1} of ${fileList.length} (${file.name}): OCR reading text & amounts... (${pct}%)`);
+          }
+        });
+
+        // Determine vendor name
+        const rawVendor = scanned.payee?.name || file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+        const vendorName = rawVendor.charAt(0).toUpperCase() + rawVendor.slice(1);
+        const receiptTitle = `Receipt ${currentReceiptNum}: ${vendorName}`;
+
+        if (!firstPayeeDetected && (scanned.payee?.name || scanned.payee?.emtEmail)) {
+          firstPayeeDetected = scanned.payee;
         }
+
+        let receiptSubtotal = 0;
+        if (scanned.items && scanned.items.length > 0) {
+          for (let itIdx = 0; itIdx < scanned.items.length; itIdx++) {
+            const it = scanned.items[itIdx];
+            const itAmt = Number(it.amount) || ((Number(it.quantity) || 1) * (Number(it.unitPrice) || 0));
+            receiptSubtotal += itAmt;
+            newItems.push({
+              id: Date.now() + Math.random(),
+              description: it.description || 'Receipt Item',
+              quantity: Number(it.quantity) || 1,
+              unitPrice: Number(it.unitPrice) || itAmt,
+              amount: itAmt,
+              taxable: it.taxable !== undefined ? it.taxable : true,
+              receiptNumber: currentReceiptNum,
+              receiptTitle,
+            });
+          }
+        } else {
+          const amt = Number(scanned.totalAmount) || Number(scanned.subtotal) || 0;
+          receiptSubtotal = amt;
+          newItems.push({
+            id: Date.now() + Math.random(),
+            description: `${vendorName} - Receipt Items`,
+            quantity: 1,
+            unitPrice: amt,
+            amount: amt,
+            taxable: true,
+            receiptNumber: currentReceiptNum,
+            receiptTitle,
+          });
+        }
+
+        newReceipts.push({
+          id: Date.now() + i,
+          receiptNumber: currentReceiptNum,
+          title: receiptTitle,
+          vendor: vendorName,
+          fileName: file.name,
+          previewUrl: scanned.receiptImageUrl,
+          file,
+          subtotal: receiptSubtotal,
+          itemCount: scanned.items?.length || 1,
+        });
+      }
+
+      // Merge payee if not already filled
+      if (firstPayeeDetected) {
+        if (!payeeName && firstPayeeDetected.name) setPayeeName(firstPayeeDetected.name);
+        if (!payeeEmail && firstPayeeDetected.email) setPayeeEmail(firstPayeeDetected.email);
+        if (!payeeEmtEmail && firstPayeeDetected.emtEmail) setPayeeEmtEmail(firstPayeeDetected.emtEmail);
+        if (!payeePhone && firstPayeeDetected.phone) setPayeePhone(firstPayeeDetected.phone);
+        if (!payeeAddress && firstPayeeDetected.address) setPayeeAddress(firstPayeeDetected.address);
+        if (!payeeGstHst && firstPayeeDetected.gstHstNumber) setPayeeGstHst(firstPayeeDetected.gstHstNumber);
+      }
+
+      setReceiptFiles((prev) => [...prev, ...newReceipts]);
+      if (newReceipts[0]?.previewUrl && !receiptImageUrl) {
+        setReceiptImageUrl(newReceipts[0].previewUrl);
+        setReceiptFile(newReceipts[0].file);
+      }
+
+      setItems((prev) => {
+        const existingClean = prev.filter((it) => (it.description && it.description.trim()) || Number(it.amount) > 0);
+        return [...existingClean, ...newItems];
       });
 
-      if (scanned.voucherNumber) setVoucherNumber(scanned.voucherNumber);
-      if (scanned.title) setTitle(scanned.title);
-      if (scanned.issueDate) setIssueDate(new Date(scanned.issueDate));
-      if (scanned.dueDate) setDueDate(new Date(scanned.dueDate));
-
-      if (scanned.payee?.name) setPayeeName(scanned.payee.name);
-      if (scanned.payee?.email) setPayeeEmail(scanned.payee.email);
-      if (scanned.payee?.emtEmail) setPayeeEmtEmail(scanned.payee.emtEmail);
-      if (scanned.payee?.phone) setPayeePhone(scanned.payee.phone);
-      if (scanned.payee?.address) setPayeeAddress(scanned.payee.address);
-      if (scanned.payee?.gstHstNumber) setPayeeGstHst(scanned.payee.gstHstNumber);
-
-      if (scanned.payer?.name) setPayerName(scanned.payer.name);
-      if (scanned.payer?.address) setPayerAddress(scanned.payer.address);
-
-      // Populate scanned line items
-      if (scanned.items && scanned.items.length > 0) {
-        setItems(
-          scanned.items.map((it, idx) => ({
-            ...it,
-            id: Date.now() + idx,
-            taxable: it.taxable !== undefined ? it.taxable : true,
-          }))
-        );
-      }
-
-      if (scanned.taxConfig) {
-        setApplyTax(Boolean(scanned.taxConfig.applyTax));
-        if (scanned.taxConfig.rate) setTaxRate(scanned.taxConfig.rate);
-        if (scanned.taxConfig.taxType) setTaxType(scanned.taxConfig.taxType);
-      }
-
-      if (scanned.termsNotes) setTermsNotes(scanned.termsNotes);
-
-      if (scanned.receiptImageUrl) {
-        setReceiptImageUrl(scanned.receiptImageUrl);
-      }
-      if (scanned.receiptFile) {
-        setReceiptFile(scanned.receiptFile);
-      }
-
-      const itemCount = scanned.items?.length || 0;
       setSuccessMsg(
-        `Scanned ${file.name} successfully! Extracted ${itemCount} line item${itemCount === 1 ? '' : 's'} with Description & Amount figures. You can verify, correct, or add more lines below.`
+        `Scanned and combined ${fileList.length} receipt${fileList.length > 1 ? 's' : ''} successfully! Extracted ${newItems.length} line item${newItems.length > 1 ? 's' : ''} categorized across Receipt 1, Receipt 2, etc.`
       );
     } catch (err) {
-      console.error('File scan error:', err);
-      setErrorMsg(`Could not parse file: ${err.message || 'Unknown error'}`);
+      console.error('Multi-file scan error:', err);
+      setErrorMsg(`Could not scan files: ${err.message || 'Unknown error'}`);
     } finally {
       setScanning(false);
       setScanStatusText('');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  // Remove attached receipt
+  const handleRemoveReceipt = (receiptIndex) => {
+    const target = receiptFiles[receiptIndex];
+    if (!target) return;
+
+    const hasItems = items.some((it) => it.receiptNumber === target.receiptNumber);
+    let removeItemsAlso = false;
+    if (hasItems) {
+      removeItemsAlso = window.confirm(
+        `Remove "${target.title}"? Click OK to remove its line items as well, or Cancel to keep the line items.`
+      );
+    }
+
+    setReceiptFiles((prev) => prev.filter((_, idx) => idx !== receiptIndex));
+
+    if (removeItemsAlso) {
+      setItems((prev) => {
+        const filtered = prev.filter((it) => it.receiptNumber !== target.receiptNumber);
+        return filtered.length > 0
+          ? filtered
+          : [{ id: Date.now(), description: '', quantity: 1, unitPrice: 0, amount: 0, taxable: true, receiptNumber: 1, receiptTitle: 'Receipt 1' }];
+      });
     }
   };
 
@@ -451,14 +588,12 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
       setCustomLogoLoading(true);
       setCustomLogoFileName(file.name);
 
-      // 1. Read preview as Data URL
       const reader = new FileReader();
       reader.onload = () => {
         setCustomLogoUrl(reader.result);
       };
       reader.readAsDataURL(file);
 
-      // 2. Upload file to server for a permanent hosted URL
       try {
         const uploadRes = await voucherApi.uploadReceipt(file, userRole);
         if (uploadRes?.url) {
@@ -490,17 +625,36 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
       setErrorMsg('');
       setSuccessMsg('');
 
-      // Upload receipt file if present and not yet on server
-      let uploadedReceiptUrl = receiptImageUrl;
-      if (receiptFile) {
-        try {
-          const uploadRes = await voucherApi.uploadReceipt(receiptFile, userRole);
-          if (uploadRes?.url) {
-            uploadedReceiptUrl = uploadRes.url;
+      // Upload all attached receipt images
+      const uploadedUrls = [];
+      const receiptsMeta = [];
+
+      for (const r of receiptFiles) {
+        let finalUrl = r.previewUrl;
+        if (r.file) {
+          try {
+            const upRes = await voucherApi.uploadReceipt(r.file, userRole);
+            if (upRes?.url) {
+              finalUrl = upRes.url;
+            }
+          } catch (uErr) {
+            console.warn('Receipt upload note for', r.title, uErr);
           }
-        } catch (uErr) {
-          console.warn('Receipt upload failed, keeping preview:', uErr);
         }
+        if (finalUrl) {
+          uploadedUrls.push(finalUrl);
+          receiptsMeta.push({
+            receiptNumber: r.receiptNumber,
+            title: r.title,
+            vendor: r.vendor,
+            url: finalUrl,
+            subtotal: r.subtotal || 0,
+          });
+        }
+      }
+
+      if (uploadedUrls.length === 0 && receiptImageUrl) {
+        uploadedUrls.push(receiptImageUrl);
       }
 
       const cleanItems = items.filter((it) => (it.description && it.description.trim()) || Number(it.amount) > 0);
@@ -534,6 +688,8 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
           unitPrice: Number(it.unitPrice) || 0,
           amount: Number(it.amount) || 0,
           taxable: Boolean(it.taxable),
+          receiptNumber: Number(it.receiptNumber) || 1,
+          receiptTitle: it.receiptTitle || '',
         })),
         subtotal,
         taxConfig: {
@@ -544,7 +700,9 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
         },
         totalAmount: grandTotal,
         termsNotes,
-        receiptImageUrl: uploadedReceiptUrl,
+        receiptImageUrl: uploadedUrls[0] || null,
+        receiptImageUrls: uploadedUrls,
+        receipts: receiptsMeta,
       };
 
       let result;
@@ -628,6 +786,29 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
 
     setTermsNotes(vch.termsNotes || '');
     setReceiptImageUrl(vch.receiptImageUrl || null);
+
+    if (vch.receipts && vch.receipts.length > 0) {
+      setReceiptFiles(vch.receipts.map((r, idx) => ({
+        id: idx + 1,
+        receiptNumber: r.receiptNumber || (idx + 1),
+        title: r.title || `Receipt ${idx + 1}`,
+        vendor: r.vendor || '',
+        previewUrl: r.url,
+        subtotal: r.subtotal || 0,
+      })));
+    } else if (vch.receiptImageUrl) {
+      setReceiptFiles([{
+        id: 1,
+        receiptNumber: 1,
+        title: 'Receipt 1',
+        vendor: vch.payee?.name || '',
+        previewUrl: vch.receiptImageUrl,
+        subtotal: vch.subtotal || 0,
+      }]);
+    } else {
+      setReceiptFiles([]);
+    }
+
     setGeneratedPdfUrl(vch.pdfUrl || voucherApi.getPdfDownloadUrl(vch._id));
     setGeneratedDocxUrl(vch.docxUrl || voucherApi.getDocxDownloadUrl(vch._id));
     if (vch.googleDriveLink) setDriveResultLink(vch.googleDriveLink);
@@ -688,7 +869,7 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
                 Create Voucher &amp; Petty Cash Receipts
               </Title>
               <Text size="xs" style={{ color: '#d1fae5' }}>
-                Scan receipts &amp; bills, browse custom logos, add line items with 13% HST &amp; Interac EMT, and save to Google Drive.
+                Upload multiple receipts, combine them into one invoice with Receipt 1 &amp; Receipt 2 subtotals, 13% HST, Interac EMT, and Google Drive upload.
               </Text>
             </div>
           </Group>
@@ -701,7 +882,7 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
               Interac EMT Ready
             </Badge>
             <Badge color="teal" variant="light" size="sm">
-              Google Drive Integrated
+              Multi-Receipt Batch
             </Badge>
             <Button
               variant="white"
@@ -762,7 +943,7 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
         </Alert>
       )}
 
-      {/* SECTION 1: SMART SCANNER & FILE INPUT */}
+      {/* SECTION 1: SMART SCANNER & MULTIPLE RECEIPTS UPLOAD */}
       <Paper p="md" withBorder radius="md" mb="lg" style={{ background: '#f8fafc' }}>
         <Group justify="space-between" align="center" mb="xs">
           <Group gap="xs">
@@ -770,12 +951,12 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
               <IconScan size={18} />
             </ThemeIcon>
             <Text fw={700} size="sm" c="indigo.9">
-              Smart File Scanner (Images, PDF, Excel, or Text)
+              Smart File Scanner — Upload Multiple Receipts (Images, PDF, Excel, Text)
             </Text>
           </Group>
           <Group gap="xs">
             <Text size="xs" c="dimmed">
-              Upload bill/receipt image to automatically extract items, EMT, vendor &amp; HST
+              Upload multiple receipts at once or append more receipts to combine into one invoice
             </Text>
             <Button
               variant="subtle"
@@ -790,86 +971,153 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
           </Group>
         </Group>
 
-        <Grid align="center" gutter="md">
-          <Grid.Col span={{ base: 12, md: 8 }}>
-            <Box
-              style={{
-                border: '2px dashed #94a3b8',
-                borderRadius: '8px',
-                padding: '16px',
-                textAlign: 'center',
-                background: '#ffffff',
-                cursor: 'pointer',
-                transition: 'border-color 0.2s',
-              }}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*,.pdf,.xlsx,.xls,.csv,.txt"
-                style={{ display: 'none' }}
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleFileScan(file);
-                }}
-              />
-              <Group justify="center" gap="sm">
-                <IconUpload size={24} color="#6366f1" />
-                <div>
-                  <Text size="sm" fw={600} c="dark">
-                    Click to browse or drop Image, PDF, Excel (.xlsx/.csv), or Text Receipt
-                  </Text>
-                  <Text size="xs" c="dimmed">
-                    Extracts vendor, line items, 13% HST, and Interac EMT email automatically
-                  </Text>
-                </div>
-              </Group>
-            </Box>
-          </Grid.Col>
+        <Box
+          style={{
+            border: '2px dashed #6366f1',
+            borderRadius: '8px',
+            padding: '20px',
+            textAlign: 'center',
+            background: '#ffffff',
+            cursor: 'pointer',
+            transition: 'border-color 0.2s, background 0.2s',
+          }}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept="image/*,.pdf,.xlsx,.xls,.csv,.txt"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              const files = e.target.files;
+              if (files && files.length > 0) handleMultipleFilesScan(files);
+            }}
+          />
+          <Group justify="center" gap="md">
+            <ThemeIcon size="xl" radius="xl" color="indigo" variant="light">
+              <IconUpload size={28} />
+            </ThemeIcon>
+            <div>
+              <Text size="md" fw={700} c="dark">
+                Click to browse or drop Receipts &amp; Invoices (Select Multiple Files)
+              </Text>
+              <Text size="xs" c="dimmed">
+                Extracts items with description &amp; amount figures for Receipt 1, Receipt 2, etc., plus EMT email, GST/HST, and totals.
+              </Text>
+            </div>
+          </Group>
+        </Box>
 
-          <Grid.Col span={{ base: 12, md: 4 }}>
-            {receiptImageUrl ? (
-              <Group gap="sm" align="center">
-                <Image
-                  src={receiptImageUrl}
-                  alt="Receipt Preview"
-                  h={60}
-                  w={90}
-                  fit="contain"
-                  radius="sm"
-                  style={{ border: '1px solid #cbd5e1', background: '#ffffff' }}
-                />
-                <div>
-                  <Badge color="teal" variant="filled" size="xs">
-                    Receipt Attached
-                  </Badge>
-                  <Text size="xs" c="dimmed" mt={2}>
-                    Included in voucher appendix
-                  </Text>
-                  <Button
-                    size="compact-xs"
-                    variant="subtle"
-                    color="red"
-                    onClick={() => {
-                      setReceiptImageUrl(null);
-                      setReceiptFile(null);
-                    }}
-                  >
-                    Remove
-                  </Button>
-                </div>
-              </Group>
-            ) : (
+        {/* ATTACHED RECEIPTS GALLERY */}
+        {receiptFiles.length > 0 && (
+          <Paper mt="md" p="sm" withBorder radius="md" style={{ background: '#ffffff' }}>
+            <Group justify="space-between" align="center" mb="xs">
               <Group gap="xs">
-                <IconPhoto size={20} color="#94a3b8" />
-                <Text size="xs" c="dimmed">
-                  No receipt image attached yet (optional).
+                <IconReceipt size={18} color="#059669" />
+                <Text fw={700} size="xs" c="teal.9">
+                  Attached Receipts ({receiptFiles.length} Total Combined)
                 </Text>
               </Group>
-            )}
-          </Grid.Col>
-        </Grid>
+              <Group gap="xs">
+                <Button
+                  size="compact-xs"
+                  variant="light"
+                  color="indigo"
+                  leftSection={<IconPlus size={12} />}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  + Add More Receipts
+                </Button>
+                <Button
+                  size="compact-xs"
+                  variant="subtle"
+                  color="red"
+                  leftSection={<IconTrash size={12} />}
+                  onClick={() => {
+                    if (window.confirm('Remove all attached receipt images?')) {
+                      setReceiptFiles([]);
+                      setReceiptImageUrl(null);
+                    }
+                  }}
+                >
+                  Clear All Receipts
+                </Button>
+              </Group>
+            </Group>
+
+            <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="xs">
+              {receiptFiles.map((rf, idx) => (
+                <Paper key={rf.id || idx} p="xs" withBorder radius="sm" style={{ background: '#f8fafc' }}>
+                  <Group justify="space-between" align="center" wrap="nowrap">
+                    <Group gap="xs" wrap="nowrap" style={{ overflow: 'hidden' }}>
+                      {rf.previewUrl ? (
+                        <Image
+                          src={rf.previewUrl}
+                          alt={rf.title}
+                          h={46}
+                          w={46}
+                          fit="cover"
+                          radius="xs"
+                          style={{ cursor: 'pointer', border: '1px solid #cbd5e1' }}
+                          onClick={() => {
+                            setModalImageSrc(rf.previewUrl);
+                            setModalImageTitle(rf.title);
+                            setPreviewModalOpen(true);
+                          }}
+                        />
+                      ) : (
+                        <ThemeIcon size="md" color="indigo" variant="light" radius="xs">
+                          <IconFileText size={18} />
+                        </ThemeIcon>
+                      )}
+                      <Box style={{ overflow: 'hidden' }}>
+                        <Badge size="xs" color="teal" variant="filled">
+                          Receipt {rf.receiptNumber}
+                        </Badge>
+                        <Text size="xs" fw={700} truncate title={rf.title}>
+                          {rf.vendor || rf.fileName || `Receipt ${rf.receiptNumber}`}
+                        </Text>
+                        <Text size="11px" c="dimmed">
+                          Subtotal: ${Number(rf.subtotal || 0).toFixed(2)}
+                        </Text>
+                      </Box>
+                    </Group>
+
+                    <Group gap={4}>
+                      {rf.previewUrl && (
+                        <Tooltip label="View Full Receipt Image">
+                          <ActionIcon
+                            size="sm"
+                            variant="subtle"
+                            color="indigo"
+                            onClick={() => {
+                              setModalImageSrc(rf.previewUrl);
+                              setModalImageTitle(rf.title);
+                              setPreviewModalOpen(true);
+                            }}
+                          >
+                            <IconEye size={14} />
+                          </ActionIcon>
+                        </Tooltip>
+                      )}
+                      <Tooltip label="Remove this receipt">
+                        <ActionIcon
+                          size="sm"
+                          variant="subtle"
+                          color="red"
+                          onClick={() => handleRemoveReceipt(idx)}
+                        >
+                          <IconTrash size={14} />
+                        </ActionIcon>
+                      </Tooltip>
+                    </Group>
+                  </Group>
+                </Paper>
+              ))}
+            </SimpleGrid>
+          </Paper>
+        )}
       </Paper>
 
       {/* SECTION 2: VOUCHER CONFIGURATION & LETTERHEAD SELECTION */}
@@ -1166,7 +1414,7 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
         </Grid.Col>
       </Grid>
 
-      {/* SECTION 4: LINE ITEMS TABLE */}
+      {/* SECTION 4: LINE ITEMS TABLE WITH RECEIPT GROUPING & ITEM DELETION */}
       <Paper p="md" withBorder radius="md" mb="md">
         <Group justify="space-between" align="center" mb="sm" wrap="wrap">
           <Group gap="xs">
@@ -1177,8 +1425,13 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
               Expense Line Items &amp; Services
             </Text>
             <Badge size="xs" color="teal" variant="light">
-              {items.length} Item{items.length === 1 ? '' : 's'}
+              {items.length} Line Item{items.length === 1 ? '' : 's'}
             </Badge>
+            {hasMultipleReceipts && (
+              <Badge size="xs" color="indigo" variant="outline">
+                {itemReceiptGroups.length} Receipts Combined
+              </Badge>
+            )}
           </Group>
 
           <Group gap="xs" wrap="wrap">
@@ -1218,86 +1471,203 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
             >
               Clear Empty
             </Button>
+            <Button
+              leftSection={<IconTrash size={14} />}
+              size="compact-xs"
+              variant="subtle"
+              color="red"
+              onClick={handleRemoveAllLines}
+              title="Delete all line items"
+            >
+              Remove All Lines
+            </Button>
           </Group>
         </Group>
 
-        <Table.ScrollContainer minWidth={720}>
+        <Table.ScrollContainer minWidth={740}>
           <Table verticalSpacing="xs" striped highlightOnHover>
             <Table.Thead>
               <Table.Tr style={{ background: '#f1f5f9' }}>
-                <Table.Th style={{ width: '42%' }}>Description / Item Details</Table.Th>
+                <Table.Th style={{ width: '40%' }}>Description / Item Details</Table.Th>
                 <Table.Th style={{ width: '10%', textAlign: 'center' }}>Qty</Table.Th>
                 <Table.Th style={{ width: '16%', textAlign: 'right' }}>Unit Price ($)</Table.Th>
                 <Table.Th style={{ width: '14%', textAlign: 'center' }}>Sales Tax</Table.Th>
                 <Table.Th style={{ width: '13%', textAlign: 'right' }}>Net Total ($)</Table.Th>
-                <Table.Th style={{ width: '5%', textAlign: 'center' }}>Action</Table.Th>
+                <Table.Th style={{ width: '7%', textAlign: 'center' }}>Action</Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {items.map((it, idx) => (
-                <Table.Tr key={it.id || idx}>
-                  <Table.Td>
-                    <TextInput
-                      size="xs"
-                      value={it.description}
-                      onChange={(e) => handleItemChange(idx, 'description', e.target.value)}
-                      placeholder="e.g. Fence or Drywall repair"
-                    />
-                  </Table.Td>
-                  <Table.Td>
-                    <NumberInput
-                      size="xs"
-                      min={1}
-                      value={it.quantity}
-                      onChange={(val) => handleItemChange(idx, 'quantity', val)}
-                      styles={{ input: { textAlign: 'center' } }}
-                    />
-                  </Table.Td>
-                  <Table.Td>
-                    <NumberInput
-                      size="xs"
-                      min={0}
-                      decimalScale={2}
-                      fixedDecimalScale
-                      prefix="$ "
-                      value={it.unitPrice}
-                      onChange={(val) => handleItemChange(idx, 'unitPrice', val)}
-                      styles={{ input: { textAlign: 'right' } }}
-                    />
-                  </Table.Td>
-                  <Table.Td style={{ textAlign: 'center' }}>
-                    <Switch
-                      size="xs"
-                      color="teal"
-                      checked={Boolean(it.taxable)}
-                      onChange={(e) => handleItemChange(idx, 'taxable', e.currentTarget.checked)}
-                      label={it.taxable ? 'HST 13%' : '0% Exempt'}
-                      styles={{
-                        label: { fontSize: '11px', fontWeight: 600, color: it.taxable ? '#0f766e' : '#64748b' },
-                      }}
-                    />
-                  </Table.Td>
-                  <Table.Td style={{ textAlign: 'right', fontWeight: 600 }}>
-                    ${Number(it.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </Table.Td>
-                  <Table.Td style={{ textAlign: 'center' }}>
-                    <ActionIcon
-                      size="sm"
-                      color="red"
-                      variant="subtle"
-                      onClick={() => removeItemRow(idx)}
-                    >
-                      <IconTrash size={14} />
-                    </ActionIcon>
-                  </Table.Td>
-                </Table.Tr>
-              ))}
+              {hasMultipleReceipts ? (
+                // Grouped by Receipt
+                itemReceiptGroups.map((grp) => (
+                  <React.Fragment key={`group_${grp.number}_${grp.title}`}>
+                    {/* Receipt Header Row */}
+                    <Table.Tr style={{ background: '#eff6ff', borderTop: '2px solid #bfdbfe' }}>
+                      <Table.Td colSpan={4}>
+                        <Group gap="xs">
+                          <ThemeIcon size="xs" color="indigo" variant="filled">
+                            <IconReceipt size={12} />
+                          </ThemeIcon>
+                          <Text fw={700} size="xs" c="indigo.9">
+                            🧾 Receipt {grp.number}: {grp.title} ({grp.items.length} item{grp.items.length === 1 ? '' : 's'})
+                          </Text>
+                        </Group>
+                      </Table.Td>
+                      <Table.Td style={{ textAlign: 'right', fontWeight: 700, color: '#1e40af' }}>
+                        Subtotal: ${grp.subtotal.toFixed(2)}
+                      </Table.Td>
+                      <Table.Td />
+                    </Table.Tr>
+
+                    {/* Receipt Items */}
+                    {grp.items.map(({ item: it, originalIndex: idx }) => (
+                      <Table.Tr key={it.id || idx}>
+                        <Table.Td>
+                          <TextInput
+                            size="xs"
+                            value={it.description}
+                            onChange={(e) => handleItemChange(idx, 'description', e.target.value)}
+                            placeholder="e.g. Lumber, Drywall, Gas"
+                          />
+                        </Table.Td>
+                        <Table.Td>
+                          <NumberInput
+                            size="xs"
+                            min={1}
+                            value={it.quantity}
+                            onChange={(val) => handleItemChange(idx, 'quantity', val)}
+                            styles={{ input: { textAlign: 'center' } }}
+                          />
+                        </Table.Td>
+                        <Table.Td>
+                          <NumberInput
+                            size="xs"
+                            min={0}
+                            decimalScale={2}
+                            fixedDecimalScale
+                            prefix="$ "
+                            value={it.unitPrice}
+                            onChange={(val) => handleItemChange(idx, 'unitPrice', val)}
+                            styles={{ input: { textAlign: 'right' } }}
+                          />
+                        </Table.Td>
+                        <Table.Td style={{ textAlign: 'center' }}>
+                          <Switch
+                            size="xs"
+                            color="teal"
+                            checked={Boolean(it.taxable)}
+                            onChange={(e) => handleItemChange(idx, 'taxable', e.currentTarget.checked)}
+                            label={it.taxable ? 'HST 13%' : '0% Exempt'}
+                            styles={{
+                              label: { fontSize: '11px', fontWeight: 600, color: it.taxable ? '#0f766e' : '#64748b' },
+                            }}
+                          />
+                        </Table.Td>
+                        <Table.Td style={{ textAlign: 'right', fontWeight: 600 }}>
+                          ${Number(it.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </Table.Td>
+                        <Table.Td style={{ textAlign: 'center' }}>
+                          <Tooltip label="Remove this line item">
+                            <ActionIcon
+                              size="md"
+                              color="red"
+                              variant="light"
+                              radius="md"
+                              onClick={() => removeItemRow(idx)}
+                              aria-label="Remove line item"
+                            >
+                              <IconTrash size={16} />
+                            </ActionIcon>
+                          </Tooltip>
+                        </Table.Td>
+                      </Table.Tr>
+                    ))}
+
+                    {/* Receipt Subtotal Footer Row */}
+                    <Table.Tr style={{ background: '#f8fafc', borderBottom: '1.5px solid #cbd5e1' }}>
+                      <Table.Td colSpan={4} style={{ textAlign: 'right' }}>
+                        <Text size="xs" fw={600} c="dimmed">
+                          Receipt {grp.number} Subtotal:
+                        </Text>
+                      </Table.Td>
+                      <Table.Td style={{ textAlign: 'right', fontWeight: 700, color: '#0f172a' }}>
+                        ${grp.subtotal.toFixed(2)}
+                      </Table.Td>
+                      <Table.Td />
+                    </Table.Tr>
+                  </React.Fragment>
+                ))
+              ) : (
+                // Standard Single Receipt View
+                items.map((it, idx) => (
+                  <Table.Tr key={it.id || idx}>
+                    <Table.Td>
+                      <TextInput
+                        size="xs"
+                        value={it.description}
+                        onChange={(e) => handleItemChange(idx, 'description', e.target.value)}
+                        placeholder="e.g. Fence or Drywall repair"
+                      />
+                    </Table.Td>
+                    <Table.Td>
+                      <NumberInput
+                        size="xs"
+                        min={1}
+                        value={it.quantity}
+                        onChange={(val) => handleItemChange(idx, 'quantity', val)}
+                        styles={{ input: { textAlign: 'center' } }}
+                      />
+                    </Table.Td>
+                    <Table.Td>
+                      <NumberInput
+                        size="xs"
+                        min={0}
+                        decimalScale={2}
+                        fixedDecimalScale
+                        prefix="$ "
+                        value={it.unitPrice}
+                        onChange={(val) => handleItemChange(idx, 'unitPrice', val)}
+                        styles={{ input: { textAlign: 'right' } }}
+                      />
+                    </Table.Td>
+                    <Table.Td style={{ textAlign: 'center' }}>
+                      <Switch
+                        size="xs"
+                        color="teal"
+                        checked={Boolean(it.taxable)}
+                        onChange={(e) => handleItemChange(idx, 'taxable', e.currentTarget.checked)}
+                        label={it.taxable ? 'HST 13%' : '0% Exempt'}
+                        styles={{
+                          label: { fontSize: '11px', fontWeight: 600, color: it.taxable ? '#0f766e' : '#64748b' },
+                        }}
+                      />
+                    </Table.Td>
+                    <Table.Td style={{ textAlign: 'right', fontWeight: 600 }}>
+                      ${Number(it.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </Table.Td>
+                    <Table.Td style={{ textAlign: 'center' }}>
+                      <Tooltip label="Remove this line item">
+                        <ActionIcon
+                          size="md"
+                          color="red"
+                          variant="light"
+                          radius="md"
+                          onClick={() => removeItemRow(idx)}
+                          aria-label="Remove line item"
+                        >
+                          <IconTrash size={16} />
+                        </ActionIcon>
+                      </Tooltip>
+                    </Table.Td>
+                  </Table.Tr>
+                ))
+              )}
             </Table.Tbody>
           </Table>
         </Table.ScrollContainer>
       </Paper>
 
-      {/* SECTION 5: TAXES & TOTALS SUMMARY */}
+      {/* SECTION 5: TAXES & TOTALS SUMMARY (WITH INDIVIDUAL RECEIPT BREAKDOWN) */}
       <Grid gutter="md" mb="lg">
         <Grid.Col span={{ base: 12, md: 7 }}>
           <Stack gap="xs">
@@ -1315,11 +1685,32 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
         <Grid.Col span={{ base: 12, md: 5 }}>
           <Paper p="md" withBorder radius="md" style={{ background: '#f8fafc' }}>
             <Stack gap="xs">
+              {/* If multiple receipts, show breakdown per receipt */}
+              {hasMultipleReceipts && (
+                <Paper p="xs" radius="sm" withBorder style={{ background: '#ffffff', borderColor: '#e2e8f0' }}>
+                  <Text fw={700} size="11px" c="dimmed" mb={4} style={{ letterSpacing: '0.5px' }}>
+                    RECEIPTS BREAKDOWN:
+                  </Text>
+                  <Stack gap={4}>
+                    {itemReceiptGroups.map((grp) => (
+                      <Group key={`summary_${grp.number}_${grp.title}`} justify="space-between">
+                        <Text size="xs" c="dark" fw={500}>
+                          🧾 Receipt {grp.number} ({grp.title}):
+                        </Text>
+                        <Text size="xs" fw={600}>
+                          ${grp.subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </Text>
+                      </Group>
+                    ))}
+                  </Stack>
+                </Paper>
+              )}
+
               <Group justify="space-between">
                 <Text size="sm" c="dimmed">
-                  Total Net (Subtotal):
+                  {hasMultipleReceipts ? 'Combined Subtotal (Net):' : 'Total Net (Subtotal):'}
                 </Text>
-                <Text size="sm" fw={600}>
+                <Text size="sm" fw={700}>
                   ${subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </Text>
               </Group>
@@ -1380,7 +1771,7 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
               >
                 <Group justify="space-between" align="center">
                   <Text fw={800} size="md" style={{ letterSpacing: '0.5px' }}>
-                    TOTAL TO PAY:
+                    {hasMultipleReceipts ? 'COMBINED TOTAL TO PAY:' : 'TOTAL TO PAY:'}
                   </Text>
                   <Text fw={900} size="lg" style={{ color: '#4ade80' }}>
                     ${grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -1631,6 +2022,33 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
           </Table>
         </Table.ScrollContainer>
       </Paper>
+
+      {/* FULL RECEIPT IMAGE PREVIEW MODAL */}
+      <Modal
+        opened={previewModalOpen}
+        onClose={() => setPreviewModalOpen(false)}
+        title={
+          <Group gap="xs">
+            <IconReceipt size={20} color="#059669" />
+            <Text fw={700}>{modalImageTitle || 'Receipt Photo Preview'}</Text>
+          </Group>
+        }
+        size="xl"
+        radius="md"
+      >
+        <Box style={{ textAlign: 'center', background: '#f8fafc', padding: '12px', borderRadius: '6px' }}>
+          {modalImageSrc && (
+            <Image
+              src={modalImageSrc}
+              alt="Full Receipt"
+              fit="contain"
+              mah={650}
+              radius="sm"
+              style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+            />
+          )}
+        </Box>
+      </Modal>
 
       {/* PASTE ITEMS TABLE MODAL */}
       <Modal

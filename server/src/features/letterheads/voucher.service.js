@@ -32,6 +32,8 @@ function formatCurrency(num) {
 
 /**
  * Generates official PDF and Word document for a Voucher / Petty Cash / Invoice.
+ * Supports combining multiple receipts into one with distinct Receipt 1, Receipt 2 headers,
+ * individual subtotals, combined totals, and individual receipt photo appendixes.
  */
 export async function generateVoucherDocument({ voucher, outputPdfPath, outputDocxPath }) {
   const assetsDir = getLetterheadAssetsDir();
@@ -73,25 +75,93 @@ export async function generateVoucherDocument({ voucher, outputPdfPath, outputDo
   const payee = voucher.payee || {};
   const payer = voucher.payer || {};
 
-  // Build items rows HTML
-  const itemsRowsHtml = items.map((it) => {
+  // Group items by receipt
+  const receiptGroups = [];
+  const receiptGroupMap = new Map();
+
+  for (const it of items) {
+    const rNum = Number(it.receiptNumber) || 1;
+    let rTitle = it.receiptTitle;
+    if (!rTitle) {
+      rTitle = it.receiptNumber ? `Receipt ${it.receiptNumber}` : 'General Items';
+    }
+    const key = `rcp_${rNum}_${rTitle}`;
+    if (!receiptGroupMap.has(key)) {
+      const newGrp = { number: rNum, title: rTitle, items: [], subtotal: 0 };
+      receiptGroupMap.set(key, newGrp);
+      receiptGroups.push(newGrp);
+    }
+    const grp = receiptGroupMap.get(key);
+    grp.items.push(it);
     const itAmt = Number(it.amount) || ((Number(it.quantity) || 1) * (Number(it.unitPrice) || 0));
-    const taxLabel = it.taxable && taxConfig.applyTax ? `${escapeHtml(taxConfig.taxType || 'HST')} ${taxRate.toFixed(2)}%` : 'Exempt / 0%';
-    return `
-      <tr>
-        <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #1e293b;">
-          ${escapeHtml(it.description)}
-          ${it.quantity && it.quantity > 1 ? `<span style="color: #64748b; font-size: 11.5px; margin-left: 6px;">(Qty: ${it.quantity} &times; $${formatCurrency(it.unitPrice)})</span>` : ''}
-        </td>
-        <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; text-align: center; color: #475569;">
-          ${taxLabel}
-        </td>
-        <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; text-align: right; font-weight: 600; color: #0f172a;">
-          ${formatCurrency(itAmt)}
-        </td>
-      </tr>
-    `;
-  }).join('');
+    grp.subtotal += itAmt;
+  }
+
+  const hasMultipleReceipts = receiptGroups.length > 1;
+
+  // Build items rows HTML (Grouped by Receipt if multiple)
+  let itemsRowsHtml = '';
+  if (hasMultipleReceipts) {
+    for (const grp of receiptGroups) {
+      itemsRowsHtml += `
+        <tr style="background: #eff6ff; border-top: 2px solid #bfdbfe; border-bottom: 1px solid #bfdbfe;">
+          <td colspan="2" style="padding: 8px 14px; font-weight: 700; color: #1e40af; font-size: 13px;">
+            &#129534; Receipt ${grp.number}: ${escapeHtml(grp.title)}
+          </td>
+          <td style="padding: 8px 14px; text-align: right; font-weight: 700; color: #1e40af; font-size: 13px;">
+            Subtotal: $${formatCurrency(grp.subtotal)}
+          </td>
+        </tr>
+      `;
+      for (const it of grp.items) {
+        const itAmt = Number(it.amount) || ((Number(it.quantity) || 1) * (Number(it.unitPrice) || 0));
+        const taxLabel = it.taxable && taxConfig.applyTax ? `${escapeHtml(taxConfig.taxType || 'HST')} ${taxRate.toFixed(2)}%` : 'Exempt / 0%';
+        itemsRowsHtml += `
+          <tr>
+            <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #1e293b;">
+              ${escapeHtml(it.description)}
+              ${it.quantity && it.quantity > 1 ? `<span style="color: #64748b; font-size: 11.5px; margin-left: 6px;">(Qty: ${it.quantity} &times; $${formatCurrency(it.unitPrice)})</span>` : ''}
+            </td>
+            <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; text-align: center; color: #475569;">
+              ${taxLabel}
+            </td>
+            <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; text-align: right; font-weight: 600; color: #0f172a;">
+              $${formatCurrency(itAmt)}
+            </td>
+          </tr>
+        `;
+      }
+      itemsRowsHtml += `
+        <tr style="background: #f8fafc; border-bottom: 1.5px solid #cbd5e1;">
+          <td colspan="2" style="padding: 6px 14px; text-align: right; font-size: 12px; font-weight: 600; color: #64748b;">
+            Receipt ${grp.number} Subtotal:
+          </td>
+          <td style="padding: 6px 14px; text-align: right; font-size: 12.5px; font-weight: 700; color: #0f172a;">
+            $${formatCurrency(grp.subtotal)}
+          </td>
+        </tr>
+      `;
+    }
+  } else {
+    itemsRowsHtml = items.map((it) => {
+      const itAmt = Number(it.amount) || ((Number(it.quantity) || 1) * (Number(it.unitPrice) || 0));
+      const taxLabel = it.taxable && taxConfig.applyTax ? `${escapeHtml(taxConfig.taxType || 'HST')} ${taxRate.toFixed(2)}%` : 'Exempt / 0%';
+      return `
+        <tr>
+          <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #1e293b;">
+            ${escapeHtml(it.description)}
+            ${it.quantity && it.quantity > 1 ? `<span style="color: #64748b; font-size: 11.5px; margin-left: 6px;">(Qty: ${it.quantity} &times; $${formatCurrency(it.unitPrice)})</span>` : ''}
+          </td>
+          <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; text-align: center; color: #475569;">
+            ${taxLabel}
+          </td>
+          <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; text-align: right; font-weight: 600; color: #0f172a;">
+            $${formatCurrency(itAmt)}
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
 
   const defaultEmtText = payee.emtEmail ? `Payment can be made through E-transfer ${payee.emtEmail}.` : '';
   const defaultTerms = `Please arrange payment within 14 days of the invoice date. ${defaultEmtText} Thank you for your business and have a great day!`;
@@ -120,22 +190,43 @@ export async function generateVoucherDocument({ voucher, outputPdfPath, outputDo
     payeeLogoSnippet = `<img src="${resolvedLogoUrl}" style="max-height: 55px; max-width: 200px; object-fit: contain; margin-bottom: 6px; display: block; margin-left: auto;" alt="Logo" />`;
   }
 
-  // Supporting receipt appendix HTML
+  // Multi-receipt supporting appendix HTML
+  const rawReceiptUrls = [];
+  if (Array.isArray(voucher.receiptImageUrls)) {
+    for (const u of voucher.receiptImageUrls) {
+      if (u && !rawReceiptUrls.includes(u)) rawReceiptUrls.push(u);
+    }
+  }
+  if (Array.isArray(voucher.receipts)) {
+    for (const r of voucher.receipts) {
+      if (r?.url && !rawReceiptUrls.includes(r.url)) {
+        rawReceiptUrls.push(r.url);
+      }
+    }
+  }
+  if (voucher.receiptImageUrl && !rawReceiptUrls.includes(voucher.receiptImageUrl)) {
+    rawReceiptUrls.push(voucher.receiptImageUrl);
+  }
+
   let receiptAppendixHtml = '';
-  if (voucher.receiptImageUrl) {
-    receiptAppendixHtml = `
-      <div style="page-break-before: always; margin-top: 40px; padding-top: 20px; border-top: 2px dashed #cbd5e1;">
-        <h3 style="font-size: 15px; color: #1e3a8a; text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.5px;">
-          Appendix: Supporting Receipt / Bill Photo
-        </h3>
-        <p style="font-size: 12px; color: #64748b; margin-bottom: 14px;">
-          Scanned voucher receipt attached for verification and audit trail.
-        </p>
-        <div style="text-align: center; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px;">
-          <img src="${toBase64DataUri(voucher.receiptImageUrl)}" style="max-width: 95%; max-height: 650px; object-fit: contain; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);" alt="Supporting Receipt" />
+  if (rawReceiptUrls.length > 0) {
+    receiptAppendixHtml = rawReceiptUrls.map((rUrl, rIdx) => {
+      const receiptTitle = (receiptGroups && receiptGroups[rIdx]?.title) || `Receipt ${rIdx + 1}`;
+      const base64Data = toBase64DataUri(rUrl);
+      return `
+        <div style="page-break-before: always; margin-top: 40px; padding-top: 20px; border-top: 2px dashed #cbd5e1;">
+          <h3 style="font-size: 15px; color: #1e3a8a; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;">
+            Appendix: Supporting Receipt ${rIdx + 1} Photo &mdash; ${escapeHtml(receiptTitle)}
+          </h3>
+          <p style="font-size: 12px; color: #64748b; margin-bottom: 14px;">
+            Scanned voucher receipt attached for verification and audit trail. Voucher #${escapeHtml(voucher.voucherNumber || 'Reference')}
+          </p>
+          <div style="text-align: center; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px;">
+            <img src="${base64Data}" style="max-width: 95%; max-height: 650px; object-fit: contain; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);" alt="Supporting Receipt ${rIdx + 1}" />
+          </div>
         </div>
-      </div>
-    `;
+      `;
+    }).join('');
   }
 
   const docTypeTitle = voucher.type === 'INVOICE'
@@ -143,6 +234,52 @@ export async function generateVoucherDocument({ voucher, outputPdfPath, outputDo
     : voucher.type === 'PETTY_CASH'
     ? 'Petty Cash Receipt'
     : 'Payment Voucher';
+
+  // Build Summary Rows HTML
+  let summaryRowsHtml = '';
+  if (hasMultipleReceipts) {
+    for (const grp of receiptGroups) {
+      summaryRowsHtml += `
+        <div class="summary-row" style="color: #64748b; font-size: 12px;">
+          <span>Receipt ${grp.number} Subtotal</span>
+          <span>$${formatCurrency(grp.subtotal)}</span>
+        </div>
+      `;
+    }
+    summaryRowsHtml += `
+      <div class="summary-row" style="font-weight: 700; border-top: 1px solid #cbd5e1;">
+        <span>Combined Subtotal</span>
+        <span>$${formatCurrency(subtotal)}</span>
+      </div>
+    `;
+  } else {
+    summaryRowsHtml += `
+      <div class="summary-row">
+        <span>Total Net</span>
+        <span>$${formatCurrency(subtotal)}</span>
+      </div>
+    `;
+  }
+
+  if (taxConfig.applyTax) {
+    summaryRowsHtml += `
+      <div class="summary-row">
+        <span>${escapeHtml(taxConfig.taxType || 'HST')} ${taxRate.toFixed(2)}%</span>
+        <span>$${formatCurrency(taxAmount)}</span>
+      </div>
+    `;
+  }
+
+  summaryRowsHtml += `
+    <div class="summary-row" style="font-weight: 700; color: #0f172a;">
+      <span>${hasMultipleReceipts ? 'Combined Invoice Total' : 'Invoice Total'}</span>
+      <span>$${formatCurrency(totalAmount)}</span>
+    </div>
+    <div class="summary-row total-pay-bar">
+      <span>${hasMultipleReceipts ? 'Total to Pay (Combined)' : 'Total to Pay'}</span>
+      <span>$${formatCurrency(totalAmount)}</span>
+    </div>
+  `;
 
   const fullHtml = `<!DOCTYPE html>
 <html>
@@ -253,7 +390,7 @@ export async function generateVoucherDocument({ voucher, outputPdfPath, outputDo
     margin-bottom: 28px;
   }
   .summary-table {
-    width: 340px;
+    width: 360px;
   }
   .summary-row {
     display: flex;
@@ -343,24 +480,7 @@ export async function generateVoucherDocument({ voucher, outputPdfPath, outputDo
     <!-- Totals Summary Table -->
     <div class="summary-wrap">
       <div class="summary-table">
-        <div class="summary-row">
-          <span>Total Net</span>
-          <span>$${formatCurrency(subtotal)}</span>
-        </div>
-        ${taxConfig.applyTax ? `
-          <div class="summary-row">
-            <span>${escapeHtml(taxConfig.taxType || 'HST')} ${taxRate.toFixed(2)}%</span>
-            <span>$${formatCurrency(taxAmount)}</span>
-          </div>
-        ` : ''}
-        <div class="summary-row" style="font-weight: 700; color: #0f172a;">
-          <span>Invoice Total</span>
-          <span>$${formatCurrency(totalAmount)}</span>
-        </div>
-        <div class="summary-row total-pay-bar">
-          <span>Total to Pay</span>
-          <span>$${formatCurrency(totalAmount)}</span>
-        </div>
+        ${summaryRowsHtml}
       </div>
     </div>
 
@@ -370,7 +490,7 @@ export async function generateVoucherDocument({ voucher, outputPdfPath, outputDo
       <p style="margin: 0; line-height: 1.5;">${escapeHtml(voucher.termsNotes || defaultTerms)}</p>
     </div>
 
-    <!-- Appendix (Supporting Receipt / Bill photo if attached) -->
+    <!-- Appendix (Supporting Receipts / Bill photos if attached) -->
     ${receiptAppendixHtml}
   </div>
 
@@ -472,17 +592,37 @@ export async function generateVoucherDocument({ voucher, outputPdfPath, outputDo
   voucherBodyXml += '<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:tblBorders><w:top w:val="single" w:sz="6" w:space="0" w:color="CBD5E1"/><w:bottom w:val="single" w:sz="6" w:space="0" w:color="CBD5E1"/><w:insideH w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/><w:insideV w:val="none"/></w:tblBorders></w:tblPr>';
   voucherBodyXml += '<w:tr><w:tc><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="F1F5F9"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="22"/></w:rPr><w:t>Item / Description</w:t></w:r></w:p></w:tc><w:tc><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="F1F5F9"/></w:tcPr><w:p><w:pPr><w:jc w:val="right"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="22"/></w:rPr><w:t>Net Amount</w:t></w:r></w:p></w:tc></w:tr>';
 
-  for (const it of items) {
-    const itAmt = Number(it.amount) || ((Number(it.quantity) || 1) * (Number(it.unitPrice) || 0));
-    voucherBodyXml += `<w:tr><w:tc><w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:sz w:val="20"/></w:rPr><w:t>${escapeHtml(it.description)}</w:t></w:r></w:p></w:tc><w:tc><w:p><w:pPr><w:jc w:val="right"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="20"/></w:rPr><w:t>$${formatCurrency(itAmt)}</w:t></w:r></w:p></w:tc></w:tr>`;
+  if (hasMultipleReceipts) {
+    for (const grp of receiptGroups) {
+      voucherBodyXml += `<w:tr><w:tc><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="EFF6FF"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="20"/><w:color w:val="1E40AF"/></w:rPr><w:t>Receipt ${grp.number}: ${escapeHtml(grp.title)}</w:t></w:r></w:p></w:tc><w:tc><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="EFF6FF"/></w:tcPr><w:p><w:pPr><w:jc w:val="right"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="20"/><w:color w:val="1E40AF"/></w:rPr><w:t>Subtotal: $${formatCurrency(grp.subtotal)}</w:t></w:r></w:p></w:tc></w:tr>`;
+      for (const it of grp.items) {
+        const itAmt = Number(it.amount) || ((Number(it.quantity) || 1) * (Number(it.unitPrice) || 0));
+        voucherBodyXml += `<w:tr><w:tc><w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:sz w:val="20"/></w:rPr><w:t>${escapeHtml(it.description)}</w:t></w:r></w:p></w:tc><w:tc><w:p><w:pPr><w:jc w:val="right"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="20"/></w:rPr><w:t>$${formatCurrency(itAmt)}</w:t></w:r></w:p></w:tc></w:tr>`;
+      }
+    }
+  } else {
+    for (const it of items) {
+      const itAmt = Number(it.amount) || ((Number(it.quantity) || 1) * (Number(it.unitPrice) || 0));
+      voucherBodyXml += `<w:tr><w:tc><w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:sz w:val="20"/></w:rPr><w:t>${escapeHtml(it.description)}</w:t></w:r></w:p></w:tc><w:tc><w:p><w:pPr><w:jc w:val="right"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="20"/></w:rPr><w:t>$${formatCurrency(itAmt)}</w:t></w:r></w:p></w:tc></w:tr>`;
+    }
   }
   voucherBodyXml += '</w:tbl>';
 
   // Totals in OpenXML
+  let totalsDocxXml = '';
+  if (hasMultipleReceipts) {
+    for (const grp of receiptGroups) {
+      totalsDocxXml += `<w:p><w:pPr><w:jc w:val="right"/><w:spacing w:after="30"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:sz w:val="20"/><w:color w:val="64748B"/></w:rPr><w:t>Receipt ${grp.number} Subtotal: $${formatCurrency(grp.subtotal)}</w:t></w:r></w:p>`;
+    }
+    totalsDocxXml += `<w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="60" w:after="40"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="22"/></w:rPr><w:t>Combined Subtotal: $${formatCurrency(subtotal)}</w:t></w:r></w:p>`;
+  } else {
+    totalsDocxXml += `<w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="120" w:after="40"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:sz w:val="22"/></w:rPr><w:t>Total Net: $${formatCurrency(subtotal)}</w:t></w:r></w:p>`;
+  }
+
   voucherBodyXml += `
-    <w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="120" w:after="40"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:sz w:val="22"/></w:rPr><w:t>Total Net: $${formatCurrency(subtotal)}</w:t></w:r></w:p>
+    ${totalsDocxXml}
     ${taxConfig.applyTax ? `<w:p><w:pPr><w:jc w:val="right"/><w:spacing w:after="40"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:sz w:val="22"/></w:rPr><w:t>${escapeHtml(taxConfig.taxType || 'HST')} ${taxRate.toFixed(2)}%: $${formatCurrency(taxAmount)}</w:t></w:r></w:p>` : ''}
-    <w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="80" w:after="160"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="28"/><w:color w:val="166534"/></w:rPr><w:t>TOTAL TO PAY: $${formatCurrency(totalAmount)}</w:t></w:r></w:p>
+    <w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="80" w:after="160"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="28"/><w:color w:val="166534"/></w:rPr><w:t>${hasMultipleReceipts ? 'COMBINED TOTAL TO PAY' : 'TOTAL TO PAY'}: $${formatCurrency(totalAmount)}</w:t></w:r></w:p>
     <w:p><w:pPr><w:spacing w:before="120" w:after="60"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="20"/></w:rPr><w:t>Terms &amp; Instructions: </w:t></w:r><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:sz w:val="20"/><w:color w:val="475569"/></w:rPr><w:t>${escapeHtml(voucher.termsNotes || defaultTerms)}</w:t></w:r></w:p>
   `;
 

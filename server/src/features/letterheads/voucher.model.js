@@ -7,6 +7,8 @@ const voucherItemSchema = new mongoose.Schema(
     unitPrice: { type: Number, default: 0 },
     amount: { type: Number, default: 0 },
     taxable: { type: Boolean, default: true },
+    receiptNumber: { type: Number, default: 1 },
+    receiptTitle: { type: String, default: '' },
   },
   { _id: true }
 );
@@ -64,6 +66,16 @@ const voucherSchema = new mongoose.Schema(
     // Attached receipt image (data URL or uploaded path)
     receiptImageUrl: { type: String, default: null },
     receiptFileName: { type: String, default: null },
+    receiptImageUrls: [{ type: String }],
+    receipts: [
+      {
+        receiptNumber: { type: Number, default: 1 },
+        title: { type: String, default: '' },
+        vendor: { type: String, default: '' },
+        url: { type: String, default: '' },
+        subtotal: { type: Number, default: 0 },
+      },
+    ],
 
     status: {
       type: String,
@@ -83,7 +95,10 @@ const voucherSchema = new mongoose.Schema(
 
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
-export const Voucher = mongoose.model('Voucher', voucherSchema);
+export const VoucherModel = mongoose.model('Voucher', voucherSchema);
+export default VoucherModel;
