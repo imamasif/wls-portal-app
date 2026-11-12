@@ -237,17 +237,27 @@ export async function populateCurriculumFromWeb(forceUri = null) {
       });
 
       // Insert all lectures for this course in exact sequence
-      const lectureDocs = cSec.lessons.map((lesson, idx) => ({
-        courseId: course._id,
-        topicName: cSec.courseTitle,
-        title: lesson.title,
-        description: `Lecture video session for ${lesson.title}`,
-        order: idx + 1,
-        videoUrls: lesson.videoUrl ? [lesson.videoUrl] : [],
-        isMandatory: true,
-        durationSeconds: (lesson.videoUrl && urlDurationMap.get(lesson.videoUrl.trim())) || 1800,
-        isActive: true,
-      }));
+      const lectureDocs = cSec.lessons.map((lesson, idx) => {
+        const isSupplementary =
+          /Arabic101/i.test(lesson.title) ||
+          /Colors \/ Translation/i.test(lesson.title) ||
+          /Urdu Translation/i.test(lesson.title) ||
+          /Session \d+ Colors/i.test(lesson.title) ||
+          /Qari Aqib/i.test(lesson.title) ||
+          /Arabic Grammar Series/i.test(lesson.title);
+
+        return {
+          courseId: course._id,
+          topicName: cSec.courseTitle,
+          title: lesson.title,
+          description: `Lecture video session for ${lesson.title}`,
+          order: idx + 1,
+          videoUrls: lesson.videoUrl ? [lesson.videoUrl] : [],
+          isMandatory: !isSupplementary,
+          durationSeconds: (lesson.videoUrl && urlDurationMap.get(lesson.videoUrl.trim())) || 1800,
+          isActive: true,
+        };
+      });
 
       if (lectureDocs.length > 0) {
         await LectureModel.insertMany(lectureDocs);

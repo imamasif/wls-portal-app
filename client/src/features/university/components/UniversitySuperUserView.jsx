@@ -1729,7 +1729,29 @@ export function UniversitySuperUserView({ currentUser }) {
                           </Stack>
                         </Group>
 
-                        <Group gap={4}>
+                        <Group gap={4} align="center">
+                          <Tooltip label={lec.isMandatory !== false ? "Click to toggle: currently Mandatory (End-to-End)" : "Click to toggle: currently Optional (Can Skip)"}>
+                            <Switch
+                              checked={lec.isMandatory !== false}
+                              onChange={async (e) => {
+                                const nextVal = e.currentTarget.checked;
+                                try {
+                                  await universityApi.updateLecture(lId, { isMandatory: nextVal });
+                                  setLectures((prev) =>
+                                    prev.map((item) => ((item._id || item.id) === lId ? { ...item, isMandatory: nextVal } : item))
+                                  );
+                                  showNotification(`Lecture marked as ${nextVal ? "Mandatory" : "Optional"}`);
+                                } catch (err) {
+                                  showNotification("Failed to update lecture mandatory status", "error");
+                                }
+                              }}
+                              color={lec.isMandatory !== false ? "red" : "gray"}
+                              size="xs"
+                              onLabel="Mandatory"
+                              offLabel="Optional"
+                              mr="xs"
+                            />
+                          </Tooltip>
                           <ActionIcon
                             size="sm"
                             color="gray"

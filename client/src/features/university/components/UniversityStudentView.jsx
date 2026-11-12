@@ -142,9 +142,19 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
       }
       setCourses(cList || []);
 
+      const activeDept = userEnrollment
+        ? (userEnrollment.departmentCode || userEnrollment.departmentId?.code || "QGE")
+        : selectedDeptCode;
+
+      if (userEnrollment) {
+        setSelectedDeptCode(activeDept);
+      }
+
       if (cList && cList.length > 0 && !selectedCourseId) {
-        const ccqUrdu = cList.find((c) => c.code === "CCQ-URDU-101") || cList[0];
-        setSelectedCourseId(ccqUrdu._id || ccqUrdu.id);
+        const matchedCourse = cList.find(
+          (c) => c.departmentCode === activeDept || c.code?.startsWith(activeDept)
+        ) || cList[0];
+        setSelectedCourseId(matchedCourse._id || matchedCourse.id);
       }
     } catch (err) {
       console.error("Failed to load student university details:", err);
@@ -275,7 +285,8 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
       setDurationSeconds(totalSeconds);
     }
 
-    if (activeLecture?.isMandatory && !isCompletedState) {
+    const isMandatory = activeLecture?.isMandatory !== false && !activeLecture?.isOptional;
+    if (isMandatory && !isCompletedState) {
       if (currentSecs > maxWatchedSeconds + 3) {
         if (playerRef.current) {
           playerRef.current.seekTo(maxWatchedSeconds, "seconds");
@@ -737,7 +748,9 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
                               (lec.lectureId || lec._id) ===
                                 (activeLecture?.lectureId || activeLecture?._id);
                             const isCompleted = Boolean(lec.isCompleted || (isSelected && isCompletedState));
-                            const isLocked = !lec.isUnlocked && !isCompleted;
+                            const isOptional = lec.isMandatory === false || lec.isOptional === true;
+                            // Optional lectures are freely accessible at any time with no lock
+                            const isLocked = !isOptional && !lec.isUnlocked && !isCompleted;
                             const curDur = (isSelected && durationSeconds > 0)
                               ? durationSeconds
                               : (lec.durationSeconds || lec.totalDurationSeconds || 0);
@@ -767,6 +780,10 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
                                       <ThemeIcon size={22} radius="xl" color="gray.2" variant="filled">
                                         <IconLock size={12} color="#94a3b8" />
                                       </ThemeIcon>
+                                    ) : isOptional ? (
+                                      <ThemeIcon size={22} radius="xl" color={isSelected ? "cyan" : "gray.2"} variant="filled">
+                                        <IconPlayerPlay size={12} color={isSelected ? "#ffffff" : "#0891b2"} />
+                                      </ThemeIcon>
                                     ) : (
                                       <ThemeIcon size={22} radius="xl" color={isSelected ? "blue" : "gray.2"} variant="filled">
                                         <IconPlayerPlay size={12} color={isSelected ? "#ffffff" : "#475569"} />
@@ -789,10 +806,14 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
                                           <Text size="11px" fw={700} c="teal.7">
                                             Completed ✔
                                           </Text>
+                                        ) : isOptional ? (
+                                          <Badge size="xs" color="cyan" variant="light" radius="sm">
+                                            OPTIONAL
+                                          </Badge>
                                         ) : (
-                                          <Text size="11px" c="dimmed">
-                                            Video
-                                          </Text>
+                                          <Badge size="xs" color="indigo" variant="outline" radius="sm">
+                                            MANDATORY
+                                          </Badge>
                                         )}
                                         <Text size="11px" c="dimmed">•</Text>
                                         <Text size="11px" c="dimmed">
@@ -811,7 +832,7 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
                   ))}
 
                   {/* Capstone Item: Course Quiz / Exam (Image 2 & 3) */}
-                  {courseData?.exam && (
+                  {courseData?.exam && courseData.exam.quizId && (
                     <Box
                       p="10px 14px"
                       mt="xs"
@@ -822,16 +843,16 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
                           contentMode === "quiz"
                             ? "3.5px solid #2563eb"
                             : "3.5px solid transparent",
-                        cursor: courseData.exam.isExamUnlocked ? "pointer" : "not-allowed",
+                        cursor: (courseData.exam.isExamUnlocked || currentUser?.role === "SUPER_USER" || currentUser?.role === "ADMIN") ? "pointer" : "not-allowed",
                         transition: "all 0.15s ease",
                       }}
-                      onClick={() => courseData.exam.isExamUnlocked && selectQuiz()}
+                      onClick={() => (courseData.exam.isExamUnlocked || currentUser?.role === "SUPER_USER" || currentUser?.role === "ADMIN") && selectQuiz()}
                     >
                       <Group justify="space-between" align="center" wrap="nowrap">
                         <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
                           {courseData.exam.hasPassedExam ? (
                             <IconCircleCheck size={18} color="#10b981" />
-                          ) : !courseData.exam.isExamUnlocked ? (
+                          ) : (!courseData.exam.isExamUnlocked && currentUser?.role !== "SUPER_USER" && currentUser?.role !== "ADMIN") ? (
                             <IconLock size={16} color="#94a3b8" />
                           ) : (
                             <IconAward
@@ -840,20 +861,27 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
                             />
                           )}
                           <Box style={{ minWidth: 0, flex: 1 }}>
-                            <Text
-                              size="xs"
-                              fw={contentMode === "quiz" ? 700 : 600}
-                              c={
-                                contentMode === "quiz"
-                                  ? "blue.8"
-                                  : !courseData.exam.isExamUnlocked
-                                  ? "dimmed"
-                                  : "dark.8"
-                              }
-                              lineClamp={1}
-                            >
-                              {courseData.exam.quizTitle}
-                            </Text>
+                            <Group gap={6} align="center">
+                              <Text
+                                size="xs"
+                                fw={contentMode === "quiz" ? 700 : 600}
+                                c={
+                                  contentMode === "quiz"
+                                    ? "blue.8"
+                                    : (!courseData.exam.isExamUnlocked && currentUser?.role !== "SUPER_USER" && currentUser?.role !== "ADMIN")
+                                    ? "dimmed"
+                                    : "dark.8"
+                                }
+                                lineClamp={1}
+                              >
+                                {courseData.exam.quizTitle}
+                              </Text>
+                              {!courseData.exam.isExamUnlocked && (currentUser?.role === "SUPER_USER" || currentUser?.role === "ADMIN") && (
+                                <Badge size="xs" color="violet" variant="light">
+                                  Staff Preview
+                                </Badge>
+                              )}
+                            </Group>
                             <Text size="11px" c="dimmed">
                               Quiz • Pass {courseData.exam.passingPercentage}% • Max {courseData.exam.maxAttempts} Attempts
                             </Text>
@@ -1174,16 +1202,27 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
                       >
                         Completed ✔ {currentLectureIndex < allLecturesList.length - 1 ? "(Next Module)" : "(Take Quiz)"}
                       </Button>
-                    ) : (
+                    ) : (activeLecture?.isMandatory === false || activeLecture?.isOptional === true) ? (
                       <Button
-                        color={activeLecture?.isMandatory !== false && (!durationSeconds || maxWatchedSeconds < durationSeconds * 0.95) ? "orange" : "teal"}
-                        variant={activeLecture?.isMandatory !== false && (!durationSeconds || maxWatchedSeconds < durationSeconds * 0.95) ? "light" : "filled"}
+                        color="cyan"
+                        variant="light"
                         size="md"
                         radius="xl"
-                        leftSection={activeLecture?.isMandatory !== false && (!durationSeconds || maxWatchedSeconds < durationSeconds * 0.95) ? <IconLock size={18} /> : <IconCheck size={18} />}
+                        leftSection={<IconCheck size={18} />}
                         onClick={handleManualMarkCompleted}
                       >
-                        {activeLecture?.isMandatory !== false && (!durationSeconds || maxWatchedSeconds < durationSeconds * 0.95)
+                        Mark as Complete (Optional)
+                      </Button>
+                    ) : (
+                      <Button
+                        color={(!durationSeconds || maxWatchedSeconds < durationSeconds * 0.95) ? "orange" : "teal"}
+                        variant={(!durationSeconds || maxWatchedSeconds < durationSeconds * 0.95) ? "light" : "filled"}
+                        size="md"
+                        radius="xl"
+                        leftSection={(!durationSeconds || maxWatchedSeconds < durationSeconds * 0.95) ? <IconLock size={18} /> : <IconCheck size={18} />}
+                        onClick={handleManualMarkCompleted}
+                      >
+                        {(!durationSeconds || maxWatchedSeconds < durationSeconds * 0.95)
                           ? `Mark as Complete (${formatRemaining(Math.max(0, (durationSeconds || 0) - maxWatchedSeconds))} left)`
                           : "Mark as Complete"}
                       </Button>
@@ -1546,6 +1585,35 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
   // =========================================================================
   // VIEW MODE 2: CONTINUOUS DASHBOARD (Image 4)
   // =========================================================================
+  const isStaff =
+    currentUser?.role === "SUPER_USER" ||
+    currentUser?.role === "ADMIN" ||
+    currentUser?.role === "INSTRUCTOR";
+  const isEnrolled = Boolean(enrollment && (enrollment._id || enrollment.id));
+
+  const deptCourses = courses.filter(
+    (c) =>
+      (c.departmentCode === selectedDeptCode || c.code?.startsWith(selectedDeptCode)) &&
+      c.isActive !== false
+  );
+
+  const curDept = departments.find((d) => d.code === selectedDeptCode) ||
+    (selectedDeptCode === "QGU"
+      ? { name: "Quranic Grammer - Urdu", headOfDepartment: "Br Aazim Kamal" }
+      : { name: "Quranic Grammer - English", headOfDepartment: "Sister Isha" });
+
+  const enrolledCount = isEnrolled
+    ? deptCourses.length
+    : isStaff
+    ? deptCourses.length
+    : 0;
+
+  const activeCoursesCount = isEnrolled
+    ? deptCourses.filter((c) => c.isActive !== false).length
+    : isStaff
+    ? deptCourses.filter((c) => c.isActive !== false).length
+    : 0;
+
   return (
     <Box style={{ backgroundColor: "#f8fafc", minHeight: "100vh", paddingBottom: "80px" }}>
       {/* Hero Welcome Card (Image 4) */}
@@ -1554,7 +1622,11 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
         radius="lg"
         mb="lg"
         style={{
-          background: "linear-gradient(135deg, #3730a3 0%, #1e1b4b 100%)",
+          background: isEnrolled
+            ? "linear-gradient(135deg, #3730a3 0%, #1e1b4b 100%)"
+            : isStaff
+            ? "linear-gradient(135deg, #4338ca 0%, #1e1b4b 100%)"
+            : "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)",
           color: "#ffffff",
         }}
         shadow="md"
@@ -1562,10 +1634,18 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
         <Group justify="space-between" align="center" wrap="wrap">
           <Stack gap={6}>
             <Group gap="xs">
-              <Badge color="yellow" variant="filled" size="sm">
-                Student Learning Center
+              <Badge
+                color={isEnrolled ? "yellow" : isStaff ? "violet" : "orange"}
+                variant="filled"
+                size="sm"
+              >
+                {isEnrolled
+                  ? "Student Learning Center"
+                  : isStaff
+                  ? "Staff Catalog Preview Mode"
+                  : "Admissions Closed / Not Enrolled"}
               </Badge>
-              {enrollment?.rollNumber && (
+              {isEnrolled && enrollment?.rollNumber && (
                 <Badge color="indigo" size="md" variant="light">
                   Roll: {enrollment.rollNumber}
                 </Badge>
@@ -1575,15 +1655,25 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
               Hi, {currentUser?.name || "Student"}! 👋
             </Title>
             <Text size="xs" c="gray.3">
-              Department:{" "}
-              <strong>
-                {enrollment?.departmentName ||
-                  enrollment?.departmentId?.name ||
-                  "Quranic Studies"}
-              </strong>{" "}
-              | Batch: <strong>{enrollment?.batchName || `Batch ${enrollment?.batchYear || 2026}`}</strong>{" "}
-              | Current Semester:{" "}
-              <strong>Semester {enrollment?.currentSemesterNumber || 1}</strong>
+              {isEnrolled ? (
+                <>
+                  Department: <strong>{enrollment?.departmentName || enrollment?.departmentId?.name || "Quranic Studies"}</strong>
+                  {" "}| Batch: <strong>{enrollment?.batchName || `Batch ${enrollment?.batchYear || 2026}`}</strong>
+                  {" "}| Current Semester: <strong>Semester {enrollment?.currentSemesterNumber || 1}</strong>
+                </>
+              ) : isStaff ? (
+                <>
+                  Department: <strong>{curDept.name} ({selectedDeptCode})</strong>
+                  {" "}| Mode: <strong>Administrator / Super User Preview</strong>
+                  {" "}| Curriculum: <strong>Semester 1 Core Courses ({deptCourses.length} Courses)</strong>
+                </>
+              ) : (
+                <>
+                  Admission Status: <strong>Not yet registered in any semester</strong>
+                  {" "}| Term: <strong>Upcoming 2026-2027</strong>
+                  {" "}| Note: Admissions for upcoming terms have not opened yet.
+                </>
+              )}
             </Text>
           </Stack>
 
@@ -1602,6 +1692,57 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
         </Group>
       </Paper>
 
+      {/* Prospective / Preview Notice Alert when student is not enrolled */}
+      {!isEnrolled && !isStaff && (
+        <Alert
+          icon={<IconAlertCircle size={18} />}
+          color="blue"
+          title="Admissions Not Open Yet"
+          radius="md"
+          mb="lg"
+        >
+          You are not currently registered in any semester because university admissions have not opened yet.
+          Once admissions open and your enrollment is confirmed, your enrolled department courses and study track will be activated here.
+          In the meantime, you can explore the prospective curriculum below.
+        </Alert>
+      )}
+
+      {/* Academic Track & Department Switcher Bar */}
+      <Paper p="sm" radius="md" withBorder bg="white" shadow="xs" mb="lg">
+        <Group justify="space-between" align="center" wrap="wrap">
+          <Group gap="xs">
+            <Text size="xs" fw={700} c="dimmed" tt="uppercase">
+              Academic Department Track:
+            </Text>
+            <SegmentedControl
+              value={selectedDeptCode}
+              onChange={(val) => {
+                setSelectedDeptCode(val);
+                const matched = courses.filter(
+                  (c) => (c.departmentCode === val || c.code?.startsWith(val)) && c.isActive !== false
+                );
+                if (matched.length > 0) {
+                  setSelectedCourseId(matched[0]._id || matched[0].id);
+                }
+              }}
+              data={[
+                { label: "Quranic Grammar - English (QGE)", value: "QGE" },
+                { label: "Quranic Grammar - Urdu (QGU)", value: "QGU" },
+              ]}
+              radius="md"
+              size="xs"
+              color={selectedDeptCode === "QGE" ? "indigo" : "teal"}
+            />
+          </Group>
+
+          {!isEnrolled && (
+            <Badge color={isStaff ? "violet" : "orange"} variant="light" size="sm">
+              {isStaff ? "Staff Catalog Preview" : "Admissions Closed - Curriculum Preview"}
+            </Badge>
+          )}
+        </Group>
+      </Paper>
+
       {/* 4 Stat Metric Cards (Image 4) */}
       <SimpleGrid cols={{ base: 2, md: 4 }} spacing="md" mb="xl">
         <Paper p="md" radius="md" withBorder bg="white" shadow="xs">
@@ -1614,10 +1755,14 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
             </ThemeIcon>
           </Group>
           <Text size="xl" fw={800} c="blue.7">
-            {courses.length}
+            {enrolledCount}
           </Text>
           <Text size="11px" c="dimmed">
-            Active courses
+            {isEnrolled
+              ? `Enrolled in ${selectedDeptCode}`
+              : isStaff
+              ? `Catalog Preview (${selectedDeptCode})`
+              : "Admissions not open"}
           </Text>
         </Paper>
 
@@ -1631,10 +1776,14 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
             </ThemeIcon>
           </Group>
           <Text size="xl" fw={800} c="teal.7">
-            {courses.filter((c) => c.isActive !== false).length}
+            {activeCoursesCount}
           </Text>
           <Text size="11px" c="dimmed">
-            Currently in study
+            {isEnrolled
+              ? "Currently in study"
+              : isStaff
+              ? `Active in ${selectedDeptCode}`
+              : "Registration pending"}
           </Text>
         </Paper>
 

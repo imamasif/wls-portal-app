@@ -315,7 +315,7 @@ export function UniversityVideoPlayer({
       <Group justify="space-between" mt="xs" px="xs" wrap="wrap">
         <Group gap="xs">
           <Badge
-            color={isCompleted ? "teal" : isMandatory ? "orange" : "gray"}
+            color={isCompleted ? "teal" : isMandatory ? "orange" : "cyan"}
             variant="light"
             size="sm"
           >
@@ -323,7 +323,7 @@ export function UniversityVideoPlayer({
               ? "Completed (Free Replay)"
               : isMandatory
               ? "Mandatory Tracking Active"
-              : "Optional Lecture"}
+              : "Optional Lecture (Free Playback)"}
           </Badge>
           {duration > 0 && (
             <Text size="xs" c="dimmed">
