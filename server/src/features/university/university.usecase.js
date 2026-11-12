@@ -1381,9 +1381,85 @@ export class UniversityUseCase {
 
     const dept = await DepartmentModel.findById(departmentId);
     const currentSem = enrollment.currentSemesterNumber || 1;
+    const totalSemesters = dept?.totalSemesters || 8;
 
-    if (currentSem >= (dept?.totalSemesters || 8)) {
+    // 1. GATING: Verify Super User has created the current semester and all its mandatory courses
+    const currentSemDoc = await SemesterModel.findOne({
+      departmentId,
+      semesterNumber: currentSem,
+    });
+
+    const currentCourses = currentSemDoc
+      ? await CourseModel.find({
+          departmentId,
+          semesterId: currentSemDoc._id,
+          isActive: { $ne: false },
+        })
+      : [];
+
+    if (currentCourses.length === 0) {
+      throw new Error(
+        `Promotion blocked: No active courses found for Semester ${currentSem} in ${dept?.name || "this department"}. Curriculum courses must be created before students can be promoted.`
+      );
+    }
+
+    // 2. GATING: Verify student has watched all mandatory lectures and passed all required exams in current semester
+    const uncompletedCourses = [];
+
+    for (const course of currentCourses) {
+      // Check mandatory lectures
+      const mandatoryLectures = await LectureModel.find({
+        courseId: course._id,
+        isMandatory: { $ne: false },
+        isActive: { $ne: false },
+      });
+
+      if (mandatoryLectures.length > 0) {
+        const completedLecturesCount = await StudentLectureProgressModel.countDocuments({
+          studentId,
+          courseId: course._id,
+          lectureId: { $in: mandatoryLectures.map((l) => l._id) },
+          isCompleted: true,
+        });
+
+        if (completedLecturesCount < mandatoryLectures.length) {
+          uncompletedCourses.push(
+            `"${course.title}" (${course.code}): ${completedLecturesCount}/${mandatoryLectures.length} mandatory lectures completed`
+          );
+          continue;
+        }
+      }
+
+      // Check exam requirement if exam is enabled
+      if (course.isExamAvailable && course.examQuizId) {
+        const passedAttempt = await StudentExamAttemptModel.findOne({
+          studentId,
+          courseId: course._id,
+          isPassed: true,
+        });
+
+        if (!passedAttempt) {
+          uncompletedCourses.push(
+            `"${course.title}" (${course.code}): Final exam not passed`
+          );
+        }
+      }
+    }
+
+    if (uncompletedCourses.length > 0) {
+      throw new Error(
+        `Cannot promote student: Student has not completed and passed all mandatory courses for Semester ${currentSem}.\nOutstanding requirements:\n• ` +
+          uncompletedCourses.join("\n• ")
+      );
+    }
+
+    // 3. GRADUATION CHECK: If student finished the final semester of the program
+    if (currentSem >= totalSemesters) {
       enrollment.status = "GRADUATED";
+      if (!enrollment.completedSemesters) enrollment.completedSemesters = [];
+      if (!enrollment.completedSemesters.includes(currentSem)) {
+        enrollment.completedSemesters.push(currentSem);
+      }
       await enrollment.save();
 
       // Issue Degree Certificate
@@ -1391,7 +1467,7 @@ export class UniversityUseCase {
         studentId,
         departmentId,
         type: "DEGREE",
-        title: `Bachelor Degree in ${dept.name}`,
+        title: `Bachelor Degree in ${dept?.name || "Quranic Studies"}`,
         grade: "PASSED WITH DISTINCTION",
       });
 
@@ -1402,21 +1478,27 @@ export class UniversityUseCase {
       };
     }
 
+    // 4. GATING: Verify Super User has created the target next semester
     const nextSemNumber = currentSem + 1;
     const nextSem = await SemesterModel.findOne({
       departmentId,
       semesterNumber: nextSemNumber,
     });
 
+    if (!nextSem) {
+      throw new Error(
+        `Cannot promote student: Semester ${nextSemNumber} has not been created yet by the Super User for ${dept?.name || "this department"}. Please create Semester ${nextSemNumber} first.`
+      );
+    }
+
+    // 5. ADVANCE SEMESTER & AWARD COMPLETION CERTIFICATE
     if (!enrollment.completedSemesters) enrollment.completedSemesters = [];
     if (!enrollment.completedSemesters.includes(currentSem)) {
       enrollment.completedSemesters.push(currentSem);
     }
 
     enrollment.currentSemesterNumber = nextSemNumber;
-    if (nextSem) {
-      enrollment.currentSemesterId = nextSem._id;
-    }
+    enrollment.currentSemesterId = nextSem._id;
     enrollment.status = "PROMOTED";
     await enrollment.save();
 
@@ -1424,9 +1506,9 @@ export class UniversityUseCase {
     await this.awardCertificate({
       studentId,
       departmentId,
-      semesterId: enrollment.currentSemesterId,
+      semesterId: currentSemDoc?._id || enrollment.currentSemesterId,
       type: "SEMESTER",
-      title: `Certificate of Completion - Semester ${currentSem} (${dept.name})`,
+      title: `Certificate of Completion - Semester ${currentSem} (${dept?.name || dept?.code})`,
       grade: "PASSED",
     });
 

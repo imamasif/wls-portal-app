@@ -559,7 +559,62 @@ async function runUniversityE2ETest() {
     });
     console.log(`✓ Course Certificate Awarded: #${courseCert.certificateNumber} to ${courseCert.studentName}`);
 
-    // Promote Student 1 to Semester 2
+    // --- Check Promotion Gate: Premature promotion must be strictly blocked ---
+    console.log("\nTesting Promotion Gate with incomplete courses in Semester 1...");
+    let prematurePromotionBlocked = false;
+    try {
+      await UniversityUseCase.promoteStudent(student1._id, deptQGE._id);
+    } catch (err) {
+      prematurePromotionBlocked = true;
+      console.log(`✓ PASS: Premature promotion strictly blocked: "${err.message.split("\n")[0]}"`);
+      auditLog.passed.push("Promotion Gate: Student cannot be promoted without passing all mandatory courses in current semester.");
+    }
+    if (!prematurePromotionBlocked) {
+      auditLog.derailments.push("Promotion Gate failed: Student was promoted without completing all mandatory courses!");
+    }
+
+    // Now complete all remaining courses in Semester 1 for Student 1 (Tariq)
+    console.log("\nCompleting all remaining mandatory courses & exams in Semester 1 for Student 1...");
+    const sem1Courses = await CourseModel.find({
+      departmentId: deptQGE._id,
+      semesterId: sem1QGE._id,
+      isActive: { $ne: false },
+    }).populate("examQuizId");
+
+    for (const semCourse of sem1Courses) {
+      if (semCourse.code === "QGE-01-002") continue; // Already completed above
+
+      const courseLectures = await LectureModel.find({ courseId: semCourse._id, isActive: true });
+      const mandatoryCourseLecs = courseLectures.filter((l) => l.isMandatory !== false);
+
+      for (const mLec of mandatoryCourseLecs) {
+        const dur = mLec.durationSeconds || 1800;
+        await UniversityUseCase.updateLectureWatchProgress({
+          studentId: student1._id,
+          courseId: semCourse._id,
+          lectureId: mLec._id,
+          watchedSeconds: dur,
+          totalDurationSeconds: dur,
+          markComplete: true,
+        });
+      }
+      console.log(`✓ Completed all ${mandatoryCourseLecs.length} mandatory lectures for ${semCourse.code} ("${semCourse.title}")`);
+
+      // If course has an exam enabled, submit passing attempt
+      if (semCourse.isExamAvailable && semCourse.examQuizId) {
+        await UniversityUseCase.submitExamAttempt({
+          studentId: student1._id,
+          courseId: semCourse._id,
+          quizId: semCourse.examQuizId._id,
+          score: 85,
+          maxScore: 100,
+        });
+        console.log(`✓ Passed final exam for ${semCourse.code} with score 85%`);
+      }
+    }
+
+    // Promote Student 1 to Semester 2 (Now that all courses are completed & passed)
+    console.log("\nAttempting promotion after passing all mandatory courses...");
     const promoteResult = await UniversityUseCase.promoteStudent(student1._id, deptQGE._id);
     console.log(`✓ Promotion Result: Status=${promoteResult.status}, NextSem=${promoteResult.nextSemesterNumber}`);
 

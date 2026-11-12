@@ -70,10 +70,7 @@ export function StudentCourseView({ studentId, courseId }) {
       });
       fetchProgress();
     } catch (err) {
-      alert(
-        "Failed to update progress: " +
-          (err.response?.data?.error || err.message),
-      );
+      setError("Failed to update progress: " + (err.response?.data?.error || err.message));
     }
   };
 

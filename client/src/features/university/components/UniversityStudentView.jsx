@@ -59,6 +59,7 @@ import {
 } from "@tabler/icons-react";
 import { UniversityVideoPlayer } from "./UniversityVideoPlayer";
 import { universityApi } from "../api/universityApi";
+import { modals } from "@mantine/modals";
 import { CertificateModal } from "./CertificateModal";
 
 export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
@@ -464,7 +465,27 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
       setNoteInput("");
       setNoteModalOpen(false);
     } catch (err) {
-      alert("Failed to save note: " + err.message);
+      modals.open({
+        title: (
+          <Group gap="xs">
+            <ThemeIcon color="red" variant="light" size="sm" radius="md">
+              <IconAlertCircle size={16} />
+            </ThemeIcon>
+            <Text fw={600} size="sm">
+              Note Error
+            </Text>
+          </Group>
+        ),
+        centered: true,
+        children: (
+          <Stack gap="sm">
+            <Text size="sm">Failed to save note: {err.message}</Text>
+            <Button fullWidth variant="light" color="gray" onClick={() => modals.closeAll()}>
+              Close
+            </Button>
+          </Stack>
+        ),
+      });
     } finally {
       setSavingNote(false);
     }
@@ -518,7 +539,29 @@ export function UniversityStudentView({ currentUser, onSwitchPerspective }) {
       setExamModalOpened(false);
       loadCourseLectures(selectedCourseId);
     } catch (err) {
-      alert("Failed to submit exam: " + (err.response?.data?.message || err.message));
+      modals.open({
+        title: (
+          <Group gap="xs">
+            <ThemeIcon color="red" variant="light" size="sm" radius="md">
+              <IconAlertCircle size={16} />
+            </ThemeIcon>
+            <Text fw={600} size="sm">
+              Exam Submission Error
+            </Text>
+          </Group>
+        ),
+        centered: true,
+        children: (
+          <Stack gap="sm">
+            <Alert color="red" variant="light" radius="md">
+              {err.response?.data?.message || err.message}
+            </Alert>
+            <Button fullWidth variant="light" color="red" onClick={() => modals.closeAll()}>
+              Close
+            </Button>
+          </Stack>
+        ),
+      });
     } finally {
       setSubmittingExam(false);
     }

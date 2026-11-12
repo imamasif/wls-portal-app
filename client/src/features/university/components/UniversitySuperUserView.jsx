@@ -63,6 +63,29 @@ import {
   IconInfoCircle,
 } from "@tabler/icons-react";
 import { universityApi } from "../api/universityApi";
+import { modals } from "@mantine/modals";
+
+// Safe deduplicator for Mantine Select / MultiSelect data arrays
+const dedupeSelectData = (items) => {
+  if (!Array.isArray(items)) return [];
+  const map = new Map();
+  for (const item of items) {
+    if (!item) continue;
+    let val = "";
+    let formatted = item;
+    if (typeof item === "object") {
+      val = String(item.value ?? "");
+      formatted = { ...item, value: val };
+    } else {
+      val = String(item);
+      formatted = { value: val, label: val };
+    }
+    if (val && !map.has(val)) {
+      map.set(val, formatted);
+    }
+  }
+  return Array.from(map.values());
+};
 import { CertificateModal } from "./CertificateModal";
 
 export function UniversitySuperUserView({ currentUser }) {
@@ -123,17 +146,38 @@ export function UniversitySuperUserView({ currentUser }) {
   const [syncingWeb, setSyncingWeb] = useState(false);
 
   const handleSyncWebCurriculum = async () => {
-    if (!window.confirm("Are you sure you want to re-sync curriculum directly from IIPC Canada web portal? This will refresh all 5 courses and lectures for both departments.")) return;
-    setSyncingWeb(true);
-    try {
-      await universityApi.syncWebCurriculum();
-      showNotification("Successfully synced 2 departments, 10 courses, and all lectures from IIPC Canada!");
-      await loadAll();
-    } catch (err) {
-      showNotification("Failed to sync from web: " + (err.response?.data?.message || err.message), "error");
-    } finally {
-      setSyncingWeb(false);
-    }
+    modals.openConfirmModal({
+      title: (
+        <Group gap="xs">
+          <ThemeIcon color="orange" variant="light" size="lg" radius="md">
+            <IconRefresh size={20} />
+          </ThemeIcon>
+          <Text fw={600} size="md">
+            Re-Sync Web Portal Curriculum
+          </Text>
+        </Group>
+      ),
+      centered: true,
+      children: (
+        <Text size="sm">
+          Are you sure you want to re-sync curriculum directly from IIPC Canada web portal? This will refresh all 5 courses and lectures for both departments.
+        </Text>
+      ),
+      labels: { confirm: "Re-Sync Now", cancel: "Cancel" },
+      confirmProps: { color: "orange" },
+      onConfirm: async () => {
+        setSyncingWeb(true);
+        try {
+          await universityApi.syncWebCurriculum();
+          showNotification("Successfully synced 2 departments, 10 courses, and all lectures from IIPC Canada!");
+          await loadAll();
+        } catch (err) {
+          showNotification("Failed to sync from web: " + (err.response?.data?.message || err.message), "error");
+        } finally {
+          setSyncingWeb(false);
+        }
+      },
+    });
   };
   const [reportFilterDept, setReportFilterDept] = useState("");
   const [reportFilterSem, setReportFilterSem] = useState("");
@@ -595,14 +639,35 @@ export function UniversitySuperUserView({ currentUser }) {
   };
 
   const handleDeleteDepartment = async (deptId) => {
-    if (!window.confirm("Are you sure you want to delete this department? All associated semesters will be removed.")) return;
-    try {
-      await universityApi.deleteDepartment(deptId);
-      showNotification("Department deleted successfully!");
-      loadAll();
-    } catch (err) {
-      showNotification(err.response?.data?.message || err.message, "error");
-    }
+    modals.openConfirmModal({
+      title: (
+        <Group gap="xs">
+          <ThemeIcon color="red" variant="light" size="lg" radius="md">
+            <IconTrash size={20} />
+          </ThemeIcon>
+          <Text fw={600} size="md">
+            Delete Academic Department
+          </Text>
+        </Group>
+      ),
+      centered: true,
+      children: (
+        <Text size="sm">
+          Are you sure you want to delete this department? All associated semesters will be removed.
+        </Text>
+      ),
+      labels: { confirm: "Delete Department", cancel: "Cancel" },
+      confirmProps: { color: "red" },
+      onConfirm: async () => {
+        try {
+          await universityApi.deleteDepartment(deptId);
+          showNotification("Department deleted successfully!");
+          loadAll();
+        } catch (err) {
+          showNotification(err.response?.data?.message || err.message, "error");
+        }
+      },
+    });
   };
 
   // --- Handlers: Course ---
@@ -659,18 +724,39 @@ export function UniversitySuperUserView({ currentUser }) {
   };
 
   const handleDeleteCourse = async (courseId) => {
-    if (!window.confirm("Are you sure you want to delete this course? Associated lectures will be removed.")) return;
-    try {
-      await universityApi.deleteCourse(courseId);
-      showNotification("Course deleted successfully!");
-      const cList = await universityApi.getCourses({ departmentId: selectedDeptId });
-      setCourses(cList || []);
-      if (selectedCourseId === courseId) {
-        setSelectedCourseId(cList[0]?._id || null);
-      }
-    } catch (err) {
-      showNotification(err.response?.data?.message || err.message, "error");
-    }
+    modals.openConfirmModal({
+      title: (
+        <Group gap="xs">
+          <ThemeIcon color="red" variant="light" size="lg" radius="md">
+            <IconTrash size={20} />
+          </ThemeIcon>
+          <Text fw={600} size="md">
+            Delete Course
+          </Text>
+        </Group>
+      ),
+      centered: true,
+      children: (
+        <Text size="sm">
+          Are you sure you want to delete this course? Associated lectures will be removed.
+        </Text>
+      ),
+      labels: { confirm: "Delete Course", cancel: "Cancel" },
+      confirmProps: { color: "red" },
+      onConfirm: async () => {
+        try {
+          await universityApi.deleteCourse(courseId);
+          showNotification("Course deleted successfully!");
+          const cList = await universityApi.getCourses({ departmentId: selectedDeptId });
+          setCourses(cList || []);
+          if (selectedCourseId === courseId) {
+            setSelectedCourseId(cList[0]?._id || null);
+          }
+        } catch (err) {
+          showNotification(err.response?.data?.message || err.message, "error");
+        }
+      },
+    });
   };
 
   // --- Handlers: Lecture ---
@@ -703,15 +789,36 @@ export function UniversitySuperUserView({ currentUser }) {
   };
 
   const handleDeleteLecture = async (lectureId) => {
-    if (!window.confirm("Delete this lecture?")) return;
-    try {
-      await universityApi.deleteLecture(lectureId);
-      showNotification("Lecture deleted successfully!");
-      const lList = await universityApi.getLectures(selectedCourseId);
-      setLectures(lList || []);
-    } catch (err) {
-      showNotification(err.response?.data?.message || err.message, "error");
-    }
+    modals.openConfirmModal({
+      title: (
+        <Group gap="xs">
+          <ThemeIcon color="red" variant="light" size="lg" radius="md">
+            <IconTrash size={20} />
+          </ThemeIcon>
+          <Text fw={600} size="md">
+            Delete Lecture
+          </Text>
+        </Group>
+      ),
+      centered: true,
+      children: (
+        <Text size="sm">
+          Are you sure you want to delete this lecture? This action cannot be undone.
+        </Text>
+      ),
+      labels: { confirm: "Delete Lecture", cancel: "Cancel" },
+      confirmProps: { color: "red" },
+      onConfirm: async () => {
+        try {
+          await universityApi.deleteLecture(lectureId);
+          showNotification("Lecture deleted successfully!");
+          const lList = await universityApi.getLectures(selectedCourseId);
+          setLectures(lList || []);
+        } catch (err) {
+          showNotification(err.response?.data?.message || err.message, "error");
+        }
+      },
+    });
   };
 
   // --- Handlers: Enroll Student (Individual, Batch & Quick Create) ---
@@ -804,30 +911,80 @@ export function UniversitySuperUserView({ currentUser }) {
   };
 
   const handleDeleteEnrollment = async (enrollmentId, studentName, deptCode) => {
-    if (!window.confirm(`Are you sure you want to remove ${studentName || "this student"} from ${deptCode || "this department"}?`)) {
-      return;
-    }
-    try {
-      await universityApi.deleteEnrollment(enrollmentId);
-      showNotification(`Student enrollment removed successfully.`);
-      setEnrollments((prev) => prev.filter((e) => (e._id || e.id) !== enrollmentId));
-    } catch (err) {
-      showNotification(err.response?.data?.message || err.message, "error");
-    }
+    modals.openConfirmModal({
+      title: (
+        <Group gap="xs">
+          <ThemeIcon color="red" variant="light" size="lg" radius="md">
+            <IconTrash size={20} />
+          </ThemeIcon>
+          <Text fw={600} size="md">
+            Remove Student Enrollment
+          </Text>
+        </Group>
+      ),
+      centered: true,
+      children: (
+        <Text size="sm">
+          Are you sure you want to remove <strong>{studentName || "this student"}</strong> from{" "}
+          <strong>{deptCode || "this department"}</strong>? This will revoke their enrolled status in this department.
+        </Text>
+      ),
+      labels: { confirm: "Remove Enrollment", cancel: "Cancel" },
+      confirmProps: { color: "red" },
+      onConfirm: async () => {
+        try {
+          await universityApi.deleteEnrollment(enrollmentId);
+          showNotification(`Student enrollment removed successfully.`);
+          setEnrollments((prev) => prev.filter((e) => (e._id || e.id) !== enrollmentId));
+        } catch (err) {
+          showNotification(err.response?.data?.message || err.message, "error");
+        }
+      },
+    });
   };
 
-  const handlePromoteStudent = async (studentId, departmentId) => {
-    if (!window.confirm("Promote student to next semester? This will issue a semester completion certificate.")) return;
-    try {
-      const res = await universityApi.promoteStudent({ studentId, departmentId });
-      showNotification(`Student successfully promoted! Status: ${res.data?.status}`);
-      const enrolls = await universityApi.getEnrollments();
-      setEnrollments(enrolls || []);
-      const certs = await universityApi.getCertificates();
-      setCertificates(certs || []);
-    } catch (err) {
-      showNotification(err.response?.data?.message || err.message, "error");
-    }
+  const handlePromoteStudent = async (studentId, departmentId, studentName, currentSem, deptCode) => {
+    const nextSem = (Number(currentSem) || 1) + 1;
+    modals.openConfirmModal({
+      title: (
+        <Group gap="xs">
+          <ThemeIcon color="teal" variant="light" size="lg" radius="md">
+            <IconAward size={20} />
+          </ThemeIcon>
+          <Text fw={600} size="md">
+            Promote Student to Semester {nextSem}
+          </Text>
+        </Group>
+      ),
+      centered: true,
+      children: (
+        <Stack gap="xs" pt="xs">
+          <Text size="sm">
+            Promote <strong>{studentName || "Student"}</strong> from <strong>Semester {currentSem || 1}</strong> to{" "}
+            <strong>Semester {nextSem}</strong> in <strong>{deptCode || "this department"}</strong>?
+          </Text>
+          <Alert color="blue" variant="light" radius="md" p="xs">
+            <Text size="xs">
+              <strong>University Requirement:</strong> Semester {nextSem} must be created in the system by the Super User, and the student must have completed and passed all mandatory courses and exams for Semester {currentSem || 1}. An official Semester Completion Certificate will be automatically issued.
+            </Text>
+          </Alert>
+        </Stack>
+      ),
+      labels: { confirm: `Promote to Semester ${nextSem}`, cancel: "Cancel" },
+      confirmProps: { color: "teal" },
+      onConfirm: async () => {
+        try {
+          const res = await universityApi.promoteStudent({ studentId, departmentId });
+          showNotification(`Student successfully promoted! Status: ${res.data?.status || res.status || "PROMOTED"}`);
+          const enrolls = await universityApi.getEnrollments();
+          setEnrollments(enrolls || []);
+          const certs = await universityApi.getCertificates();
+          setCertificates(certs || []);
+        } catch (err) {
+          showNotification(err.response?.data?.message || err.message, "error");
+        }
+      },
+    });
   };
 
   // --- Handlers: Certificates ---
@@ -1371,10 +1528,12 @@ export function UniversitySuperUserView({ currentUser }) {
               <Group gap="sm">
                 <Select
                   label="Filter by Department"
-                  data={departments.map((d) => ({
-                    value: d._id || d.id,
-                    label: `${d.code} - ${d.name}`,
-                  }))}
+                  data={dedupeSelectData(
+                    departments.map((d) => ({
+                      value: String(d._id || d.id),
+                      label: `${d.code} - ${d.name}`,
+                    }))
+                  )}
                   value={selectedDeptId}
                   onChange={setSelectedDeptId}
                   size="xs"
@@ -1383,13 +1542,13 @@ export function UniversitySuperUserView({ currentUser }) {
                 <Select
                   label="Filter by Semester"
                   placeholder="All Semesters"
-                  data={[
+                  data={dedupeSelectData([
                     { value: "", label: "All Semesters" },
                     ...semesters.map((s) => ({
-                      value: s._id || s.id,
-                      label: `Semester ${s.semesterNumber} (${s.title})`,
+                      value: String(s._id || s.id),
+                      label: `Semester ${s.semesterNumber} (${s.title || "Core"})`,
                     })),
-                  ]}
+                  ])}
                   value={selectedSemesterId || ""}
                   onChange={(val) => setSelectedSemesterId(val || null)}
                   size="xs"
@@ -1599,10 +1758,12 @@ export function UniversitySuperUserView({ currentUser }) {
               <Group gap="sm">
                 <Select
                   label="Selected Course"
-                  data={courses.map((c) => ({
-                    value: c._id || c.id,
-                    label: `${c.code}: ${c.title}`,
-                  }))}
+                  data={dedupeSelectData(
+                    courses.map((c) => ({
+                      value: String(c._id || c.id),
+                      label: `${c.code}: ${c.title}`,
+                    }))
+                  )}
                   value={selectedCourseId}
                   onChange={setSelectedCourseId}
                   size="xs"
@@ -1930,7 +2091,15 @@ export function UniversitySuperUserView({ currentUser }) {
                                 size="compact-xs"
                                 color="teal"
                                 variant="light"
-                                onClick={() => handlePromoteStudent(sId, dId)}
+                                onClick={() =>
+                                  handlePromoteStudent(
+                                    sId,
+                                    dId,
+                                    en.studentName || en.studentId?.name,
+                                    en.currentSemesterNumber,
+                                    en.departmentCode || en.departmentId?.code
+                                  )
+                                }
                               >
                                 Promote Semester
                               </Button>
@@ -2093,13 +2262,13 @@ export function UniversitySuperUserView({ currentUser }) {
                   <Select
                     label="Filter by Department"
                     placeholder="All Departments"
-                    data={[
+                    data={dedupeSelectData([
                       { value: "", label: "All Departments" },
                       ...departments.map((d) => ({
-                        value: d._id || d.id,
+                        value: String(d._id || d.id),
                         label: `${d.code}: ${d.name}`,
                       })),
-                    ]}
+                    ])}
                     value={reportFilterDept}
                     onChange={(val) => setReportFilterDept(val || "")}
                     size="xs"
@@ -2553,10 +2722,12 @@ export function UniversitySuperUserView({ currentUser }) {
             <Select
               label="Assigned Instructor"
               placeholder="Select Instructor"
-              data={usersList.map((u) => ({
-                value: u._id || u.id,
-                label: `${u.name} (${u.role})`,
-              }))}
+              data={dedupeSelectData(
+                usersList.map((u) => ({
+                  value: String(u._id || u.id),
+                  label: `${u.name} (${u.role})`,
+                }))
+              )}
               value={courseForm.instructorId}
               onChange={(val) => {
                 const found = usersList.find((u) => (u._id || u.id) === val);
@@ -2575,10 +2746,12 @@ export function UniversitySuperUserView({ currentUser }) {
           <Select
             label="Link Final Exam (from Quizzes)"
             placeholder="Select a created quiz to act as the course exam"
-            data={quizzesList.map((q) => ({
-              value: q._id || q.id,
-              label: `${q.title} (${q.questions?.length || 0} questions)`,
-            }))}
+            data={dedupeSelectData(
+              quizzesList.map((q) => ({
+                value: String(q._id || q.id),
+                label: `${q.title} (${q.questions?.length || 0} questions)`,
+              }))
+            )}
             value={courseForm.examQuizId}
             onChange={(val) => setCourseForm({ ...courseForm, examQuizId: val })}
             clearable
@@ -2771,10 +2944,12 @@ export function UniversitySuperUserView({ currentUser }) {
 
               <MultiSelect
                 placeholder="Search and select one or more students..."
-                data={usersList.map((u) => ({
-                  value: u._id || u.id,
-                  label: `${u.name || "User"} (${u.email})`,
-                }))}
+                data={dedupeSelectData(
+                  usersList.map((u) => ({
+                    value: String(u._id || u.id),
+                    label: `${u.name || "User"} (${u.email})`,
+                  }))
+                )}
                 value={selectedStudentIds}
                 onChange={setSelectedStudentIds}
                 searchable
@@ -2787,10 +2962,12 @@ export function UniversitySuperUserView({ currentUser }) {
                   label="Assign to Batch (Year Cohort) *"
                   placeholder="Select Batch Cohort (e.g. Batch 2026)..."
                   required
-                  data={batches.map((b) => ({
-                    value: b._id || b.id,
-                    label: `${b.name || `Batch ${b.year}`} (${b.year})`,
-                  }))}
+                  data={dedupeSelectData(
+                    batches.map((b) => ({
+                      value: String(b._id || b.id),
+                      label: `${b.name || `Batch ${b.year}`} (${b.year})`,
+                    }))
+                  )}
                   value={selectedEnrollBatchId}
                   onChange={setSelectedEnrollBatchId}
                 />
@@ -2815,10 +2992,12 @@ export function UniversitySuperUserView({ currentUser }) {
                 label="Assign to Department(s) *"
                 placeholder="Select one or more departments (e.g. QGE, QGU)..."
                 required
-                data={departments.map((d) => ({
-                  value: d._id || d.id,
-                  label: `${d.code} - ${d.name}`,
-                }))}
+                data={dedupeSelectData(
+                  departments.map((d) => ({
+                    value: String(d._id || d.id),
+                    label: `${d.code} - ${d.name}`,
+                  }))
+                )}
                 value={selectedEnrollDepartmentIds}
                 onChange={setSelectedEnrollDepartmentIds}
                 searchable
@@ -2891,10 +3070,12 @@ export function UniversitySuperUserView({ currentUser }) {
                 label="Assign to Department(s) *"
                 placeholder="Select department(s)..."
                 required
-                data={departments.map((d) => ({
-                  value: d._id || d.id,
-                  label: `${d.code} - ${d.name}`,
-                }))}
+                data={dedupeSelectData(
+                  departments.map((d) => ({
+                    value: String(d._id || d.id),
+                    label: `${d.code} - ${d.name}`,
+                  }))
+                )}
                 value={newStudentForm.departmentIds}
                 onChange={(val) =>
                   setNewStudentForm({ ...newStudentForm, departmentIds: val })
@@ -2935,10 +3116,17 @@ export function UniversitySuperUserView({ currentUser }) {
           <Select
             label="Student"
             required
-            data={enrollments.map((en) => ({
-              value: en.studentId?._id || en.studentId,
-              label: `${en.studentName || en.studentId?.name} (Roll: ${en.rollNumber})`,
-            }))}
+            data={dedupeSelectData(
+              enrollments.map((en) => {
+                const sId = en.studentId?._id || en.studentId?.id || en.studentId;
+                const name = en.studentName || en.studentId?.name || "Student";
+                const email = en.studentEmail || en.studentId?.email || "";
+                return {
+                  value: String(sId),
+                  label: `${name} (${email || en.rollNumber || "No Roll"})`,
+                };
+              })
+            )}
             value={certForm.studentId}
             onChange={(val) => setCertForm({ ...certForm, studentId: val })}
           />
@@ -2946,10 +3134,12 @@ export function UniversitySuperUserView({ currentUser }) {
           <Select
             label="Department"
             required
-            data={departments.map((d) => ({
-              value: d._id || d.id,
-              label: `${d.code} - ${d.name}`,
-            }))}
+            data={dedupeSelectData(
+              departments.map((d) => ({
+                value: String(d._id || d.id),
+                label: `${d.code} - ${d.name}`,
+              }))
+            )}
             value={certForm.departmentId}
             onChange={(val) => setCertForm({ ...certForm, departmentId: val })}
           />
