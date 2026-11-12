@@ -505,6 +505,41 @@ export async function generateVoucherDocument({ voucher, outputPdfPath, outputDo
       <p style="margin: 0; line-height: 1.5;">${escapeHtml(voucher.termsNotes || defaultTerms)}</p>
     </div>
 
+    <!-- Formal Signatures & Approvals (Prepared by, Checked by, Approved By) -->
+    ${(() => {
+      const sigConfig = voucher.signaturesConfig;
+      if (!sigConfig || (sigConfig.enabled !== true && sigConfig.enabled !== 'true')) return '';
+      const p = sigConfig.preparedBy || {};
+      const c = sigConfig.checkedBy || {};
+      const a = sigConfig.approvedBy || {};
+
+      return `
+        <div style="margin-top: 36px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: flex-end; text-align: center; page-break-inside: avoid;">
+          <div style="flex: 1; max-width: 31%; padding: 0 8px;">
+            ${p.signatureDataUrl ? `<img src="${p.signatureDataUrl}" style="max-height: 48px; max-width: 140px; margin-bottom: 4px; display: block; margin-left: auto; margin-right: auto; object-fit: contain;"/>` : `<div style="height: 48px;"></div>`}
+            <div style="border-top: 1.5px solid #1e293b; margin: 0 auto; width: 130px;"></div>
+            <div style="font-size: 11.5px; font-style: italic; color: #334155; margin-top: 6px;">${escapeHtml(p.title || 'Prepared by')}</div>
+            <div style="font-size: 12.5px; font-weight: 700; color: #0f172a; margin-top: 2px;">${escapeHtml(p.name || '')}</div>
+            ${p.date ? `<div style="font-size: 10.5px; color: #64748b; margin-top: 2px;">${escapeHtml(p.date.toLowerCase().startsWith('date') ? p.date : `Date: ${p.date}`)}</div>` : ''}
+          </div>
+          <div style="flex: 1; max-width: 31%; padding: 0 8px;">
+            ${c.signatureDataUrl ? `<img src="${c.signatureDataUrl}" style="max-height: 48px; max-width: 140px; margin-bottom: 4px; display: block; margin-left: auto; margin-right: auto; object-fit: contain;"/>` : `<div style="height: 48px;"></div>`}
+            <div style="border-top: 1.5px solid #1e293b; margin: 0 auto; width: 130px;"></div>
+            <div style="font-size: 11.5px; font-style: italic; color: #334155; margin-top: 6px;">${escapeHtml(c.title || 'Checked by')}</div>
+            <div style="font-size: 12.5px; font-weight: 700; color: #0f172a; margin-top: 2px;">${escapeHtml(c.name || '')}</div>
+            ${c.date ? `<div style="font-size: 10.5px; color: #64748b; margin-top: 2px;">${escapeHtml(c.date.toLowerCase().startsWith('date') ? c.date : `Date: ${c.date}`)}</div>` : ''}
+          </div>
+          <div style="flex: 1; max-width: 31%; padding: 0 8px;">
+            ${a.signatureDataUrl ? `<img src="${a.signatureDataUrl}" style="max-height: 48px; max-width: 140px; margin-bottom: 4px; display: block; margin-left: auto; margin-right: auto; object-fit: contain;"/>` : `<div style="height: 48px;"></div>`}
+            <div style="border-top: 1.5px solid #1e293b; margin: 0 auto; width: 130px;"></div>
+            <div style="font-size: 11.5px; font-style: italic; color: #334155; margin-top: 6px;">${escapeHtml(a.title || 'Approved By')}</div>
+            <div style="font-size: 12.5px; font-weight: 700; color: #0f172a; margin-top: 2px;">${escapeHtml(a.name || '')}</div>
+            ${a.date ? `<div style="font-size: 10.5px; color: #64748b; margin-top: 2px;">${escapeHtml(a.date.toLowerCase().startsWith('date') ? a.date : `Date: ${a.date}`)}</div>` : ''}
+          </div>
+        </div>
+      `;
+    })()}
+
     <!-- Appendix (Supporting Receipts / Bill photos if attached) -->
     ${receiptAppendixHtml}
   </div>
@@ -643,6 +678,49 @@ export async function generateVoucherDocument({ voucher, outputPdfPath, outputDo
     <w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="80" w:after="160"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="28"/><w:color w:val="166534"/></w:rPr><w:t>${hasMultipleReceipts ? 'COMBINED TOTAL TO PAY' : 'TOTAL TO PAY'}: $${formatCurrency(totalAmount)}</w:t></w:r></w:p>
     <w:p><w:pPr><w:spacing w:before="120" w:after="60"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="20"/></w:rPr><w:t>Terms &amp; Instructions: </w:t></w:r><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:sz w:val="20"/><w:color w:val="475569"/></w:rPr><w:t>${escapeHtml(voucher.termsNotes || defaultTerms)}</w:t></w:r></w:p>
   `;
+
+  if (voucher.signaturesConfig && (voucher.signaturesConfig.enabled === true || voucher.signaturesConfig.enabled === 'true')) {
+    const p = voucher.signaturesConfig.preparedBy || {};
+    const c = voucher.signaturesConfig.checkedBy || {};
+    const a = voucher.signaturesConfig.approvedBy || {};
+
+    voucherBodyXml += `
+      <w:p><w:pPr><w:spacing w:before="240" w:after="80"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="22"/><w:color w:val="1e293b"/></w:rPr><w:t>Signatures &amp; Approvals</w:t></w:r></w:p>
+      <w:tbl>
+        <w:tblPr>
+          <w:tblW w:w="9360" w:type="dxa"/>
+          <w:jc w:val="center"/>
+          <w:tblBorders>
+            <w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/>
+            <w:insideH w:val="none"/><w:insideV w:val="none"/>
+          </w:tblBorders>
+        </w:tblPr>
+        <w:tr>
+          <w:tc>
+            <w:tcPr><w:tcW w:w="3120" w:type="dxa"/><w:vAlign w:val="bottom"/></w:tcPr>
+            <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="40"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:color w:val="64748b"/></w:rPr><w:t>_________________________</w:t></w:r></w:p>
+            <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="20"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:i/><w:sz w:val="18"/><w:color w:val="475569"/></w:rPr><w:t>${escapeHtml(p.title || 'Prepared by')}</w:t></w:r></w:p>
+            <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="20"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="20"/><w:color w:val="0f172a"/></w:rPr><w:t>${escapeHtml(p.name || '')}</w:t></w:r></w:p>
+            ${p.date ? `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="20"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:sz w:val="16"/><w:color w:val="64748b"/></w:rPr><w:t>${escapeHtml(p.date)}</w:t></w:r></w:p>` : ''}
+          </w:tc>
+          <w:tc>
+            <w:tcPr><w:tcW w:w="3120" w:type="dxa"/><w:vAlign w:val="bottom"/></w:tcPr>
+            <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="40"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:color w:val="64748b"/></w:rPr><w:t>_________________________</w:t></w:r></w:p>
+            <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="20"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:i/><w:sz w:val="18"/><w:color w:val="475569"/></w:rPr><w:t>${escapeHtml(c.title || 'Checked by')}</w:t></w:r></w:p>
+            <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="20"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="20"/><w:color w:val="0f172a"/></w:rPr><w:t>${escapeHtml(c.name || '')}</w:t></w:r></w:p>
+            ${c.date ? `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="20"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:sz w:val="16"/><w:color w:val="64748b"/></w:rPr><w:t>${escapeHtml(c.date)}</w:t></w:r></w:p>` : ''}
+          </w:tc>
+          <w:tc>
+            <w:tcPr><w:tcW w:w="3120" w:type="dxa"/><w:vAlign w:val="bottom"/></w:tcPr>
+            <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="40"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:color w:val="64748b"/></w:rPr><w:t>_________________________</w:t></w:r></w:p>
+            <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="20"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:i/><w:sz w:val="18"/><w:color w:val="475569"/></w:rPr><w:t>${escapeHtml(a.title || 'Approved By')}</w:t></w:r></w:p>
+            <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="20"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="20"/><w:color w:val="0f172a"/></w:rPr><w:t>${escapeHtml(a.name || '')}</w:t></w:r></w:p>
+            ${a.date ? `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="20"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:sz w:val="16"/><w:color w:val="64748b"/></w:rPr><w:t>${escapeHtml(a.date)}</w:t></w:r></w:p>` : ''}
+          </w:tc>
+        </w:tr>
+      </w:tbl>
+    `;
+  }
 
   const docXml = await tplZip.file('word/document.xml').async('text');
   const tplSectMatch = docXml.match(/(<w:sectPr[\s\S]*?<\/w:sectPr>)/s);

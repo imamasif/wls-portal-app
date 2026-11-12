@@ -25,6 +25,7 @@ import {
   Card,
   Image,
   SimpleGrid,
+  Menu,
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import {
@@ -50,9 +51,12 @@ import {
   IconClipboardCheck,
   IconClearAll,
   IconReceipt,
+  IconWriting,
+  IconSignature,
 } from '@tabler/icons-react';
 import { voucherApi } from '../api/voucherApi';
 import { scanVoucherFile } from '../utils/voucherFileScanner';
+import { SignaturePadModal } from './SignaturePadModal';
 
 export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
   // Loading & notification states
@@ -140,6 +144,106 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [listLoading, setListLoading] = useState(false);
 
+  // Formal Signatures & Approvals State (Prepared by, Checked by, Approved By)
+  const [enableSignatures, setEnableSignatures] = useState(false);
+  const [sigPreparedBy, setSigPreparedBy] = useState({
+    title: 'Prepared by',
+    name: '',
+    date: '',
+    signatureDataUrl: null,
+  });
+  const [sigCheckedBy, setSigCheckedBy] = useState({
+    title: 'Checked by',
+    name: '',
+    date: '',
+    signatureDataUrl: null,
+  });
+  const [sigApprovedBy, setSigApprovedBy] = useState({
+    title: 'Approved By',
+    name: '',
+    date: '',
+    signatureDataUrl: null,
+  });
+  const [sigPadOpened, setSigPadOpened] = useState(false);
+  const [activeSigTarget, setActiveSigTarget] = useState(null); // 'preparedBy' | 'checkedBy' | 'approvedBy'
+  const [savedSignatures, setSavedSignatures] = useState(() => {
+    try {
+      const saved = localStorage.getItem('voucher_saved_signatures');
+      return saved ? JSON.parse(saved) : [];
+    } catch (_) {
+      return [];
+    }
+  });
+
+  // Reusable signatures persistence
+  const handleSaveToReusableSignatures = (name, dataUrl) => {
+    if (!dataUrl) return;
+    const label = (name || 'Signature').trim();
+    const newSig = { id: `sig_${Date.now()}`, name: label, dataUrl, createdAt: new Date().toISOString() };
+    const updated = [newSig, ...savedSignatures.filter((s) => s.name !== label)].slice(0, 10);
+    setSavedSignatures(updated);
+    try {
+      localStorage.setItem('voucher_saved_signatures', JSON.stringify(updated));
+    } catch (_) {}
+  };
+
+  const handleDeleteSavedSignature = (id) => {
+    const updated = savedSignatures.filter((s) => s.id !== id);
+    setSavedSignatures(updated);
+    try {
+      localStorage.setItem('voucher_saved_signatures', JSON.stringify(updated));
+    } catch (_) {}
+  };
+
+  const handleOpenSigPad = (target) => {
+    setActiveSigTarget(target);
+    setSigPadOpened(true);
+  };
+
+  const handleSignaturePadSave = ({ dataUrl }) => {
+    if (!dataUrl || !activeSigTarget) return;
+    if (activeSigTarget === 'preparedBy') {
+      setSigPreparedBy((prev) => ({ ...prev, signatureDataUrl: dataUrl }));
+      if (sigPreparedBy.name) handleSaveToReusableSignatures(sigPreparedBy.name, dataUrl);
+    } else if (activeSigTarget === 'checkedBy') {
+      setSigCheckedBy((prev) => ({ ...prev, signatureDataUrl: dataUrl }));
+      if (sigCheckedBy.name) handleSaveToReusableSignatures(sigCheckedBy.name, dataUrl);
+    } else if (activeSigTarget === 'approvedBy') {
+      setSigApprovedBy((prev) => ({ ...prev, signatureDataUrl: dataUrl }));
+      if (sigApprovedBy.name) handleSaveToReusableSignatures(sigApprovedBy.name, dataUrl);
+    }
+    setSigPadOpened(false);
+    setActiveSigTarget(null);
+  };
+
+  const handleApplySavedSignature = (target, savedSig) => {
+    if (target === 'preparedBy') {
+      setSigPreparedBy((prev) => ({
+        ...prev,
+        signatureDataUrl: savedSig.dataUrl,
+        name: prev.name || savedSig.name || '',
+      }));
+    } else if (target === 'checkedBy') {
+      setSigCheckedBy((prev) => ({
+        ...prev,
+        signatureDataUrl: savedSig.dataUrl,
+        name: prev.name || savedSig.name || '',
+      }));
+    } else if (target === 'approvedBy') {
+      setSigApprovedBy((prev) => ({
+        ...prev,
+        signatureDataUrl: savedSig.dataUrl,
+        name: prev.name || savedSig.name || '',
+      }));
+    }
+  };
+
+  const handleClearSignature = (target) => {
+    if (target === 'preparedBy') setSigPreparedBy((prev) => ({ ...prev, signatureDataUrl: null }));
+    else if (target === 'checkedBy') setSigCheckedBy((prev) => ({ ...prev, signatureDataUrl: null }));
+    else if (target === 'approvedBy') setSigApprovedBy((prev) => ({ ...prev, signatureDataUrl: null }));
+  };
+
   // Refs for file pickers
   const fileInputRef = useRef(null);
   const logoFileInputRef = useRef(null);
@@ -208,6 +312,12 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
     setTaxRate(13.0);
     setTaxType('HST');
     setTermsNotes('');
+
+    // Reset Formal Signatures & Approvals
+    setEnableSignatures(false);
+    setSigPreparedBy({ title: 'Prepared by', name: '', date: '', signatureDataUrl: null });
+    setSigCheckedBy({ title: 'Checked by', name: '', date: '', signatureDataUrl: null });
+    setSigApprovedBy({ title: 'Approved By', name: '', date: '', signatureDataUrl: null });
 
     // Clear attached receipts
     setReceiptFiles([]);
@@ -703,6 +813,12 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
         },
         totalAmount: grandTotal,
         termsNotes,
+        signaturesConfig: {
+          enabled: enableSignatures,
+          preparedBy: sigPreparedBy,
+          checkedBy: sigCheckedBy,
+          approvedBy: sigApprovedBy,
+        },
         receiptImageUrl: uploadedUrls[0] || null,
         receiptImageUrls: uploadedUrls,
         receipts: receiptsMeta,
@@ -790,6 +906,18 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
     setTermsNotes(vch.termsNotes || '');
     setReceiptImageUrl(vch.receiptImageUrl || null);
 
+    if (vch.signaturesConfig) {
+      setEnableSignatures(Boolean(vch.signaturesConfig.enabled));
+      setSigPreparedBy(vch.signaturesConfig.preparedBy || { title: 'Prepared by', name: '', date: '', signatureDataUrl: null });
+      setSigCheckedBy(vch.signaturesConfig.checkedBy || { title: 'Checked by', name: '', date: '', signatureDataUrl: null });
+      setSigApprovedBy(vch.signaturesConfig.approvedBy || { title: 'Approved By', name: '', date: '', signatureDataUrl: null });
+    } else {
+      setEnableSignatures(false);
+      setSigPreparedBy({ title: 'Prepared by', name: '', date: '', signatureDataUrl: null });
+      setSigCheckedBy({ title: 'Checked by', name: '', date: '', signatureDataUrl: null });
+      setSigApprovedBy({ title: 'Approved By', name: '', date: '', signatureDataUrl: null });
+    }
+
     if (vch.receipts && vch.receipts.length > 0) {
       setReceiptFiles(vch.receipts.map((r, idx) => ({
         id: idx + 1,
@@ -846,6 +974,139 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
       (v.payee?.emtEmail && v.payee.emtEmail.toLowerCase().includes(q))
     );
   });
+
+  const renderSignatureCard = (slotKey, slotState, setSlotState, defaultTitle, placeholderName) => {
+    return (
+      <Card withBorder radius="md" p="sm" style={{ background: '#fcfdfd', borderColor: '#e2e8f0' }}>
+        <Stack gap="xs">
+          <TextInput
+            size="xs"
+            label="Role Title"
+            value={slotState.title || defaultTitle}
+            onChange={(e) => setSlotState((prev) => ({ ...prev, title: e.target.value }))}
+          />
+
+          <TextInput
+            size="xs"
+            label="Signatory Full Name"
+            placeholder={placeholderName}
+            value={slotState.name || ''}
+            onChange={(e) => setSlotState((prev) => ({ ...prev, name: e.target.value }))}
+          />
+
+          <TextInput
+            size="xs"
+            label="Date Control"
+            placeholder="e.g. 11/11/2026"
+            value={slotState.date || ''}
+            onChange={(e) => setSlotState((prev) => ({ ...prev, date: e.target.value }))}
+            rightSection={
+              <Tooltip label="Set to Today's Date">
+                <ActionIcon
+                  size="xs"
+                  variant="subtle"
+                  color="blue"
+                  onClick={() => {
+                    const d = new Date();
+                    const formatted = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+                    setSlotState((prev) => ({ ...prev, date: formatted }));
+                  }}
+                >
+                  <IconRefresh size={12} />
+                </ActionIcon>
+              </Tooltip>
+            }
+          />
+
+          {/* Signature Box Area */}
+          <Box mt={4}>
+            <Text size="xs" fw={600} c="dimmed" mb={4}>Electronic / Drawn Signature</Text>
+            {slotState.signatureDataUrl ? (
+              <Box
+                p="xs"
+                style={{
+                  background: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '6px',
+                  textAlign: 'center',
+                  minHeight: '60px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  position: 'relative',
+                }}
+              >
+                <img
+                  src={slotState.signatureDataUrl}
+                  alt="Signature"
+                  style={{ maxHeight: '45px', maxWidth: '100%', objectFit: 'contain' }}
+                />
+                <ActionIcon
+                  size="xs"
+                  color="red"
+                  variant="subtle"
+                  title="Remove signature"
+                  style={{ position: 'absolute', top: 4, right: 4 }}
+                  onClick={() => handleClearSignature(slotKey)}
+                >
+                  <IconTrash size={12} />
+                </ActionIcon>
+              </Box>
+            ) : (
+              <Box
+                p="sm"
+                style={{
+                  background: '#f8fafc',
+                  border: '1px dashed #cbd5e1',
+                  borderRadius: '6px',
+                  textAlign: 'center',
+                }}
+              >
+                <Text size="11px" c="dimmed" mb="xs">No signature attached (empty line)</Text>
+                <Button
+                  size="xs"
+                  variant="light"
+                  color="indigo"
+                  fullWidth
+                  leftSection={<IconWriting size={14} />}
+                  onClick={() => handleOpenSigPad(slotKey)}
+                >
+                  Draw or Upload Signature
+                </Button>
+              </Box>
+            )}
+
+            {slotState.signatureDataUrl && (
+              <Group gap="xs" mt={6} justify="space-between">
+                <Button
+                  size="compact-xs"
+                  variant="subtle"
+                  color="indigo"
+                  leftSection={<IconWriting size={12} />}
+                  onClick={() => handleOpenSigPad(slotKey)}
+                >
+                  Change
+                </Button>
+                <Button
+                  size="compact-xs"
+                  variant="subtle"
+                  color="teal"
+                  leftSection={<IconDeviceFloppy size={12} />}
+                  onClick={() => {
+                    handleSaveToReusableSignatures(slotState.name || defaultTitle, slotState.signatureDataUrl);
+                    setSuccessMsg(`Saved signature for "${slotState.name || defaultTitle}" to your reusable signatures!`);
+                  }}
+                  title="Save this signature into your reusable collection"
+                >
+                  Save for Reuse
+                </Button>
+              </Group>
+            )}
+          </Box>
+        </Stack>
+      </Card>
+    );
+  };
 
   return (
     <Card shadow="sm" padding="lg" radius="md" withBorder style={{ position: 'relative' }}>
@@ -1786,6 +2047,97 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
         </Grid.Col>
       </Grid>
 
+      {/* SECTION 5.5: FORMAL SIGNATURES & APPROVALS (PREPARED BY, CHECKED BY, APPROVED BY) */}
+      <Paper p="lg" withBorder radius="md" mb="lg" style={{ background: '#ffffff', borderColor: '#e2e8f0' }}>
+        <Group justify="space-between" align="center" mb={enableSignatures ? 'md' : 0} wrap="wrap">
+          <Group gap="xs">
+            <ThemeIcon size="lg" radius="md" color="indigo" variant="light">
+              <IconWriting size={20} />
+            </ThemeIcon>
+            <div>
+              <Group gap="xs" align="center">
+                <Text fw={700} size="sm">Formal Signatures &amp; Approvals</Text>
+                <Badge color={enableSignatures ? 'indigo' : 'gray'} variant="light" size="sm">
+                  {enableSignatures ? 'Signatures Enabled' : 'Signatures Disabled (Optional)'}
+                </Badge>
+              </Group>
+              <Text size="xs" c="dimmed">
+                Toggle to add formal signature lines, digital drawn/uploaded signs, and dates for Prepared by, Checked by, and Approved By.
+              </Text>
+            </div>
+          </Group>
+          <Switch
+            size="md"
+            color="indigo"
+            checked={enableSignatures}
+            onChange={(e) => setEnableSignatures(e.currentTarget.checked)}
+            label={enableSignatures ? 'Signatures ON' : 'Signatures OFF'}
+          />
+        </Group>
+
+        {enableSignatures && (
+          <Box mt="md">
+            <Divider mb="md" color="#f1f5f9" />
+
+            {/* Quick Reusable Signatures Bar if user has saved signatures */}
+            {savedSignatures.length > 0 && (
+              <Paper p="xs" mb="md" radius="sm" style={{ background: '#f8fafc', border: '1px dashed #cbd5e1' }}>
+                <Group justify="space-between" align="center" wrap="wrap">
+                  <Group gap={6}>
+                    <IconSignature size={15} color="#475569" />
+                    <Text size="xs" fw={600} c="dimmed">Quick Apply Saved Signature:</Text>
+                  </Group>
+                  <Group gap="xs" wrap="wrap">
+                    {savedSignatures.map((s) => (
+                      <Menu key={s.id} position="bottom-end" shadow="md">
+                        <Menu.Target>
+                          <Badge
+                            size="sm"
+                            variant="outline"
+                            color="indigo"
+                            style={{ cursor: 'pointer' }}
+                            rightSection={<IconCheck size={10} />}
+                          >
+                            {s.name}
+                          </Badge>
+                        </Menu.Target>
+                        <Menu.Dropdown>
+                          <Menu.Label>Apply "{s.name}" to:</Menu.Label>
+                          <Menu.Item onClick={() => handleApplySavedSignature('preparedBy', s)}>
+                            Prepared by
+                          </Menu.Item>
+                          <Menu.Item onClick={() => handleApplySavedSignature('checkedBy', s)}>
+                            Checked by
+                          </Menu.Item>
+                          <Menu.Item onClick={() => handleApplySavedSignature('approvedBy', s)}>
+                            Approved by
+                          </Menu.Item>
+                          <Menu.Divider />
+                          <Menu.Item color="red" leftSection={<IconTrash size={12} />} onClick={() => handleDeleteSavedSignature(s.id)}>
+                            Delete saved signature
+                          </Menu.Item>
+                        </Menu.Dropdown>
+                      </Menu>
+                    ))}
+                  </Group>
+                </Group>
+              </Paper>
+            )}
+
+            <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
+              {/* SLOT 1: PREPARED BY */}
+              {renderSignatureCard('preparedBy', sigPreparedBy, setSigPreparedBy, 'Prepared by', 'Farooq Habib')}
+
+              {/* SLOT 2: CHECKED BY */}
+              {renderSignatureCard('checkedBy', sigCheckedBy, setSigCheckedBy, 'Checked by', 'Alam Mohammad')}
+
+              {/* SLOT 3: APPROVED BY */}
+              {renderSignatureCard('approvedBy', sigApprovedBy, setSigApprovedBy, 'Approved By', 'Fawad Gilani')}
+            </SimpleGrid>
+          </Box>
+        )}
+      </Paper>
+
       {/* SECTION 6: ACTION CONTROLS */}
       <Paper p="md" withBorder radius="md" mb="xl" style={{ background: '#f0fdf4', borderColor: '#bbf7d0' }}>
         <Group justify="space-between" align="center" wrap="wrap">
@@ -2136,6 +2488,16 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
           </Group>
         </Stack>
       </Modal>
+
+      {/* SIGNATURE PAD MODAL (DRAW / UPLOAD SIGNATURE) */}
+      <SignaturePadModal
+        opened={sigPadOpened}
+        onClose={() => {
+          setSigPadOpened(false);
+          setActiveSigTarget(null);
+        }}
+        onSaveSignature={handleSignaturePadSave}
+      />
     </Card>
   );
 }

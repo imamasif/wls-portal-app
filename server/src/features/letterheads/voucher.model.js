@@ -63,6 +63,29 @@ const voucherSchema = new mongoose.Schema(
     totalAmount: { type: Number, default: 0 },
     termsNotes: { type: String, default: '' },
 
+    // Signatures / Approvals Configuration (Prepared by, Checked by, Approved By)
+    signaturesConfig: {
+      enabled: { type: Boolean, default: false },
+      preparedBy: {
+        title: { type: String, default: 'Prepared by' },
+        name: { type: String, default: '' },
+        date: { type: String, default: '' },
+        signatureDataUrl: { type: String, default: null },
+      },
+      checkedBy: {
+        title: { type: String, default: 'Checked by' },
+        name: { type: String, default: '' },
+        date: { type: String, default: '' },
+        signatureDataUrl: { type: String, default: null },
+      },
+      approvedBy: {
+        title: { type: String, default: 'Approved By' },
+        name: { type: String, default: '' },
+        date: { type: String, default: '' },
+        signatureDataUrl: { type: String, default: null },
+      },
+    },
+
     // Attached receipt image (data URL or uploaded path)
     receiptImageUrl: { type: String, default: null },
     receiptFileName: { type: String, default: null },

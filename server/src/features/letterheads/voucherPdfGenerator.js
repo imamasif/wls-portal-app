@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { getJpegDimensions, compilePdfObjects } from './meetingPdfGenerator.js';
+import { parseSignatureDataUrl, decodePngToRgb } from './signatureImageHelper.js';
 
 /**
  * Escapes strings for PDF Type 1 text. Converts non-ASCII and dashes cleanly.
@@ -147,6 +148,52 @@ export function generateVoucherPdfBuffer({ voucher, letterheadType = 'iipc', ass
       }
     } catch (e) {
       console.warn('Receipt image load note for PDF:', e.message);
+    }
+  }
+
+  // 2b. Signature images pre-processing (Prepared by, Checked by, Approved By)
+  const sigImages = [];
+  const sigConfig = voucher.signaturesConfig;
+  if (sigConfig && (sigConfig.enabled === true || sigConfig.enabled === 'true')) {
+    const slots = [
+      { key: 'prepared', data: sigConfig.preparedBy },
+      { key: 'checked', data: sigConfig.checkedBy },
+      { key: 'approved', data: sigConfig.approvedBy },
+    ];
+
+    for (const slot of slots) {
+      if (slot.data && slot.data.signatureDataUrl) {
+        try {
+          const parsed = parseSignatureDataUrl(slot.data.signatureDataUrl);
+          if (parsed) {
+            if (parsed.format === 'png') {
+              const dec = decodePngToRgb(parsed.buffer);
+              if (dec && dec.compressedRgb) {
+                sigImages.push({
+                  key: slot.key,
+                  xobjName: `ImSig_${slot.key}`,
+                  format: 'png',
+                  width: dec.width,
+                  height: dec.height,
+                  buf: dec.compressedRgb,
+                });
+              }
+            } else if (parsed.format === 'jpeg') {
+              const dim = getJpegDimensions(parsed.buffer);
+              sigImages.push({
+                key: slot.key,
+                xobjName: `ImSig_${slot.key}`,
+                format: 'jpeg',
+                width: dim.width,
+                height: dim.height,
+                buf: parsed.buffer,
+              });
+            }
+          }
+        } catch (e) {
+          console.warn(`Signature image parse error (${slot.key}):`, e.message);
+        }
+      }
     }
   }
 
@@ -501,6 +548,69 @@ export function generateVoucherPdfBuffer({ voucher, letterheadType = 'iipc', ass
     addText(tl, MARGIN_LEFT + 10, tY, '/F1', 8, 0.3, 0.35, 0.4);
     tY -= 11;
   }
+  curY -= (termsBoxH + 15);
+
+  // FORMAL SIGNATURES & APPROVALS BLOCK (Prepared by, Checked by, Approved By)
+  if (sigConfig && (sigConfig.enabled === true || sigConfig.enabled === 'true')) {
+    const neededSigHeight = 85;
+    ensureSpace(neededSigHeight);
+
+    const colWidth = USABLE_WIDTH / 3;
+    const sigSlots = [
+      { key: 'prepared', cfg: sigConfig.preparedBy || {}, defaultTitle: 'Prepared by' },
+      { key: 'checked', cfg: sigConfig.checkedBy || {}, defaultTitle: 'Checked by' },
+      { key: 'approved', cfg: sigConfig.approvedBy || {}, defaultTitle: 'Approved By' },
+    ];
+
+    const lineY = curY - 45;
+
+    for (let i = 0; i < 3; i++) {
+      const slot = sigSlots[i];
+      const colLeft = MARGIN_LEFT + (i * colWidth);
+      const colCenter = colLeft + (colWidth / 2);
+      const lineHalfW = 60; // 120pt line width
+      const lineX1 = colCenter - lineHalfW;
+      const lineX2 = colCenter + lineHalfW;
+
+      // Draw signature image if present
+      const sImg = sigImages.find((img) => img.key === slot.key);
+      if (sImg) {
+        const maxW = 110;
+        const maxH = 34;
+        const scale = Math.min(maxW / sImg.width, maxH / sImg.height, 1);
+        const drawW = sImg.width * scale;
+        const drawH = sImg.height * scale;
+        const imgX = colCenter - (drawW / 2);
+        const imgY = lineY + 3; // sit directly above the line
+        curStream.push(`q\n${drawW.toFixed(2)} 0 0 ${drawH.toFixed(2)} ${imgX.toFixed(2)} ${imgY.toFixed(2)} cm\n/${sImg.xobjName} Do\nQ\n`);
+      }
+
+      // Draw horizontal signature line
+      drawLine(lineX1, lineY, lineX2, lineY, { r: 0.15, g: 0.20, b: 0.25 }, 0.85);
+
+      // 1. Role Title (e.g. "Prepared by", "Checked by", "Approved By")
+      const titleText = escapePdfText(slot.cfg.title || slot.defaultTitle);
+      const titleW = titleText.length * 4.6;
+      addText(titleText, colCenter - (titleW / 2), lineY - 13, '/F3', 9.5, 0.2, 0.25, 0.3);
+
+      // 2. Signatory Name (e.g. "Farooq Habib", "Alam Mohammad", "Fawad Gilani")
+      if (slot.cfg.name) {
+        const nameText = escapePdfText(slot.cfg.name);
+        const nameW = nameText.length * 5.2;
+        addText(nameText, colCenter - (nameW / 2), lineY - 25, '/F2', 9.5, 0.08, 0.12, 0.18);
+      }
+
+      // 3. Date (if provided)
+      if (slot.cfg.date) {
+        const rawDate = slot.cfg.date.trim();
+        const dateText = escapePdfText(rawDate.toLowerCase().startsWith('date') ? rawDate : `Date: ${rawDate}`);
+        const dateW = dateText.length * 4.0;
+        addText(dateText, colCenter - (dateW / 2), lineY - 35, '/F1', 7.5, 0.45, 0.5, 0.55);
+      }
+    }
+
+    curY -= (neededSigHeight + 10);
+  }
 
   // Apply Header and Footer to ALL invoice pages
   for (let i = 0; i < invoicePages.length; i++) {
@@ -609,12 +719,32 @@ export function generateVoucherPdfBuffer({ voucher, letterheadType = 'iipc', ass
     }
   }
 
+  const registeredSigIds = [];
+  for (const sImg of sigImages) {
+    let sObjId;
+    if (sImg.format === 'png') {
+      sObjId = registerObject(
+        `<< /Type /XObject /Subtype /Image /Width ${sImg.width} /Height ${sImg.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode /Length ${sImg.buf.length} >>`,
+        sImg.buf
+      );
+    } else {
+      sObjId = registerObject(
+        `<< /Type /XObject /Subtype /Image /Width ${sImg.width} /Height ${sImg.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${sImg.buf.length} >>`,
+        sImg.buf
+      );
+    }
+    registeredSigIds.push({ name: sImg.xobjName, id: sObjId });
+  }
+
   let xobjDict = '';
   if (imgHeaderId) xobjDict += `/ImHeader ${imgHeaderId} 0 R `;
   if (imgFooterId) xobjDict += `/ImFooter ${imgFooterId} 0 R `;
   if (imgBismillahId) xobjDict += `/ImBismillah ${imgBismillahId} 0 R `;
   for (const rIdObj of registeredReceiptIds) {
     xobjDict += `/${rIdObj.name} ${rIdObj.id} 0 R `;
+  }
+  for (const sIdObj of registeredSigIds) {
+    xobjDict += `/${sIdObj.name} ${sIdObj.id} 0 R `;
   }
 
   const pageIds = [];
