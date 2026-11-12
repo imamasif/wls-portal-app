@@ -28,7 +28,8 @@
     "react-dom": "^19.2.0",
     "react-phone-number-input": "^3.4.18",
     "react-player": "^3.4.0",
-    "recharts": "^3.10.1"
+    "recharts": "^3.10.1",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.0",

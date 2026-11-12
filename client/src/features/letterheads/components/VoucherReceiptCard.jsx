@@ -48,6 +48,8 @@ import {
   IconFileSpreadsheet,
   IconDeviceFloppy,
   IconEye,
+  IconClipboardCheck,
+  IconClearAll,
 } from '@tabler/icons-react';
 import { voucherApi } from '../api/voucherApi';
 import { scanVoucherFile } from '../utils/voucherFileScanner';
@@ -56,6 +58,7 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
   // Loading & notification states
   const [loading, setLoading] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [scanStatusText, setScanStatusText] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -65,16 +68,19 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
   const [voucherNumber, setVoucherNumber] = useState(() => `VCH-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`);
   const [issueDate, setIssueDate] = useState(() => new Date());
   const [dueDate, setDueDate] = useState(null);
-  const [title, setTitle] = useState('Contractor & Maintenance Expense');
+  const [title, setTitle] = useState('');
   const [letterheadType, setLetterheadType] = useState('iipc');
   const [customLogoUrl, setCustomLogoUrl] = useState('');
+  const [customLogoFileName, setCustomLogoFileName] = useState('');
+  const [customLogoLoading, setCustomLogoLoading] = useState(false);
+  const [showDirectUrlInput, setShowDirectUrlInput] = useState(false);
 
   // Payee (Vendor / Contractor)
   const [payeeName, setPayeeName] = useState('Jacobson Carpentry');
   const [payeeEmail, setPayeeEmail] = useState('wyattjacobson369@gmail.com');
   const [payeeEmtEmail, setPayeeEmtEmail] = useState('wyattjacobson369@gmail.com');
-  const [payeePhone, setPayeePhone] = useState('519-546-5593');
-  const [payeeAddress, setPayeeAddress] = useState('74 Inkerman St, Guelph, ON N1H 3C9');
+  const [payeePhone, setPayeePhone] = useState('2269390265');
+  const [payeeAddress, setPayeeAddress] = useState('465 Barber Ave N, Listowel ON N4W 1G4');
   const [payeeGstHst, setPayeeGstHst] = useState('727285003 RT 0001');
 
   // Payer (Customer / Organization)
@@ -83,14 +89,14 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
   const [payerAddress, setPayerAddress] = useState('132 main st south, Rockwood ON n0b 2k0');
   const [payerEmail, setPayerEmail] = useState('info@iipc.ca');
 
-  // Line items
+  // Line items (Clean starting state)
   const [items, setItems] = useState([
     {
       id: 1,
-      description: 'Main floor framing, drywall repairs & carpentry trim work',
+      description: 'Fence',
       quantity: 1,
-      unitPrice: 1500.00,
-      amount: 1500.00,
+      unitPrice: 1250.00,
+      amount: 1250.00,
       taxable: true,
     },
   ]);
@@ -102,7 +108,7 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
 
   // Notes & terms
   const [termsNotes, setTermsNotes] = useState(
-    'Payment can be made through E-transfer to wyattjacobson369@gmail.com. Please include voucher number in memo.'
+    'Please arrange payment within 14 days of the invoice date. Payment can be made through E-transfer Wyattjacobson369@gmail.com. Thank you for your business and have a great day!'
   );
 
   // Attached receipt preview & file
@@ -112,6 +118,10 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
   // Generated document links
   const [generatedPdfUrl, setGeneratedPdfUrl] = useState('');
   const [generatedDocxUrl, setGeneratedDocxUrl] = useState('');
+
+  // Paste Lines Modal State
+  const [pasteModalOpen, setPasteModalOpen] = useState(false);
+  const [pasteText, setPasteText] = useState('');
 
   // Google Drive Modal State
   const [driveModalOpen, setDriveModalOpen] = useState(false);
@@ -124,8 +134,9 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [listLoading, setListLoading] = useState(false);
 
-  // File drop input ref
+  // Refs for file pickers
   const fileInputRef = useRef(null);
+  const logoFileInputRef = useRef(null);
 
   // Initial load of vouchers
   useEffect(() => {
@@ -165,7 +176,7 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
     setItems((prev) => [
       ...prev,
       {
-        id: Date.now(),
+        id: Date.now() + Math.random(),
         description: '',
         quantity: 1,
         unitPrice: 0,
@@ -175,9 +186,115 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
     ]);
   };
 
+  const addMultipleItemRows = (count = 3) => {
+    setItems((prev) => {
+      const newRows = [];
+      for (let i = 0; i < count; i++) {
+        newRows.push({
+          id: Date.now() + i + Math.random(),
+          description: '',
+          quantity: 1,
+          unitPrice: 0,
+          amount: 0,
+          taxable: true,
+        });
+      }
+      return [...prev, ...newRows];
+    });
+  };
+
   const removeItemRow = (index) => {
-    if (items.length <= 1) return;
+    if (items.length <= 1) {
+      // If only one row left, reset it instead of deleting
+      setItems([
+        {
+          id: Date.now(),
+          description: '',
+          quantity: 1,
+          unitPrice: 0,
+          amount: 0,
+          taxable: true,
+        },
+      ]);
+      return;
+    }
     setItems((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
+  const clearEmptyRows = () => {
+    setItems((prev) => {
+      const filtered = prev.filter((it) => (it.description && it.description.trim()) || Number(it.amount) > 0);
+      if (filtered.length === 0) {
+        return [{ id: Date.now(), description: '', quantity: 1, unitPrice: 0, amount: 0, taxable: true }];
+      }
+      return filtered;
+    });
+  };
+
+  // Import pasted lines from Excel / Text
+  const handleImportPastedLines = () => {
+    if (!pasteText.trim()) return;
+    const lines = pasteText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const newItems = [];
+
+    for (const line of lines) {
+      // Split by tab, comma, or pipe
+      let parts = line.split('\t');
+      if (parts.length < 2) parts = line.split(',');
+      if (parts.length < 2) parts = line.split('|');
+
+      if (parts.length >= 2) {
+        const desc = parts[0].trim();
+        let qty = 1;
+        let price = 0;
+
+        if (parts.length >= 3) {
+          qty = parseFloat(parts[1]) || 1;
+          price = parseFloat(parts[2].replace(/[$,]/g, '')) || 0;
+        } else {
+          price = parseFloat(parts[1].replace(/[$,]/g, '')) || 0;
+        }
+
+        if (desc) {
+          newItems.push({
+            id: Date.now() + Math.random(),
+            description: desc,
+            quantity: qty,
+            unitPrice: price,
+            amount: parseFloat((qty * price).toFixed(2)),
+            taxable: true,
+          });
+        }
+      } else {
+        // Line with description and amount at the end
+        const m = line.match(/^(.*?)(?:\s+|\$)+([0-9,]+\.[0-9]{2})$/);
+        if (m) {
+          const desc = m[1].trim();
+          const amt = parseFloat(m[2].replace(/,/g, '')) || 0;
+          newItems.push({
+            id: Date.now() + Math.random(),
+            description: desc,
+            quantity: 1,
+            unitPrice: amt,
+            amount: amt,
+            taxable: true,
+          });
+        }
+      }
+    }
+
+    if (newItems.length > 0) {
+      setItems((prev) => {
+        // Remove empty placeholder rows if any
+        const existing = prev.filter((it) => it.description.trim() || it.amount > 0);
+        return [...existing, ...newItems];
+      });
+      setPasteText('');
+      setPasteModalOpen(false);
+      setSuccessMsg(`Imported ${newItems.length} line items successfully!`);
+    } else {
+      alert('Could not parse any lines. Please format as "Description, Qty, Price" or "Description, Price".');
+    }
   };
 
   // Subtotal & Grand Total calculations
@@ -203,15 +320,21 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
   const taxAmount = calculateTax();
   const grandTotal = calculateGrandTotal();
 
-  // Handle Scanning Files (Image, Excel, Text)
+  // Handle Scanning Files (Image, PDF, Excel, Text)
   const handleFileScan = async (file) => {
     if (!file) return;
     try {
       setScanning(true);
+      setScanStatusText('Scanning file and recognizing details...');
       setErrorMsg('');
       setSuccessMsg('');
 
-      const scanned = await scanVoucherFile(file);
+      const scanned = await scanVoucherFile(file, (p) => {
+        if (p.status === 'ocr') {
+          const pct = Math.round((p.progress || 0) * 100);
+          setScanStatusText(`Recognizing receipt text & line items with OCR... (${pct}%)`);
+        }
+      });
 
       if (scanned.voucherNumber) setVoucherNumber(scanned.voucherNumber);
       if (scanned.title) setTitle(scanned.title);
@@ -228,8 +351,15 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
       if (scanned.payer?.name) setPayerName(scanned.payer.name);
       if (scanned.payer?.address) setPayerAddress(scanned.payer.address);
 
+      // Populate scanned line items
       if (scanned.items && scanned.items.length > 0) {
-        setItems(scanned.items.map((it, idx) => ({ ...it, id: idx + 1 })));
+        setItems(
+          scanned.items.map((it, idx) => ({
+            ...it,
+            id: Date.now() + idx,
+            taxable: it.taxable !== undefined ? it.taxable : true,
+          }))
+        );
       }
 
       if (scanned.taxConfig) {
@@ -247,13 +377,56 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
         setReceiptFile(scanned.receiptFile);
       }
 
-      setSuccessMsg(`Successfully scanned and extracted details from ${file.name}!`);
+      const itemCount = scanned.items?.length || 0;
+      setSuccessMsg(
+        `Scanned ${file.name} successfully! Extracted ${itemCount} line item${itemCount === 1 ? '' : 's'}, Payee (${scanned.payee?.name || 'N/A'}), and EMT (${scanned.payee?.emtEmail || 'N/A'}).`
+      );
     } catch (err) {
       console.error('File scan error:', err);
       setErrorMsg(`Could not parse file: ${err.message || 'Unknown error'}`);
     } finally {
       setScanning(false);
+      setScanStatusText('');
     }
+  };
+
+  // Custom Logo File Picker Handler
+  const handleLogoPick = async (file) => {
+    if (!file) return;
+    try {
+      setCustomLogoLoading(true);
+      setCustomLogoFileName(file.name);
+
+      // 1. Read preview as Data URL
+      const reader = new FileReader();
+      reader.onload = () => {
+        setCustomLogoUrl(reader.result);
+      };
+      reader.readAsDataURL(file);
+
+      // 2. Upload file to server for a permanent hosted URL
+      try {
+        const uploadRes = await voucherApi.uploadReceipt(file, userRole);
+        if (uploadRes?.url) {
+          setCustomLogoUrl(uploadRes.url);
+        }
+      } catch (uErr) {
+        console.warn('Logo server upload note (using data URL fallback):', uErr);
+      }
+
+      setSuccessMsg(`Custom logo "${file.name}" selected and applied!`);
+    } catch (err) {
+      console.error('Logo pick error:', err);
+      setErrorMsg(`Could not load logo: ${err.message}`);
+    } finally {
+      setCustomLogoLoading(false);
+    }
+  };
+
+  const handleRemoveLogo = () => {
+    setCustomLogoUrl('');
+    setCustomLogoFileName('');
+    if (logoFileInputRef.current) logoFileInputRef.current.value = '';
   };
 
   // Save / Generate Voucher
@@ -276,12 +449,15 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
         }
       }
 
+      const cleanItems = items.filter((it) => (it.description && it.description.trim()) || Number(it.amount) > 0);
+      const itemsToSave = cleanItems.length > 0 ? cleanItems : items;
+
       const payload = {
         voucherNumber: voucherNumber || `VCH-${Date.now().toString().slice(-6)}`,
         type: voucherType,
         issueDate: issueDate ? issueDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         dueDate: dueDate ? dueDate.toISOString().split('T')[0] : '',
-        title,
+        title: title || (itemsToSave[0]?.description || 'General Contractor Services'),
         letterheadType,
         customLogoUrl,
         payee: {
@@ -298,7 +474,7 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
           address: payerAddress,
           email: payerEmail,
         },
-        items: items.map((it) => ({
+        items: itemsToSave.map((it) => ({
           description: it.description || 'General Service',
           quantity: Number(it.quantity) || 1,
           unitPrice: Number(it.unitPrice) || 0,
@@ -458,7 +634,7 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
                 Create Voucher &amp; Petty Cash Receipts
               </Title>
               <Text size="xs" style={{ color: '#d1fae5' }}>
-                Scan receipts/bills, auto-extract items, configure 13% HST &amp; EMT Interac, select institutional letterhead, and upload directly to Google Drive.
+                Scan receipts &amp; bills, browse custom logos, add line items with 13% HST &amp; Interac EMT, and save to Google Drive.
               </Text>
             </div>
           </Group>
@@ -478,6 +654,12 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
       </Paper>
 
       {/* Alerts */}
+      {scanning && scanStatusText && (
+        <Alert icon={<IconScan size={18} />} color="indigo" title="OCR &amp; Document Scanning Active" mb="md">
+          {scanStatusText}
+        </Alert>
+      )}
+
       {successMsg && (
         <Alert
           icon={<IconCheck size={18} />}
@@ -512,11 +694,11 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
               <IconScan size={18} />
             </ThemeIcon>
             <Text fw={700} size="sm" c="indigo.9">
-              Smart File Scanner (Images, Excel, or Text)
+              Smart File Scanner (Images, PDF, Excel, or Text)
             </Text>
           </Group>
           <Text size="xs" c="dimmed">
-            Upload contractor invoice or receipt to auto-fill form
+            Upload bill/receipt image to automatically extract items, EMT, vendor &amp; HST
           </Text>
         </Group>
 
@@ -548,10 +730,10 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
                 <IconUpload size={24} color="#6366f1" />
                 <div>
                   <Text size="sm" fw={600} c="dark">
-                    Click to browse or drop Image, Excel (.xlsx/.csv), or Text Receipt
+                    Click to browse or drop Image, PDF, Excel (.xlsx/.csv), or Text Receipt
                   </Text>
                   <Text size="xs" c="dimmed">
-                    Scans vendor, amounts, items, HST, and Interac EMT email automatically
+                    Extracts vendor, line items, 13% HST, and Interac EMT email automatically
                   </Text>
                 </div>
               </Group>
@@ -655,15 +837,120 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
         </Grid.Col>
       </Grid>
 
+      {/* CUSTOM LOGO / BRANDING FILE PICKER & PREVIEW */}
       {letterheadType === 'custom' && (
-        <Paper p="sm" withBorder radius="md" mb="md" style={{ background: '#fefce8' }}>
-          <TextInput
-            label="Custom Logo URL (optional)"
-            description="Provide direct URL to your institutional or contractor logo"
-            value={customLogoUrl}
-            onChange={(e) => setCustomLogoUrl(e.target.value)}
-            placeholder="https://example.com/logo.png"
+        <Paper p="md" withBorder radius="md" mb="md" style={{ background: '#fefce8', borderColor: '#fef08a' }}>
+          <input
+            ref={logoFileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/svg+xml"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleLogoPick(file);
+            }}
           />
+
+          <Group justify="space-between" align="center" mb="xs">
+            <Group gap="xs">
+              <ThemeIcon size="sm" color="yellow" variant="filled">
+                <IconPhoto size={14} />
+              </ThemeIcon>
+              <Text fw={700} size="sm" c="yellow.9">
+                Custom Logo / Payee Brand
+              </Text>
+            </Group>
+            <Button
+              size="compact-xs"
+              variant="subtle"
+              color="gray"
+              onClick={() => setShowDirectUrlInput(!showDirectUrlInput)}
+            >
+              {showDirectUrlInput ? 'Hide URL input' : 'Or paste URL'}
+            </Button>
+          </Group>
+
+          <Grid align="center" gutter="md">
+            <Grid.Col span={{ base: 12, md: customLogoUrl ? 8 : 12 }}>
+              <Box
+                style={{
+                  border: '2px dashed #eab308',
+                  borderRadius: '8px',
+                  padding: '14px',
+                  textAlign: 'center',
+                  background: '#ffffff',
+                  cursor: 'pointer',
+                  transition: 'background 0.2s',
+                }}
+                onClick={() => logoFileInputRef.current?.click()}
+              >
+                <Group justify="center" gap="sm">
+                  <IconUpload size={22} color="#ca8a04" />
+                  <div>
+                    <Text size="sm" fw={600} c="dark">
+                      Click to Browse and Pick Logo File from your computer
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      Select PNG, JPEG, SVG, or WEBP contractor/organization logo
+                    </Text>
+                  </div>
+                </Group>
+              </Box>
+            </Grid.Col>
+
+            {customLogoUrl && (
+              <Grid.Col span={{ base: 12, md: 4 }}>
+                <Paper p="xs" withBorder radius="sm" style={{ background: '#ffffff', textAlign: 'center' }}>
+                  <Group justify="space-between" align="center">
+                    <Image
+                      src={customLogoUrl}
+                      alt="Logo Preview"
+                      h={50}
+                      w={110}
+                      fit="contain"
+                      radius="xs"
+                      style={{ border: '1px solid #f1f5f9', background: '#f8fafc', padding: '4px' }}
+                    />
+                    <Stack gap={4} align="flex-end">
+                      <Badge color="teal" variant="filled" size="xs">
+                        Logo Active
+                      </Badge>
+                      <Group gap={4}>
+                        <Button
+                          size="compact-xs"
+                          variant="light"
+                          color="indigo"
+                          onClick={() => logoFileInputRef.current?.click()}
+                        >
+                          Change
+                        </Button>
+                        <Button
+                          size="compact-xs"
+                          variant="subtle"
+                          color="red"
+                          onClick={handleRemoveLogo}
+                        >
+                          Remove
+                        </Button>
+                      </Group>
+                    </Stack>
+                  </Group>
+                </Paper>
+              </Grid.Col>
+            )}
+          </Grid>
+
+          {showDirectUrlInput && (
+            <TextInput
+              mt="xs"
+              size="xs"
+              label="Direct Logo URL (Alternative)"
+              description="Direct image link (https://...)"
+              value={customLogoUrl}
+              onChange={(e) => setCustomLogoUrl(e.target.value)}
+              placeholder="https://example.com/logo.png"
+            />
+          )}
         </Paper>
       )}
 
@@ -717,7 +1004,7 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
                     label="Phone"
                     value={payeePhone}
                     onChange={(e) => setPayeePhone(e.target.value)}
-                    placeholder="519-546-5593"
+                    placeholder="2269390265"
                   />
                 </Grid.Col>
                 <Grid.Col span={6}>
@@ -734,7 +1021,7 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
                 label="Payee Mailing Address"
                 value={payeeAddress}
                 onChange={(e) => setPayeeAddress(e.target.value)}
-                placeholder="74 Inkerman St, Guelph, ON N1H 3C9"
+                placeholder="465 Barber Ave N, Listowel ON N4W 1G4"
               />
             </Stack>
           </Paper>
@@ -793,7 +1080,7 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
 
       {/* SECTION 4: LINE ITEMS TABLE */}
       <Paper p="md" withBorder radius="md" mb="md">
-        <Group justify="space-between" align="center" mb="sm">
+        <Group justify="space-between" align="center" mb="sm" wrap="wrap">
           <Group gap="xs">
             <ThemeIcon size="sm" color="teal" variant="light">
               <IconFileText size={14} />
@@ -801,27 +1088,61 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
             <Text fw={700} size="sm">
               Expense Line Items &amp; Services
             </Text>
+            <Badge size="xs" color="teal" variant="light">
+              {items.length} Item{items.length === 1 ? '' : 's'}
+            </Badge>
           </Group>
-          <Button
-            leftSection={<IconPlus size={14} />}
-            size="compact-xs"
-            variant="light"
-            color="teal"
-            onClick={addItemRow}
-          >
-            Add Line Item
-          </Button>
+
+          <Group gap="xs" wrap="wrap">
+            <Button
+              leftSection={<IconPlus size={14} />}
+              size="compact-xs"
+              variant="filled"
+              color="teal"
+              onClick={addItemRow}
+            >
+              + Add Line Item
+            </Button>
+            <Button
+              leftSection={<IconPlus size={14} />}
+              size="compact-xs"
+              variant="light"
+              color="teal"
+              onClick={() => addMultipleItemRows(3)}
+            >
+              + 3 Lines
+            </Button>
+            <Button
+              leftSection={<IconClipboardCheck size={14} />}
+              size="compact-xs"
+              variant="light"
+              color="indigo"
+              onClick={() => setPasteModalOpen(true)}
+            >
+              Paste Lines
+            </Button>
+            <Button
+              leftSection={<IconClearAll size={14} />}
+              size="compact-xs"
+              variant="subtle"
+              color="gray"
+              onClick={clearEmptyRows}
+            >
+              Clear Empty
+            </Button>
+          </Group>
         </Group>
 
-        <Table.ScrollContainer minWidth={650}>
+        <Table.ScrollContainer minWidth={720}>
           <Table verticalSpacing="xs" striped highlightOnHover>
             <Table.Thead>
               <Table.Tr style={{ background: '#f1f5f9' }}>
-                <Table.Th style={{ width: '45%' }}>Description / Item Details</Table.Th>
-                <Table.Th style={{ width: '12%', textAlign: 'center' }}>Qty</Table.Th>
-                <Table.Th style={{ width: '18%', textAlign: 'right' }}>Unit Price ($)</Table.Th>
-                <Table.Th style={{ width: '18%', textAlign: 'right' }}>Net Total ($)</Table.Th>
-                <Table.Th style={{ width: '7%', textAlign: 'center' }}>Action</Table.Th>
+                <Table.Th style={{ width: '42%' }}>Description / Item Details</Table.Th>
+                <Table.Th style={{ width: '10%', textAlign: 'center' }}>Qty</Table.Th>
+                <Table.Th style={{ width: '16%', textAlign: 'right' }}>Unit Price ($)</Table.Th>
+                <Table.Th style={{ width: '14%', textAlign: 'center' }}>Sales Tax</Table.Th>
+                <Table.Th style={{ width: '13%', textAlign: 'right' }}>Net Total ($)</Table.Th>
+                <Table.Th style={{ width: '5%', textAlign: 'center' }}>Action</Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
@@ -832,7 +1153,7 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
                       size="xs"
                       value={it.description}
                       onChange={(e) => handleItemChange(idx, 'description', e.target.value)}
-                      placeholder="e.g. Drywall repair & framing"
+                      placeholder="e.g. Fence or Drywall repair"
                     />
                   </Table.Td>
                   <Table.Td>
@@ -856,6 +1177,18 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
                       styles={{ input: { textAlign: 'right' } }}
                     />
                   </Table.Td>
+                  <Table.Td style={{ textAlign: 'center' }}>
+                    <Switch
+                      size="xs"
+                      color="teal"
+                      checked={Boolean(it.taxable)}
+                      onChange={(e) => handleItemChange(idx, 'taxable', e.currentTarget.checked)}
+                      label={it.taxable ? 'HST 13%' : '0% Exempt'}
+                      styles={{
+                        label: { fontSize: '11px', fontWeight: 600, color: it.taxable ? '#0f766e' : '#64748b' },
+                      }}
+                    />
+                  </Table.Td>
                   <Table.Td style={{ textAlign: 'right', fontWeight: 600 }}>
                     ${Number(it.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </Table.Td>
@@ -864,7 +1197,6 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
                       size="sm"
                       color="red"
                       variant="subtle"
-                      disabled={items.length <= 1}
                       onClick={() => removeItemRow(idx)}
                     >
                       <IconTrash size={14} />
@@ -1200,6 +1532,45 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
           </Table>
         </Table.ScrollContainer>
       </Paper>
+
+      {/* PASTE ITEMS TABLE MODAL */}
+      <Modal
+        opened={pasteModalOpen}
+        onClose={() => setPasteModalOpen(false)}
+        title={
+          <Group gap="xs">
+            <IconClipboardCheck size={20} color="#4f46e5" />
+            <Text fw={700}>Paste Line Items from Excel or Text</Text>
+          </Group>
+        }
+        radius="md"
+        size="lg"
+      >
+        <Stack gap="sm">
+          <Text size="xs" c="dimmed">
+            Paste rows copied from Excel, Google Sheets, or a text file. Each row can be:
+            <br />
+            <strong>Description [Tab or Comma] Qty [Tab or Comma] Price</strong> (or simply <strong>Description, Price</strong>).
+          </Text>
+
+          <Textarea
+            placeholder={`Fence\t1\t1250.00\nDrywall repair\t2\t350.00\nCarpentry trim\t1\t400.00`}
+            value={pasteText}
+            onChange={(e) => setPasteText(e.target.value)}
+            minRows={6}
+            autosize
+          />
+
+          <Group justify="flex-end" gap="xs">
+            <Button variant="default" onClick={() => setPasteModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button color="teal" leftSection={<IconPlus size={16} />} onClick={handleImportPastedLines}>
+              Import as Line Items
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
 
       {/* GOOGLE DRIVE FOLDER MODAL */}
       <Modal

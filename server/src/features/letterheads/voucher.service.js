@@ -96,9 +96,27 @@ export async function generateVoucherDocument({ voucher, outputPdfPath, outputDo
   const defaultTerms = `Please arrange payment within 14 days of the invoice date. ${defaultEmtText} Thank you for your business and have a great day!`;
 
   // Custom logo or payee brand display
+  const uploadsDir = getUploadsDir();
+  function toBase64DataUri(urlOrPath) {
+    if (!urlOrPath || typeof urlOrPath !== 'string') return '';
+    if (urlOrPath.startsWith('data:image/')) return urlOrPath;
+    const match = urlOrPath.match(/\/receipt-file\/([^?#]+)/);
+    const filename = match ? match[1] : path.basename(urlOrPath);
+    const localFilePath = path.join(uploadsDir, filename);
+
+    if (fs.existsSync(localFilePath)) {
+      const ext = path.extname(localFilePath).toLowerCase();
+      const mime = ext === '.png' ? 'image/png' : ext === '.svg' ? 'image/svg+xml' : ext === '.webp' ? 'image/webp' : 'image/jpeg';
+      const b64 = fs.readFileSync(localFilePath).toString('base64');
+      return `data:${mime};base64,${b64}`;
+    }
+    return urlOrPath;
+  }
+
+  const resolvedLogoUrl = toBase64DataUri(voucher.customLogoUrl);
   let payeeLogoSnippet = '';
-  if (voucher.customLogoUrl) {
-    payeeLogoSnippet = `<img src="${voucher.customLogoUrl}" style="max-height: 55px; max-width: 200px; object-fit: contain; margin-bottom: 6px; display: block; margin-left: auto;" alt="Logo" />`;
+  if (resolvedLogoUrl) {
+    payeeLogoSnippet = `<img src="${resolvedLogoUrl}" style="max-height: 55px; max-width: 200px; object-fit: contain; margin-bottom: 6px; display: block; margin-left: auto;" alt="Logo" />`;
   }
 
   // Supporting receipt appendix HTML
@@ -113,7 +131,7 @@ export async function generateVoucherDocument({ voucher, outputPdfPath, outputDo
           Scanned voucher receipt attached for verification and audit trail.
         </p>
         <div style="text-align: center; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px;">
-          <img src="${voucher.receiptImageUrl}" style="max-width: 95%; max-height: 650px; object-fit: contain; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);" alt="Supporting Receipt" />
+          <img src="${toBase64DataUri(voucher.receiptImageUrl)}" style="max-width: 95%; max-height: 650px; object-fit: contain; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);" alt="Supporting Receipt" />
         </div>
       </div>
     `;
@@ -363,7 +381,6 @@ export async function generateVoucherDocument({ voucher, outputPdfPath, outputDo
   const outDir = path.dirname(outputPdfPath);
   if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
 
-  const uploadsDir = getUploadsDir();
   const tempHtmlPath = path.join(uploadsDir, `vch_${Date.now()}_${Math.random().toString(36).substring(7)}.html`);
   fs.writeFileSync(tempHtmlPath, fullHtml, 'utf8');
 
