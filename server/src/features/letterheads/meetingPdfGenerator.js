@@ -43,6 +43,8 @@ export function getJpegDimensions(buf) {
  */
 function escapePdfText(str) {
   return String(str || '')
+    .replace(/\u2014|\u2013/g, '-')
+    .replace(/[^\x20-\x7E\t\n\r]/g, ' ')
     .replace(/\\/g, '\\\\')
     .replace(/\(/g, '\\(')
     .replace(/\)/g, '\\)')
@@ -620,8 +622,15 @@ export function generateGenericLetterheadPdfBuffer({
     curY -= 6;
   }
 
-  // Parse HTML
-  const rawParts = (htmlContent || '').split(/(<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>|<table[^>]*>[\s\S]*?<\/table>)/gi);
+  // Parse HTML - sanitize by stripping style, script, head, doctype blocks
+  const sanitizedHtml = (htmlContent || '')
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<head[^>]*>[\s\S]*?<\/head>/gi, '')
+    .replace(/<!DOCTYPE[^>]*>/gi, '')
+    .replace(/<!--[\s\S]*?-->/g, '');
+
+  const rawParts = sanitizedHtml.split(/(<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>|<table[^>]*>[\s\S]*?<\/table>)/gi);
   for (const part of rawParts) {
     const trimmed = part.trim();
     if (!trimmed) continue;

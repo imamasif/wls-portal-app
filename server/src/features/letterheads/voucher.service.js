@@ -5,6 +5,7 @@ import { execFileSync } from 'child_process';
 import JSZip from 'jszip';
 import { getBrowserPath, escapeHtml, getLetterheadAssetsDir, getUploadsDir } from './letterhead.service.js';
 import { generateGenericLetterheadPdfBuffer } from './meetingPdfGenerator.js';
+import { generateVoucherPdfBuffer } from './voucherPdfGenerator.js';
 import { Voucher } from './voucher.model.js';
 
 /**
@@ -433,10 +434,9 @@ export async function generateVoucherDocument({ voucher, outputPdfPath, outputDo
 
   // Fallback to pure native PDF generator if browser is absent
   if (!pdfDone) {
-    const pdfBuf = generateGenericLetterheadPdfBuffer({
-      title: `${docTypeTitle} — ${voucher.voucherNumber}`,
-      htmlContent: fullHtml,
-      templateType: letterheadType,
+    const pdfBuf = generateVoucherPdfBuffer({
+      voucher,
+      letterheadType,
       assetsDir,
     });
     fs.writeFileSync(outputPdfPath, pdfBuf);
