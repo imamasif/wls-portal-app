@@ -402,10 +402,13 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
 
     items.forEach((it, idx) => {
       const rNum = Number(it.receiptNumber) || 1;
-      const rTitle = it.receiptTitle || (it.receiptNumber ? `Receipt ${it.receiptNumber}` : 'General Items');
-      const key = `${rNum}_${rTitle}`;
+      const rawTitle = it.receiptTitle || (it.receiptNumber ? `Receipt ${it.receiptNumber}` : 'General Items');
+      const cleanTitle = String(rawTitle).replace(new RegExp(`^Receipt\\s*${rNum}:?\\s*`, 'i'), '').trim();
+      const displayTitle = cleanTitle ? `Receipt ${rNum}: ${cleanTitle}` : `Receipt ${rNum}`;
+
+      const key = `${rNum}_${cleanTitle}`;
       if (!groupMap.has(key)) {
-        const grp = { number: rNum, title: rTitle, items: [], subtotal: 0 };
+        const grp = { number: rNum, title: displayTitle, items: [], subtotal: 0 };
         groupMap.set(key, grp);
         groups.push(grp);
       }
@@ -1509,7 +1512,7 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
                             <IconReceipt size={12} />
                           </ThemeIcon>
                           <Text fw={700} size="xs" c="indigo.9">
-                            🧾 Receipt {grp.number}: {grp.title} ({grp.items.length} item{grp.items.length === 1 ? '' : 's'})
+                            🧾 {grp.title} ({grp.items.length} item{grp.items.length === 1 ? '' : 's'})
                           </Text>
                         </Group>
                       </Table.Td>
@@ -1695,7 +1698,7 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
                     {itemReceiptGroups.map((grp) => (
                       <Group key={`summary_${grp.number}_${grp.title}`} justify="space-between">
                         <Text size="xs" c="dark" fw={500}>
-                          🧾 Receipt {grp.number} ({grp.title}):
+                          🧾 {grp.title}:
                         </Text>
                         <Text size="xs" fw={600}>
                           ${grp.subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}

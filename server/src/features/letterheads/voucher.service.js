@@ -32,8 +32,8 @@ function formatCurrency(num) {
 
 /**
  * Generates official PDF and Word document for a Voucher / Petty Cash / Invoice.
- * Supports combining multiple receipts into one with distinct Receipt 1, Receipt 2 headers,
- * individual subtotals, combined totals, and individual receipt photo appendixes.
+ * Supports multi-page pagination for batches of receipts, clean individual subtotals,
+ * combined taxes, and individual receipt photo appendixes.
  */
 export async function generateVoucherDocument({ voucher, outputPdfPath, outputDocxPath }) {
   const assetsDir = getLetterheadAssetsDir();
@@ -103,10 +103,13 @@ export async function generateVoucherDocument({ voucher, outputPdfPath, outputDo
   let itemsRowsHtml = '';
   if (hasMultipleReceipts) {
     for (const grp of receiptGroups) {
+      const cleanGroupTitle = String(grp.title || '').replace(new RegExp(`^Receipt\\s*${grp.number}:?\\s*`, 'i'), '').trim();
+      const displayGroupTitle = cleanGroupTitle ? `Receipt ${grp.number}: ${cleanGroupTitle}` : `Receipt ${grp.number}`;
+
       itemsRowsHtml += `
         <tr style="background: #eff6ff; border-top: 2px solid #bfdbfe; border-bottom: 1px solid #bfdbfe;">
           <td colspan="2" style="padding: 8px 14px; font-weight: 700; color: #1e40af; font-size: 13px;">
-            &#129534; Receipt ${grp.number}: ${escapeHtml(grp.title)}
+            &#129534; ${escapeHtml(displayGroupTitle)}
           </td>
           <td style="padding: 8px 14px; text-align: right; font-weight: 700; color: #1e40af; font-size: 13px;">
             Subtotal: $${formatCurrency(grp.subtotal)}
@@ -211,12 +214,14 @@ export async function generateVoucherDocument({ voucher, outputPdfPath, outputDo
   let receiptAppendixHtml = '';
   if (rawReceiptUrls.length > 0) {
     receiptAppendixHtml = rawReceiptUrls.map((rUrl, rIdx) => {
-      const receiptTitle = (receiptGroups && receiptGroups[rIdx]?.title) || `Receipt ${rIdx + 1}`;
+      const rawRTitle = (receiptGroups && receiptGroups[rIdx]?.title) || `Receipt ${rIdx + 1}`;
+      const cleanRTitle = String(rawRTitle).replace(new RegExp(`^Receipt\\s*${rIdx + 1}:?\\s*`, 'i'), '').trim();
+      const rDisplayTitle = cleanRTitle ? `Receipt ${rIdx + 1}: ${cleanRTitle}` : `Receipt ${rIdx + 1}`;
       const base64Data = toBase64DataUri(rUrl);
       return `
         <div style="page-break-before: always; margin-top: 40px; padding-top: 20px; border-top: 2px dashed #cbd5e1;">
           <h3 style="font-size: 15px; color: #1e3a8a; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;">
-            Appendix: Supporting Receipt ${rIdx + 1} Photo &mdash; ${escapeHtml(receiptTitle)}
+            Appendix: Supporting Receipt ${rIdx + 1} Photo &mdash; ${escapeHtml(rDisplayTitle)}
           </h3>
           <p style="font-size: 12px; color: #64748b; margin-bottom: 14px;">
             Scanned voucher receipt attached for verification and audit trail. Voucher #${escapeHtml(voucher.voucherNumber || 'Reference')}
@@ -239,9 +244,12 @@ export async function generateVoucherDocument({ voucher, outputPdfPath, outputDo
   let summaryRowsHtml = '';
   if (hasMultipleReceipts) {
     for (const grp of receiptGroups) {
+      const cleanGroupTitle = String(grp.title || '').replace(new RegExp(`^Receipt\\s*${grp.number}:?\\s*`, 'i'), '').trim();
+      const displayGroupTitle = cleanGroupTitle ? `Receipt ${grp.number}: ${cleanGroupTitle}` : `Receipt ${grp.number}`;
+
       summaryRowsHtml += `
         <div class="summary-row" style="color: #64748b; font-size: 12px;">
-          <span>Receipt ${grp.number} Subtotal</span>
+          <span>${escapeHtml(displayGroupTitle)} Subtotal</span>
           <span>$${formatCurrency(grp.subtotal)}</span>
         </div>
       `;
@@ -288,7 +296,7 @@ export async function generateVoucherDocument({ voucher, outputPdfPath, outputDo
 <style>
   @page {
     size: A4 portrait;
-    margin: 0;
+    margin: 10mm 0 14mm 0;
   }
   body {
     margin: 0;
@@ -302,8 +310,7 @@ export async function generateVoucherDocument({ voucher, outputPdfPath, outputDo
   .header-img { width: 100%; display: block; }
   .footer-img { width: 100%; display: block; }
   .content-wrap {
-    padding: 24px 44px;
-    min-height: 700px;
+    padding: 16px 44px;
     box-sizing: border-box;
   }
   .bismillah-wrap { text-align: center; margin: 0 0 14px 0; }
@@ -312,7 +319,7 @@ export async function generateVoucherDocument({ voucher, outputPdfPath, outputDo
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 24px;
+    margin-bottom: 20px;
   }
   .doc-title-col { width: 50%; }
   .doc-title {
@@ -357,7 +364,7 @@ export async function generateVoucherDocument({ voucher, outputPdfPath, outputDo
     border-radius: 4px;
     padding: 12px 18px;
     max-width: 320px;
-    margin-bottom: 28px;
+    margin-bottom: 22px;
   }
   .payer-name {
     font-weight: 700;
@@ -373,7 +380,13 @@ export async function generateVoucherDocument({ voucher, outputPdfPath, outputDo
   table.items-table {
     width: 100%;
     border-collapse: collapse;
-    margin-bottom: 24px;
+    margin-bottom: 20px;
+  }
+  table.items-table tr {
+    page-break-inside: avoid;
+  }
+  table.items-table thead {
+    display: table-header-group;
   }
   table.items-table th {
     padding: 8px 14px;
@@ -387,7 +400,8 @@ export async function generateVoucherDocument({ voucher, outputPdfPath, outputDo
   .summary-wrap {
     display: flex;
     justify-content: flex-end;
-    margin-bottom: 28px;
+    margin-bottom: 24px;
+    page-break-inside: avoid;
   }
   .summary-table {
     width: 360px;
@@ -415,6 +429,7 @@ export async function generateVoucherDocument({ voucher, outputPdfPath, outputDo
     padding-top: 16px;
     font-size: 12.5px;
     color: #475569;
+    page-break-inside: avoid;
   }
   .terms-box h4 {
     margin: 0 0 6px 0;
@@ -594,7 +609,10 @@ export async function generateVoucherDocument({ voucher, outputPdfPath, outputDo
 
   if (hasMultipleReceipts) {
     for (const grp of receiptGroups) {
-      voucherBodyXml += `<w:tr><w:tc><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="EFF6FF"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="20"/><w:color w:val="1E40AF"/></w:rPr><w:t>Receipt ${grp.number}: ${escapeHtml(grp.title)}</w:t></w:r></w:p></w:tc><w:tc><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="EFF6FF"/></w:tcPr><w:p><w:pPr><w:jc w:val="right"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="20"/><w:color w:val="1E40AF"/></w:rPr><w:t>Subtotal: $${formatCurrency(grp.subtotal)}</w:t></w:r></w:p></w:tc></w:tr>`;
+      const cleanGroupTitle = String(grp.title || '').replace(new RegExp(`^Receipt\\s*${grp.number}:?\\s*`, 'i'), '').trim();
+      const displayGroupTitle = cleanGroupTitle ? `Receipt ${grp.number}: ${cleanGroupTitle}` : `Receipt ${grp.number}`;
+
+      voucherBodyXml += `<w:tr><w:tc><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="EFF6FF"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="20"/><w:color w:val="1E40AF"/></w:rPr><w:t>${escapeHtml(displayGroupTitle)}</w:t></w:r></w:p></w:tc><w:tc><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="EFF6FF"/></w:tcPr><w:p><w:pPr><w:jc w:val="right"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="20"/><w:color w:val="1E40AF"/></w:rPr><w:t>Subtotal: $${formatCurrency(grp.subtotal)}</w:t></w:r></w:p></w:tc></w:tr>`;
       for (const it of grp.items) {
         const itAmt = Number(it.amount) || ((Number(it.quantity) || 1) * (Number(it.unitPrice) || 0));
         voucherBodyXml += `<w:tr><w:tc><w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:sz w:val="20"/></w:rPr><w:t>${escapeHtml(it.description)}</w:t></w:r></w:p></w:tc><w:tc><w:p><w:pPr><w:jc w:val="right"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="20"/></w:rPr><w:t>$${formatCurrency(itAmt)}</w:t></w:r></w:p></w:tc></w:tr>`;

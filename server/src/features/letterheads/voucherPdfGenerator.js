@@ -46,8 +46,9 @@ function formatCurrency(num) {
 /**
  * Generates an institutional vector PDF for a Voucher / Invoice / Petty Cash Receipt.
  * Completely independent of browser or external dependencies.
- * Beautifully formats multi-receipt batches (Receipt 1, Receipt 2, etc.) with subtotals,
- * combined taxes, grand total, and individual receipt appendices.
+ * Features automated multi-page pagination for long receipts & multiple receipt batches,
+ * re-printing table headers on continuation pages, displaying clean subtotals,
+ * combined taxes, and individual receipt photo appendices.
  */
 export function generateVoucherPdfBuffer({ voucher, letterheadType = 'iipc', assetsDir }) {
   const PAGE_WIDTH = 595.28;  // A4 width
@@ -149,13 +150,33 @@ export function generateVoucherPdfBuffer({ voucher, letterheadType = 'iipc', ass
     }
   }
 
-  const pages = [[]];
-  let curStream = pages[0];
+  // 3. Multi-page pagination management for invoice body
+  const invoicePages = [[]];
+  let curStream = invoicePages[0];
+  let curInvoicePageIdx = 0;
 
   const headerHeightPt = headerBuf ? (headerDim.height / headerDim.width) * PAGE_WIDTH : 0;
   const footerHeightPt = footerBuf ? (footerDim.height / footerDim.width) * PAGE_WIDTH : 0;
 
-  let curY = PAGE_HEIGHT - (headerHeightPt > 0 ? headerHeightPt + 14 : 40);
+  const TOP_MARGIN_Y = PAGE_HEIGHT - (headerHeightPt > 0 ? headerHeightPt + 14 : 36);
+  const BOTTOM_MARGIN_Y = (footerHeightPt > 0 ? footerHeightPt + 24 : 36);
+
+  let curY = TOP_MARGIN_Y;
+  let isTableActive = false;
+
+  const colWDesc = USABLE_WIDTH * 0.58;
+  const colWTax = USABLE_WIDTH * 0.20;
+  const colWAmt = USABLE_WIDTH * 0.22;
+
+  const colXDesc = MARGIN_LEFT;
+  const colXTax = colXDesc + colWDesc;
+  const colXAmt = colXTax + colWTax;
+
+  const docTypeTitle = voucher.type === 'INVOICE'
+    ? 'INVOICE'
+    : voucher.type === 'PETTY_CASH'
+    ? 'PETTY CASH RECEIPT'
+    : 'PAYMENT VOUCHER';
 
   function addText(text, x, y, font = '/F1', size = 10, r = 0.1, g = 0.1, b = 0.1) {
     const safe = escapePdfText(text);
@@ -189,7 +210,41 @@ export function generateVoucherPdfBuffer({ voucher, letterheadType = 'iipc', ass
     );
   }
 
-  // Draw Bismillah if IIPC
+  // Automatic page-break sensor
+  function ensureSpace(neededHeight = 24) {
+    if (curY - neededHeight < BOTTOM_MARGIN_Y) {
+      const newPageStream = [];
+      invoicePages.push(newPageStream);
+      curInvoicePageIdx++;
+      curStream = newPageStream;
+      curY = TOP_MARGIN_Y;
+
+      // Continuation header at top of next page
+      addText(
+        `${docTypeTitle}: ${voucher.voucherNumber || ''} (Continued — Page ${curInvoicePageIdx + 1})`,
+        MARGIN_LEFT,
+        curY - 8,
+        '/F2',
+        8.5,
+        0.35,
+        0.42,
+        0.52
+      );
+      curY -= 20;
+
+      // Re-draw table header row if line items are ongoing
+      if (isTableActive) {
+        const thH = 20;
+        drawRect(MARGIN_LEFT, curY - thH, USABLE_WIDTH, thH, { r: 0.94, g: 0.96, b: 0.98 }, { r: 0.80, g: 0.83, b: 0.88 }, 1);
+        addText('Item / Description', colXDesc + 8, curY - 14, '/F2', 8.5, 0.09, 0.15, 0.24);
+        addText('Sales Tax', colXTax + (colWTax / 2) - 18, curY - 14, '/F2', 8.5, 0.09, 0.15, 0.24);
+        addText('Net Amount', colXAmt + colWAmt - 68, curY - 14, '/F2', 8.5, 0.09, 0.15, 0.24);
+        curY -= (thH + 2);
+      }
+    }
+  }
+
+  // Draw Bismillah if IIPC (Page 1)
   if (letterheadType === 'iipc' && bismillahBuf) {
     const bW = 180;
     const bH = (bismillahDim.height / bismillahDim.width) * bW;
@@ -197,12 +252,6 @@ export function generateVoucherPdfBuffer({ voucher, letterheadType = 'iipc', ass
     curStream.push(`q\n${bW.toFixed(2)} 0 0 ${bH.toFixed(2)} ${bX.toFixed(2)} ${(curY - bH).toFixed(2)} cm\n/ImBismillah Do\nQ\n`);
     curY -= (bH + 16);
   }
-
-  const docTypeTitle = voucher.type === 'INVOICE'
-    ? 'INVOICE'
-    : voucher.type === 'PETTY_CASH'
-    ? 'PETTY CASH RECEIPT'
-    : 'PAYMENT VOUCHER';
 
   const payee = voucher.payee || {};
   const payer = voucher.payer || {};
@@ -286,7 +335,6 @@ export function generateVoucherPdfBuffer({ voucher, letterheadType = 'iipc', ass
     payeeY -= 12;
   }
   if (payee.emtEmail) {
-    // Green EMT box
     const emtBoxW = 205;
     const emtBoxH = 18;
     drawRect(payeeX - 4, payeeY - 14, emtBoxW, emtBoxH, { r: 0.94, g: 0.99, b: 0.96 }, { r: 0.73, g: 0.94, b: 0.80 }, 1);
@@ -320,16 +368,10 @@ export function generateVoucherPdfBuffer({ voucher, letterheadType = 'iipc', ass
 
   curY -= (billBoxH + 20);
 
-  // LINE ITEMS TABLE
-  const colWDesc = USABLE_WIDTH * 0.58;
-  const colWTax = USABLE_WIDTH * 0.20;
-  const colWAmt = USABLE_WIDTH * 0.22;
+  // START LINE ITEMS TABLE
+  isTableActive = true;
 
-  const colXDesc = MARGIN_LEFT;
-  const colXTax = colXDesc + colWDesc;
-  const colXAmt = colXTax + colWTax;
-
-  // Table Header
+  // Table Header on Page 1
   const thH = 22;
   drawRect(MARGIN_LEFT, curY - thH, USABLE_WIDTH, thH, { r: 0.94, g: 0.96, b: 0.98 }, { r: 0.80, g: 0.83, b: 0.88 }, 1);
   addText('Item / Description', colXDesc + 8, curY - 15, '/F2', 9, 0.09, 0.15, 0.24);
@@ -341,10 +383,17 @@ export function generateVoucherPdfBuffer({ voucher, letterheadType = 'iipc', ass
   // Table Rows (Grouped by Receipt if multiple)
   for (const grp of receiptGroups) {
     if (hasMultipleReceipts) {
-      // Group header banner row
+      // Ensure space for group banner + at least one item
+      ensureSpace(38);
+
       const gH = 18;
       drawRect(MARGIN_LEFT, curY - gH, USABLE_WIDTH, gH, { r: 0.93, g: 0.96, b: 1.0 }, { r: 0.72, g: 0.84, b: 0.98 }, 1);
-      addText(`Receipt ${grp.number}: ${grp.title}`, colXDesc + 6, curY - 13, '/F2', 8.5, 0.10, 0.25, 0.55);
+
+      // Clean duplicate "Receipt X:" in title
+      const cleanGroupTitle = String(grp.title || '').replace(new RegExp(`^Receipt\\s*${grp.number}:?\\s*`, 'i'), '').trim();
+      const displayGroupTitle = `Receipt ${grp.number}: ${cleanGroupTitle || grp.title}`;
+
+      addText(displayGroupTitle, colXDesc + 6, curY - 13, '/F2', 8.5, 0.10, 0.25, 0.55);
       const grpSubStr = `Subtotal: $${formatCurrency(grp.subtotal)}`;
       addText(grpSubStr, colXAmt + colWAmt - 85, curY - 13, '/F2', 8.5, 0.10, 0.25, 0.55);
       curY -= gH;
@@ -357,6 +406,7 @@ export function generateVoucherPdfBuffer({ voucher, letterheadType = 'iipc', ass
       const descWrapped = wrapText(desc, 50);
 
       const rowH = Math.max(18, descWrapped.length * 12 + 5);
+      ensureSpace(rowH);
 
       // Light border bottom
       drawLine(MARGIN_LEFT, curY - rowH, MARGIN_LEFT + USABLE_WIDTH, curY - rowH, { r: 0.88, g: 0.91, b: 0.94 }, 0.75);
@@ -380,6 +430,7 @@ export function generateVoucherPdfBuffer({ voucher, letterheadType = 'iipc', ass
 
     if (hasMultipleReceipts) {
       // Group subtotal row
+      ensureSpace(20);
       const subRowH = 16;
       drawLine(colXTax, curY - 1, MARGIN_LEFT + USABLE_WIDTH, curY - 1, { r: 0.75, g: 0.82, b: 0.90 }, 1);
       addText(`Receipt ${grp.number} Subtotal:`, colXTax + 10, curY - 12, '/F2', 8, 0.25, 0.35, 0.45);
@@ -388,14 +439,21 @@ export function generateVoucherPdfBuffer({ voucher, letterheadType = 'iipc', ass
     }
   }
 
-  curY -= 12;
+  // End of items table
+  isTableActive = false;
+  curY -= 10;
 
   // TOTALS SUMMARY BOX (Right Aligned)
   const sumW = 230;
   const sumX = PAGE_WIDTH - MARGIN_RIGHT - sumW;
+  const neededTotalsHeight = hasMultipleReceipts ? (receiptGroups.length * 14 + 100) : 95;
+
+  // Auto page break if totals box cannot fit on current page
+  ensureSpace(neededTotalsHeight);
 
   if (hasMultipleReceipts) {
     for (const grp of receiptGroups) {
+      const cleanGroupTitle = String(grp.title || '').replace(new RegExp(`^Receipt\\s*${grp.number}:?\\s*`, 'i'), '').trim();
       addText(`Receipt ${grp.number} Subtotal:`, sumX + 8, curY, '/F1', 8.5, 0.30, 0.35, 0.40);
       addText(`$${formatCurrency(grp.subtotal)}`, sumX + sumW - 60, curY, '/F2', 8.5, 0.15, 0.20, 0.25);
       curY -= 13;
@@ -424,7 +482,7 @@ export function generateVoucherPdfBuffer({ voucher, letterheadType = 'iipc', ass
   addText(hasMultipleReceipts ? 'COMBINED TOTAL TO PAY:' : 'TOTAL TO PAY:', sumX + 8, curY - 18, '/F2', 9.5, 1.0, 1.0, 1.0);
   addText(`$${formatCurrency(totalAmount)}`, sumX + sumW - 75, curY - 18, '/F2', 12, 0.29, 0.87, 0.50);
 
-  curY -= (totBarH + 24);
+  curY -= (totBarH + 20);
 
   // TERMS AND CONDITIONS BOX
   const defaultEmtNote = payee.emtEmail ? `Payment can be made through E-transfer ${payee.emtEmail}.` : '';
@@ -432,6 +490,8 @@ export function generateVoucherPdfBuffer({ voucher, letterheadType = 'iipc', ass
 
   const termsWrapped = wrapText(termsText, 88);
   const termsBoxH = 18 + (termsWrapped.length * 12) + 8;
+
+  ensureSpace(termsBoxH + 10);
 
   drawRect(MARGIN_LEFT, curY - termsBoxH, USABLE_WIDTH, termsBoxH, { r: 0.98, g: 0.99, b: 1.0 }, { r: 0.85, g: 0.88, b: 0.92 }, 1);
   addText('Terms & Payment Instructions:', MARGIN_LEFT + 10, curY - 13, '/F2', 8.5, 0.12, 0.23, 0.54);
@@ -442,21 +502,25 @@ export function generateVoucherPdfBuffer({ voucher, letterheadType = 'iipc', ass
     tY -= 11;
   }
 
-  // Draw Header and Footer on Page 1
-  if (headerBuf) {
-    const hY = PAGE_HEIGHT - headerHeightPt;
-    pages[0].unshift(`q\n${PAGE_WIDTH.toFixed(2)} 0 0 ${headerHeightPt.toFixed(2)} 0 ${hY.toFixed(2)} cm\n/ImHeader Do\nQ\n`);
+  // Apply Header and Footer to ALL invoice pages
+  for (let i = 0; i < invoicePages.length; i++) {
+    const pStream = invoicePages[i];
+    if (headerBuf) {
+      const hY = PAGE_HEIGHT - headerHeightPt;
+      pStream.unshift(`q\n${PAGE_WIDTH.toFixed(2)} 0 0 ${headerHeightPt.toFixed(2)} 0 ${hY.toFixed(2)} cm\n/ImHeader Do\nQ\n`);
+    }
+
+    if (footerBuf) {
+      pStream.push(`q\n${PAGE_WIDTH.toFixed(2)} 0 0 ${footerHeightPt.toFixed(2)} 0 0 cm\n/ImFooter Do\nQ\n`);
+    }
   }
 
-  if (footerBuf) {
-    pages[0].push(`q\n${PAGE_WIDTH.toFixed(2)} 0 0 ${footerHeightPt.toFixed(2)} 0 0 cm\n/ImFooter Do\nQ\n`);
-  }
-
-  // APPENDIX PAGES FOR SUPPORTING RECEIPTS (Each receipt on its own page)
+  // APPENDIX PAGES FOR SUPPORTING RECEIPTS (Each receipt on its own dedicated page)
+  const appendixPages = [];
   for (const rcp of receiptImages) {
     if (rcp.buf && rcp.dim.width > 0 && rcp.mime === 'jpeg') {
       const pStream = [];
-      pages.push(pStream);
+      appendixPages.push(pStream);
 
       let pY = PAGE_HEIGHT - 50;
       const addTextP = (text, x, y, font = '/F1', size = 10, r = 0.1, g = 0.1, b = 0.1) => {
@@ -466,13 +530,16 @@ export function generateVoucherPdfBuffer({ voucher, letterheadType = 'iipc', ass
         );
       };
 
-      const receiptTitle = (receiptGroups && receiptGroups[rcp.index - 1]?.title) || `Receipt ${rcp.index}`;
+      const rawRTitle = (receiptGroups && receiptGroups[rcp.index - 1]?.title) || `Receipt ${rcp.index}`;
+      const cleanRTitle = String(rawRTitle).replace(new RegExp(`^Receipt\\s*${rcp.index}:?\\s*`, 'i'), '').trim();
+      const rDisplayTitle = cleanRTitle ? `Receipt ${rcp.index}: ${cleanRTitle}` : `Receipt ${rcp.index}`;
+
       addTextP(`APPENDIX: SUPPORTING RECEIPT ${rcp.index} PHOTO`, MARGIN_LEFT, pY, '/F2', 13, 0.12, 0.23, 0.54);
       pY -= 16;
-      addTextP(`Attached for audit trail verification - Voucher #${voucher.voucherNumber || 'Reference'} • ${receiptTitle}`, MARGIN_LEFT, pY, '/F1', 9, 0.4, 0.45, 0.5);
+      addTextP(`Attached for audit trail verification - Voucher #${voucher.voucherNumber || 'Reference'} • ${rDisplayTitle}`, MARGIN_LEFT, pY, '/F1', 9, 0.4, 0.45, 0.5);
       pY -= 20;
 
-      // Draw receipt image box
+      // Draw receipt image box scaled to page
       const maxImgW = USABLE_WIDTH;
       const maxImgH = 620;
       const scale = Math.min(maxImgW / rcp.dim.width, maxImgH / rcp.dim.height, 1);
@@ -489,7 +556,10 @@ export function generateVoucherPdfBuffer({ voucher, letterheadType = 'iipc', ass
     }
   }
 
-  // 3. Register PDF Objects
+  // Combine invoice pages and appendix pages
+  const pages = [...invoicePages, ...appendixPages];
+
+  // 4. Register PDF Objects
   const pdfObjects = [];
   let nextObjId = 1;
 
