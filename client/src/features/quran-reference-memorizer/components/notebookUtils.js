@@ -38,12 +38,21 @@ export const SHOW_AYAT_IMAGES = true;
  */
 export function normalizeAyatImageUrls(val) {
   if (!val) return [];
+  const cleanItem = (s) => {
+    if (typeof s !== "string") return "";
+    let str = s.trim().replace(/\\+/g, "/");
+    const publicMatch = str.match(/(?:.*\/)?client\/public(\/.*)$/i);
+    if (publicMatch) {
+      str = publicMatch[1];
+    }
+    return str;
+  };
   if (Array.isArray(val)) {
     return Array.from(
       new Set(
         val
           .flatMap((x) =>
-            typeof x === "string" ? x.split(/[,\n\r]+/).map((s) => s.trim()).filter(Boolean) : []
+            typeof x === "string" ? x.split(/[,\n\r]+/).map(cleanItem).filter(Boolean) : []
           )
       )
     );
@@ -53,7 +62,7 @@ export function normalizeAyatImageUrls(val) {
       new Set(
         val
           .split(/[,\n\r]+/)
-          .map((s) => s.trim())
+          .map(cleanItem)
           .filter(Boolean)
       )
     );

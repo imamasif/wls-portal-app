@@ -60,6 +60,12 @@ connectDB().then(async () => {
     console.warn("Auto-migration note:", mErr.message);
   }
   try {
+    const { runAyatImageMigration } = await import("./src/scripts/migrate_ayat_images.js");
+    await runAyatImageMigration();
+  } catch (aErr) {
+    console.warn("Ayat image auto-migration note:", aErr.message);
+  }
+  try {
     const { UniversityUseCase } = await import("./src/features/university/university.usecase.js");
     UniversityUseCase.getOrCreateDefaultBatches().catch(() => {});
     UniversityUseCase.syncAllLectureDurationsBackground().catch(() => {});
