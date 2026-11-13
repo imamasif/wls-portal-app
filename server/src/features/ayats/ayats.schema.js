@@ -12,6 +12,14 @@ const stringArrayFieldType = {
   items: { type: "string" },
 };
 
+const imageUrlFieldType = {
+  anyOf: [
+    { type: "string" },
+    { type: "array", items: { type: "string" } },
+    { type: "null" },
+  ],
+};
+
 export const createAyatSchema = {
   type: "object",
   properties: {
@@ -41,9 +49,14 @@ export const createAyatSchema = {
     youtube_urls_urdu: stringArrayFieldType,
     video_urls_eng: stringArrayFieldType,
     video_urls_urdu: stringArrayFieldType,
-    ayat_image_eng_url: { type: "string" },
-    ayat_image_urdu_url: { type: "string" },
-    ayat_image_hindi_url: { type: "string" },
+    ayat_image_eng_url: imageUrlFieldType,
+    ayat_image_eng_urls: imageUrlFieldType,
+    ayat_image_urdu_url: imageUrlFieldType,
+    ayat_image_urdu_urls: imageUrlFieldType,
+    ayat_image_hindi_url: imageUrlFieldType,
+    ayat_image_hindi_urls: imageUrlFieldType,
+    imageUrl: imageUrlFieldType,
+    imageUrls: imageUrlFieldType,
   },
   required: ["lecture_id", "surah_number", "ayat_number"],
   additionalProperties: true,
@@ -78,9 +91,14 @@ export const updateAyatSchema = {
     youtube_urls_urdu: stringArrayFieldType,
     video_urls_eng: stringArrayFieldType,
     video_urls_urdu: stringArrayFieldType,
-    ayat_image_eng_url: { type: "string" },
-    ayat_image_urdu_url: { type: "string" },
-    ayat_image_hindi_url: { type: "string" },
+    ayat_image_eng_url: imageUrlFieldType,
+    ayat_image_eng_urls: imageUrlFieldType,
+    ayat_image_urdu_url: imageUrlFieldType,
+    ayat_image_urdu_urls: imageUrlFieldType,
+    ayat_image_hindi_url: imageUrlFieldType,
+    ayat_image_hindi_urls: imageUrlFieldType,
+    imageUrl: imageUrlFieldType,
+    imageUrls: imageUrlFieldType,
   },
   additionalProperties: true,
 };

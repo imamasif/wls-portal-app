@@ -28,10 +28,19 @@ import ayatsRoutes from "./src/features/ayats/index.js";
 import iipcEventsRoutes from "./src/features/iipc-events/index.js";
 import letterheadRoutes from "./src/features/letterheads/index.js";
 import buildingMaintenanceRoutes, { BuildingMaintenanceUseCase } from "./src/features/building-maintenance/index.js";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const clientPublicDir = path.resolve(__dirname, "../client/public");
+const clientDistDir = path.resolve(__dirname, "../client/dist");
 
 const app = express();
 
 app.use(cors());
+app.use(express.static(clientPublicDir));
+app.use(express.static(clientDistDir));
 
 // 1. SET LIMITS AT THE TOP BEFORE ROUTES ARE MOUNTED
 app.use(express.json({ limit: "30mb" }));

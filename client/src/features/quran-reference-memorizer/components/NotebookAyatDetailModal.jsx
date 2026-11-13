@@ -28,10 +28,13 @@ import {
   ExternalLink,
   Image as ImageIcon,
   FileText,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import {
   formatVerseRef,
   parseVideoTimestamps,
+  normalizeAyatImageUrls,
 } from "./notebookUtils";
 
 export function NotebookAyatDetailModal({
@@ -46,50 +49,68 @@ export function NotebookAyatDetailModal({
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
-  const [activeImageLang, setActiveImageLang] = useState("eng");
+  const [activeImageGroup, setActiveImageGroup] = useState("eng");
+  const [activeSlideIndex, setActiveSlideIndex] = useState(0);
   const [viewMode, setViewMode] = useState("image"); // 'image' | 'arabic'
   const [isImageLoading, setIsImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
 
-  // Extract all possible slide image URLs
-  const imgEng =
-    activeAyatModal?.ayat_image_eng_url ||
+  // Extract all slide image arrays (supporting array of strings, single string, or none/null)
+  const engImages = normalizeAyatImageUrls(
+    activeAyatModal?.ayat_image_eng_url || activeAyatModal?.ayat_image_eng_urls
+  );
+  const urduImages = normalizeAyatImageUrls(
+    activeAyatModal?.ayat_image_urdu_url || activeAyatModal?.ayat_image_urdu_urls
+  );
+  const hindiImages = normalizeAyatImageUrls(
+    activeAyatModal?.ayat_image_hindi_url || activeAyatModal?.ayat_image_hindi_urls
+  );
+  const generalImages = normalizeAyatImageUrls(
     activeAyatModal?.imageUrl ||
-    activeAyatModal?.image_url ||
-    activeAyatModal?.image ||
-    "";
-  const imgUrdu = activeAyatModal?.ayat_image_urdu_url || "";
-  const imgHindi = activeAyatModal?.ayat_image_hindi_url || "";
+      activeAyatModal?.imageUrls ||
+      activeAyatModal?.image_url ||
+      activeAyatModal?.image ||
+      activeAyatModal?.ayat_image
+  );
 
-  const availableImages = [];
-  if (imgEng) availableImages.push({ id: "eng", label: "English Slide", url: imgEng });
-  if (imgUrdu) availableImages.push({ id: "urdu", label: "Urdu Slide", url: imgUrdu });
-  if (imgHindi) availableImages.push({ id: "hindi", label: "Hindi Slide", url: imgHindi });
+  const imageGroups = [];
+  if (engImages.length > 0)
+    imageGroups.push({ id: "eng", label: `English (${engImages.length})`, images: engImages });
+  if (urduImages.length > 0)
+    imageGroups.push({ id: "urdu", label: `Urdu (${urduImages.length})`, images: urduImages });
+  if (hindiImages.length > 0)
+    imageGroups.push({ id: "hindi", label: `Hindi (${hindiImages.length})`, images: hindiImages });
+  if (generalImages.length > 0)
+    imageGroups.push({ id: "general", label: `General (${generalImages.length})`, images: generalImages });
 
-  const hasAyatImage = availableImages.length > 0;
+  const hasAyatImage = imageGroups.length > 0;
 
   // Sync state whenever modal opens or active verse changes
   useEffect(() => {
     if (!activeAyatModal) {
       setZoomLevel(1);
       setImageError(false);
+      setActiveSlideIndex(0);
       return;
     }
 
     // Default image language preference based on current notebook language
     const isUrduContext = (activeLanguage || "").toLowerCase().includes("urdu");
-    if (isUrduContext && imgUrdu) {
-      setActiveImageLang("urdu");
-    } else if (imgEng) {
-      setActiveImageLang("eng");
-    } else if (imgUrdu) {
-      setActiveImageLang("urdu");
-    } else if (imgHindi) {
-      setActiveImageLang("hindi");
+    if (isUrduContext && urduImages.length > 0) {
+      setActiveImageGroup("urdu");
+    } else if (engImages.length > 0) {
+      setActiveImageGroup("eng");
+    } else if (urduImages.length > 0) {
+      setActiveImageGroup("urdu");
+    } else if (hindiImages.length > 0) {
+      setActiveImageGroup("hindi");
+    } else if (generalImages.length > 0) {
+      setActiveImageGroup("general");
     } else {
-      setActiveImageLang("eng");
+      setActiveImageGroup("eng");
     }
 
+    setActiveSlideIndex(0);
     setZoomLevel(1);
     setIsImageLoading(true);
     setImageError(false);
@@ -100,13 +121,26 @@ export function NotebookAyatDetailModal({
     } else {
       setViewMode("arabic");
     }
-  }, [activeAyatModal, activeLanguage, hasAyatImage, imgEng, imgUrdu, imgHindi]);
+  }, [
+    activeAyatModal,
+    activeLanguage,
+    hasAyatImage,
+    engImages.length,
+    urduImages.length,
+    hindiImages.length,
+    generalImages.length,
+  ]);
 
-  const currentImageObj =
-    availableImages.find((img) => img.id === activeImageLang) ||
-    availableImages[0] ||
+  const currentGroup =
+    imageGroups.find((g) => g.id === activeImageGroup) ||
+    imageGroups[0] ||
     null;
-  const currentImageUrl = currentImageObj?.url || "";
+  const currentSlideList = currentGroup?.images || [];
+  const safeSlideIndex = Math.min(
+    activeSlideIndex,
+    Math.max(0, currentSlideList.length - 1)
+  );
+  const currentImageUrl = currentSlideList[safeSlideIndex] || "";
 
   const handleZoomIn = () => {
     setZoomLevel((prev) => Math.min(Math.round((prev + 0.25) * 100) / 100, 2.5));
@@ -122,6 +156,20 @@ export function NotebookAyatDetailModal({
 
   const toggleImageClickZoom = () => {
     setZoomLevel((prev) => (prev > 1.1 ? 1 : 1.5));
+  };
+
+  const handlePrevSlide = () => {
+    if (safeSlideIndex > 0) {
+      setActiveSlideIndex(safeSlideIndex - 1);
+      setIsImageLoading(true);
+    }
+  };
+
+  const handleNextSlide = () => {
+    if (safeSlideIndex < currentSlideList.length - 1) {
+      setActiveSlideIndex(safeSlideIndex + 1);
+      setIsImageLoading(true);
+    }
   };
 
   if (!activeAyatModal) return null;
@@ -155,7 +203,7 @@ export function NotebookAyatDetailModal({
                 variant="light"
                 leftSection={<ImageIcon size={12} />}
               >
-                Verified Ayat Slide
+                Ayat Slide {currentSlideList.length > 1 ? `(${safeSlideIndex + 1}/${currentSlideList.length})` : ""}
               </Badge>
 
               {/* View Switcher: Slide Image vs Arabic Text */}
@@ -186,26 +234,59 @@ export function NotebookAyatDetailModal({
               />
             </Group>
 
-            {/* Language Selection & Zoom Controls */}
-            <Group gap={6} align="center">
-              {availableImages.length > 1 && (
+            {/* Language Selection, Multi-Slide Pager & Zoom Controls */}
+            <Group gap={6} align="center" wrap="wrap">
+              {/* Language Switcher if multiple languages have images */}
+              {imageGroups.length > 1 && (
                 <SegmentedControl
                   size="xs"
-                  value={activeImageLang}
+                  value={activeImageGroup}
                   onChange={(val) => {
-                    setActiveImageLang(val);
+                    setActiveImageGroup(val);
+                    setActiveSlideIndex(0);
                     setIsImageLoading(true);
                     setImageError(false);
                     setZoomLevel(1);
                   }}
-                  data={availableImages.map((img) => ({
-                    value: img.id,
-                    label: img.label,
+                  data={imageGroups.map((g) => ({
+                    value: g.id,
+                    label: g.label,
                   }))}
                 />
               )}
 
-              {/* Zoom In, Out, Reset */}
+              {/* Previous / Next Slide buttons when multiple slides exist in active group */}
+              {currentSlideList.length > 1 && (
+                <Group gap={3} align="center" style={{ background: isDark ? "#1e2025" : "#f1f5f9", borderRadius: 6, padding: "2px 6px" }}>
+                  <Tooltip label="Previous slide" position="bottom" withArrow>
+                    <ActionIcon
+                      size="xs"
+                      variant="subtle"
+                      color="indigo"
+                      onClick={handlePrevSlide}
+                      disabled={safeSlideIndex === 0}
+                    >
+                      <ChevronLeft size={14} />
+                    </ActionIcon>
+                  </Tooltip>
+                  <Text size="11px" fw={700} c="indigo">
+                    {safeSlideIndex + 1} / {currentSlideList.length}
+                  </Text>
+                  <Tooltip label="Next slide" position="bottom" withArrow>
+                    <ActionIcon
+                      size="xs"
+                      variant="subtle"
+                      color="indigo"
+                      onClick={handleNextSlide}
+                      disabled={safeSlideIndex === currentSlideList.length - 1}
+                    >
+                      <ChevronRight size={14} />
+                    </ActionIcon>
+                  </Tooltip>
+                </Group>
+              )}
+
+              {/* Zoom Controls */}
               <Tooltip label="Zoom In" position="bottom" withArrow>
                 <ActionIcon size="sm" variant="subtle" color="indigo" onClick={handleZoomIn}>
                   <ZoomIn size={14} />
@@ -241,7 +322,7 @@ export function NotebookAyatDetailModal({
             </Group>
           </Group>
 
-          {/* Image Display Frame */}
+          {/* Main Image Display Frame */}
           <Box
             style={{
               position: "relative",
@@ -250,7 +331,7 @@ export function NotebookAyatDetailModal({
               overflow: "auto",
               background: "#ffffff",
               border: "1px solid #e2e8f0",
-              maxHeight: isExpanded ? "68vh" : "420px",
+              maxHeight: isExpanded ? "64vh" : "400px",
               minHeight: "220px",
               display: "flex",
               alignItems: "center",
@@ -266,10 +347,10 @@ export function NotebookAyatDetailModal({
 
             <img
               src={currentImageUrl}
-              alt={`Ayat Slide ${formatVerseRef(activeAyatModal.surah_number, activeAyatModal.ayat_number)}`}
+              alt={`Ayat Slide ${formatVerseRef(activeAyatModal.surah_number, activeAyatModal.ayat_number)} - Slide ${safeSlideIndex + 1}`}
               style={{
                 maxWidth: "100%",
-                maxHeight: isExpanded ? "66vh" : "400px",
+                maxHeight: isExpanded ? "62vh" : "380px",
                 objectFit: "contain",
                 transform: `scale(${zoomLevel})`,
                 transformOrigin: "center center",
@@ -287,6 +368,46 @@ export function NotebookAyatDetailModal({
             />
           </Box>
 
+          {/* Thumbnail Strip when multiple slides exist */}
+          {currentSlideList.length > 1 && (
+            <Group gap={6} mt={8} justify="center" wrap="wrap">
+              {currentSlideList.map((url, sIdx) => {
+                const isSelected = safeSlideIndex === sIdx;
+                return (
+                  <Box
+                    key={sIdx}
+                    onClick={() => {
+                      setActiveSlideIndex(sIdx);
+                      setIsImageLoading(true);
+                    }}
+                    style={{
+                      cursor: "pointer",
+                      borderRadius: 4,
+                      overflow: "hidden",
+                      border: isSelected ? "2px solid #4f46e5" : "1px solid #cbd5e1",
+                      boxShadow: isSelected ? "0 0 6px rgba(79, 70, 229, 0.45)" : "none",
+                      width: 54,
+                      height: 36,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      background: "#ffffff",
+                      opacity: isSelected ? 1 : 0.7,
+                      transition: "all 0.15s ease",
+                    }}
+                    title={`Slide ${sIdx + 1}`}
+                  >
+                    <img
+                      src={url}
+                      alt={`Thumbnail ${sIdx + 1}`}
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    />
+                  </Box>
+                );
+              })}
+            </Group>
+          )}
+
           <Text size="10px" c="dimmed" ta="center" mt={4}>
             💡 Tip: Click image or use zoom buttons to enlarge. Toggle Expand icon in top-right for maximum view.
           </Text>
@@ -294,7 +415,7 @@ export function NotebookAyatDetailModal({
       );
     }
 
-    // 2. Arabic Text Mode (Default when no image, or when user toggles to Arabic text)
+    // 2. Arabic Text Mode (Default when no image / null provision, or when user toggles to Arabic text)
     return (
       <Paper
         p="md"
@@ -577,7 +698,7 @@ export function NotebookAyatDetailModal({
             </Text>
             {hasAyatImage && (
               <Badge size="xs" color="teal" variant="light" leftSection={<ImageIcon size={11} />}>
-                Ayat Slide
+                Ayat Slide ({currentSlideList.length})
               </Badge>
             )}
           </Group>

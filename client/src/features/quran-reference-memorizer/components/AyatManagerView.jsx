@@ -24,6 +24,7 @@ import {
   Divider,
   Alert,
   Accordion,
+  FileButton,
 } from "@mantine/core";
 import {
   IconPlus,
@@ -40,7 +41,11 @@ import {
   IconFileText,
   IconHelpCircle,
   IconLink,
+  IconUpload,
+  IconPhoto,
+  IconExternalLink,
 } from "@tabler/icons-react";
+import { normalizeAyatImageUrls } from "./notebookUtils";
 import { SURAH_LIST } from "../../../components/common/QuranVersePicker";
 import {
   fetchAyats,
@@ -48,6 +53,7 @@ import {
   updateAyat,
   deleteAyat,
   fetchQuranVerseFromProxy,
+  uploadAyatImage,
 } from "../api/ayatsApi";
 
 const INITIAL_FORM = {
@@ -73,9 +79,14 @@ const INITIAL_FORM = {
   facebook_url_urdu: "",
   video_urls_text: "",
   video_urls: [],
-  ayat_image_eng_url: "",
-  ayat_image_urdu_url: "",
-  ayat_image_hindi_url: "",
+  ayat_image_eng_urls: [],
+  ayat_image_urdu_urls: [],
+  ayat_image_hindi_urls: [],
+  imageUrls: [],
+  ayat_image_eng_url: [],
+  ayat_image_urdu_url: [],
+  ayat_image_hindi_url: [],
+  imageUrl: [],
 };
 
 export function AyatManagerView({ user }) {
@@ -99,6 +110,7 @@ export function AyatManagerView({ user }) {
   const [currentEditingId, setCurrentEditingId] = useState(null);
   const [formData, setFormData] = useState(INITIAL_FORM);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isFetchingFromApi, setIsFetchingFromApi] = useState(false);
   const [formError, setFormError] = useState("");
   const [successNotice, setSuccessNotice] = useState("");
@@ -250,6 +262,14 @@ export function AyatManagerView({ user }) {
       ...INITIAL_FORM,
       category_id_ref: selectedFilterCategory || (metaCategories[0] ? String(metaCategories[0]._id || metaCategories[0].category_id) : ""),
       video_urls: [""],
+      ayat_image_eng_urls: [],
+      ayat_image_urdu_urls: [],
+      ayat_image_hindi_urls: [],
+      imageUrls: [],
+      ayat_image_eng_url: [],
+      ayat_image_urdu_url: [],
+      ayat_image_hindi_url: [],
+      imageUrl: [],
     });
     setFormError("");
     setModalMode("CREATE");
@@ -272,6 +292,11 @@ export function AyatManagerView({ user }) {
     const initialUrls = Array.from(
       new Set(rawUrls.map((u) => (typeof u === "string" ? u.trim() : "")).filter(Boolean))
     );
+
+    const engImages = normalizeAyatImageUrls(item.ayat_image_eng_urls || item.ayat_image_eng_url);
+    const urduImages = normalizeAyatImageUrls(item.ayat_image_urdu_urls || item.ayat_image_urdu_url);
+    const hindiImages = normalizeAyatImageUrls(item.ayat_image_hindi_urls || item.ayat_image_hindi_url);
+    const genImages = normalizeAyatImageUrls(item.imageUrls || item.imageUrl);
 
     setFormData({
       category_id_ref: String(item.category_id_ref || ""),
@@ -296,9 +321,14 @@ export function AyatManagerView({ user }) {
       facebook_url_urdu: item.facebook_url_urdu || "",
       video_urls_text: initialUrls.join("\n"),
       video_urls: initialUrls.length > 0 ? initialUrls : [""],
-      ayat_image_eng_url: item.ayat_image_eng_url || "",
-      ayat_image_urdu_url: item.ayat_image_urdu_url || "",
-      ayat_image_hindi_url: item.ayat_image_hindi_url || "",
+      ayat_image_eng_urls: engImages,
+      ayat_image_urdu_urls: urduImages,
+      ayat_image_hindi_urls: hindiImages,
+      imageUrls: genImages,
+      ayat_image_eng_url: engImages,
+      ayat_image_urdu_url: urduImages,
+      ayat_image_hindi_url: hindiImages,
+      imageUrl: genImages,
     });
     setFormError("");
     setCurrentEditingId(item._id);
@@ -327,6 +357,49 @@ export function AyatManagerView({ user }) {
       list.splice(index, 1);
       return { ...prev, video_urls: list.length > 0 ? list : [""] };
     });
+  };
+
+  // Slide Image dynamic array handlers
+  const handleImageUrlChange = (field, index, value) => {
+    setFormData((prev) => {
+      const list = [...(prev[field] || [])];
+      list[index] = value;
+      return { ...prev, [field]: list };
+    });
+  };
+
+  const handleAddImageUrl = (field) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: [...(prev[field] || []), ""],
+    }));
+  };
+
+  const handleRemoveImageUrl = (field, index) => {
+    setFormData((prev) => {
+      const list = [...(prev[field] || [])];
+      list.splice(index, 1);
+      return { ...prev, [field]: list };
+    });
+  };
+
+  const handleUploadImageFile = async (field, file) => {
+    if (!file) return;
+    setIsUploadingImage(true);
+    setFormError("");
+    try {
+      const res = await uploadAyatImage(file);
+      if (res && res.url) {
+        setFormData((prev) => ({
+          ...prev,
+          [field]: [...(prev[field] || []), res.url],
+        }));
+      }
+    } catch (err) {
+      setFormError(`Image upload failed: ${err.message}`);
+    } finally {
+      setIsUploadingImage(false);
+    }
   };
 
   // Auto-Fetch text from Quran API proxy
@@ -389,12 +462,25 @@ export function AyatManagerView({ user }) {
       ])
     ).filter(Boolean);
 
+    const cleanEngImages = normalizeAyatImageUrls(formData.ayat_image_eng_urls || formData.ayat_image_eng_url);
+    const cleanUrduImages = normalizeAyatImageUrls(formData.ayat_image_urdu_urls || formData.ayat_image_urdu_url);
+    const cleanHindiImages = normalizeAyatImageUrls(formData.ayat_image_hindi_urls || formData.ayat_image_hindi_url);
+    const cleanGenImages = normalizeAyatImageUrls(formData.imageUrls || formData.imageUrl);
+
     const payload = {
       ...formData,
       video_urls: consolidatedVideos,
       youtube_urls: consolidatedVideos,
       video_url: consolidatedVideos[0] || "",
       youtube_url: consolidatedVideos[0] || "",
+      ayat_image_eng_urls: cleanEngImages,
+      ayat_image_eng_url: cleanEngImages,
+      ayat_image_urdu_urls: cleanUrduImages,
+      ayat_image_urdu_url: cleanUrduImages,
+      ayat_image_hindi_urls: cleanHindiImages,
+      ayat_image_hindi_url: cleanHindiImages,
+      imageUrls: cleanGenImages,
+      imageUrl: cleanGenImages,
     };
 
     try {
@@ -431,6 +517,141 @@ export function AyatManagerView({ user }) {
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  const renderImageSection = (field, label, badgeColor) => {
+    const images = formData[field] || [];
+    return (
+      <Stack gap="xs" mt="xs">
+        <Group justify="space-between" align="center">
+          <Group gap="xs">
+            <Badge color={badgeColor} size="sm" variant="light">
+              {label} ({images.length})
+            </Badge>
+            <Text size="xs" c="dimmed">
+              Add URL or upload slide image file
+            </Text>
+          </Group>
+          <Group gap="xs">
+            <FileButton
+              onChange={(file) => handleUploadImageFile(field, file)}
+              accept="image/png,image/jpeg,image/webp,image/gif"
+            >
+              {(props) => (
+                <Button
+                  {...props}
+                  size="xs"
+                  variant="light"
+                  color="teal"
+                  leftSection={<IconUpload size={14} />}
+                  loading={isUploadingImage}
+                >
+                  Upload Slide
+                </Button>
+              )}
+            </FileButton>
+            <Button
+              size="xs"
+              variant="subtle"
+              color="indigo"
+              leftSection={<IconPlus size={14} />}
+              onClick={() => handleAddImageUrl(field)}
+            >
+              Add URL
+            </Button>
+          </Group>
+        </Group>
+
+        {images.length === 0 ? (
+          <Paper
+            p="sm"
+            withBorder
+            style={{
+              borderStyle: "dashed",
+              textAlign: "center",
+              background: "#f8fafc",
+              borderRadius: 6,
+            }}
+          >
+            <Text size="xs" c="dimmed">
+              No slides attached yet. Click <strong>Upload Slide</strong> or <strong>Add URL</strong> to add slides for {label}.
+            </Text>
+          </Paper>
+        ) : (
+          <Stack gap={6}>
+            {images.map((imgUrl, idx) => (
+              <Paper
+                key={idx}
+                p="xs"
+                withBorder
+                radius="sm"
+                style={{
+                  background: "#ffffff",
+                  borderColor: "#e2e8f0",
+                }}
+              >
+                <Group gap="xs" align="center" wrap="nowrap">
+                  {imgUrl ? (
+                    <img
+                      src={imgUrl}
+                      alt={`Slide ${idx + 1}`}
+                      style={{
+                        width: 54,
+                        height: 38,
+                        objectFit: "cover",
+                        borderRadius: 4,
+                        border: "1px solid #cbd5e1",
+                        background: "#f1f5f9",
+                        flexShrink: 0,
+                      }}
+                      onError={(e) => {
+                        e.target.style.display = "none";
+                      }}
+                    />
+                  ) : (
+                    <Badge size="sm" variant="outline" color="gray" style={{ flexShrink: 0 }}>
+                      #{idx + 1}
+                    </Badge>
+                  )}
+                  <TextInput
+                    size="xs"
+                    placeholder="https://... or /iipc/slides/..."
+                    value={imgUrl}
+                    onChange={(e) => handleImageUrlChange(field, idx, e.target.value)}
+                    style={{ flex: 1 }}
+                  />
+                  {imgUrl && (
+                    <Tooltip label="Open image in new tab">
+                      <ActionIcon
+                        size="sm"
+                        variant="subtle"
+                        color="blue"
+                        component="a"
+                        href={imgUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        <IconExternalLink size={14} />
+                      </ActionIcon>
+                    </Tooltip>
+                  )}
+                  <Tooltip label="Remove slide">
+                    <ActionIcon
+                      size="sm"
+                      variant="subtle"
+                      color="red"
+                      onClick={() => handleRemoveImageUrl(field, idx)}
+                    >
+                      <IconTrash size={14} />
+                    </ActionIcon>
+                  </Tooltip>
+                </Group>
+              </Paper>
+            ))}
+          </Stack>
+        )}
+      </Stack>
+    );
   };
 
   return (
@@ -628,6 +849,11 @@ export function AyatManagerView({ user }) {
                     item.youtube_url_urdu;
                   const hasNotes = item.points_notes_eng || item.points_notes_urdu;
                   const hasQA = item.quest_answer && item.question_text;
+                  const totalSlides =
+                    normalizeAyatImageUrls(item.ayat_image_eng_urls || item.ayat_image_eng_url).length +
+                    normalizeAyatImageUrls(item.ayat_image_urdu_urls || item.ayat_image_urdu_url).length +
+                    normalizeAyatImageUrls(item.ayat_image_hindi_urls || item.ayat_image_hindi_url).length +
+                    normalizeAyatImageUrls(item.imageUrls || item.imageUrl).length;
 
                   return (
                     <Table.Tr key={item._id}>
@@ -685,6 +911,14 @@ export function AyatManagerView({ user }) {
                               <Badge size="xs" color="blue" variant="light">
                                 <IconHelpCircle size={11} style={{ marginRight: 2 }} />
                                 Q&A
+                              </Badge>
+                            </Tooltip>
+                          )}
+                          {totalSlides > 0 && (
+                            <Tooltip label={`${totalSlides} slide image(s) attached`}>
+                              <Badge size="xs" color="teal" variant="light">
+                                <IconPhoto size={11} style={{ marginRight: 2 }} />
+                                {totalSlides} {totalSlides === 1 ? "Slide" : "Slides"}
                               </Badge>
                             </Tooltip>
                           )}
@@ -1087,28 +1321,47 @@ export function AyatManagerView({ user }) {
             </Accordion.Item>
           </Accordion>
 
-          {/* 8. Image URLs */}
-          <Divider label="Ayat Card Image URLs" labelPosition="center" my="xs" />
-          <Group grow>
-            <TextInput
-              label="English Card Image URL"
-              placeholder="https://...image.jpg"
-              value={formData.ayat_image_eng_url}
-              onChange={(e) => setFormData((prev) => ({ ...prev, ayat_image_eng_url: e.target.value }))}
-            />
-            <TextInput
-              label="Urdu Card Image URL"
-              placeholder="https://...image.jpg"
-              value={formData.ayat_image_urdu_url}
-              onChange={(e) => setFormData((prev) => ({ ...prev, ayat_image_urdu_url: e.target.value }))}
-            />
-            <TextInput
-              label="Hindi Card Image URL"
-              placeholder="https://...image.jpg"
-              value={formData.ayat_image_hindi_url}
-              onChange={(e) => setFormData((prev) => ({ ...prev, ayat_image_hindi_url: e.target.value }))}
-            />
-          </Group>
+          {/* 8. Slide Images Manager (Multi-Slide Support & Upload) */}
+          <Divider
+            label={
+              <Group gap={6}>
+                <IconPhoto size={16} color="#0d9488" />
+                <Text fw={600} size="sm">Ayat Slide Images (Multi-Slide Support & Upload)</Text>
+              </Group>
+            }
+            labelPosition="center"
+            my="xs"
+          />
+
+          <Tabs defaultValue="eng" variant="outline" radius="md">
+            <Tabs.List grow>
+              <Tabs.Tab value="eng" leftSection={<IconPhoto size={14} />}>
+                English ({(formData.ayat_image_eng_urls || []).length})
+              </Tabs.Tab>
+              <Tabs.Tab value="urdu" leftSection={<IconPhoto size={14} />}>
+                Urdu ({(formData.ayat_image_urdu_urls || []).length})
+              </Tabs.Tab>
+              <Tabs.Tab value="hindi" leftSection={<IconPhoto size={14} />}>
+                Hindi ({(formData.ayat_image_hindi_urls || []).length})
+              </Tabs.Tab>
+              <Tabs.Tab value="general" leftSection={<IconPhoto size={14} />}>
+                General ({(formData.imageUrls || []).length})
+              </Tabs.Tab>
+            </Tabs.List>
+
+            <Tabs.Panel value="eng" pt="xs">
+              {renderImageSection("ayat_image_eng_urls", "English Slides", "blue")}
+            </Tabs.Panel>
+            <Tabs.Panel value="urdu" pt="xs">
+              {renderImageSection("ayat_image_urdu_urls", "Urdu Slides", "teal")}
+            </Tabs.Panel>
+            <Tabs.Panel value="hindi" pt="xs">
+              {renderImageSection("ayat_image_hindi_urls", "Hindi Slides", "orange")}
+            </Tabs.Panel>
+            <Tabs.Panel value="general" pt="xs">
+              {renderImageSection("imageUrls", "General Slides", "gray")}
+            </Tabs.Panel>
+          </Tabs>
 
           {/* Actions */}
           <Group justify="flex-end" mt="md">

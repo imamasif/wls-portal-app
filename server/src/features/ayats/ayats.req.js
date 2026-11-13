@@ -1,5 +1,5 @@
 // server/src/features/ayats/ayats.req.js
-import { normalizeAyatVideos } from "./ayats.res.js";
+import { normalizeAyatVideos, normalizeAyatImages } from "./ayats.res.js";
 
 export class CreateAyatReq {
   constructor(data) {
@@ -32,9 +32,17 @@ export class CreateAyatReq {
 
     this.facebook_url_eng = String(data.facebook_url_eng || "").trim();
     this.facebook_url_urdu = String(data.facebook_url_urdu || "").trim();
-    this.ayat_image_eng_url = String(data.ayat_image_eng_url || "").trim();
-    this.ayat_image_urdu_url = String(data.ayat_image_urdu_url || "").trim();
-    this.ayat_image_hindi_url = String(data.ayat_image_hindi_url || "").trim();
+
+    const imgNorm = normalizeAyatImages(data);
+    this.ayat_image_eng_url = imgNorm.ayat_image_eng_url;
+    this.ayat_image_eng_urls = imgNorm.ayat_image_eng_urls;
+    this.ayat_image_urdu_url = imgNorm.ayat_image_urdu_url;
+    this.ayat_image_urdu_urls = imgNorm.ayat_image_urdu_urls;
+    this.ayat_image_hindi_url = imgNorm.ayat_image_hindi_url;
+    this.ayat_image_hindi_urls = imgNorm.ayat_image_hindi_urls;
+    this.imageUrl = imgNorm.imageUrl;
+    this.imageUrls = imgNorm.imageUrls;
+
     this.createdAt = new Date();
     this.updatedAt = new Date();
   }
@@ -84,9 +92,37 @@ export class UpdateAyatReq {
 
     if (data.facebook_url_eng !== undefined) this.facebook_url_eng = String(data.facebook_url_eng || "").trim();
     if (data.facebook_url_urdu !== undefined) this.facebook_url_urdu = String(data.facebook_url_urdu || "").trim();
-    if (data.ayat_image_eng_url !== undefined) this.ayat_image_eng_url = String(data.ayat_image_eng_url || "").trim();
-    if (data.ayat_image_urdu_url !== undefined) this.ayat_image_urdu_url = String(data.ayat_image_urdu_url || "").trim();
-    if (data.ayat_image_hindi_url !== undefined) this.ayat_image_hindi_url = String(data.ayat_image_hindi_url || "").trim();
+
+    if (
+      data.ayat_image_eng_url !== undefined ||
+      data.ayat_image_eng_urls !== undefined ||
+      data.ayat_image_urdu_url !== undefined ||
+      data.ayat_image_urdu_urls !== undefined ||
+      data.ayat_image_hindi_url !== undefined ||
+      data.ayat_image_hindi_urls !== undefined ||
+      data.imageUrl !== undefined ||
+      data.imageUrls !== undefined ||
+      data.image !== undefined
+    ) {
+      const imgNorm = normalizeAyatImages(data);
+      if (data.ayat_image_eng_url !== undefined || data.ayat_image_eng_urls !== undefined) {
+        this.ayat_image_eng_url = imgNorm.ayat_image_eng_url;
+        this.ayat_image_eng_urls = imgNorm.ayat_image_eng_urls;
+      }
+      if (data.ayat_image_urdu_url !== undefined || data.ayat_image_urdu_urls !== undefined) {
+        this.ayat_image_urdu_url = imgNorm.ayat_image_urdu_url;
+        this.ayat_image_urdu_urls = imgNorm.ayat_image_urdu_urls;
+      }
+      if (data.ayat_image_hindi_url !== undefined || data.ayat_image_hindi_urls !== undefined) {
+        this.ayat_image_hindi_url = imgNorm.ayat_image_hindi_url;
+        this.ayat_image_hindi_urls = imgNorm.ayat_image_hindi_urls;
+      }
+      if (data.imageUrl !== undefined || data.imageUrls !== undefined || data.image !== undefined) {
+        this.imageUrl = imgNorm.imageUrl;
+        this.imageUrls = imgNorm.imageUrls;
+      }
+    }
+
     this.updatedAt = new Date();
   }
 }

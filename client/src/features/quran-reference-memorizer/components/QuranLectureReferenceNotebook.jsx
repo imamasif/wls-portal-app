@@ -31,6 +31,7 @@ import {
   CATEGORY_PALETTES,
   CUTE_REACTIONS,
   SHOW_AYAT_IMAGES,
+  normalizeAyatImageUrls,
   getAyatVideoList,
   parseVerseSearch,
   parseVideoTimestamps,
@@ -620,21 +621,30 @@ export function QuranLectureReferenceNotebook({ user }) {
               video_urls: ayat.video_urls || [],
               video_url_eng: ayat.video_url_eng || ayat.youtube_url_eng || "",
               video_url_urdu: ayat.video_url_urdu || ayat.youtube_url_urdu || "",
-              ayat_image_eng_url: ayat.ayat_image_eng_url || "",
-              ayat_image_urdu_url: ayat.ayat_image_urdu_url || "",
-              ayat_image_hindi_url: ayat.ayat_image_hindi_url || "",
-              imageUrl: ayat.imageUrl || ayat.image_url || ayat.image || "",
+              ayat_image_eng_url: normalizeAyatImageUrls(ayat.ayat_image_eng_url || ayat.ayat_image_eng_urls),
+              ayat_image_urdu_url: normalizeAyatImageUrls(ayat.ayat_image_urdu_url || ayat.ayat_image_urdu_urls),
+              ayat_image_hindi_url: normalizeAyatImageUrls(ayat.ayat_image_hindi_url || ayat.ayat_image_hindi_urls),
+              imageUrl: normalizeAyatImageUrls(
+                ayat.imageUrl || ayat.imageUrls || ayat.image_url || ayat.image || ayat.ayat_image
+              ),
               occurrences: [],
             });
           }
 
           const existing = verseMap.get(key);
-          if (ayat.ayat_image_eng_url && !existing.ayat_image_eng_url) existing.ayat_image_eng_url = ayat.ayat_image_eng_url;
-          if (ayat.ayat_image_urdu_url && !existing.ayat_image_urdu_url) existing.ayat_image_urdu_url = ayat.ayat_image_urdu_url;
-          if (ayat.ayat_image_hindi_url && !existing.ayat_image_hindi_url) existing.ayat_image_hindi_url = ayat.ayat_image_hindi_url;
-          if ((ayat.imageUrl || ayat.image_url || ayat.image) && !existing.imageUrl) {
-            existing.imageUrl = ayat.imageUrl || ayat.image_url || ayat.image;
-          }
+          const addUniqueImgs = (targetArr, src) => {
+            const list = normalizeAyatImageUrls(src);
+            list.forEach((u) => {
+              if (!targetArr.includes(u)) targetArr.push(u);
+            });
+          };
+          addUniqueImgs(existing.ayat_image_eng_url, ayat.ayat_image_eng_url || ayat.ayat_image_eng_urls);
+          addUniqueImgs(existing.ayat_image_urdu_url, ayat.ayat_image_urdu_url || ayat.ayat_image_urdu_urls);
+          addUniqueImgs(existing.ayat_image_hindi_url, ayat.ayat_image_hindi_url || ayat.ayat_image_hindi_urls);
+          addUniqueImgs(
+            existing.imageUrl,
+            ayat.imageUrl || ayat.imageUrls || ayat.image_url || ayat.image || ayat.ayat_image
+          );
           const vList = getAyatVideoList(ayat);
           const lecKey = `${catLang}_${String(cat._id || cat.category_id)}_${String(lec._id || lec.lecture_id)}`;
           const existingOcc = existing.occurrences.find((o) => o.key === lecKey);

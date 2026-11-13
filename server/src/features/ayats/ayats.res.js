@@ -67,6 +67,58 @@ export function normalizeAyatVideos(item = {}) {
   };
 }
 
+export function normalizeImageArray(val) {
+  if (!val) return [];
+  if (Array.isArray(val)) {
+    return Array.from(
+      new Set(
+        val
+          .flatMap((x) =>
+            typeof x === "string" ? x.split(/[,\n\r]+/).map((s) => s.trim()).filter(Boolean) : []
+          )
+      )
+    );
+  }
+  if (typeof val === "string") {
+    return Array.from(
+      new Set(
+        val
+          .split(/[,\n\r]+/)
+          .map((s) => s.trim())
+          .filter(Boolean)
+      )
+    );
+  }
+  return [];
+}
+
+export function normalizeAyatImages(item = {}) {
+  const eng = normalizeImageArray(item.ayat_image_eng_urls || item.ayat_image_eng_url);
+  const urdu = normalizeImageArray(item.ayat_image_urdu_urls || item.ayat_image_urdu_url);
+  const hindi = normalizeImageArray(item.ayat_image_hindi_urls || item.ayat_image_hindi_url);
+  const general = normalizeImageArray(
+    item.imageUrls ||
+      item.imageUrl ||
+      item.image_urls ||
+      item.image_url ||
+      item.image ||
+      item.ayat_image ||
+      item.slide_image ||
+      item.slide_images
+  );
+
+  return {
+    ayat_image_eng_url: eng,
+    ayat_image_eng_urls: eng,
+    ayat_image_urdu_url: urdu,
+    ayat_image_urdu_urls: urdu,
+    ayat_image_hindi_url: hindi,
+    ayat_image_hindi_urls: hindi,
+    imageUrl: general,
+    imageUrls: general,
+  };
+}
+
 export class AyatRes {
   constructor(data) {
     this._id = String(data._id || "");
@@ -112,9 +164,17 @@ export class AyatRes {
 
     this.facebook_url_eng = typeof data.facebook_url_eng === "string" ? data.facebook_url_eng : "";
     this.facebook_url_urdu = typeof data.facebook_url_urdu === "string" ? data.facebook_url_urdu : "";
-    this.ayat_image_eng_url = data.ayat_image_eng_url || "";
-    this.ayat_image_urdu_url = data.ayat_image_urdu_url || "";
-    this.ayat_image_hindi_url = data.ayat_image_hindi_url || "";
+
+    const imgNorm = normalizeAyatImages(data);
+    this.ayat_image_eng_url = imgNorm.ayat_image_eng_url;
+    this.ayat_image_eng_urls = imgNorm.ayat_image_eng_urls;
+    this.ayat_image_urdu_url = imgNorm.ayat_image_urdu_url;
+    this.ayat_image_urdu_urls = imgNorm.ayat_image_urdu_urls;
+    this.ayat_image_hindi_url = imgNorm.ayat_image_hindi_url;
+    this.ayat_image_hindi_urls = imgNorm.ayat_image_hindi_urls;
+    this.imageUrl = imgNorm.imageUrl;
+    this.imageUrls = imgNorm.imageUrls;
+
     this.createdAt = data.createdAt || null;
     this.updatedAt = data.updatedAt || null;
   }

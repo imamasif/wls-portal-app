@@ -108,3 +108,26 @@ export async function fetchQuranVerseFromProxy(surah, ayah) {
   }
   return res.json();
 }
+
+export async function uploadAyatImage(file) {
+  const token = localStorage.getItem("token");
+  const formData = new FormData();
+  formData.append("image", file);
+
+  const headers = {};
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const res = await fetch(`${API_BASE}/ayats/upload-image`, {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to upload image file");
+  }
+  return res.json();
+}

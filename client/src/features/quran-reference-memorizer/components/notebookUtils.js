@@ -33,6 +33,35 @@ export const CUTE_REACTIONS = [
 export const SHOW_AYAT_IMAGES = true;
 
 /**
+ * Normalizes any image value (array, string, comma/newline separated, null)
+ * into a clean array of unique string URLs.
+ */
+export function normalizeAyatImageUrls(val) {
+  if (!val) return [];
+  if (Array.isArray(val)) {
+    return Array.from(
+      new Set(
+        val
+          .flatMap((x) =>
+            typeof x === "string" ? x.split(/[,\n\r]+/).map((s) => s.trim()).filter(Boolean) : []
+          )
+      )
+    );
+  }
+  if (typeof val === "string") {
+    return Array.from(
+      new Set(
+        val
+          .split(/[,\n\r]+/)
+          .map((s) => s.trim())
+          .filter(Boolean)
+      )
+    );
+  }
+  return [];
+}
+
+/**
  * Normalizes all possible video sources on an ayat into a clean array of unique string URLs.
  */
 export function getAyatVideoList(verse) {

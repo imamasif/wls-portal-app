@@ -6,7 +6,7 @@ import {
   LectureModel,
   AyatModel,
 } from "./categoryLectures.model.js";
-import { normalizeAyatVideos } from "../ayats/ayats.res.js";
+import { normalizeAyatVideos, normalizeAyatImages } from "../ayats/ayats.res.js";
 import { normalizePdfUrls } from "./categoryLectures.mapper.js";
 
 const ajv = new Ajv({ allErrors: true, allowUnionTypes: true });
@@ -259,9 +259,11 @@ export class CategoryLecturesUsecase {
 
               const enrichedAyats = ayats.map((a) => {
                 const norm = normalizeAyatVideos(a);
+                const imgNorm = normalizeAyatImages(a);
                 return {
                   ...a,
                   ...norm,
+                  ...imgNorm,
                 };
               });
 

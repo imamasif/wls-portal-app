@@ -1,8 +1,60 @@
 // server/src/features/ayats/ayats.controller.js
 import express from "express";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
 import { AyatsUsecase } from "./ayats.usecase.js";
 
 const router = express.Router();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const slidesUploadDir = path.resolve(__dirname, "../../../../client/public/iipc/slides");
+if (!fs.existsSync(slidesUploadDir)) {
+  fs.mkdirSync(slidesUploadDir, { recursive: true });
+}
+
+const slideStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, slidesUploadDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname) || ".png";
+    const base = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9_-]/g, "_");
+    cb(null, `slide_${Date.now()}_${base}${ext}`);
+  },
+});
+
+const slideUpload = multer({
+  storage: slideStorage,
+  limits: { fileSize: 15 * 1024 * 1024 }, // 15MB
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only image files are allowed."));
+    }
+  },
+});
+
+/**
+ * POST /api/ayats/upload-image
+ * Upload slide image file and return the public URL.
+ */
+router.post("/upload-image", slideUpload.single("image"), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No image file provided." });
+    }
+    const publicUrl = `/iipc/slides/${req.file.filename}`;
+    res.status(200).json({
+      message: "Image uploaded successfully",
+      url: publicUrl,
+      filename: req.file.filename,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 /**
  * GET /api/ayats

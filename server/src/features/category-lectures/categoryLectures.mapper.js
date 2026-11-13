@@ -1,4 +1,4 @@
-import { normalizeAyatVideos } from "../ayats/ayats.res.js";
+import { normalizeAyatVideos, normalizeAyatImages } from "../ayats/ayats.res.js";
 
 export function normalizePdfUrls(l) {
   if (!l) return [];
@@ -110,10 +110,13 @@ export class CategoryMapper {
           total_ayats:
             l.total_ayats || (l.ayat_references ? l.ayat_references.length : 0),
           ayat_references: (l.ayat_references || []).map((a) => {
-            const vNorm = normalizeAyatVideos(a);
+            const rawA = a && a.toObject ? a.toObject() : a;
+            const vNorm = normalizeAyatVideos(rawA);
+            const imgNorm = normalizeAyatImages(rawA);
             return {
-              ...a,
+              ...rawA,
               ...vNorm,
+              ...imgNorm,
             };
           }),
         };
