@@ -29,8 +29,8 @@ export const CUTE_REACTIONS = [
 ];
 
 // PROVISION: Ayat Images display flag
-// Set to true once server populates ayat_image_eng_url, ayat_image_urdu_url, ayat_image_hindi_url
-export const SHOW_AYAT_IMAGES = false;
+// Enabled: if an ayat image is provided, show it beautifully and hide the raw Arabic text
+export const SHOW_AYAT_IMAGES = true;
 
 /**
  * Normalizes all possible video sources on an ayat into a clean array of unique string URLs.

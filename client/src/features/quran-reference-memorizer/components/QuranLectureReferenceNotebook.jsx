@@ -1,4 +1,4 @@
-﻿// client/src/features/quran-reference-memorizer/components/QuranLectureReferenceNotebook.jsx
+// client/src/features/quran-reference-memorizer/components/QuranLectureReferenceNotebook.jsx
 import React, { useState, useEffect, useMemo } from "react";
 import {
   Container,
@@ -620,11 +620,21 @@ export function QuranLectureReferenceNotebook({ user }) {
               video_urls: ayat.video_urls || [],
               video_url_eng: ayat.video_url_eng || ayat.youtube_url_eng || "",
               video_url_urdu: ayat.video_url_urdu || ayat.youtube_url_urdu || "",
+              ayat_image_eng_url: ayat.ayat_image_eng_url || "",
+              ayat_image_urdu_url: ayat.ayat_image_urdu_url || "",
+              ayat_image_hindi_url: ayat.ayat_image_hindi_url || "",
+              imageUrl: ayat.imageUrl || ayat.image_url || ayat.image || "",
               occurrences: [],
             });
           }
 
           const existing = verseMap.get(key);
+          if (ayat.ayat_image_eng_url && !existing.ayat_image_eng_url) existing.ayat_image_eng_url = ayat.ayat_image_eng_url;
+          if (ayat.ayat_image_urdu_url && !existing.ayat_image_urdu_url) existing.ayat_image_urdu_url = ayat.ayat_image_urdu_url;
+          if (ayat.ayat_image_hindi_url && !existing.ayat_image_hindi_url) existing.ayat_image_hindi_url = ayat.ayat_image_hindi_url;
+          if ((ayat.imageUrl || ayat.image_url || ayat.image) && !existing.imageUrl) {
+            existing.imageUrl = ayat.imageUrl || ayat.image_url || ayat.image;
+          }
           const vList = getAyatVideoList(ayat);
           const lecKey = `${catLang}_${String(cat._id || cat.category_id)}_${String(lec._id || lec.lecture_id)}`;
           const existingOcc = existing.occurrences.find((o) => o.key === lecKey);
@@ -1381,6 +1391,7 @@ export function QuranLectureReferenceNotebook({ user }) {
         verseCitationsMap={verseCitationsMap}
         onOpenVideo={handleOpenVideo}
         isDark={isDark}
+        activeLanguage={activeLanguage}
       />
 
       <NotebookCitationsModal
