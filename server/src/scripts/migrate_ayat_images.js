@@ -19,13 +19,13 @@ export const AYAT_IMAGE_TARGETS = [
     surah_number: 53,
     ayat_number: 19,
     images: ["/quran/53/019.png"],
-    engImages: ["/quran/53/019.png", "/iipc/slides/ayat_53_19_20_eng.png"],
+    engImages: ["/quran/53/019.png"],
   },
   {
     surah_number: 53,
     ayat_number: 20,
     images: ["/quran/53/020.png"],
-    engImages: ["/quran/53/020.png", "/iipc/slides/ayat_53_19_20_eng.png"],
+    engImages: ["/quran/53/020.png"],
   },
 ];
 
@@ -51,6 +51,10 @@ export async function runAyatImageMigration(forceUri = null) {
         imageUrls: target.images,
         ayat_image_eng_url: target.engImages,
         ayat_image_eng_urls: target.engImages,
+        ayat_image_urdu_url: [],
+        ayat_image_urdu_urls: [],
+        ayat_image_hindi_url: [],
+        ayat_image_hindi_urls: [],
       },
     };
 
@@ -77,6 +81,10 @@ export async function runAyatImageMigration(forceUri = null) {
             "ayat_references.$[elem].imageUrls": target.images,
             "ayat_references.$[elem].ayat_image_eng_url": target.engImages,
             "ayat_references.$[elem].ayat_image_eng_urls": target.engImages,
+            "ayat_references.$[elem].ayat_image_urdu_url": [],
+            "ayat_references.$[elem].ayat_image_urdu_urls": [],
+            "ayat_references.$[elem].ayat_image_hindi_url": [],
+            "ayat_references.$[elem].ayat_image_hindi_urls": [],
           },
         },
         {

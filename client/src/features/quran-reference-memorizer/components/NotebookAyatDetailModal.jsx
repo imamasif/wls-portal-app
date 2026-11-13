@@ -55,33 +55,99 @@ export function NotebookAyatDetailModal({
   const [isImageLoading, setIsImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
 
+  const surahNum = Number(activeAyatModal?.surah_number);
+  const ayatNum = Number(activeAyatModal?.ayat_number);
+
+  // Helper to ensure an image actually corresponds to this specific surah and ayat
+  const matchesCurrentVerse = (url) => {
+    if (!url || typeof url !== "string") return false;
+    // Check if it's a /quran/{surah}/{ayat}.png format
+    const quranMatch = url.match(/\/quran\/0*(\d+)\/0*(\d+)\./i);
+    if (quranMatch) {
+      const s = Number(quranMatch[1]);
+      const a = Number(quranMatch[2]);
+      return s === surahNum && a === ayatNum;
+    }
+    // Exclude old combined multi-ayat slides (e.g. ayat_53_19_20)
+    if (url.match(/_\d+_\d+_/)) {
+      return false;
+    }
+    return true;
+  };
+
   // Extract all slide image arrays (supporting array of strings, single string, or none/null)
-  const engImages = normalizeAyatImageUrls(
+  const rawEng = normalizeAyatImageUrls(
     activeAyatModal?.ayat_image_eng_url || activeAyatModal?.ayat_image_eng_urls
-  );
-  const urduImages = normalizeAyatImageUrls(
+  ).filter(matchesCurrentVerse);
+  const rawUrdu = normalizeAyatImageUrls(
     activeAyatModal?.ayat_image_urdu_url || activeAyatModal?.ayat_image_urdu_urls
-  );
-  const hindiImages = normalizeAyatImageUrls(
+  ).filter(matchesCurrentVerse);
+  const rawHindi = normalizeAyatImageUrls(
     activeAyatModal?.ayat_image_hindi_url || activeAyatModal?.ayat_image_hindi_urls
-  );
-  const generalImages = normalizeAyatImageUrls(
+  ).filter(matchesCurrentVerse);
+  const rawGeneral = normalizeAyatImageUrls(
     activeAyatModal?.imageUrl ||
       activeAyatModal?.imageUrls ||
       activeAyatModal?.image_url ||
       activeAyatModal?.image ||
       activeAyatModal?.ayat_image
-  );
+  ).filter(matchesCurrentVerse);
+
+  // Dedicated Quran Verse Image (/quran/{surah}/{ayat}.png)
+  const allImages = Array.from(new Set([...rawGeneral, ...rawEng, ...rawUrdu, ...rawHindi]));
+  const quranVerseImages = allImages.filter((u) => u.includes("/quran/"));
+
+  // Slides that are NOT the /quran/ calligraphy image
+  const nonQuranEng = rawEng.filter((u) => !u.includes("/quran/"));
+  const nonQuranUrdu = rawUrdu.filter((u) => !u.includes("/quran/"));
+  const nonQuranHindi = rawHindi.filter((u) => !u.includes("/quran/"));
+  const nonQuranGeneral = rawGeneral.filter((u) => !u.includes("/quran/"));
 
   const imageGroups = [];
-  if (engImages.length > 0)
-    imageGroups.push({ id: "eng", label: `English (${engImages.length})`, images: engImages });
-  if (urduImages.length > 0)
-    imageGroups.push({ id: "urdu", label: `Urdu (${urduImages.length})`, images: urduImages });
-  if (hindiImages.length > 0)
-    imageGroups.push({ id: "hindi", label: `Hindi (${hindiImages.length})`, images: hindiImages });
-  if (generalImages.length > 0)
-    imageGroups.push({ id: "general", label: `General (${generalImages.length})`, images: generalImages });
+  if (quranVerseImages.length > 0) {
+    imageGroups.push({
+      id: "quran",
+      label: `Ayat Image (${quranVerseImages.length})`,
+      images: quranVerseImages,
+    });
+  }
+  if (nonQuranEng.length > 0) {
+    imageGroups.push({
+      id: "eng",
+      label: `English Slides (${nonQuranEng.length})`,
+      images: nonQuranEng,
+    });
+  }
+  if (nonQuranUrdu.length > 0) {
+    imageGroups.push({
+      id: "urdu",
+      label: `Urdu Slides (${nonQuranUrdu.length})`,
+      images: nonQuranUrdu,
+    });
+  }
+  if (nonQuranHindi.length > 0) {
+    imageGroups.push({
+      id: "hindi",
+      label: `Hindi Slides (${nonQuranHindi.length})`,
+      images: nonQuranHindi,
+    });
+  }
+  if (nonQuranGeneral.length > 0) {
+    imageGroups.push({
+      id: "general",
+      label: `Slides (${nonQuranGeneral.length})`,
+      images: nonQuranGeneral,
+    });
+  }
+
+  // Fallback
+  if (imageGroups.length === 0 && allImages.length > 0) {
+    imageGroups.push({
+      id: "general",
+      label: `Image (${allImages.length})`,
+      images: allImages,
+    });
+  }
 
   const hasAyatImage = imageGroups.length > 0;
 
@@ -94,20 +160,22 @@ export function NotebookAyatDetailModal({
       return;
     }
 
-    // Default image language preference based on current notebook language
+    // Default image preference: prioritize Quran verse calligraphy image if present
     const isUrduContext = (activeLanguage || "").toLowerCase().includes("urdu");
-    if (isUrduContext && urduImages.length > 0) {
+    if (quranVerseImages.length > 0) {
+      setActiveImageGroup("quran");
+    } else if (isUrduContext && nonQuranUrdu.length > 0) {
       setActiveImageGroup("urdu");
-    } else if (engImages.length > 0) {
+    } else if (nonQuranEng.length > 0) {
       setActiveImageGroup("eng");
-    } else if (urduImages.length > 0) {
+    } else if (nonQuranUrdu.length > 0) {
       setActiveImageGroup("urdu");
-    } else if (hindiImages.length > 0) {
+    } else if (nonQuranHindi.length > 0) {
       setActiveImageGroup("hindi");
-    } else if (generalImages.length > 0) {
-      setActiveImageGroup("general");
+    } else if (imageGroups[0]) {
+      setActiveImageGroup(imageGroups[0].id);
     } else {
-      setActiveImageGroup("eng");
+      setActiveImageGroup("quran");
     }
 
     setActiveSlideIndex(0);
@@ -125,10 +193,11 @@ export function NotebookAyatDetailModal({
     activeAyatModal,
     activeLanguage,
     hasAyatImage,
-    engImages.length,
-    urduImages.length,
-    hindiImages.length,
-    generalImages.length,
+    quranVerseImages.length,
+    nonQuranEng.length,
+    nonQuranUrdu.length,
+    nonQuranHindi.length,
+    nonQuranGeneral.length,
   ]);
 
   const currentGroup =
@@ -203,7 +272,7 @@ export function NotebookAyatDetailModal({
                 variant="light"
                 leftSection={<ImageIcon size={12} />}
               >
-                Ayat Slide {currentSlideList.length > 1 ? `(${safeSlideIndex + 1}/${currentSlideList.length})` : ""}
+                {currentGroup?.id === "quran" ? "Ayat Calligraphy Image" : "Ayat Slide"} {currentSlideList.length > 1 ? `(${safeSlideIndex + 1}/${currentSlideList.length})` : ""}
               </Badge>
 
               {/* View Switcher: Slide Image vs Arabic Text */}
