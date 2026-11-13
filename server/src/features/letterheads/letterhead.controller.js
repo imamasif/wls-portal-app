@@ -566,6 +566,11 @@ router.post('/vouchers', requireSuperUser, async (req, res) => {
     if (!data.voucherNumber) {
       data.voucherNumber = `VCH-${Date.now().toString().slice(-6)}`;
     }
+    if (data.includeReceiptSnaps !== undefined) {
+      data.includeReceiptSnaps = data.includeReceiptSnaps !== false && data.includeReceiptSnaps !== 'false';
+    } else {
+      data.includeReceiptSnaps = true;
+    }
 
     const voucher = await Voucher.create(data);
 
@@ -616,6 +621,9 @@ router.put('/vouchers/:id', requireSuperUser, async (req, res) => {
     if (!voucher) return res.status(404).json({ error: 'Voucher not found' });
 
     Object.assign(voucher, req.body);
+    if (req.body.includeReceiptSnaps !== undefined) {
+      voucher.includeReceiptSnaps = req.body.includeReceiptSnaps !== false && req.body.includeReceiptSnaps !== 'false';
+    }
 
     const docId = `vch_${Date.now()}_${Math.random().toString(36).substring(7)}`;
     const outputPdfPath = path.join(generatedDir, `${docId}.pdf`);
@@ -707,12 +715,43 @@ router.get('/vouchers/:id/download/pdf', async (req, res) => {
     const safeType = (voucher.type || 'Voucher').toLowerCase();
     const fileName = `${safeType}_${safeNumber}.pdf`;
 
+    const isInline = req.query.inline === 'true' || req.query.preview === 'true';
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Content-Disposition', `${isInline ? 'inline' : 'attachment'}; filename="${fileName}"`);
     return fs.createReadStream(pdfPath).pipe(res);
   } catch (err) {
     console.error('Error downloading voucher PDF:', err);
     return res.status(500).send('Error downloading PDF');
+  }
+});
+
+// 19.5 Preview Voucher PDF (Inline Stream for browser iframe)
+router.get('/vouchers/:id/preview/pdf', async (req, res) => {
+  try {
+    const voucher = await Voucher.findById(req.params.id);
+    if (!voucher) return res.status(404).send('Voucher not found');
+
+    let pdfPath = voucher.pdfLocalPath;
+    if (!pdfPath || !fs.existsSync(pdfPath)) {
+      const docId = `vch_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+      pdfPath = path.join(generatedDir, `${docId}.pdf`);
+      const docxPath = path.join(generatedDir, `${docId}.docx`);
+      await generateVoucherDocument({ voucher, outputPdfPath: pdfPath, outputDocxPath: docxPath });
+      voucher.pdfLocalPath = pdfPath;
+      voucher.docxLocalPath = docxPath;
+      await voucher.save();
+    }
+
+    const safeNumber = (voucher.voucherNumber || 'voucher').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const safeType = (voucher.type || 'Voucher').toLowerCase();
+    const fileName = `${safeType}_${safeNumber}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${fileName}"`);
+    return fs.createReadStream(pdfPath).pipe(res);
+  } catch (err) {
+    console.error('Error previewing voucher PDF:', err);
+    return res.status(500).send('Error previewing PDF');
   }
 });
 

@@ -74,6 +74,10 @@ export const voucherApi = {
     return `${API_BASE}/vouchers/${id}/download/pdf`;
   },
 
+  getPdfPreviewUrl(id) {
+    return `${API_BASE}/vouchers/${id}/preview/pdf`;
+  },
+
   getDocxDownloadUrl(id) {
     return `${API_BASE}/vouchers/${id}/download/docx`;
   },

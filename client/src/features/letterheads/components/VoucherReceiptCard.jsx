@@ -53,6 +53,8 @@ import {
   IconReceipt,
   IconWriting,
   IconSignature,
+  IconPaperclip,
+  IconForms,
 } from '@tabler/icons-react';
 import { voucherApi } from '../api/voucherApi';
 import { scanVoucherFile } from '../utils/voucherFileScanner';
@@ -120,14 +122,19 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
   const [receiptImageUrl, setReceiptImageUrl] = useState(null);
   const [receiptFile, setReceiptFile] = useState(null);
 
+  // Toggle option: save / append snap of provided receipts into the invoice below section after page end
+  const [includeReceiptSnaps, setIncludeReceiptSnaps] = useState(true);
+
   // Receipt image modal preview
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [modalImageSrc, setModalImageSrc] = useState('');
   const [modalImageTitle, setModalImageTitle] = useState('');
 
-  // Generated document links
+  // Generated document links & PDF Preview modal
   const [generatedPdfUrl, setGeneratedPdfUrl] = useState('');
   const [generatedDocxUrl, setGeneratedDocxUrl] = useState('');
+  const [invoicePdfPreviewOpen, setInvoicePdfPreviewOpen] = useState(false);
+  const [invoicePdfPreviewUrl, setInvoicePdfPreviewUrl] = useState('');
 
   // Paste Lines Modal State
   const [pasteModalOpen, setPasteModalOpen] = useState(false);
@@ -323,7 +330,9 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
     setReceiptFiles([]);
     setReceiptImageUrl(null);
     setReceiptFile(null);
+    setIncludeReceiptSnaps(true);
     setGeneratedPdfUrl('');
+    setInvoicePdfPreviewUrl('');
     setGeneratedDocxUrl('');
     setDriveResultLink('');
     setErrorMsg('');
@@ -819,6 +828,7 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
           checkedBy: sigCheckedBy,
           approvedBy: sigApprovedBy,
         },
+        includeReceiptSnaps,
         receiptImageUrl: uploadedUrls[0] || null,
         receiptImageUrls: uploadedUrls,
         receipts: receiptsMeta,
@@ -834,6 +844,7 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
       const saved = result.voucher;
       setVoucherId(saved._id);
       setGeneratedPdfUrl(result.pdfUrl || voucherApi.getPdfDownloadUrl(saved._id));
+      setInvoicePdfPreviewUrl(voucherApi.getPdfPreviewUrl(saved._id));
       setGeneratedDocxUrl(result.docxUrl || voucherApi.getDocxDownloadUrl(saved._id));
 
       setSuccessMsg(`Voucher #${saved.voucherNumber} generated successfully! Ready to download or save to Google Drive.`);
@@ -904,6 +915,7 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
     }
 
     setTermsNotes(vch.termsNotes || '');
+    setIncludeReceiptSnaps(vch.includeReceiptSnaps !== false);
     setReceiptImageUrl(vch.receiptImageUrl || null);
 
     if (vch.signaturesConfig) {
@@ -941,6 +953,7 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
     }
 
     setGeneratedPdfUrl(vch.pdfUrl || voucherApi.getPdfDownloadUrl(vch._id));
+    setInvoicePdfPreviewUrl(voucherApi.getPdfPreviewUrl(vch._id));
     setGeneratedDocxUrl(vch.docxUrl || voucherApi.getDocxDownloadUrl(vch._id));
     if (vch.googleDriveLink) setDriveResultLink(vch.googleDriveLink);
 
@@ -1273,6 +1286,68 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
           </Group>
         </Box>
 
+        {/* TOGGLE OPTION: SAVE / APPEND RECEIPT SNAPS INTO INVOICE AFTER PAGE END */}
+        <Paper
+          mt="md"
+          p="sm"
+          radius="md"
+          withBorder
+          style={{
+            background: includeReceiptSnaps ? '#f0fdf4' : '#f8fafc',
+            borderColor: includeReceiptSnaps ? '#86efac' : '#cbd5e1',
+            boxShadow: includeReceiptSnaps ? '0 1px 3px rgba(22, 163, 74, 0.08)' : 'none',
+            transition: 'all 0.2s ease',
+          }}
+        >
+          <Group justify="space-between" align="center" wrap="wrap">
+            <Group gap="xs" style={{ flex: 1, minWidth: 260 }}>
+              <ThemeIcon
+                size="lg"
+                radius="md"
+                color={includeReceiptSnaps ? 'teal' : 'gray'}
+                variant={includeReceiptSnaps ? 'filled' : 'light'}
+              >
+                <IconReceiptTax size={20} />
+              </ThemeIcon>
+              <div>
+                <Group gap="xs" align="center">
+                  <Text fw={700} size="sm" c={includeReceiptSnaps ? 'teal.9' : 'dark.7'}>
+                    Save Receipt Snaps as Proof into Invoice (After Page End)
+                  </Text>
+                  <Badge
+                    size="sm"
+                    color={includeReceiptSnaps ? 'teal' : 'gray'}
+                    variant={includeReceiptSnaps ? 'filled' : 'outline'}
+                  >
+                    {includeReceiptSnaps ? 'Proof Appendix: ON' : 'Proof Appendix: OFF'}
+                  </Badge>
+                </Group>
+                <Text size="xs" c={includeReceiptSnaps ? 'teal.8' : 'dimmed'}>
+                  {includeReceiptSnaps
+                    ? `High-resolution photo snaps of ${receiptFiles.length > 0 ? `all ${receiptFiles.length} attached receipt(s)` : 'attached receipts'} will be saved as proof pages below the invoice after page end.`
+                    : 'Untoggled: Invoice will be compiled without receipt image attachments (clean compact invoice only, proof snaps omitted).'}
+                </Text>
+              </div>
+            </Group>
+
+            <Switch
+              size="md"
+              color="teal"
+              checked={includeReceiptSnaps}
+              onChange={(e) => setIncludeReceiptSnaps(e.currentTarget.checked)}
+              label={includeReceiptSnaps ? 'Keep Proof Snaps in Invoice' : 'Omit Snaps (Clean Invoice Only)'}
+              styles={{
+                label: {
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  color: includeReceiptSnaps ? '#0f766e' : '#64748b',
+                  cursor: 'pointer',
+                },
+              }}
+            />
+          </Group>
+        </Paper>
+
         {/* ATTACHED RECEIPTS GALLERY */}
         {receiptFiles.length > 0 && (
           <Paper mt="md" p="sm" withBorder radius="md" style={{ background: '#ffffff' }}>
@@ -1436,6 +1511,31 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
           />
         </Grid.Col>
       </Grid>
+
+      {/* SECTION 2 SUB-BAR: RECEIPT SNAPS PROOF ATTACHMENT QUICK TOGGLE */}
+      <Paper p="xs" withBorder radius="md" mb="md" style={{ background: '#f8fafc', borderColor: '#e2e8f0' }}>
+        <Group justify="space-between" align="center" wrap="wrap">
+          <Group gap="xs">
+            <ThemeIcon size="sm" color={includeReceiptSnaps ? "teal" : "gray"} variant="light">
+              <IconPaperclip size={14} />
+            </ThemeIcon>
+            <Text size="xs" fw={700} c="dark.7">
+              Receipt Snaps Proof Appendix (Below Invoice End):
+            </Text>
+            <Badge size="xs" color={includeReceiptSnaps ? "teal" : "gray"} variant={includeReceiptSnaps ? "filled" : "outline"}>
+              {includeReceiptSnaps ? 'Appended to Invoice' : 'Omitted (Invoice Only)'}
+            </Badge>
+          </Group>
+          <Switch
+            size="xs"
+            color="teal"
+            checked={includeReceiptSnaps}
+            onChange={(e) => setIncludeReceiptSnaps(e.currentTarget.checked)}
+            label={includeReceiptSnaps ? 'Proof Snaps Active' : 'Proof Snaps Off'}
+            styles={{ label: { fontSize: '11px', fontWeight: 600, color: includeReceiptSnaps ? '#0f766e' : '#64748b' } }}
+          />
+        </Group>
+      </Paper>
 
       {/* CUSTOM LOGO / BRANDING FILE PICKER & PREVIEW */}
       {letterheadType === 'custom' && (
@@ -2140,6 +2240,31 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
 
       {/* SECTION 6: ACTION CONTROLS */}
       <Paper p="md" withBorder radius="md" mb="xl" style={{ background: '#f0fdf4', borderColor: '#bbf7d0' }}>
+        {/* Toggle strip right above the action controls */}
+        <Group justify="space-between" align="center" mb="sm" wrap="wrap">
+          <Group gap="xs">
+            <ThemeIcon size="sm" color={includeReceiptSnaps ? "teal" : "gray"} variant="light">
+              <IconPaperclip size={14} />
+            </ThemeIcon>
+            <Text size="xs" fw={700} c="teal.9">
+              Receipt Snaps Proof Option:
+            </Text>
+            <Badge size="sm" color={includeReceiptSnaps ? "teal" : "gray"} variant={includeReceiptSnaps ? "filled" : "outline"}>
+              {includeReceiptSnaps ? '✓ Proof Snaps Included (After Page End)' : 'Clean Invoice Only (Snaps Omitted)'}
+            </Badge>
+          </Group>
+          <Switch
+            size="sm"
+            color="teal"
+            checked={includeReceiptSnaps}
+            onChange={(e) => setIncludeReceiptSnaps(e.currentTarget.checked)}
+            label={includeReceiptSnaps ? 'Preserve Proof Snaps in Invoice' : 'Untoggled (Invoice Only)'}
+            styles={{ label: { fontSize: '12px', fontWeight: 600, color: includeReceiptSnaps ? '#0f766e' : '#64748b' } }}
+          />
+        </Group>
+
+        <Divider mb="sm" color="#bbf7d0" />
+
         <Group justify="space-between" align="center" wrap="wrap">
           <Group gap="xs">
             <Button
@@ -2163,18 +2288,33 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
 
           <Group gap="xs" wrap="wrap">
             {generatedPdfUrl && (
-              <Button
-                component="a"
-                href={generatedPdfUrl}
-                download
-                target="_blank"
-                leftSection={<IconDownload size={16} />}
-                variant="light"
-                color="red"
-                size="sm"
-              >
-                Download PDF
-              </Button>
+              <>
+                <Button
+                  onClick={() => {
+                    const previewUrl = invoicePdfPreviewUrl || (voucherId ? voucherApi.getPdfPreviewUrl(voucherId) : `${generatedPdfUrl}?inline=true`);
+                    setInvoicePdfPreviewUrl(previewUrl);
+                    setInvoicePdfPreviewOpen(true);
+                  }}
+                  leftSection={<IconEye size={16} />}
+                  variant="filled"
+                  color="indigo"
+                  size="sm"
+                >
+                  Preview Invoice (PDF)
+                </Button>
+                <Button
+                  component="a"
+                  href={generatedPdfUrl}
+                  download
+                  target="_blank"
+                  leftSection={<IconDownload size={16} />}
+                  variant="light"
+                  color="red"
+                  size="sm"
+                >
+                  Download PDF
+                </Button>
+              </>
             )}
 
             {generatedDocxUrl && (
@@ -2282,7 +2422,10 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
                 filteredVouchers.map((v) => (
                   <Table.Tr key={v._id}>
                     <Table.Td fw={700} c="dark">
-                      {v.voucherNumber}
+                      <div>{v.voucherNumber}</div>
+                      <Badge size="xs" color={v.includeReceiptSnaps !== false ? "teal" : "gray"} variant="light" mt={3}>
+                        {v.includeReceiptSnaps !== false ? 'Proof Snaps' : 'Invoice Only'}
+                      </Badge>
                     </Table.Td>
                     <Table.Td style={{ fontSize: '12px' }}>
                       {v.issueDate ? new Date(v.issueDate).toLocaleDateString() : 'N/A'}
@@ -2324,6 +2467,19 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
                     </Table.Td>
                     <Table.Td style={{ textAlign: 'center' }}>
                       <Group gap={4} justify="center">
+                        <Tooltip label="Preview Invoice PDF">
+                          <ActionIcon
+                            size="sm"
+                            color="indigo"
+                            variant="subtle"
+                            onClick={() => {
+                              setInvoicePdfPreviewUrl(voucherApi.getPdfPreviewUrl(v._id));
+                              setInvoicePdfPreviewOpen(true);
+                            }}
+                          >
+                            <IconEye size={14} />
+                          </ActionIcon>
+                        </Tooltip>
                         <Tooltip label="Download PDF">
                           <ActionIcon
                             component="a"
@@ -2355,7 +2511,7 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
                             variant="subtle"
                             onClick={() => handleEditVoucher(v)}
                           >
-                            <IconEye size={14} />
+                            <IconForms size={14} />
                           </ActionIcon>
                         </Tooltip>
                         <Tooltip label="Delete">
@@ -2487,6 +2643,38 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
             </Button>
           </Group>
         </Stack>
+      </Modal>
+
+      {/* INVOICE PDF DOCUMENT PREVIEW MODAL */}
+      <Modal
+        opened={invoicePdfPreviewOpen}
+        onClose={() => setInvoicePdfPreviewOpen(false)}
+        size="90%"
+        radius="md"
+        title={
+          <Group gap="xs">
+            <ThemeIcon color="red" variant="light" size="sm">
+              <IconFileText size={16} />
+            </ThemeIcon>
+            <Text fw={700} size="sm">Voucher / Invoice — Document Preview</Text>
+            <Badge size="xs" color={includeReceiptSnaps ? "teal" : "gray"} variant="light">
+              {includeReceiptSnaps ? 'Receipt Snaps Included (After Page End)' : 'Clean Invoice Only (Snaps Omitted)'}
+            </Badge>
+          </Group>
+        }
+        styles={{ body: { height: '80vh', padding: 0 } }}
+      >
+        {invoicePdfPreviewUrl ? (
+          <iframe
+            src={invoicePdfPreviewUrl}
+            style={{ width: '100%', height: '100%', border: 'none', borderRadius: '0 0 8px 8px' }}
+            title="Invoice Document Preview"
+          />
+        ) : (
+          <Box p="xl" style={{ textAlign: 'center' }}>
+            <Text c="dimmed">No document generated yet. Click "Save &amp; Generate Voucher" first.</Text>
+          </Box>
+        )}
       </Modal>
 
       {/* SIGNATURE PAD MODAL (DRAW / UPLOAD SIGNATURE) */}

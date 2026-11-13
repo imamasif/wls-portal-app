@@ -93,22 +93,25 @@ export function generateVoucherPdfBuffer({ voucher, letterheadType = 'iipc', ass
     }
   }
 
-  // 2. Supporting receipt images (handles single or multiple receipts)
+  // 2. Supporting receipt images (handles single or multiple receipts, respects includeReceiptSnaps toggle)
+  const shouldIncludeSnaps = voucher.includeReceiptSnaps !== false && voucher.includeReceiptSnaps !== 'false';
   const rawReceiptUrls = [];
-  if (Array.isArray(voucher.receiptImageUrls)) {
-    for (const u of voucher.receiptImageUrls) {
-      if (u && !rawReceiptUrls.includes(u)) rawReceiptUrls.push(u);
-    }
-  }
-  if (Array.isArray(voucher.receipts)) {
-    for (const r of voucher.receipts) {
-      if (r?.url && !rawReceiptUrls.includes(r.url)) {
-        rawReceiptUrls.push(r.url);
+  if (shouldIncludeSnaps) {
+    if (Array.isArray(voucher.receiptImageUrls)) {
+      for (const u of voucher.receiptImageUrls) {
+        if (u && !rawReceiptUrls.includes(u)) rawReceiptUrls.push(u);
       }
     }
-  }
-  if (voucher.receiptImageUrl && !rawReceiptUrls.includes(voucher.receiptImageUrl)) {
-    rawReceiptUrls.push(voucher.receiptImageUrl);
+    if (Array.isArray(voucher.receipts)) {
+      for (const r of voucher.receipts) {
+        if (r?.url && !rawReceiptUrls.includes(r.url)) {
+          rawReceiptUrls.push(r.url);
+        }
+      }
+    }
+    if (voucher.receiptImageUrl && !rawReceiptUrls.includes(voucher.receiptImageUrl)) {
+      rawReceiptUrls.push(voucher.receiptImageUrl);
+    }
   }
 
   const receiptImages = [];
@@ -130,7 +133,14 @@ export function generateVoucherPdfBuffer({ voucher, letterheadType = 'iipc', ass
           }
         }
       } else {
-        const localPath = path.resolve(rUrl.replace(/^\//, ''));
+        let localPath = path.resolve(rUrl.replace(/^\//, ''));
+        if (!fs.existsSync(localPath)) {
+          const uploadsDir = path.resolve('server/uploads');
+          const match = rUrl.match(/\/receipt-file\/([^?#]+)/);
+          const fname = match ? match[1] : path.basename(rUrl);
+          const uploadPath = path.join(uploadsDir, fname);
+          if (fs.existsSync(uploadPath)) localPath = uploadPath;
+        }
         if (fs.existsSync(localPath) && /\.(jpe?g|png)$/i.test(localPath)) {
           rBuf = fs.readFileSync(localPath);
           rDim = getJpegDimensions(rBuf);

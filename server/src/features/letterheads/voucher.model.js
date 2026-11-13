@@ -86,6 +86,9 @@ const voucherSchema = new mongoose.Schema(
       },
     },
 
+    // Option to append/save receipt snaps into invoice below section after page end
+    includeReceiptSnaps: { type: Boolean, default: true },
+
     // Attached receipt image (data URL or uploaded path)
     receiptImageUrl: { type: String, default: null },
     receiptFileName: { type: String, default: null },

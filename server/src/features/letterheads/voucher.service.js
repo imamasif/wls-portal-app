@@ -193,26 +193,29 @@ export async function generateVoucherDocument({ voucher, outputPdfPath, outputDo
     payeeLogoSnippet = `<img src="${resolvedLogoUrl}" style="max-height: 55px; max-width: 200px; object-fit: contain; margin-bottom: 6px; display: block; margin-left: auto;" alt="Logo" />`;
   }
 
-  // Multi-receipt supporting appendix HTML
+  // Multi-receipt supporting appendix HTML (controlled by includeReceiptSnaps toggle)
+  const shouldIncludeSnaps = voucher.includeReceiptSnaps !== false && voucher.includeReceiptSnaps !== 'false';
   const rawReceiptUrls = [];
-  if (Array.isArray(voucher.receiptImageUrls)) {
-    for (const u of voucher.receiptImageUrls) {
-      if (u && !rawReceiptUrls.includes(u)) rawReceiptUrls.push(u);
-    }
-  }
-  if (Array.isArray(voucher.receipts)) {
-    for (const r of voucher.receipts) {
-      if (r?.url && !rawReceiptUrls.includes(r.url)) {
-        rawReceiptUrls.push(r.url);
+  if (shouldIncludeSnaps) {
+    if (Array.isArray(voucher.receiptImageUrls)) {
+      for (const u of voucher.receiptImageUrls) {
+        if (u && !rawReceiptUrls.includes(u)) rawReceiptUrls.push(u);
       }
     }
-  }
-  if (voucher.receiptImageUrl && !rawReceiptUrls.includes(voucher.receiptImageUrl)) {
-    rawReceiptUrls.push(voucher.receiptImageUrl);
+    if (Array.isArray(voucher.receipts)) {
+      for (const r of voucher.receipts) {
+        if (r?.url && !rawReceiptUrls.includes(r.url)) {
+          rawReceiptUrls.push(r.url);
+        }
+      }
+    }
+    if (voucher.receiptImageUrl && !rawReceiptUrls.includes(voucher.receiptImageUrl)) {
+      rawReceiptUrls.push(voucher.receiptImageUrl);
+    }
   }
 
   let receiptAppendixHtml = '';
-  if (rawReceiptUrls.length > 0) {
+  if (shouldIncludeSnaps && rawReceiptUrls.length > 0) {
     receiptAppendixHtml = rawReceiptUrls.map((rUrl, rIdx) => {
       const rawRTitle = (receiptGroups && receiptGroups[rIdx]?.title) || `Receipt ${rIdx + 1}`;
       const cleanRTitle = String(rawRTitle).replace(new RegExp(`^Receipt\\s*${rIdx + 1}:?\\s*`, 'i'), '').trim();
