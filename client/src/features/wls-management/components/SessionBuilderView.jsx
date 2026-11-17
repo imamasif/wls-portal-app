@@ -20,7 +20,9 @@ import {
   Divider,
   List,
   Container,
+  ThemeIcon,
 } from "@mantine/core";
+import { modals } from "@mantine/modals";
 import {
   IconBook,
   IconCalendar,
@@ -34,6 +36,7 @@ import {
   IconTrash,
   IconEye,
   IconCheck,
+  IconAlertCircle,
 } from "@tabler/icons-react";
 import { API_BASE } from "../../../config/constants";
 
@@ -55,6 +58,7 @@ export function SessionBuilderView({
   const [previewSession, setPreviewSession] = useState(null);
   const [managedSessions, setManagedSessions] = useState([]);
   const [banner, setBanner] = useState(null);
+  const [formError, setFormError] = useState("");
 
   const fetchManagedSessions = async () => {
     try {
@@ -176,41 +180,64 @@ export function SessionBuilderView({
     }
   };
 
-  const handleDeleteSession = async (session) => {
+  const handleDeleteSession = (session) => {
     const sId = session.id || session._id;
-    if (
-      !window.confirm(
-        `Are you sure you want to delete "${session.topicName || session.topic}"?`,
-      )
-    )
-      return;
+    const sTopic = session.topicName || session.topic || "this session";
 
-    try {
-      const res = await fetch(`${API_BASE}/wls-sessions/${sId}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        if (
-          activeEditSession &&
-          (activeEditSession.id === sId || activeEditSession._id === sId)
-        ) {
-          resetForm();
+    modals.openConfirmModal({
+      title: (
+        <Group gap="xs">
+          <ThemeIcon color="red" variant="light" size="md" radius="md">
+            <IconTrash size={18} />
+          </ThemeIcon>
+          <Text fw={700} size="md">
+            Delete Session
+          </Text>
+        </Group>
+      ),
+      centered: true,
+      children: (
+        <Stack gap="xs">
+          <Text size="sm">
+            Are you sure you want to delete <b>"{sTopic}"</b>?
+          </Text>
+          <Text size="xs" c="dimmed">
+            This action cannot be undone.
+          </Text>
+        </Stack>
+      ),
+      labels: { confirm: 'Delete Session', cancel: 'Cancel' },
+      confirmProps: { color: 'red' },
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`${API_BASE}/wls-sessions/${sId}`, {
+            method: "DELETE",
+          });
+          if (res.ok) {
+            if (
+              activeEditSession &&
+              (activeEditSession.id === sId || activeEditSession._id === sId)
+            ) {
+              resetForm();
+            }
+            fetchManagedSessions();
+          }
+        } catch (err) {
+          console.error("Failed to delete session:", err);
         }
-        fetchManagedSessions();
-      }
-    } catch (err) {
-      console.error("Failed to delete session:", err);
-    }
+      },
+    });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setFormError("");
     if (!topicName.trim() || !dateTime.trim()) return;
 
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
     if (new Date(dateTime) < startOfToday) {
-      alert("Session date cannot be prior to today's date. Backdated sessions are not allowed.");
+      setFormError("Session date cannot be prior to today's date. Backdated sessions are not allowed.");
       return;
     }
 
@@ -253,11 +280,11 @@ export function SessionBuilderView({
         if (onCreated) onCreated();
       } else {
         const err = await res.json().catch(() => ({}));
-        alert(err.error || err.message || "Failed to save session.");
+        setFormError(err.error || err.message || "Failed to save session.");
       }
     } catch (err) {
       console.error("Error saving session:", err);
-      alert(err.message || "Error saving session.");
+      setFormError(err.message || "Error saving session.");
     } finally {
       setIsSubmitting(false);
     }
@@ -297,6 +324,19 @@ export function SessionBuilderView({
           {banner && (
             <Alert color="green" mb="md" radius="md">
               {banner}
+            </Alert>
+          )}
+
+          {formError && (
+            <Alert
+              color="red"
+              icon={<IconAlertCircle size={16} />}
+              withCloseButton
+              onClose={() => setFormError("")}
+              mb="md"
+              radius="md"
+            >
+              {formError}
             </Alert>
           )}
 

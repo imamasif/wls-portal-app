@@ -13,6 +13,7 @@ import {
   Box,
   SegmentedControl,
   Divider,
+  Alert,
 } from '@mantine/core';
 import {
   IconWriting,
@@ -20,6 +21,7 @@ import {
   IconTrash,
   IconCheck,
   IconArrowBackUp,
+  IconAlertCircle,
 } from '@tabler/icons-react';
 
 export function SignaturePadModal({ opened, onClose, onSaveSignature }) {
@@ -32,6 +34,13 @@ export function SignaturePadModal({ opened, onClose, onSaveSignature }) {
   const [currentStroke, setCurrentStroke] = useState([]);
   const [uploadedImage, setUploadedImage] = useState(null);
   const [uploadedPreview, setUploadedPreview] = useState(null);
+  const [errorMsg, setErrorMsg] = useState('');
+
+  useEffect(() => {
+    if (opened) {
+      setErrorMsg('');
+    }
+  }, [opened]);
 
   useEffect(() => {
     if (opened && activeTab === 'draw') {
@@ -187,10 +196,11 @@ export function SignaturePadModal({ opened, onClose, onSaveSignature }) {
   };
 
   const handleApply = () => {
+    setErrorMsg('');
     if (activeTab === 'draw') {
       const canvas = canvasRef.current;
       if (!canvas || strokes.length === 0) {
-        alert('Please draw your signature before saving.');
+        setErrorMsg('Please draw your signature on the pad before saving.');
         return;
       }
       // Create transparent version for export
@@ -224,7 +234,7 @@ export function SignaturePadModal({ opened, onClose, onSaveSignature }) {
       onClose();
     } else {
       if (!uploadedPreview) {
-        alert('Please select a signature image first.');
+        setErrorMsg('Please select or upload a signature image first.');
         return;
       }
       onSaveSignature({
@@ -249,6 +259,17 @@ export function SignaturePadModal({ opened, onClose, onSaveSignature }) {
       size="lg"
       radius="md"
     >
+      {errorMsg && (
+        <Alert
+          color="red"
+          icon={<IconAlertCircle size={16} />}
+          withCloseButton
+          onClose={() => setErrorMsg('')}
+          mb="md"
+        >
+          {errorMsg}
+        </Alert>
+      )}
       {/* University Styled Modal Tabs */}
       <style>{`
         .signature-modal-tabs {

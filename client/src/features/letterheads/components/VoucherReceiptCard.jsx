@@ -27,6 +27,7 @@ import {
   SimpleGrid,
   Menu,
 } from '@mantine/core';
+import { modals } from '@mantine/modals';
 import { DatePickerInput } from '@mantine/dates';
 import {
   IconReceiptTax,
@@ -41,6 +42,7 @@ import {
   IconPhoto,
   IconCheck,
   IconAlertCircle,
+  IconAlertTriangle,
   IconMailDollar,
   IconExternalLink,
   IconSearch,
@@ -139,6 +141,7 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
   // Paste Lines Modal State
   const [pasteModalOpen, setPasteModalOpen] = useState(false);
   const [pasteText, setPasteText] = useState('');
+  const [pasteError, setPasteError] = useState('');
 
   // Google Drive Modal State
   const [driveModalOpen, setDriveModalOpen] = useState(false);
@@ -416,23 +419,48 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
     });
   };
 
-  // Remove all line items
+  // Remove all line items with Mantine Confirmation Modal
   const handleRemoveAllLines = () => {
     if (items.length > 1 || (items[0] && (items[0].description || items[0].amount > 0))) {
-      if (window.confirm('Are you sure you want to remove all line items?')) {
-        setItems([
-          {
-            id: Date.now(),
-            description: '',
-            quantity: 1,
-            unitPrice: 0,
-            amount: 0,
-            taxable: true,
-            receiptNumber: 1,
-            receiptTitle: 'Receipt 1',
-          },
-        ]);
-      }
+      modals.openConfirmModal({
+        title: (
+          <Group gap="xs">
+            <ThemeIcon color="red" variant="light" size="md" radius="md">
+              <IconTrash size={18} />
+            </ThemeIcon>
+            <Text fw={700} size="md">
+              Remove All Line Items
+            </Text>
+          </Group>
+        ),
+        centered: true,
+        children: (
+          <Stack gap="xs">
+            <Text size="sm">
+              Are you sure you want to remove all <b>{items.length} line item{items.length === 1 ? '' : 's'}</b> from this voucher?
+            </Text>
+            <Text size="xs" c="dimmed">
+              All entered descriptions, quantities, unit prices, and tax settings will be reset.
+            </Text>
+          </Stack>
+        ),
+        labels: { confirm: 'Remove All Lines', cancel: 'Cancel' },
+        confirmProps: { color: 'red' },
+        onConfirm: () => {
+          setItems([
+            {
+              id: Date.now(),
+              description: '',
+              quantity: 1,
+              unitPrice: 0,
+              amount: 0,
+              taxable: true,
+              receiptNumber: 1,
+              receiptTitle: 'Receipt 1',
+            },
+          ]);
+        },
+      });
     }
   };
 
@@ -507,10 +535,11 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
         return [...existing, ...newItems];
       });
       setPasteText('');
+      setPasteError('');
       setPasteModalOpen(false);
       setSuccessMsg(`Imported ${newItems.length} line items successfully!`);
     } else {
-      alert('Could not parse lines. Please format as "Description, Qty, Price" or "Description, Price".');
+      setPasteError('Could not parse lines. Please format each line as "Description, Qty, Price" or "Description, Price".');
     }
   };
 
@@ -678,29 +707,120 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
     }
   };
 
-  // Remove attached receipt
+  // Remove attached receipt with Mantine Dialog
   const handleRemoveReceipt = (receiptIndex) => {
     const target = receiptFiles[receiptIndex];
     if (!target) return;
 
-    const hasItems = items.some((it) => it.receiptNumber === target.receiptNumber);
-    let removeItemsAlso = false;
-    if (hasItems) {
-      removeItemsAlso = window.confirm(
-        `Remove "${target.title}"? Click OK to remove its line items as well, or Cancel to keep the line items.`
-      );
-    }
+    const linkedItemsCount = items.filter((it) => it.receiptNumber === target.receiptNumber).length;
 
-    setReceiptFiles((prev) => prev.filter((_, idx) => idx !== receiptIndex));
+    const doRemove = (removeLinkedItems) => {
+      setReceiptFiles((prev) => prev.filter((_, idx) => idx !== receiptIndex));
 
-    if (removeItemsAlso) {
-      setItems((prev) => {
-        const filtered = prev.filter((it) => it.receiptNumber !== target.receiptNumber);
-        return filtered.length > 0
-          ? filtered
-          : [{ id: Date.now(), description: '', quantity: 1, unitPrice: 0, amount: 0, taxable: true, receiptNumber: 1, receiptTitle: 'Receipt 1' }];
+      if (removeLinkedItems) {
+        setItems((prev) => {
+          const filtered = prev.filter((it) => it.receiptNumber !== target.receiptNumber);
+          return filtered.length > 0
+            ? filtered
+            : [{ id: Date.now(), description: '', quantity: 1, unitPrice: 0, amount: 0, taxable: true, receiptNumber: 1, receiptTitle: 'Receipt 1' }];
+        });
+      }
+    };
+
+    if (linkedItemsCount > 0) {
+      modals.openModal({
+        modalId: 'remove-receipt-modal',
+        title: (
+          <Group gap="xs">
+            <ThemeIcon color="orange" variant="light" size="md" radius="md">
+              <IconAlertTriangle size={18} />
+            </ThemeIcon>
+            <Text fw={700} size="md">
+              Remove Receipt: {target.title || `Receipt ${target.receiptNumber}`}
+            </Text>
+          </Group>
+        ),
+        centered: true,
+        children: (
+          <Stack gap="md">
+            <Text size="sm">
+              This receipt has <b>{linkedItemsCount} line item{linkedItemsCount === 1 ? '' : 's'}</b> linked to it in the expense table below.
+            </Text>
+            <Text size="xs" c="dimmed">
+              Choose whether you would like to also remove its linked line items, or keep the line items in the voucher:
+            </Text>
+            <Stack gap="xs">
+              <Button
+                color="red"
+                variant="filled"
+                leftSection={<IconTrash size={16} />}
+                onClick={() => {
+                  doRemove(true);
+                  modals.close('remove-receipt-modal');
+                }}
+              >
+                Remove Receipt &amp; Delete Linked Items
+              </Button>
+              <Button
+                color="indigo"
+                variant="light"
+                leftSection={<IconFileText size={16} />}
+                onClick={() => {
+                  doRemove(false);
+                  modals.close('remove-receipt-modal');
+                }}
+              >
+                Remove Receipt Only (Keep Line Items)
+              </Button>
+              <Button
+                variant="default"
+                onClick={() => modals.close('remove-receipt-modal')}
+              >
+                Cancel (Do Nothing)
+              </Button>
+            </Stack>
+          </Stack>
+        ),
       });
+    } else {
+      doRemove(false);
     }
+  };
+
+  // Clear all attached receipts with Mantine Dialog
+  const handleClearAllReceipts = () => {
+    if (receiptFiles.length === 0) return;
+    modals.openConfirmModal({
+      title: (
+        <Group gap="xs">
+          <ThemeIcon color="red" variant="light" size="md" radius="md">
+            <IconTrash size={18} />
+          </ThemeIcon>
+          <Text fw={700} size="md">
+            Clear Attached Receipts
+          </Text>
+        </Group>
+      ),
+      centered: true,
+      children: (
+        <Stack gap="xs">
+          <Text size="sm">
+            Are you sure you want to remove all <b>{receiptFiles.length} attached receipt image{receiptFiles.length === 1 ? '' : 's'}</b>?
+          </Text>
+          <Text size="xs" c="dimmed">
+            This will detach the uploaded receipt images from this voucher. Line items in the table will remain untouched.
+          </Text>
+        </Stack>
+      ),
+      labels: { confirm: 'Clear All Receipts', cancel: 'Cancel' },
+      confirmProps: { color: 'red' },
+      onConfirm: () => {
+        setReceiptFiles([]);
+        setReceiptImageUrl(null);
+        setReceiptFile(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      },
+    });
   };
 
   // Custom Logo File Picker Handler
@@ -960,20 +1080,53 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Delete voucher
-  const handleDeleteVoucher = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this voucher?')) return;
-    try {
-      await voucherApi.deleteVoucher(id, userRole);
-      if (voucherId === id) {
-        setVoucherId(null);
-        setGeneratedPdfUrl('');
-        setGeneratedDocxUrl('');
-      }
-      loadVouchers();
-    } catch (err) {
-      alert('Delete failed: ' + (err.message || 'Unknown error'));
-    }
+  // Delete voucher with Mantine Confirmation Dialog
+  const handleDeleteVoucher = (v) => {
+    const vId = v?._id || v?.id || v;
+    const vNum = typeof v === 'object' && v.voucherNumber ? v.voucherNumber : 'this voucher';
+    const vPayee = typeof v === 'object' && v.payee?.name ? ` for ${v.payee.name}` : '';
+    const vAmt = typeof v === 'object' && v.totalAmount ? ` ($${Number(v.totalAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})` : '';
+
+    modals.openConfirmModal({
+      title: (
+        <Group gap="xs">
+          <ThemeIcon color="red" variant="light" size="md" radius="md">
+            <IconTrash size={18} />
+          </ThemeIcon>
+          <Text fw={700} size="md">
+            Delete Voucher
+          </Text>
+        </Group>
+      ),
+      centered: true,
+      children: (
+        <Stack gap="xs">
+          <Text size="sm">
+            Are you sure you want to delete voucher <b>{vNum}</b>{vPayee}{vAmt}?
+          </Text>
+          <Text size="xs" c="dimmed">
+            This action cannot be undone. The voucher record and its generated PDF / Word files will be permanently removed.
+          </Text>
+        </Stack>
+      ),
+      labels: { confirm: 'Delete Voucher', cancel: 'Cancel' },
+      confirmProps: { color: 'red' },
+      onConfirm: async () => {
+        try {
+          await voucherApi.deleteVoucher(vId, userRole);
+          if (voucherId === vId) {
+            setVoucherId(null);
+            setGeneratedPdfUrl('');
+            setInvoicePdfPreviewUrl('');
+            setGeneratedDocxUrl('');
+          }
+          setSuccessMsg(`Voucher ${vNum} deleted successfully.`);
+          loadVouchers();
+        } catch (err) {
+          setErrorMsg('Delete failed: ' + (err.response?.data?.error || err.message || 'Unknown error'));
+        }
+      },
+    });
   };
 
   // Filter vouchers
@@ -1373,12 +1526,7 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
                   variant="subtle"
                   color="red"
                   leftSection={<IconTrash size={12} />}
-                  onClick={() => {
-                    if (window.confirm('Remove all attached receipt images?')) {
-                      setReceiptFiles([]);
-                      setReceiptImageUrl(null);
-                    }
-                  }}
+                  onClick={handleClearAllReceipts}
                 >
                   Clear All Receipts
                 </Button>
@@ -2519,7 +2667,7 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
                             size="sm"
                             color="red"
                             variant="subtle"
-                            onClick={() => handleDeleteVoucher(v._id)}
+                            onClick={() => handleDeleteVoucher(v)}
                           >
                             <IconTrash size={14} />
                           </ActionIcon>
@@ -2564,7 +2712,10 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
       {/* PASTE ITEMS TABLE MODAL */}
       <Modal
         opened={pasteModalOpen}
-        onClose={() => setPasteModalOpen(false)}
+        onClose={() => {
+          setPasteModalOpen(false);
+          setPasteError('');
+        }}
         title={
           <Group gap="xs">
             <IconClipboardCheck size={20} color="#4f46e5" />
@@ -2575,6 +2726,17 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
         size="lg"
       >
         <Stack gap="sm">
+          {pasteError && (
+            <Alert
+              color="red"
+              icon={<IconAlertCircle size={16} />}
+              withCloseButton
+              onClose={() => setPasteError('')}
+            >
+              {pasteError}
+            </Alert>
+          )}
+
           <Text size="xs" c="dimmed">
             Paste rows copied from Excel, Google Sheets, or a text file. Each row can be:
             <br />
@@ -2584,13 +2746,22 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
           <Textarea
             placeholder={`Fence\t1\t1250.00\nDrywall repair\t2\t350.00\nCarpentry trim\t1\t400.00`}
             value={pasteText}
-            onChange={(e) => setPasteText(e.target.value)}
+            onChange={(e) => {
+              setPasteText(e.target.value);
+              if (pasteError) setPasteError('');
+            }}
             minRows={6}
             autosize
           />
 
           <Group justify="flex-end" gap="xs">
-            <Button variant="default" onClick={() => setPasteModalOpen(false)}>
+            <Button
+              variant="default"
+              onClick={() => {
+                setPasteModalOpen(false);
+                setPasteError('');
+              }}
+            >
               Cancel
             </Button>
             <Button color="teal" leftSection={<IconPlus size={16} />} onClick={handleImportPastedLines}>

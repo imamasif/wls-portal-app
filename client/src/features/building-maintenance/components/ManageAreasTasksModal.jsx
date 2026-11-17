@@ -17,6 +17,7 @@ import {
   ThemeIcon,
   Box,
 } from "@mantine/core";
+import { modals } from "@mantine/modals";
 import {
   IconPlus,
   IconEdit,
@@ -152,36 +153,81 @@ export function ManageAreasTasksModal({
     }
   };
 
-  const handleDeleteArea = async (areaName) => {
-    if (!window.confirm(`Are you sure you want to delete Area "${areaName}" and all of its daily tasks?`)) {
-      return;
-    }
-    try {
-      setLoading(true);
-      setError(null);
-      await buildingMaintenanceApi.deleteArea({ area: areaName, reportDate }, userRole);
-      setSuccess(`Area "${areaName}" and its tasks deleted.`);
-      if (onRefresh) onRefresh();
-    } catch (err) {
-      setError(err.response?.data?.error || err.message || "Failed to delete Area");
-    } finally {
-      setLoading(false);
-    }
+  const handleDeleteArea = (areaName) => {
+    modals.openConfirmModal({
+      title: (
+        <Group gap="xs">
+          <ThemeIcon color="red" variant="light" size="md" radius="md">
+            <IconTrash size={18} />
+          </ThemeIcon>
+          <Text fw={700} size="md">
+            Delete Area
+          </Text>
+        </Group>
+      ),
+      centered: true,
+      children: (
+        <Stack gap="xs">
+          <Text size="sm">
+            Are you sure you want to delete Area <b>"{areaName}"</b> and all of its daily tasks?
+          </Text>
+          <Text size="xs" c="dimmed">
+            This will permanently remove the area and its associated tasks from the report.
+          </Text>
+        </Stack>
+      ),
+      labels: { confirm: 'Delete Area', cancel: 'Cancel' },
+      confirmProps: { color: 'red' },
+      onConfirm: async () => {
+        try {
+          setLoading(true);
+          setError(null);
+          await buildingMaintenanceApi.deleteArea({ area: areaName, reportDate }, userRole);
+          setSuccess(`Area "${areaName}" and its tasks deleted.`);
+          if (onRefresh) onRefresh();
+        } catch (err) {
+          setError(err.response?.data?.error || err.message || "Failed to delete Area");
+        } finally {
+          setLoading(false);
+        }
+      },
+    });
   };
 
-  const handleDeleteTask = async (taskId) => {
-    if (!window.confirm("Remove this Daily Task from the checklist?")) return;
-    try {
-      setLoading(true);
-      setError(null);
-      await buildingMaintenanceApi.deleteTask(taskId, reportDate, userRole);
-      setSuccess("Daily Task removed successfully.");
-      if (onRefresh) onRefresh();
-    } catch (err) {
-      setError(err.response?.data?.error || err.message || "Failed to delete Task");
-    } finally {
-      setLoading(false);
-    }
+  const handleDeleteTask = (taskId) => {
+    modals.openConfirmModal({
+      title: (
+        <Group gap="xs">
+          <ThemeIcon color="red" variant="light" size="md" radius="md">
+            <IconTrash size={18} />
+          </ThemeIcon>
+          <Text fw={700} size="md">
+            Remove Task
+          </Text>
+        </Group>
+      ),
+      centered: true,
+      children: (
+        <Text size="sm">
+          Remove this Daily Task from the checklist?
+        </Text>
+      ),
+      labels: { confirm: 'Remove Task', cancel: 'Cancel' },
+      confirmProps: { color: 'red' },
+      onConfirm: async () => {
+        try {
+          setLoading(true);
+          setError(null);
+          await buildingMaintenanceApi.deleteTask(taskId, reportDate, userRole);
+          setSuccess("Daily Task removed successfully.");
+          if (onRefresh) onRefresh();
+        } catch (err) {
+          setError(err.response?.data?.error || err.message || "Failed to delete Task");
+        } finally {
+          setLoading(false);
+        }
+      },
+    });
   };
 
   const handleSaveEditTask = async (taskId) => {

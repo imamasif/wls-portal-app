@@ -13,7 +13,9 @@ import {
   Alert,
   Tabs,
   Badge,
+  ThemeIcon,
 } from "@mantine/core";
+import { modals } from "@mantine/modals";
 import {
   IconPlus,
   IconBrandWhatsapp,
@@ -22,6 +24,7 @@ import {
   IconSparkles,
   IconCoin,
   IconUsers,
+  IconTrash,
 } from "@tabler/icons-react";
 import { iipcEventsApi } from "../api/iipcEventsApi";
 import { ProjectCard } from "./ProjectCard";
@@ -126,23 +129,47 @@ export function IipcEventsSuperUserPanel({ user }) {
   };
 
   // Handle Delete Project
-  const handleDeleteProject = async (proj) => {
-    if (!window.confirm(`Are you sure you want to delete project "${proj.title}" and its pledges?`)) {
-      return;
-    }
-    try {
-      await iipcEventsApi.deleteEvent(proj.id || proj._id);
-      setNotification({
-        type: "success",
-        message: `Project "${proj.title}" removed successfully.`,
-      });
-      await fetchEvents();
-    } catch (err) {
-      setNotification({
-        type: "error",
-        message: err.response?.data?.error || err.message,
-      });
-    }
+  const handleDeleteProject = (proj) => {
+    modals.openConfirmModal({
+      title: (
+        <Group gap="xs">
+          <ThemeIcon color="red" variant="light" size="md" radius="md">
+            <IconTrash size={18} />
+          </ThemeIcon>
+          <Text fw={700} size="md">
+            Delete Project
+          </Text>
+        </Group>
+      ),
+      centered: true,
+      children: (
+        <Stack gap="xs">
+          <Text size="sm">
+            Are you sure you want to delete project <b>"{proj.title}"</b> and all its associated pledges?
+          </Text>
+          <Text size="xs" c="dimmed">
+            This action cannot be undone.
+          </Text>
+        </Stack>
+      ),
+      labels: { confirm: 'Delete Project', cancel: 'Cancel' },
+      confirmProps: { color: 'red' },
+      onConfirm: async () => {
+        try {
+          await iipcEventsApi.deleteEvent(proj.id || proj._id);
+          setNotification({
+            type: "success",
+            message: `Project "${proj.title}" removed successfully.`,
+          });
+          await fetchEvents();
+        } catch (err) {
+          setNotification({
+            type: "error",
+            message: err.response?.data?.error || err.message,
+          });
+        }
+      },
+    });
   };
 
   // Handle Add Pledge on Behalf

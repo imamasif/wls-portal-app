@@ -24,6 +24,7 @@ import {
   SegmentedControl,
   Tabs,
 } from "@mantine/core";
+import { modals } from "@mantine/modals";
 import { DateTimePicker, DatePickerInput } from "@mantine/dates";
 import {
   IconTools,
@@ -327,8 +328,29 @@ export function BuildingMaintenanceView({ user }) {
 
   // Remove row from current date
   const handleRemoveItem = (index) => {
-    if (!window.confirm("Remove this item from the active checklist?")) return;
-    setItems((prev) => prev.filter((_, idx) => idx !== index));
+    modals.openConfirmModal({
+      title: (
+        <Group gap="xs">
+          <ThemeIcon color="red" variant="light" size="md" radius="md">
+            <IconTrash size={18} />
+          </ThemeIcon>
+          <Text fw={700} size="md">
+            Remove Checklist Item
+          </Text>
+        </Group>
+      ),
+      centered: true,
+      children: (
+        <Text size="sm">
+          Are you sure you want to remove this item from the active checklist?
+        </Text>
+      ),
+      labels: { confirm: 'Remove Item', cancel: 'Cancel' },
+      confirmProps: { color: 'red' },
+      onConfirm: () => {
+        setItems((prev) => prev.filter((_, idx) => idx !== index));
+      },
+    });
   };
 
   // Calculate live statistics
