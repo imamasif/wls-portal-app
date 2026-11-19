@@ -62,6 +62,27 @@ import { voucherApi } from '../api/voucherApi';
 import { scanVoucherFile } from '../utils/voucherFileScanner';
 import { SignaturePadModal } from './SignaturePadModal';
 
+// Strict Email Regex validator supporting semicolon- or comma-separated multiple emails
+export const validateEmails = (emailString) => {
+  if (!emailString || !emailString.trim()) {
+    return { isValid: true, error: null };
+  }
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  const parts = emailString.split(/[;,]/).map((e) => e.trim()).filter(Boolean);
+  if (parts.length === 0) {
+    return { isValid: false, error: 'Please enter a valid email address.' };
+  }
+  for (const email of parts) {
+    if (!emailRegex.test(email)) {
+      return {
+        isValid: false,
+        error: `Invalid email address format: "${email}". Must be valid email (e.g. name@domain.com).`,
+      };
+    }
+  }
+  return { isValid: true, error: null };
+};
+
 export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
   // Loading & notification states
   const [loading, setLoading] = useState(false);
@@ -95,7 +116,12 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
   const [payerName, setPayerName] = useState('');
   const [payerCompany, setPayerCompany] = useState('IIPC Canada');
   const [payerAddress, setPayerAddress] = useState('132 main st south, Rockwood ON n0b 2k0');
-  const [payerEmail, setPayerEmail] = useState('info@iipc.ca');
+  const [payerEmail, setPayerEmail] = useState('info@iipccanada.com;accounts@iipccanada.com');
+  const [payerEmailError, setPayerEmailError] = useState('');
+
+  // Per-line item calendar dates & multi-day invoice calculation
+  const [enableItemDates, setEnableItemDates] = useState(false);
+  const [groupByDate, setGroupByDate] = useState(false);
 
   // Line items (Clean starting state)
   const [items, setItems] = useState([
@@ -108,6 +134,7 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
       taxable: true,
       receiptNumber: 1,
       receiptTitle: 'Receipt 1',
+      itemDate: null,
     },
   ]);
 
@@ -373,6 +400,7 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
         taxable: true,
         receiptNumber: currentMaxRcp,
         receiptTitle: `Receipt ${currentMaxRcp}`,
+        itemDate: enableItemDates ? (issueDate || new Date()) : null,
       },
     ]);
   };
@@ -391,6 +419,7 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
           taxable: true,
           receiptNumber: currentMaxRcp,
           receiptTitle: `Receipt ${currentMaxRcp}`,
+          itemDate: enableItemDates ? (issueDate || new Date()) : null,
         });
       }
       return [...prev, ...newRows];
@@ -412,6 +441,7 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
             taxable: true,
             receiptNumber: 1,
             receiptTitle: 'Receipt 1',
+            itemDate: enableItemDates ? (issueDate || new Date()) : null,
           },
         ];
       }
@@ -542,6 +572,43 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
       setPasteError('Could not parse lines. Please format each line as "Description, Qty, Price" or "Description, Price".');
     }
   };
+
+  // Group line items by date dynamically for multi-day calculation / combined invoice
+  const itemDateGroups = useMemo(() => {
+    const groupMap = new Map();
+    const groups = [];
+
+    items.forEach((it, idx) => {
+      let dateKey = 'No Date';
+      let dateLabel = 'Undated Line Items';
+      if (it.itemDate) {
+        try {
+          const d = it.itemDate instanceof Date ? it.itemDate : new Date(it.itemDate);
+          if (!isNaN(d.getTime())) {
+            dateKey = d.toISOString().split('T')[0];
+            dateLabel = d.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+          } else if (typeof it.itemDate === 'string' && it.itemDate.trim()) {
+            dateKey = it.itemDate.trim();
+            dateLabel = it.itemDate.trim();
+          }
+        } catch {
+          dateKey = String(it.itemDate);
+          dateLabel = String(it.itemDate);
+        }
+      }
+
+      if (!groupMap.has(dateKey)) {
+        const grp = { dateKey, dateLabel, items: [], subtotal: 0 };
+        groupMap.set(dateKey, grp);
+        groups.push(grp);
+      }
+      const grp = groupMap.get(dateKey);
+      grp.items.push({ item: it, originalIndex: idx });
+      grp.subtotal += Number(it.amount) || 0;
+    });
+
+    return groups;
+  }, [items]);
 
   // Group line items by receipt dynamically for subtotal breakdown
   const itemReceiptGroups = useMemo(() => {
@@ -924,6 +991,8 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
           address: payerAddress,
           email: payerEmail,
         },
+        enableItemDates,
+        groupByDate,
         items: itemsToSave.map((it) => ({
           description: it.description || 'General Service',
           quantity: Number(it.quantity) || 1,
@@ -932,6 +1001,9 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
           taxable: Boolean(it.taxable),
           receiptNumber: Number(it.receiptNumber) || 1,
           receiptTitle: it.receiptTitle || '',
+          itemDate: it.itemDate
+            ? (it.itemDate instanceof Date ? it.itemDate.toISOString().split('T')[0] : String(it.itemDate).split('T')[0])
+            : '',
         })),
         subtotal,
         taxConfig: {
@@ -980,7 +1052,29 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
   // Google Drive Upload
   const handleUploadToDrive = async () => {
     if (!voucherId) {
-      setErrorMsg('Please click "Save & Generate Voucher" first before saving to Google Drive.');
+      modals.openModal({
+        title: (
+          <Group gap="xs">
+            <ThemeIcon color="orange" variant="light" size="md">
+              <IconAlertTriangle size={18} />
+            </ThemeIcon>
+            <Text fw={700}>Save Voucher First</Text>
+          </Group>
+        ),
+        centered: true,
+        children: (
+          <Stack gap="sm">
+            <Alert color="orange" icon={<IconAlertTriangle size={16} />}>
+              Please click <strong>"Save &amp; Generate Voucher"</strong> first before saving to Google Drive, so the official PDF and Word documents are compiled.
+            </Alert>
+            <Group justify="flex-end">
+              <Button size="xs" variant="default" onClick={() => modals.closeAll()}>
+                Understood
+              </Button>
+            </Group>
+          </Stack>
+        ),
+      });
       return;
     }
     try {
@@ -1022,10 +1116,20 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
     setPayerName(vch.payer?.name || '');
     setPayerCompany(vch.payer?.company || '');
     setPayerAddress(vch.payer?.address || '');
-    setPayerEmail(vch.payer?.email || '');
+    setPayerEmail(vch.payer?.email || 'info@iipccanada.com;accounts@iipccanada.com');
+    setPayerEmailError('');
+
+    setEnableItemDates(Boolean(vch.enableItemDates || (vch.items && vch.items.some((it) => it.itemDate))));
+    setGroupByDate(Boolean(vch.groupByDate));
 
     if (vch.items && vch.items.length > 0) {
-      setItems(vch.items.map((it, idx) => ({ ...it, id: idx + 1 })));
+      setItems(
+        vch.items.map((it, idx) => ({
+          ...it,
+          id: idx + 1,
+          itemDate: it.itemDate ? new Date(it.itemDate) : null,
+        }))
+      );
     }
 
     if (vch.taxConfig) {
@@ -1614,7 +1718,7 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
             label="Letterhead Style"
             description="Institutional branding"
             value={letterheadType}
-            onChange={(val) => setLetterheadType(val || 'iipc')}
+            onChange={handleLetterheadSelect}
             data={[
               { value: 'iipc', label: 'IIPC Canada Letterhead' },
               { value: 'bp', label: 'Blessed Properties (BP)' },
@@ -1915,12 +2019,45 @@ export function VoucherReceiptCard({ userRole = 'SUPER_USER' }) {
                 placeholder="132 main st south, Rockwood ON n0b 2k0"
               />
 
-              <TextInput
-                label="Payer Email"
-                value={payerEmail}
-                onChange={(e) => setPayerEmail(e.target.value)}
-                placeholder="info@iipc.ca"
-              />
+              <Box>
+                <Group justify="space-between" align="center" mb={4} wrap="wrap">
+                  <Text size="xs" fw={700} c="dark.7">
+                    Payer Email (Multiple emails separated by ;)
+                  </Text>
+                  <Group gap={4} wrap="wrap">
+                    <Button
+                      size="compact-xs"
+                      variant={payerEmail === 'info@iipccanada.com;accounts@iipccanada.com' ? 'filled' : 'light'}
+                      color="teal"
+                      onClick={() => {
+                        setPayerEmail('info@iipccanada.com;accounts@iipccanada.com');
+                        setPayerEmailError('');
+                      }}
+                      title="Set to IIPC Canada official email preset"
+                    >
+                      IIPC Canada
+                    </Button>
+                    <Button
+                      size="compact-xs"
+                      variant={payerEmail === 'info@blessedproperties.ca;accounts@blessedproperties.ca;' ? 'filled' : 'light'}
+                      color="blue"
+                      onClick={() => {
+                        setPayerEmail('info@blessedproperties.ca;accounts@blessedproperties.ca;');
+                        setPayerEmailError('');
+                      }}
+                      title="Set to Blessed Properties official email preset"
+                    >
+                      Blessed Properties
+                    </Button>
+                  </Group>
+                </Group>
+                <TextInput
+                  value={payerEmail}
+                  onChange={(e) => handlePayerEmailChange(e.target.value)}
+                  placeholder="info@iipccanada.com;accounts@iipccanada.com"
+                  error={payerEmailError}
+                />
+              </Box>
             </Stack>
           </Paper>
         </Grid.Col>

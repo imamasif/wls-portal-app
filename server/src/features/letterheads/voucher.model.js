@@ -9,6 +9,7 @@ const voucherItemSchema = new mongoose.Schema(
     taxable: { type: Boolean, default: true },
     receiptNumber: { type: Number, default: 1 },
     receiptTitle: { type: String, default: '' },
+    itemDate: { type: String, default: '' },
   },
   { _id: true }
 );
@@ -88,6 +89,8 @@ const voucherSchema = new mongoose.Schema(
 
     // Option to append/save receipt snaps into invoice below section after page end
     includeReceiptSnaps: { type: Boolean, default: true },
+    enableItemDates: { type: Boolean, default: false },
+    groupByDate: { type: Boolean, default: false },
 
     // Attached receipt image (data URL or uploaded path)
     receiptImageUrl: { type: String, default: null },

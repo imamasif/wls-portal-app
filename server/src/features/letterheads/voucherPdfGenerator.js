@@ -346,6 +346,44 @@ export function generateVoucherPdfBuffer({ voucher, letterheadType = 'iipc', ass
 
   const hasMultipleReceipts = receiptGroups.length > 1;
 
+  const isGroupByDate = Boolean(voucher.groupByDate);
+  const isEnableItemDates = Boolean(voucher.enableItemDates);
+
+  // Group items by date for multi-day calculation / combined invoice
+  const dateGroups = [];
+  const dateGroupMap = new Map();
+
+  if (isGroupByDate) {
+    for (const it of items) {
+      let dKey = 'No Date';
+      let dTitle = 'Undated Line Items';
+      if (it.itemDate) {
+        dKey = String(it.itemDate).split('T')[0];
+        try {
+          const dObj = new Date(dKey);
+          if (!isNaN(dObj.getTime())) {
+            dTitle = dObj.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+          } else {
+            dTitle = dKey;
+          }
+        } catch {
+          dTitle = dKey;
+        }
+      }
+      if (!dateGroupMap.has(dKey)) {
+        const newGrp = { key: dKey, title: dTitle, items: [], subtotal: 0 };
+        dateGroupMap.set(dKey, newGrp);
+        dateGroups.push(newGrp);
+      }
+      const grp = dateGroupMap.get(dKey);
+      grp.items.push(it);
+      const itAmt = Number(it.amount) || ((Number(it.quantity) || 1) * (Number(it.unitPrice) || 0));
+      grp.subtotal += itAmt;
+    }
+  }
+
+  const activeGroups = isGroupByDate ? dateGroups : receiptGroups;
+
   // TOP SECTION: Left side Title & Metadata, Right side Payee / Vendor
   const topBlockStartY = curY;
 
@@ -437,9 +475,18 @@ export function generateVoucherPdfBuffer({ voucher, letterheadType = 'iipc', ass
 
   curY -= thH;
 
-  // Table Rows (Grouped by Receipt if multiple)
-  for (const grp of receiptGroups) {
-    if (hasMultipleReceipts) {
+  // Table Rows (Grouped by Date if groupByDate, or by Receipt if multiple)
+  for (const grp of activeGroups) {
+    if (isGroupByDate) {
+      ensureSpace(38);
+      const gH = 18;
+      drawRect(MARGIN_LEFT, curY - gH, USABLE_WIDTH, gH, { r: 0.93, g: 0.98, b: 0.95 }, { r: 0.65, g: 0.88, b: 0.72 }, 1);
+      const displayGroupTitle = `Date: ${grp.title} (${grp.items.length} item${grp.items.length === 1 ? '' : 's'})`;
+      addText(displayGroupTitle, colXDesc + 6, curY - 13, '/F2', 8.5, 0.08, 0.38, 0.22);
+      const grpSubStr = `Daily Subtotal: $${formatCurrency(grp.subtotal)}`;
+      addText(grpSubStr, colXAmt + colWAmt - 85, curY - 13, '/F2', 8.5, 0.08, 0.38, 0.22);
+      curY -= gH;
+    } else if (hasMultipleReceipts) {
       // Ensure space for group banner + at least one item
       ensureSpace(38);
 
@@ -459,7 +506,9 @@ export function generateVoucherPdfBuffer({ voucher, letterheadType = 'iipc', ass
     for (const it of grp.items) {
       const itAmt = Number(it.amount) || ((Number(it.quantity) || 1) * (Number(it.unitPrice) || 0));
       const taxLabel = it.taxable && taxConfig.applyTax ? `${taxConfig.taxType || 'HST'} ${taxRate.toFixed(2)}%` : 'Exempt / 0%';
-      const desc = it.description || 'General Service';
+      const rawDesc = it.description || 'General Service';
+      const dateTag = (isEnableItemDates && it.itemDate) ? `[${String(it.itemDate).split('T')[0]}] ` : '';
+      const desc = `${dateTag}${rawDesc}`;
       const descWrapped = wrapText(desc, 50);
 
       const rowH = Math.max(18, descWrapped.length * 12 + 5);
@@ -485,7 +534,14 @@ export function generateVoucherPdfBuffer({ voucher, letterheadType = 'iipc', ass
       curY -= rowH;
     }
 
-    if (hasMultipleReceipts) {
+    if (isGroupByDate) {
+      ensureSpace(20);
+      const subRowH = 16;
+      drawLine(colXTax, curY - 1, MARGIN_LEFT + USABLE_WIDTH, curY - 1, { r: 0.65, g: 0.88, b: 0.72 }, 1);
+      addText(`Daily Subtotal (${grp.title}):`, colXTax + 10, curY - 12, '/F2', 8, 0.15, 0.35, 0.25);
+      addText(`$${formatCurrency(grp.subtotal)}`, colXAmt + colWAmt - 55, curY - 12, '/F2', 8.5, 0.08, 0.38, 0.22);
+      curY -= (subRowH + 4);
+    } else if (hasMultipleReceipts) {
       // Group subtotal row
       ensureSpace(20);
       const subRowH = 16;
@@ -503,12 +559,27 @@ export function generateVoucherPdfBuffer({ voucher, letterheadType = 'iipc', ass
   // TOTALS SUMMARY BOX (Right Aligned)
   const sumW = 230;
   const sumX = PAGE_WIDTH - MARGIN_RIGHT - sumW;
-  const neededTotalsHeight = hasMultipleReceipts ? (receiptGroups.length * 14 + 100) : 95;
+  const neededTotalsHeight = isGroupByDate
+    ? (dateGroups.length * 14 + 100)
+    : hasMultipleReceipts
+    ? (receiptGroups.length * 14 + 100)
+    : 95;
 
   // Auto page break if totals box cannot fit on current page
   ensureSpace(neededTotalsHeight);
 
-  if (hasMultipleReceipts) {
+  if (isGroupByDate) {
+    for (const grp of dateGroups) {
+      addText(`${grp.title} Subtotal:`, sumX + 8, curY, '/F1', 8.5, 0.20, 0.35, 0.25);
+      addText(`$${formatCurrency(grp.subtotal)}`, sumX + sumW - 60, curY, '/F2', 8.5, 0.08, 0.35, 0.20);
+      curY -= 13;
+    }
+    drawLine(sumX + 8, curY - 2, sumX + sumW - 8, curY - 2, { r: 0.85, g: 0.88, b: 0.92 }, 0.75);
+    curY -= 6;
+    addText('Combined Date Subtotal:', sumX + 8, curY, '/F2', 9, 0.15, 0.20, 0.25);
+    addText(`$${formatCurrency(subtotal)}`, sumX + sumW - 60, curY, '/F2', 9, 0.06, 0.09, 0.16);
+    curY -= 15;
+  } else if (hasMultipleReceipts) {
     for (const grp of receiptGroups) {
       const cleanGroupTitle = String(grp.title || '').replace(new RegExp(`^Receipt\\s*${grp.number}:?\\s*`, 'i'), '').trim();
       addText(`Receipt ${grp.number} Subtotal:`, sumX + 8, curY, '/F1', 8.5, 0.30, 0.35, 0.40);

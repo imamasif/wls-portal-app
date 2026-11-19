@@ -99,9 +99,85 @@ export async function generateVoucherDocument({ voucher, outputPdfPath, outputDo
 
   const hasMultipleReceipts = receiptGroups.length > 1;
 
-  // Build items rows HTML (Grouped by Receipt if multiple)
+  const isGroupByDate = Boolean(voucher.groupByDate);
+  const isEnableItemDates = Boolean(voucher.enableItemDates);
+
+  const dateGroups = [];
+  const dateGroupMap = new Map();
+  if (isGroupByDate) {
+    for (const it of items) {
+      let dKey = 'No Date';
+      let dTitle = 'Undated Line Items';
+      if (it.itemDate) {
+        dKey = String(it.itemDate).split('T')[0];
+        try {
+          const dObj = new Date(dKey);
+          if (!isNaN(dObj.getTime())) {
+            dTitle = dObj.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+          } else {
+            dTitle = dKey;
+          }
+        } catch {
+          dTitle = dKey;
+        }
+      }
+      if (!dateGroupMap.has(dKey)) {
+        const newGrp = { key: dKey, title: dTitle, items: [], subtotal: 0 };
+        dateGroupMap.set(dKey, newGrp);
+        dateGroups.push(newGrp);
+      }
+      const grp = dateGroupMap.get(dKey);
+      grp.items.push(it);
+      const itAmt = Number(it.amount) || ((Number(it.quantity) || 1) * (Number(it.unitPrice) || 0));
+      grp.subtotal += itAmt;
+    }
+  }
+
+  // Build items rows HTML (Grouped by Date if groupByDate, or by Receipt if multiple)
   let itemsRowsHtml = '';
-  if (hasMultipleReceipts) {
+  if (isGroupByDate) {
+    for (const grp of dateGroups) {
+      itemsRowsHtml += `
+        <tr style="background: #f0fdf4; border-top: 2px solid #86efac; border-bottom: 1px solid #86efac;">
+          <td colspan="2" style="padding: 8px 14px; font-weight: 700; color: #166534; font-size: 13px;">
+            &#128197; Date: ${escapeHtml(grp.title)} (${grp.items.length} item${grp.items.length === 1 ? '' : 's'})
+          </td>
+          <td style="padding: 8px 14px; text-align: right; font-weight: 700; color: #166534; font-size: 13px;">
+            Daily Subtotal: ${formatCurrency(grp.subtotal)}
+          </td>
+        </tr>
+      `;
+      for (const it of grp.items) {
+        const itAmt = Number(it.amount) || ((Number(it.quantity) || 1) * (Number(it.unitPrice) || 0));
+        const taxLabel = it.taxable && taxConfig.applyTax ? `${escapeHtml(taxConfig.taxType || 'HST')} ${taxRate.toFixed(2)}%` : 'Exempt / 0%';
+        const dateTag = (isEnableItemDates && it.itemDate) ? `<span style="color: #047857; font-weight: 600; margin-right: 6px;">[${escapeHtml(String(it.itemDate).split('T')[0])}]</span>` : '';
+        itemsRowsHtml += `
+          <tr>
+            <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #1e293b;">
+              ${dateTag}${escapeHtml(it.description)}
+              ${it.quantity && it.quantity > 1 ? `<span style="color: #64748b; font-size: 11.5px; margin-left: 6px;">(Qty: ${it.quantity} &times; ${formatCurrency(it.unitPrice)})</span>` : ''}
+            </td>
+            <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; text-align: center; color: #475569;">
+              ${taxLabel}
+            </td>
+            <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; text-align: right; font-weight: 600; color: #0f172a;">
+              ${formatCurrency(itAmt)}
+            </td>
+          </tr>
+        `;
+      }
+      itemsRowsHtml += `
+        <tr style="background: #f8fafc; border-bottom: 1.5px solid #cbd5e1;">
+          <td colspan="2" style="padding: 6px 14px; text-align: right; font-size: 12px; font-weight: 600; color: #15803d;">
+            Daily Subtotal (${grp.title}):
+          </td>
+          <td style="padding: 6px 14px; text-align: right; font-size: 12.5px; font-weight: 700; color: #15803d;">
+            ${formatCurrency(grp.subtotal)}
+          </td>
+        </tr>
+      `;
+    }
+  } else if (hasMultipleReceipts) {
     for (const grp of receiptGroups) {
       const cleanGroupTitle = String(grp.title || '').replace(new RegExp(`^Receipt\\s*${grp.number}:?\\s*`, 'i'), '').trim();
       const displayGroupTitle = cleanGroupTitle ? `Receipt ${grp.number}: ${cleanGroupTitle}` : `Receipt ${grp.number}`;
@@ -112,24 +188,25 @@ export async function generateVoucherDocument({ voucher, outputPdfPath, outputDo
             &#129534; ${escapeHtml(displayGroupTitle)}
           </td>
           <td style="padding: 8px 14px; text-align: right; font-weight: 700; color: #1e40af; font-size: 13px;">
-            Subtotal: $${formatCurrency(grp.subtotal)}
+            Subtotal: ${formatCurrency(grp.subtotal)}
           </td>
         </tr>
       `;
       for (const it of grp.items) {
         const itAmt = Number(it.amount) || ((Number(it.quantity) || 1) * (Number(it.unitPrice) || 0));
         const taxLabel = it.taxable && taxConfig.applyTax ? `${escapeHtml(taxConfig.taxType || 'HST')} ${taxRate.toFixed(2)}%` : 'Exempt / 0%';
+        const dateTag = (isEnableItemDates && it.itemDate) ? `<span style="color: #047857; font-weight: 600; margin-right: 6px;">[${escapeHtml(String(it.itemDate).split('T')[0])}]</span>` : '';
         itemsRowsHtml += `
           <tr>
             <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #1e293b;">
-              ${escapeHtml(it.description)}
-              ${it.quantity && it.quantity > 1 ? `<span style="color: #64748b; font-size: 11.5px; margin-left: 6px;">(Qty: ${it.quantity} &times; $${formatCurrency(it.unitPrice)})</span>` : ''}
+              ${dateTag}${escapeHtml(it.description)}
+              ${it.quantity && it.quantity > 1 ? `<span style="color: #64748b; font-size: 11.5px; margin-left: 6px;">(Qty: ${it.quantity} &times; ${formatCurrency(it.unitPrice)})</span>` : ''}
             </td>
             <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; text-align: center; color: #475569;">
               ${taxLabel}
             </td>
             <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; text-align: right; font-weight: 600; color: #0f172a;">
-              $${formatCurrency(itAmt)}
+              ${formatCurrency(itAmt)}
             </td>
           </tr>
         `;
@@ -140,7 +217,7 @@ export async function generateVoucherDocument({ voucher, outputPdfPath, outputDo
             Receipt ${grp.number} Subtotal:
           </td>
           <td style="padding: 6px 14px; text-align: right; font-size: 12.5px; font-weight: 700; color: #0f172a;">
-            $${formatCurrency(grp.subtotal)}
+            ${formatCurrency(grp.subtotal)}
           </td>
         </tr>
       `;
@@ -149,17 +226,18 @@ export async function generateVoucherDocument({ voucher, outputPdfPath, outputDo
     itemsRowsHtml = items.map((it) => {
       const itAmt = Number(it.amount) || ((Number(it.quantity) || 1) * (Number(it.unitPrice) || 0));
       const taxLabel = it.taxable && taxConfig.applyTax ? `${escapeHtml(taxConfig.taxType || 'HST')} ${taxRate.toFixed(2)}%` : 'Exempt / 0%';
+      const dateTag = (isEnableItemDates && it.itemDate) ? `<span style="color: #047857; font-weight: 600; margin-right: 6px;">[${escapeHtml(String(it.itemDate).split('T')[0])}]</span>` : '';
       return `
         <tr>
           <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #1e293b;">
-            ${escapeHtml(it.description)}
-            ${it.quantity && it.quantity > 1 ? `<span style="color: #64748b; font-size: 11.5px; margin-left: 6px;">(Qty: ${it.quantity} &times; $${formatCurrency(it.unitPrice)})</span>` : ''}
+            ${dateTag}${escapeHtml(it.description)}
+            ${it.quantity && it.quantity > 1 ? `<span style="color: #64748b; font-size: 11.5px; margin-left: 6px;">(Qty: ${it.quantity} &times; ${formatCurrency(it.unitPrice)})</span>` : ''}
           </td>
           <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; text-align: center; color: #475569;">
             ${taxLabel}
           </td>
           <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; text-align: right; font-weight: 600; color: #0f172a;">
-            $${formatCurrency(itAmt)}
+            ${formatCurrency(itAmt)}
           </td>
         </tr>
       `;
@@ -645,34 +723,50 @@ export async function generateVoucherDocument({ voucher, outputPdfPath, outputDo
   voucherBodyXml += '<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:tblBorders><w:top w:val="single" w:sz="6" w:space="0" w:color="CBD5E1"/><w:bottom w:val="single" w:sz="6" w:space="0" w:color="CBD5E1"/><w:insideH w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/><w:insideV w:val="none"/></w:tblBorders></w:tblPr>';
   voucherBodyXml += '<w:tr><w:tc><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="F1F5F9"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="22"/></w:rPr><w:t>Item / Description</w:t></w:r></w:p></w:tc><w:tc><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="F1F5F9"/></w:tcPr><w:p><w:pPr><w:jc w:val="right"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="22"/></w:rPr><w:t>Net Amount</w:t></w:r></w:p></w:tc></w:tr>';
 
-  if (hasMultipleReceipts) {
+  if (isGroupByDate) {
+    for (const grp of dateGroups) {
+      voucherBodyXml += `<w:tr><w:tc><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="F0FDF4"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="20"/><w:color w:val="166534"/></w:rPr><w:t>Date: ${escapeHtml(grp.title)}</w:t></w:r></w:p></w:tc><w:tc><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="F0FDF4"/></w:tcPr><w:p><w:pPr><w:jc w:val="right"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="20"/><w:color w:val="166534"/></w:rPr><w:t>Daily Subtotal: ${formatCurrency(grp.subtotal)}</w:t></w:r></w:p></w:tc></w:tr>`;
+      for (const it of grp.items) {
+        const itAmt = Number(it.amount) || ((Number(it.quantity) || 1) * (Number(it.unitPrice) || 0));
+        const dateTag = (isEnableItemDates && it.itemDate) ? `[${String(it.itemDate).split('T')[0]}] ` : '';
+        voucherBodyXml += `<w:tr><w:tc><w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:sz w:val="20"/></w:rPr><w:t>${escapeHtml(dateTag + it.description)}</w:t></w:r></w:p></w:tc><w:tc><w:p><w:pPr><w:jc w:val="right"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="20"/></w:rPr><w:t>${formatCurrency(itAmt)}</w:t></w:r></w:p></w:tc></w:tr>`;
+      }
+    }
+  } else if (hasMultipleReceipts) {
     for (const grp of receiptGroups) {
       const cleanGroupTitle = String(grp.title || '').replace(new RegExp(`^Receipt\\s*${grp.number}:?\\s*`, 'i'), '').trim();
       const displayGroupTitle = cleanGroupTitle ? `Receipt ${grp.number}: ${cleanGroupTitle}` : `Receipt ${grp.number}`;
 
-      voucherBodyXml += `<w:tr><w:tc><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="EFF6FF"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="20"/><w:color w:val="1E40AF"/></w:rPr><w:t>${escapeHtml(displayGroupTitle)}</w:t></w:r></w:p></w:tc><w:tc><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="EFF6FF"/></w:tcPr><w:p><w:pPr><w:jc w:val="right"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="20"/><w:color w:val="1E40AF"/></w:rPr><w:t>Subtotal: $${formatCurrency(grp.subtotal)}</w:t></w:r></w:p></w:tc></w:tr>`;
+      voucherBodyXml += `<w:tr><w:tc><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="EFF6FF"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="20"/><w:color w:val="1E40AF"/></w:rPr><w:t>${escapeHtml(displayGroupTitle)}</w:t></w:r></w:p></w:tc><w:tc><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="EFF6FF"/></w:tcPr><w:p><w:pPr><w:jc w:val="right"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="20"/><w:color w:val="1E40AF"/></w:rPr><w:t>Subtotal: ${formatCurrency(grp.subtotal)}</w:t></w:r></w:p></w:tc></w:tr>`;
       for (const it of grp.items) {
         const itAmt = Number(it.amount) || ((Number(it.quantity) || 1) * (Number(it.unitPrice) || 0));
-        voucherBodyXml += `<w:tr><w:tc><w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:sz w:val="20"/></w:rPr><w:t>${escapeHtml(it.description)}</w:t></w:r></w:p></w:tc><w:tc><w:p><w:pPr><w:jc w:val="right"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="20"/></w:rPr><w:t>$${formatCurrency(itAmt)}</w:t></w:r></w:p></w:tc></w:tr>`;
+        const dateTag = (isEnableItemDates && it.itemDate) ? `[${String(it.itemDate).split('T')[0]}] ` : '';
+        voucherBodyXml += `<w:tr><w:tc><w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:sz w:val="20"/></w:rPr><w:t>${escapeHtml(dateTag + it.description)}</w:t></w:r></w:p></w:tc><w:tc><w:p><w:pPr><w:jc w:val="right"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="20"/></w:rPr><w:t>${formatCurrency(itAmt)}</w:t></w:r></w:p></w:tc></w:tr>`;
       }
     }
   } else {
     for (const it of items) {
       const itAmt = Number(it.amount) || ((Number(it.quantity) || 1) * (Number(it.unitPrice) || 0));
-      voucherBodyXml += `<w:tr><w:tc><w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:sz w:val="20"/></w:rPr><w:t>${escapeHtml(it.description)}</w:t></w:r></w:p></w:tc><w:tc><w:p><w:pPr><w:jc w:val="right"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="20"/></w:rPr><w:t>$${formatCurrency(itAmt)}</w:t></w:r></w:p></w:tc></w:tr>`;
+      const dateTag = (isEnableItemDates && it.itemDate) ? `[${String(it.itemDate).split('T')[0]}] ` : '';
+      voucherBodyXml += `<w:tr><w:tc><w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:sz w:val="20"/></w:rPr><w:t>${escapeHtml(dateTag + it.description)}</w:t></w:r></w:p></w:tc><w:tc><w:p><w:pPr><w:jc w:val="right"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="20"/></w:rPr><w:t>${formatCurrency(itAmt)}</w:t></w:r></w:p></w:tc></w:tr>`;
     }
   }
   voucherBodyXml += '</w:tbl>';
 
   // Totals in OpenXML
   let totalsDocxXml = '';
-  if (hasMultipleReceipts) {
-    for (const grp of receiptGroups) {
-      totalsDocxXml += `<w:p><w:pPr><w:jc w:val="right"/><w:spacing w:after="30"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:sz w:val="20"/><w:color w:val="64748B"/></w:rPr><w:t>Receipt ${grp.number} Subtotal: $${formatCurrency(grp.subtotal)}</w:t></w:r></w:p>`;
+  if (isGroupByDate) {
+    for (const grp of dateGroups) {
+      totalsDocxXml += `<w:p><w:pPr><w:jc w:val="right"/><w:spacing w:after="30"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:sz w:val="20"/><w:color w:val="166534"/></w:rPr><w:t>Date ${grp.title} Subtotal: ${formatCurrency(grp.subtotal)}</w:t></w:r></w:p>`;
     }
-    totalsDocxXml += `<w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="60" w:after="40"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="22"/></w:rPr><w:t>Combined Subtotal: $${formatCurrency(subtotal)}</w:t></w:r></w:p>`;
+    totalsDocxXml += `<w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="60" w:after="40"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="22"/></w:rPr><w:t>Combined Subtotal: ${formatCurrency(subtotal)}</w:t></w:r></w:p>`;
+  } else if (hasMultipleReceipts) {
+    for (const grp of receiptGroups) {
+      totalsDocxXml += `<w:p><w:pPr><w:jc w:val="right"/><w:spacing w:after="30"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:sz w:val="20"/><w:color w:val="64748B"/></w:rPr><w:t>Receipt ${grp.number} Subtotal: ${formatCurrency(grp.subtotal)}</w:t></w:r></w:p>`;
+    }
+    totalsDocxXml += `<w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="60" w:after="40"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:b/><w:sz w:val="22"/></w:rPr><w:t>Combined Subtotal: ${formatCurrency(subtotal)}</w:t></w:r></w:p>`;
   } else {
-    totalsDocxXml += `<w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="120" w:after="40"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:sz w:val="22"/></w:rPr><w:t>Total Net: $${formatCurrency(subtotal)}</w:t></w:r></w:p>`;
+    totalsDocxXml += `<w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="120" w:after="40"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI"/><w:sz w:val="22"/></w:rPr><w:t>Total Net: ${formatCurrency(subtotal)}</w:t></w:r></w:p>`;
   }
 
   voucherBodyXml += `
