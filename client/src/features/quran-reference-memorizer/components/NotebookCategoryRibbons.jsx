@@ -1,5 +1,6 @@
 import React from "react";
-import { Box, Group, Text, Badge } from "@mantine/core";
+import { Box, Group, Text, Badge, ActionIcon, Tooltip } from "@mantine/core";
+import { IconRefresh } from "@tabler/icons-react";
 import { CATEGORY_PALETTES, getCategoryIconUrl } from "./notebookUtils";
 import { MediaIconBadge } from "./MediaIconBadge";
 
@@ -8,6 +9,8 @@ export function NotebookCategoryRibbons({
   languageCategories,
   activeCategoryIndex,
   onCategoryChange,
+  onRefresh,
+  isLoading,
   isDark,
 }) {
   return (
@@ -23,6 +26,13 @@ export function NotebookCategoryRibbons({
           overflow-x: visible;
           padding: 16px 6px 16px 16px;
           flex-shrink: 0;
+        }
+        .notebook-category-ribbons::-webkit-scrollbar {
+          width: 5px;
+        }
+        .notebook-category-ribbons::-webkit-scrollbar-thumb {
+          background-color: ${isDark ? "#3f444e" : "#cbd5e1"};
+          border-radius: 4px;
         }
         @media (max-width: 991px) {
           .notebook-category-ribbons {
@@ -60,9 +70,26 @@ export function NotebookCategoryRibbons({
         }}
       >
         <Group justify="space-between" px="xs" mb={2} className="notebook-category-header-group">
-          <Text size="10px" fw={800} c="dimmed" tt="uppercase" style={{ letterSpacing: 1 }}>
-            {activeLanguage.toUpperCase()} CATEGORIES
-          </Text>
+          <Group gap={6} align="center">
+            <Text size="10px" fw={800} c="dimmed" tt="uppercase" style={{ letterSpacing: 1 }}>
+              {activeLanguage.toUpperCase()} CATEGORIES
+            </Text>
+            {onRefresh && (
+              <Tooltip label="Refresh Categories" withArrow position="top">
+                <ActionIcon
+                  size="xs"
+                  variant="subtle"
+                  color="gray"
+                  onClick={onRefresh}
+                  loading={isLoading}
+                  style={{ width: 18, height: 18, minHeight: 18 }}
+                  aria-label="Refresh Categories"
+                >
+                  <IconRefresh size={12} />
+                </ActionIcon>
+              </Tooltip>
+            )}
+          </Group>
           <Badge size="xs" variant="light" color="indigo" style={{ fontSize: 9 }}>
             {languageCategories.length}
           </Badge>

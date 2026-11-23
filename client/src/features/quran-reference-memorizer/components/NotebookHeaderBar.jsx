@@ -11,6 +11,7 @@ import {
   Button,
   TextInput,
   Select,
+  Tooltip,
 } from "@mantine/core";
 import {
   IconBook,
@@ -19,6 +20,7 @@ import {
   IconPrinter,
   IconSearch,
   IconX,
+  IconRefresh,
 } from "@tabler/icons-react";
 import { SURAH_LIST } from "../../../components/common/QuranVersePicker";
 
@@ -41,6 +43,8 @@ export function NotebookHeaderBar({
   onClearFilters,
   viewMode,
   setViewMode,
+  onRefresh,
+  isLoading,
 }) {
   return (
     <>
@@ -107,9 +111,26 @@ export function NotebookHeaderBar({
         <Group justify="space-between" align="flex-end" wrap="wrap" gap="sm">
           {/* Prominent Language Tags */}
           <div>
-            <Text size="11px" fw={700} c="dimmed" mb={4}>
-              SELECT LANGUAGE:
-            </Text>
+            <Group gap={6} align="center" mb={4}>
+              <Text size="11px" fw={700} c="dimmed">
+                SELECT LANGUAGE:
+              </Text>
+              {onRefresh && (
+                <Tooltip label="Refresh Category & Lecture Data" withArrow position="top">
+                  <ActionIcon
+                    size="xs"
+                    variant="subtle"
+                    color="gray"
+                    onClick={onRefresh}
+                    loading={isLoading}
+                    style={{ width: 18, height: 18, minHeight: 18 }}
+                    aria-label="Refresh Data"
+                  >
+                    <IconRefresh size={12} />
+                  </ActionIcon>
+                </Tooltip>
+              )}
+            </Group>
             <Group gap={6} wrap="wrap">
               {[
                 { id: "eng", label: "📘 English", count: metaCategories.filter((c) => (c.language || "eng").toLowerCase() === "eng").length },

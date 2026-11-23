@@ -1,5 +1,5 @@
 // client/src/features/quran-reference-memorizer/components/QuranLectureReferenceNotebook.jsx
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Container,
   Card,
@@ -156,14 +156,12 @@ export function QuranLectureReferenceNotebook({ user }) {
   const [activeActionModal, setActiveActionModal] = useState(null);
   const [actionModalLecture, setActionModalLecture] = useState(null);
 
-  // Fetch Meta Categories on mount
-  useEffect(() => {
-    let isMounted = true;
+  // Fetch Meta Categories on mount or manual refresh
+  const fetchMetadata = useCallback(() => {
     setIsLoading(true);
     fetch(`/api/category-lectures/meta?_t=${Date.now()}`, { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => {
-        if (!isMounted) return;
         if (Array.isArray(data)) {
           // Strictly filter out Hindi categories - only English and Urdu are supported on this page
           const englishAndUrduOnly = data.filter((cat) => {
@@ -192,13 +190,13 @@ export function QuranLectureReferenceNotebook({ user }) {
       })
       .catch((err) => console.error("Error loading categories:", err))
       .finally(() => {
-        if (isMounted) setIsLoading(false);
+        setIsLoading(false);
       });
-
-    return () => {
-      isMounted = false;
-    };
   }, []);
+
+  useEffect(() => {
+    fetchMetadata();
+  }, [fetchMetadata]);
 
   // Filter Categories by selected Language Tag
   const languageCategories = useMemo(() => {
@@ -1239,6 +1237,8 @@ export function QuranLectureReferenceNotebook({ user }) {
 
       {/* Top Header & Filters Bar */}
       <NotebookHeaderBar
+        onRefresh={fetchMetadata}
+        isLoading={isLoading}
         isDark={isDark}
         toggleColorScheme={toggleColorScheme}
         metaCategories={metaCategories}
@@ -1381,6 +1381,8 @@ export function QuranLectureReferenceNotebook({ user }) {
 
               {/* Right Side Ribbons (Categories of Selected Language) */}
               <NotebookCategoryRibbons
+                onRefresh={fetchMetadata}
+                isLoading={isLoading}
                 activeLanguage={activeLanguage}
                 languageCategories={languageCategories}
                 activeCategoryIndex={activeCategoryIndex}
