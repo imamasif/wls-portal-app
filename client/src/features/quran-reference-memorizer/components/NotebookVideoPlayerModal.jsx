@@ -1,4 +1,5 @@
 import React from "react";
+import ReactPlayer from "react-player";
 import {
   Modal,
   Group,
@@ -18,6 +19,7 @@ export function NotebookVideoPlayerModal({
   const url = activeVideoModal?.url || "";
   const isYouTube = url.includes("youtube.com") || url.includes("youtu.be");
   const isIipcTv = url.includes("iipctvstream.com");
+  const isHls = /\.m3u8(\?|$)/i.test(url);
   const isDirectVideo = /\.(mp4|webm|ogg)(\?|$)/i.test(url);
 
   return (
@@ -53,7 +55,25 @@ export function NotebookVideoPlayerModal({
               backgroundColor: "#000",
             }}
           >
-            {isDirectVideo ? (
+            {isHls ? (
+              <ReactPlayer
+                url={url}
+                controls
+                playing
+                width="100%"
+                height="100%"
+                config={{
+                  file: {
+                    forceHLS: true,
+                  },
+                }}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                }}
+              />
+            ) : isDirectVideo ? (
               <video
                 controls
                 src={url}
@@ -84,6 +104,46 @@ export function NotebookVideoPlayerModal({
               />
             )}
           </div>
+
+          {/* If HLS Live Stream, provide helpful status and direct link */}
+          {isHls && (
+            <Paper
+              p="xs"
+              radius="md"
+              mt="sm"
+              style={{
+                background: isDark ? "rgba(16, 185, 129, 0.15)" : "#ecfdf5",
+                border: "1px solid rgba(16, 185, 129, 0.3)",
+              }}
+            >
+              <Group justify="space-between" align="center" wrap="wrap" gap="xs">
+                <div style={{ flex: 1, minWidth: 240 }}>
+                  <Group gap={6}>
+                    <Badge color="teal" size="xs" variant="filled">
+                      LIVE STREAM (HLS)
+                    </Badge>
+                    <Text size="xs" fw={700} c="teal.8">
+                      IIPC Live Broadcast Channel
+                    </Text>
+                  </Group>
+                  <Text size="11px" c="dimmed" mt={2}>
+                    Continuous 24/7 broadcast. If playback does not begin automatically in your browser, click here to open or play the stream URL in VLC or any external media player.
+                  </Text>
+                </div>
+                <Button
+                  component="a"
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  color="teal"
+                  size="xs"
+                  leftSection={<IconExternalLink size={15} />}
+                >
+                  Open Stream Link
+                </Button>
+              </Group>
+            </Paper>
+          )}
 
           {/* If YouTube, provide direct fallback note and button */}
           {isYouTube && (
